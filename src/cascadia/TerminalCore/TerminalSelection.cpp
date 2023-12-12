@@ -344,6 +344,18 @@ void Terminal::SetBlockSelection(const bool isEnabled) noexcept
     _blockSelection = isEnabled;
 }
 
+void Terminal::ToggleMarkers(const bool isEnabled) noexcept
+{
+    if (isEnabled)
+    {
+        _selectionEndpoint = static_cast<SelectionEndpoint>(0);
+    }
+    else
+    {
+        _selectionEndpoint = SelectionEndpoint::End;
+    }
+}
+
 Terminal::SelectionInteractionMode Terminal::SelectionMode() const noexcept
 {
     return _selectionMode;
@@ -625,6 +637,269 @@ Terminal::UpdateSelectionParams Terminal::ConvertKeyEventToUpdateSelectionParams
     return std::nullopt;
 }
 
+void Terminal::InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter)
+{
+    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    _InDelimiter(targetPos, startDelimiter, endDelimiter);
+}
+
+void Terminal::TilChar(WORD vkey, bool isVisual)
+{
+    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    _TilChar(targetPos, vkey, isVisual);
+}
+
+void Terminal::FindChar(WORD vkey, bool isVisual, bool isUpperCase)
+{
+    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    _FindChar(targetPos, vkey, isVisual, isUpperCase);
+}
+
+void Terminal::FindCharBack(WORD vkey, bool isVisual)
+{
+    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    _FindCharBack(targetPos, vkey, isVisual);
+}
+
+void Terminal::TilCharBack(WORD vkey, bool isVisual)
+{
+    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    _TilCharBack(targetPos, vkey, isVisual);
+}
+
+void Terminal::SelectTop(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+
+    UpdateSelection(SelectionDirection::Up, SelectionExpansion::Buffer, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectBottom(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+
+    UpdateSelection(SelectionDirection::Down, SelectionExpansion::Buffer, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectHalfPageUp(bool /*isVisual*/)
+{
+    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+
+    _MoveByHalfViewport(SelectionDirection::Up, targetPos);
+}
+
+void Terminal::SelectHalfPageDown(bool /*isVisual*/)
+{
+    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+
+    _MoveByHalfViewport(SelectionDirection::Down, targetPos);
+}
+
+void Terminal::SelectPageUp(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+    
+    UpdateSelection(SelectionDirection::Up, SelectionExpansion::Viewport, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectPageDown(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+
+    UpdateSelection(SelectionDirection::Down, SelectionExpansion::Viewport, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectCharLeft(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+
+    UpdateSelection(SelectionDirection::Left, SelectionExpansion::Char, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectCharRight(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+
+    UpdateSelection(SelectionDirection::Right, SelectionExpansion::Char, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectDown(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+
+    UpdateSelection(SelectionDirection::Down, SelectionExpansion::Char, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectUp(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+
+    UpdateSelection(SelectionDirection::Up, SelectionExpansion::Char, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectLineRight(bool isVisual)
+{
+    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    auto endPair = _activeBuffer().GetLineEnd(targetPos);
+    _selection->end = endPair;
+    if (isVisual)
+    {
+        _selection->start = targetPos;
+    }
+    else
+    {
+        _selection->start = endPair;
+    }
+}
+
+void Terminal::SelectLineLeft(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+    UpdateSelection(SelectionDirection::Left, SelectionExpansion::Viewport, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectWordLeft(bool isVisual)
+{
+    DWORD mods = 0;
+
+    if (isVisual)
+    {
+        mods = 280;
+    }
+
+    UpdateSelection(SelectionDirection::Left, SelectionExpansion::Word, ControlKeyStates{ mods });
+}
+
+void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
+{
+    auto delimiters = _wordDelimiters;
+    if (isLargeWord)
+    {
+        delimiters = L"";
+    }
+
+    auto start = _activeBuffer().GetStartOfNextWord(_selection->end, delimiters);
+
+    if (start.second)
+    {
+        _selection->end = start.first;
+        if (!isVisual)
+        {
+            _selection->start = _selection->end;
+        }
+    }
+    else
+    {
+        auto startOfNextLine = til::point{ 0, _selection->end.y + 1 };
+        _selection->end = startOfNextLine;
+        if (!isVisual)
+        {
+            _selection->start = _selection->end;
+        }
+    }
+}
+
+void Terminal::SelectWordRight(bool isVisual, bool isLargeWord)
+{
+    auto delimiters = _wordDelimiters;
+    if (isLargeWord)
+    {
+        delimiters = L"";
+    }
+
+    auto endPair = _activeBuffer().GetEndOfWord(_selection->end, delimiters);
+    if (endPair.second)
+    {
+        if (endPair.first == _selection->end)
+        {
+            endPair = _activeBuffer().GetStartOfNextWord(endPair.first, delimiters);
+            if (endPair.second)
+            {
+                endPair = _activeBuffer().GetEndOfWord(endPair.first, delimiters);
+            }
+        }
+
+        if (endPair.second)
+        {
+            _selection->end = endPair.first;
+            if (!isVisual)
+            {
+                _selection->start = _selection->end;
+            }
+        }
+        else
+        {
+            auto startOfNextLine = til::point{ 0, _selection->end.y + 1 };
+            endPair = _activeBuffer().GetEndOfWord(startOfNextLine, delimiters);
+            if (endPair.second)
+            {
+                _selection->end = endPair.first;
+                if (!isVisual)
+                {
+                    _selection->start = _selection->end;
+                }
+            }
+        }
+    }
+}
+
+void Terminal::SelectInWord(bool largeWord, int8_t startPosType, bool stopOnControlChar)
+{
+    auto delimiters = _wordDelimiters;
+    if (largeWord)
+    {
+        delimiters = L"";
+    }
+
+    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    _InWord(targetPos, delimiters, startPosType, stopOnControlChar);
+}
+
 // Method Description:
 // - updates the selection endpoints based on a direction and expansion mode. Primarily used for keyboard selection.
 // Arguments:
@@ -807,6 +1082,158 @@ void Terminal::_MoveByWord(SelectionDirection direction, til::point& pos)
     }
 }
 
+void Terminal::_FindChar(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase)
+{
+    wchar_t keyName[256] = { 0 };
+    int scanCode = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
+    GetKeyNameText(scanCode << 16, keyName, 255);
+    auto charStr = std::wstring(keyName);
+    til::point originalStart = _selection->start;
+    if (!isUpperCase)
+    {
+        charStr[0] = static_cast<wchar_t>(tolower(charStr[0]));
+    }
+
+    auto end = _activeBuffer().GetWordEnd2(til::point{pos.x + 1, pos.y}, charStr, false, true);
+
+    if (!end.second)
+    {
+        return;
+    }
+
+    _selection->end = til::point{ end.first.x + 1, end.first.y };
+    if (isVisual)
+    {
+        _selection->start = originalStart;    
+    }
+    else
+    {
+        _selection->start = _selection->end;
+    }
+}
+
+void Terminal::_TilChar(til::point& pos, WORD vkey, bool isVisual)
+{
+    wchar_t keyName[256] = { 0 };
+    int scanCode = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
+    GetKeyNameText(scanCode << 16, keyName, 255);
+    auto charStr = std::wstring(keyName);
+    til::point originalStart = _selection->start;
+    charStr[0] = static_cast<wchar_t>(tolower(charStr[0]));
+
+    auto end = _activeBuffer().GetWordEnd2(til::point{ pos.x + 2, pos.y }, charStr, false, true);
+
+    if (!end.second)
+    {
+        return;
+    }
+
+    _selection->end = end.first;
+    if (isVisual)
+    {
+        _selection->start = originalStart;
+    }
+    else
+    {
+        _selection->start = _selection->end;
+    }
+}
+
+void Terminal::_FindCharBack(til::point& pos, WORD vkey, bool isVisual)
+{
+    wchar_t keyName[256] = { 0 };
+    int scanCode = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
+    GetKeyNameText(scanCode << 16, keyName, 255);
+    auto charStr = std::wstring(keyName);
+    til::point originalStart = _selection->start;
+    charStr[0] = static_cast<wchar_t>(tolower(charStr[0]));
+
+    auto end = _activeBuffer().GetWordStart2(til::point{ pos.x - 1, pos.y }, charStr);
+
+    if (!end.second)
+    {
+        return;
+    }
+
+    _selection->end = til::point{ end.first.x - 1, end.first.y };
+    if (isVisual)
+    {
+        _selection->start = originalStart;
+    }
+    else
+    {
+        _selection->start = _selection->end;
+    }
+}
+
+void Terminal::_TilCharBack(til::point& pos, WORD vkey, bool isVisual)
+{
+    wchar_t keyName[256] = { 0 };
+    int scanCode = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
+    GetKeyNameText(scanCode << 16, keyName, 255);
+    auto charStr = std::wstring(keyName);
+    til::point originalStart = _selection->start;
+    charStr[0] = static_cast<wchar_t>(tolower(charStr[0]));
+
+    auto end = _activeBuffer().GetWordStart2(til::point{ pos.x, pos.y }, charStr);
+
+    if (!end.second)
+    {
+        return;
+    }
+
+    _selection->end = til::point{ end.first.x - 2, end.first.y };
+    if (isVisual)
+    {
+        _selection->start = originalStart;
+    }
+    else
+    {
+        _selection->start = _selection->end;
+    }
+}
+
+void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter)
+{
+    auto start = _activeBuffer().GetWordStart2(pos, startDelimiter);
+    auto end = _activeBuffer().GetWordEnd2(pos, endDelimiter, false, true);
+
+    if (!start.second || !end.second)
+    {
+        return;
+    }
+
+    _selection->start = start.first;
+    _selection->end = end.first;
+}
+
+void Terminal::_InWord(til::point& pos, std::wstring_view delimiters, int8_t startType, bool stopOnControlChar)
+{
+    auto endPair = _activeBuffer().GetWordEnd2(pos, delimiters, stopOnControlChar, true);
+    if (endPair.first == pos)
+    {
+        _activeBuffer().GetSize().IncrementInBounds(pos);
+        _activeBuffer().GetSize().IncrementInBounds(pos);
+        endPair = _activeBuffer().GetWordEnd2(pos, delimiters, stopOnControlChar, true);
+    }
+    if (endPair.second)
+    {
+        _selection->end = endPair.first;
+        if (startType == 1)
+        {
+            _selection->start = _activeBuffer().GetWordStart(pos, delimiters);
+        }
+        else if (startType == 2)
+        {
+            _selection->start = pos;
+        }
+        else if (startType == 3)
+        {
+            _selection->start = _selection->end;
+        }
+    }
+}
+
 void Terminal::_MoveByViewport(SelectionDirection direction, til::point& pos) noexcept
 {
     const auto bufferSize{ _activeBuffer().GetSize() };
@@ -834,6 +1261,41 @@ void Terminal::_MoveByViewport(SelectionDirection direction, til::point& pos) no
         break;
     }
     }
+}
+
+void Terminal::_MoveByHalfViewport(SelectionDirection direction, til::point& pos) noexcept
+{
+    const auto bufferSize{ _activeBuffer().GetSize() };
+    switch (direction)
+    {
+    case SelectionDirection::Left:
+        pos = { bufferSize.Left(), pos.y };
+        break;
+    case SelectionDirection::Right:
+        pos = { bufferSize.RightInclusive(), pos.y };
+        break;
+    case SelectionDirection::Up:
+    {
+        const auto viewportHeight{ _GetMutableViewport().Height() };
+        const auto newY{ pos.y - (viewportHeight / 2)};
+        pos = newY < bufferSize.Top() ? bufferSize.Origin() : til::point{ pos.x, newY };
+        break;
+    }
+    case SelectionDirection::Down:
+    {
+        const auto viewportHeight{ _GetMutableViewport().Height() };
+        const auto mutableBottom{ _GetMutableViewport().BottomInclusive() };
+        const auto newY{ pos.y + (viewportHeight / 2) };
+        pos = newY > mutableBottom ? til::point{ bufferSize.RightInclusive(), mutableBottom } : til::point{ pos.x, newY };
+        break;
+    }
+    }
+
+    _selection->start = pos;
+    _selection->end = pos;
+    _selection->pivot = pos;
+
+    _ScrollToPoint(pos);
 }
 
 void Terminal::_MoveByBuffer(SelectionDirection direction, til::point& pos) noexcept

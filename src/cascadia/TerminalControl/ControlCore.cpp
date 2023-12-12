@@ -28,6 +28,7 @@ using namespace ::Microsoft::Terminal::Core;
 using namespace winrt::Windows::Graphics::Display;
 using namespace winrt::Windows::System;
 using namespace winrt::Windows::ApplicationModel::DataTransfer;
+using namespace Microsoft::Terminal::Core;
 
 // The minimum delay between updates to the scroll bar's values.
 // The updates are throttled to limit power usage.
@@ -542,10 +543,458 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return _terminal->IsSelectionActive() && ::Microsoft::Terminal::Core::Terminal::IsInputKey(vkey);
     }
 
+    bool ControlCore::TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods)
+    {
+        static const int16_t normalMode = 0;
+        static const int16_t visualMode = 1;
+        static const int16_t searchMode = 2;
+
+        static const int16_t noneAction = 0;
+        static const int16_t yankAction = 1;
+
+        static const int16_t noneMotion = 0;
+        static const int16_t findMotion = 1;
+        static const int16_t tilMotion = 2;
+        static const int16_t inMotion = 3;
+        static const int16_t gMotion = 4;
+        static const int16_t findReverseMotion = 4;
+        static const int16_t tilReverseMotion = 5;
+
+        static int16_t motion;
+        static int16_t mode;
+        static int16_t lastMotion;
+        static int16_t action;
+
+        static bool reverseSearch;
+        static std::wstring searchString;
+
+        static WORD lastVkey = L'\0';
+        static bool lastVkeyUpperCase;
+
+        bool sequenceCompleted = false;
+        bool hideMarkers = false;
+
+        if (vkey == 16)
+        {
+        }
+        else if (mode == searchMode)
+        {
+            if (vkey == VK_RETURN || vkey == VK_ESCAPE)
+            {
+                mode = normalMode;
+            }
+            else
+            {
+                if (vkey == VK_BACK)
+                {
+                    if (!searchString.empty())
+                    {
+                        searchString.pop_back();
+                    }
+                }
+                else
+                {
+                    wchar_t ch[2] = { 0 };
+
+                    BYTE keyboardState[256];
+                    GetKeyboardState(keyboardState);
+
+                    if (ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, ch, 2, 0) == 1)
+                    {
+                    }
+
+                    searchString += ch;
+                }
+
+
+                if (_searcher.ResetIfStale(*GetRenderData(), searchString, reverseSearch, true))
+                {
+                    _searcher.HighlightResults();
+                    _searcher.MoveToCurrentSelection();
+                }
+                else
+                {
+                    _searcher.FindNext();
+                }
+
+                auto current = _searcher.GetCurrent();
+                if (current)
+                {
+                    _terminal->SelectNewRegion(current->start, current->start);
+                    _terminal->ToggleMarkMode();
+                    hideMarkers = true;
+                }
+            }
+        }
+        else if (vkey == 0x38 && mods.IsShiftPressed())
+        {
+            _terminal->SelectInWord(false, 1, true);
+            const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(true);
+            searchString = bufferData.text[0];
+            if (_searcher.ResetIfStale(*GetRenderData(), searchString, false, true))
+            {
+                _searcher.HighlightResults();
+                _searcher.MoveToCurrentSelection();
+            }
+
+            auto current = _searcher.GetCurrent();
+            if (current)
+            {
+                _terminal->SelectNewRegion(current->start, current->start);
+                _terminal->ToggleMarkMode();
+                hideMarkers = false;
+            }
+
+            sequenceCompleted;
+        }
+        else if (vkey == 0xBF)
+        {
+            if (mods.IsShiftPressed())
+            {
+                reverseSearch = true;
+            }
+            else
+            {
+                reverseSearch = false;
+            }
+            mode = searchMode;
+            searchString = L"";
+            hideMarkers = true;
+            _renderer->TriggerSelection();
+        }
+        else if (vkey == L'U' && mods.IsCtrlPressed())
+        {
+            _terminal->SelectHalfPageUp(mode == visualMode);
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'D' && mods.IsCtrlPressed())
+        {
+            _terminal->SelectHalfPageDown(mode == visualMode);
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'G' && mods.IsShiftPressed() && motion == noneMotion)
+        {
+            _terminal->SelectBottom(mode == visualMode || action == yankAction);
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'G' && !mods.IsShiftPressed())
+        {
+            if (motion == gMotion)
+            {
+                _terminal->SelectTop(mode == visualMode || action == yankAction);
+                sequenceCompleted;
+            }
+            else
+            {
+                motion = gMotion;
+            }
+        }
+        else if (vkey == L'N' && motion == noneMotion)
+        {
+            bool goForward = false;
+            if (mods.IsShiftPressed())
+            {
+                goForward = true;
+            }
+            if (_searcher.ResetIfStale(*GetRenderData(), searchString, goForward, true))
+            {
+                _searcher.HighlightResults();
+                _searcher.MoveToCurrentSelection();
+            }
+            else
+            {
+                _searcher.FindNext();
+            }
+
+            auto current = _searcher.GetCurrent();
+            if (current)
+            {
+                _terminal->SelectNewRegion(current->start, current->start);
+                _terminal->ToggleMarkMode();
+            }
+        }
+        else if (vkey == L'I' && (motion == noneMotion))
+        {
+            motion = inMotion;
+        }
+        else if (vkey == L'F' && (motion == noneMotion))
+        {
+            if (mods.IsShiftPressed())
+            {
+                motion = findReverseMotion;
+            }
+            else
+            {
+                if (mods.IsCtrlPressed())
+                {
+                    _terminal->SelectPageDown(mode == visualMode);
+                    sequenceCompleted;
+                }
+                else
+                {
+                    motion = findMotion;
+                }
+            }
+        }
+        else if (vkey == L'T' && (motion == noneMotion))
+        {
+            if (mods.IsShiftPressed())
+            {
+                motion = tilReverseMotion;
+            }
+            {
+                motion = tilMotion;
+            }
+        }
+        else if (vkey == L'Y' && motion == noneMotion)
+        {
+            action = yankAction;
+            if (mods.IsShiftPressed())
+            {
+                _terminal->SelectLineRight(true);
+                sequenceCompleted = true;
+            }
+            if (lastVkey == L'Y')
+            {
+                _terminal->SelectLineLeft(false);
+                _terminal->SelectLineRight(true);
+                sequenceCompleted = true;
+            }
+            else
+            {
+                if (mode == visualMode)
+                {
+                    sequenceCompleted = true;
+                }
+            }
+            lastVkey = vkey;
+            lastVkeyUpperCase = mods.IsShiftPressed();
+        }
+        else if (vkey == L'E' && motion == noneMotion)
+        {
+            _terminal->SelectWordRight(true, mods.IsShiftPressed());
+            //_terminal->SelectInWord(mods.IsShiftPressed(), mode == visualMode || motion == inMotion ? 1 : action == yankAction ? 2 : 3, true);
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'B' && motion == noneMotion)
+        {
+            if (mods.IsCtrlPressed())
+            {
+                _terminal->SelectPageUp(mode == visualMode);
+            }
+            else
+            {
+                _terminal->SelectWordLeft(mode == visualMode);
+                sequenceCompleted = true;
+            }
+        }
+        else if (vkey == 0x34 && mods.IsShiftPressed())
+        {
+            _terminal->SelectLineRight(mode == visualMode || action == yankAction);
+            sequenceCompleted = true;
+        }
+        else if (vkey == 0x36 && mods.IsShiftPressed())
+        {
+            _terminal->SelectLineLeft(mode == visualMode);
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'K' && motion == noneMotion)
+        {
+            _terminal->SelectUp(mode == visualMode);
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'J' && motion == noneMotion)
+        {
+            _terminal->SelectDown(mode == visualMode);
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'L' && motion == noneMotion)
+        {
+            _terminal->SelectCharRight(mode == visualMode);
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'H' && motion == noneMotion)
+        {
+            _terminal->SelectCharLeft(mode == visualMode);
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'W' && (motion == noneMotion || motion == inMotion))
+        {
+            bool largeWord = false;
+            if (mods.IsShiftPressed())
+            {
+                largeWord = true;
+            }
+            if (motion == inMotion)
+            {
+                _terminal->SelectInWord(largeWord, mode == visualMode || motion == inMotion ? 1 : action == yankAction ? 2 : 3, true);
+            }
+            else
+            {
+                if (largeWord)
+                {
+                    _terminal->SelectWordStartRight(mode == visualMode, true);
+                }
+                else
+                {
+                    _terminal->SelectWordStartRight(mode == visualMode, false);
+                }
+            }
+            sequenceCompleted = true;
+        }
+        else if ((vkey == VK_OEM_4 || vkey == VK_OEM_6))
+        {
+            _terminal->InDelimiter(L"[", L"]");
+            sequenceCompleted = true;
+        }
+        else if (vkey == 0xDE && !mods.IsShiftPressed())
+        {
+            _terminal->InDelimiter(L"'", L"'");
+            sequenceCompleted = true;
+        }
+        else if (vkey == 0xDE && mods.IsShiftPressed())
+        {
+            _terminal->InDelimiter(L"\"", L"\"");
+            sequenceCompleted = true;
+        }
+        else if (vkey == 0x39)
+        {
+            _terminal->InDelimiter(L"(", L")");
+            sequenceCompleted;
+        }
+        else if ((vkey == 0xBC || vkey == 0xBE) && mods.IsShiftPressed())
+        {
+            _terminal->InDelimiter(L"<", L">");
+            sequenceCompleted;
+        }
+        else if (vkey == 186 && (lastMotion == findMotion || lastMotion == findReverseMotion || lastMotion == tilMotion || lastMotion == tilReverseMotion))
+        {
+            if (lastMotion == findMotion)
+            {
+                _terminal->FindChar(lastVkey, mode == visualMode, lastVkeyUpperCase);
+            }
+            else if (lastMotion == findReverseMotion)
+            {
+                _terminal->FindCharBack(lastVkey, mode == visualMode);
+            }
+            else if (lastMotion == tilMotion)
+            {
+                _terminal->TilChar(lastVkey, mode == visualMode);
+            }
+            else if (lastMotion == tilReverseMotion)
+            {
+                _terminal->TilCharBack(lastVkey, mode == visualMode);
+            }
+            
+            sequenceCompleted = true;
+        }
+        else if (vkey == 0xBC && (lastMotion == findMotion || lastMotion == findReverseMotion || lastMotion == tilMotion || lastMotion == tilReverseMotion))
+        {
+            if (lastMotion == findMotion)
+            {
+                _terminal->FindCharBack(lastVkey, mode == visualMode);
+            }
+            else if (lastMotion == findReverseMotion)
+            {
+                _terminal->FindChar(lastVkey, mode == visualMode, lastVkeyUpperCase);
+            }
+            else if (lastMotion == tilMotion)
+            {
+                _terminal->TilCharBack(lastVkey, mode == visualMode);
+            }
+            else if (lastMotion == tilReverseMotion)
+            {
+                _terminal->TilChar(lastVkey, mode == visualMode);
+            }
+
+            sequenceCompleted = true;
+        }
+        else if (vkey == L'V' && mode == normalMode && motion == noneMotion)
+        {
+            mode = visualMode;
+        }
+        else if (vkey == VK_ESCAPE)
+        {
+            
+            if (mode == visualMode)
+            {
+                _terminal->SelectCharRight(false);
+                _terminal->SelectCharLeft(false);
+                mode = normalMode;
+                sequenceCompleted = true;
+            }
+            else if (mode == searchMode)
+            {
+                mode = normalMode;
+            }
+            else if (mode == normalMode)
+            {
+                sequenceCompleted = true;
+                return false;
+            }
+        }
+        else if (motion == findMotion || motion == findReverseMotion || motion == tilMotion || motion == tilReverseMotion)
+        {
+            if (motion == findMotion)
+            {
+                _terminal->FindChar(vkey, (mode == visualMode || action == yankAction), mods.IsShiftPressed());
+            }
+            else if (motion == findReverseMotion)
+            {
+                _terminal->FindCharBack(vkey, (mode == visualMode || action == yankAction));
+            }
+            else if (motion == tilMotion)
+            {
+                _terminal->TilChar(vkey, (mode == visualMode || action == yankAction));
+            }
+            else if (motion == tilReverseMotion)
+            {
+                _terminal->TilCharBack(vkey, (mode == visualMode || action == yankAction));
+            }
+            
+            lastVkey = vkey;
+            lastMotion = motion;
+            motion = noneMotion;
+            sequenceCompleted = true;
+        }
+        else
+        {
+            sequenceCompleted = true;
+        }
+        
+        if (sequenceCompleted)
+        {
+            if (action == yankAction)
+            {
+                CopySelectionToClipboard(false, nullptr);
+                _terminal->ClearSelection();
+                _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
+                lastVkey = L'\0';
+                lastVkeyUpperCase = false;
+            }
+            
+            action = noneAction;
+            motion = noneMotion;
+        }
+
+        _renderer->TriggerSelection();
+        _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(hideMarkers));
+
+        return true;
+    }
+
     bool ControlCore::TryMarkModeKeybinding(const WORD vkey,
                                             const ::Microsoft::Terminal::Core::ControlKeyStates mods)
     {
         auto lock = _terminal->LockForWriting();
+
+        if (_terminal->SelectionMode() == ::Terminal::SelectionInteractionMode::Mark)
+        {
+            if (TryVimModeKeyBinding(vkey, mods))
+            {
+                return true;
+            }
+        }
 
         if (_shouldTryUpdateSelection(vkey) && _terminal->SelectionMode() == ::Terminal::SelectionInteractionMode::Mark)
         {

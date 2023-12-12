@@ -1318,6 +1318,32 @@ til::point TextBuffer::GetWordStart(const til::point target, const std::wstring_
     }
 }
 
+std::pair<til::point, bool> TextBuffer::GetWordStart2(const til::point target, const std::wstring_view wordDelimiters) const
+{
+#pragma warning(suppress : 26496)
+    auto copy{ target };
+    const auto bufferSize{ GetSize() };
+    const auto limit{ bufferSize.EndExclusive() };
+    if (target == bufferSize.Origin())
+    {
+        // can't expand left
+        return { {}, false };
+    }
+    else if (target == bufferSize.EndExclusive())
+    {
+        // GH#7664: Treat EndExclusive as EndInclusive so
+        // that it actually points to a space in the buffer
+        copy = bufferSize.BottomRightInclusive();
+    }
+    else if (bufferSize.CompareInBounds(target, limit, true) >= 0)
+    {
+        // if at/past the limit --> clamp to limit
+        copy = bufferSize.BottomRightInclusive();
+    }
+
+    return _GetWordStartForSelection2(copy, wordDelimiters);
+}
+
 // Method Description:
 // - Helper method for GetWordStart(). Get the til::point for the beginning of the word (accessibility definition) you are on
 // Arguments:
@@ -1392,6 +1418,39 @@ til::point TextBuffer::_GetWordStartForSelection(const til::point target, const 
     return result;
 }
 
+std::pair<til::point, bool> TextBuffer::_GetWordStartForSelection2(const til::point target, const std::wstring_view wordDelimiters) const
+{
+    auto result = target;
+    const auto bufferSize = GetSize();
+
+    const auto initialDelimiter = _GetDelimiterClassAt(result, wordDelimiters);
+    bool found = false;
+    // expand left until we hit the left boundary or a different delimiter class
+    while (result.x > bufferSize.Left())
+    {
+        if (_GetDelimiterClassAt(result, wordDelimiters) == DelimiterClass::DelimiterChar)
+        {
+            found = true;
+            break;
+        }
+
+        bufferSize.DecrementInBounds(result);
+    }
+
+    if (!found)
+    {
+        return { {}, false };
+    }
+
+    if (_GetDelimiterClassAt(result, wordDelimiters) != initialDelimiter)
+    {
+        // move off of delimiter
+        bufferSize.IncrementInBounds(result);
+    }
+
+    return { result, true };
+}
+
 // Method Description:
 // - Get the til::point for the beginning of the NEXT word
 // Arguments:
@@ -1431,6 +1490,45 @@ til::point TextBuffer::GetWordEnd(const til::point target, const std::wstring_vi
     {
         return _GetWordEndForSelection(target, wordDelimiters);
     }
+}
+
+til::point TextBuffer::GetLineEnd(const til::point target) const
+{
+    const auto bufferSize{ GetSize() };
+
+    // can't expand right
+    if (target.x == bufferSize.RightInclusive())
+    {
+        return { };
+    }
+
+    auto result = target;
+    til::CoordType lastNonControlChar = 0;
+
+    // expand right until we hit the right boundary or a different delimiter class
+    while (result.x < bufferSize.RightInclusive())
+    {
+        auto classAt = _GetDelimiterClassAt(result, L"");
+        if (classAt != DelimiterClass::ControlChar)
+        {
+            lastNonControlChar = result.x;
+        }
+        bufferSize.IncrementInBounds(result);
+    }
+
+    return til::point{lastNonControlChar, target.y };
+}
+
+std::pair<til::point, bool> TextBuffer::GetWordEnd2(const til::point target, const std::wstring_view wordDelimiters, bool stopOnControlChar, bool stopOnLastNormalChar) const
+{
+    const auto bufferSize{ GetSize() };
+    const auto limit{ bufferSize.EndExclusive() };
+    if (bufferSize.CompareInBounds(target, limit, true) >= 0)
+    {
+        return { {}, false };
+    }
+
+    return _GetWordEndForSelection2(target, wordDelimiters, stopOnControlChar, stopOnLastNormalChar);
 }
 
 // Method Description:
@@ -1517,6 +1615,130 @@ til::point TextBuffer::_GetWordEndForSelection(const til::point target, const st
     }
 
     return result;
+}
+
+std::pair<til::point, bool> TextBuffer::GetStartOfNextWord(const til::point target, const std::wstring_view wordDelimiters) const
+{
+    auto wordEnd = GetEndOfWord(target, wordDelimiters);
+
+    if (!wordEnd.second)
+    {
+        return wordEnd;
+    }
+
+    const auto bufferSize = GetSize();
+
+    // can't expand right
+    if (target.x == bufferSize.RightInclusive())
+    {
+        return { {}, false };
+    }
+
+    auto result = wordEnd.first;
+    bool found = false;
+
+    bufferSize.IncrementInBounds(result);
+
+    // expand right until we hit the right boundary or a different delimiter class
+    while (result.x < bufferSize.RightInclusive())
+    {
+        auto classAt = _GetDelimiterClassAt(result, wordDelimiters);
+        if (classAt != DelimiterClass::ControlChar || classAt == DelimiterClass::DelimiterChar)
+        {
+            found = true;
+            break;
+        }
+
+        bufferSize.IncrementInBounds(result);
+    }
+
+    if (!found)
+    {
+        return { {}, false };
+    }
+
+    return { result, true };
+}
+
+std::pair<til::point, bool> TextBuffer::GetEndOfWord(const til::point target, const std::wstring_view wordDelimiters) const
+{
+    const auto bufferSize = GetSize();
+
+    // can't expand right
+    if (target.x == bufferSize.RightInclusive())
+    {
+        return { {}, false };
+    }
+
+    auto result = target;
+    bool found = false;
+
+    // expand right until we hit the right boundary or a different delimiter class
+    while (result.x < bufferSize.RightInclusive())
+    {
+        bufferSize.IncrementInBounds(result);
+        auto classAt = _GetDelimiterClassAt(result, wordDelimiters);
+        if (classAt == DelimiterClass::ControlChar || classAt == DelimiterClass::DelimiterChar)
+        {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        return { {}, false };
+    }
+
+    bufferSize.DecrementInBounds(result);
+
+    return { result, true };
+}
+
+std::pair<til::point, bool> TextBuffer::_GetWordEndForSelection2(const til::point target, const std::wstring_view wordDelimiters, bool stopOnControlChar, bool stopOnLastNonWhiteSpace) const
+{
+    const auto bufferSize = GetSize();
+
+    // can't expand right
+    if (target.x == bufferSize.RightInclusive())
+    {
+        return { {}, false };
+    }
+
+    auto result = target;
+    const auto initialDelimiter = _GetDelimiterClassAt(result, wordDelimiters);
+    bool found = false;
+    bool normalCharFound = false;
+
+    // expand right until we hit the right boundary or a different delimiter class
+    while (result.x < bufferSize.RightInclusive())
+    {
+        auto classAt = _GetDelimiterClassAt(result, wordDelimiters);
+        if (classAt != DelimiterClass::ControlChar)
+        {
+            normalCharFound = true;
+        }
+        if (classAt == DelimiterClass::DelimiterChar || (classAt == DelimiterClass::ControlChar && stopOnControlChar))
+        {
+            found = true;
+            break;
+        }
+
+        bufferSize.IncrementInBounds(result);
+    }
+
+    if (!found || (!normalCharFound && stopOnLastNonWhiteSpace))
+    {
+        return { {}, false };
+    }
+
+    if (_GetDelimiterClassAt(result, wordDelimiters) != initialDelimiter)
+    {
+        // move off of delimiter
+        bufferSize.DecrementInBounds(result);
+    }
+
+    return {result, true};
 }
 
 void TextBuffer::_PruneHyperlinks()
