@@ -637,16 +637,16 @@ Terminal::UpdateSelectionParams Terminal::ConvertKeyEventToUpdateSelectionParams
     return std::nullopt;
 }
 
-void Terminal::InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter)
+void Terminal::InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
 {
     auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
-    _InDelimiter(targetPos, startDelimiter, endDelimiter);
+    _InDelimiter(targetPos, startDelimiter, endDelimiter, includeDelimiter);
 }
 
-void Terminal::TilChar(WORD vkey, bool isVisual)
+void Terminal::TilChar(WORD vkey, bool isVisual, bool isUpperCase)
 {
-    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
-    _TilChar(targetPos, vkey, isVisual);
+    auto targetPos = _selection->end;
+    _TilChar(targetPos, vkey, isVisual, isUpperCase);
 }
 
 void Terminal::FindChar(WORD vkey, bool isVisual, bool isUpperCase)
@@ -655,28 +655,42 @@ void Terminal::FindChar(WORD vkey, bool isVisual, bool isUpperCase)
     _FindChar(targetPos, vkey, isVisual, isUpperCase);
 }
 
-void Terminal::FindCharBack(WORD vkey, bool isVisual)
+void Terminal::FindCharBack(WORD vkey, bool isVisual, bool isUpperCase)
 {
     auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
-    _FindCharBack(targetPos, vkey, isVisual);
+    _FindCharBack(targetPos, vkey, isVisual, isUpperCase);
 }
 
-void Terminal::TilCharBack(WORD vkey, bool isVisual)
+void Terminal::TilCharBack(WORD vkey, bool isVisual, bool isUpperCase)
+{
+    auto targetPos{ _selection->end };
+    _TilCharBack(targetPos, vkey, isVisual, isUpperCase);
+}
+
+void Terminal::SetPivot()
 {
     auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
-    _TilCharBack(targetPos, vkey, isVisual);
+    _selection->pivot = targetPos;
 }
 
 void Terminal::SelectTop(bool isVisual)
 {
-    DWORD mods = 0;
-
     if (isVisual)
     {
-        mods = 280;
+        _selection->start = til::point{ 0, 0 };
+        _ScrollToPoint(til::point{ 0, 0 });
     }
+    else
+    {
+        DWORD mods = 0;
 
-    UpdateSelection(SelectionDirection::Up, SelectionExpansion::Buffer, ControlKeyStates{ mods });
+        if (isVisual)
+        {
+            mods = 280;
+        }
+
+        UpdateSelection(SelectionDirection::Up, SelectionExpansion::Buffer, ControlKeyStates{ mods });
+    }
 }
 
 void Terminal::SelectBottom(bool isVisual)
@@ -691,42 +705,118 @@ void Terminal::SelectBottom(bool isVisual)
     UpdateSelection(SelectionDirection::Down, SelectionExpansion::Buffer, ControlKeyStates{ mods });
 }
 
-void Terminal::SelectHalfPageUp(bool /*isVisual*/)
+void Terminal::SelectHalfPageUp(bool isVisual)
 {
-    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    const auto bufferSize{ _activeBuffer().GetSize() };
+    auto targetPos{  _selection->start.y < _selection->pivot.y ? _selection->start : _selection->end  };
 
-    _MoveByHalfViewport(SelectionDirection::Up, targetPos);
+    const auto viewportHeight{ _GetMutableViewport().Height() };
+    const auto newY{ targetPos.y - (viewportHeight / 2) };
+    const auto newPos = newY < bufferSize.Top() ? bufferSize.Origin() : til::point{ targetPos.x, newY };
+
+    if (!isVisual)
+    {
+        _selection->start = newPos;
+        _selection->end = newPos;
+    }
+    else if (newPos < _selection->pivot)
+    {
+        _selection->start = newPos;
+        _selection->end = _selection->end;
+    }
+    else
+    {
+        _selection->start = _selection->pivot;
+        _selection->end = newPos;
+    }
+
+    _ScrollToPoint(newPos);
 }
 
-void Terminal::SelectHalfPageDown(bool /*isVisual*/)
+void Terminal::SelectHalfPageDown(bool isVisual)
 {
-    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    const auto bufferSize{ _activeBuffer().GetSize() };
+    auto targetPos{ _selection->end.y > _selection->pivot.y ? _selection->end : _selection->start };
 
-    _MoveByHalfViewport(SelectionDirection::Down, targetPos);
+    const auto viewportHeight{ _GetMutableViewport().Height() };
+    const auto mutableBottom{ _GetMutableViewport().BottomInclusive() };
+    const auto newY{ targetPos.y + (viewportHeight / 2) };
+    const auto newPos = newY > mutableBottom ? til::point{ bufferSize.RightInclusive(), mutableBottom } : til::point{ targetPos.x, newY };
+
+    if (!isVisual)
+    {
+        _selection->start = newPos;
+        _selection->end = newPos;
+    }
+    else if (newPos < _selection->pivot)
+    {
+        _selection->start = newPos;
+        _selection->end = _selection->end;
+    }
+    else
+    {
+        _selection->start = _selection->pivot;
+        _selection->end = newPos;
+    }
+
+    _ScrollToPoint(newPos);
 }
 
 void Terminal::SelectPageUp(bool isVisual)
 {
-    DWORD mods = 0;
+    const auto bufferSize{ _activeBuffer().GetSize() };
+    auto targetPos{ _selection->start.y < _selection->pivot.y ? _selection->start : _selection->end };
 
-    if (isVisual)
+    const auto viewportHeight{ _GetMutableViewport().Height() };
+    const auto newY{ targetPos.y - viewportHeight };
+    const auto newPos = newY < bufferSize.Top() ? bufferSize.Origin() : til::point{ targetPos.x, newY };
+
+    if (!isVisual)
     {
-        mods = 280;
+        _selection->start = newPos;
+        _selection->end = newPos;
     }
-    
-    UpdateSelection(SelectionDirection::Up, SelectionExpansion::Viewport, ControlKeyStates{ mods });
+    else if (newPos < _selection->pivot)
+    {
+        _selection->start = newPos;
+        _selection->end = _selection->end;
+    }
+    else
+    {
+        _selection->start = _selection->pivot;
+        _selection->end = newPos;
+    }
+
+    _ScrollToPoint(newPos);
 }
 
 void Terminal::SelectPageDown(bool isVisual)
 {
-    DWORD mods = 0;
+    const auto bufferSize{ _activeBuffer().GetSize() };
+    auto targetPos{ _selection->end.y > _selection->pivot.y ? _selection->end : _selection->start };
 
-    if (isVisual)
+    const auto viewportHeight{ _GetMutableViewport().Height() };
+    const auto mutableBottom{ _GetMutableViewport().BottomInclusive() };
+    const auto newY{ targetPos.y + viewportHeight };
+    const auto newPos = newY > mutableBottom ? til::point{ bufferSize.RightInclusive(), mutableBottom } : til::point{ targetPos.x, newY };
+
+    if (!isVisual)
     {
-        mods = 280;
+        _selection->start = newPos;
+        _selection->end = newPos;
+    }
+    else if (newPos < _selection->pivot)
+    {
+        _selection->start = newPos;
+        _selection->end = _selection->end;
+    }
+    else
+    {
+        _selection->start = _selection->pivot;
+        _selection->end = newPos;
     }
 
-    UpdateSelection(SelectionDirection::Down, SelectionExpansion::Viewport, ControlKeyStates{ mods });
+    _ScrollToPoint(newPos);
 }
 
 void Terminal::SelectCharLeft(bool isVisual)
@@ -792,6 +882,36 @@ void Terminal::SelectLineRight(bool isVisual)
     }
 }
 
+void Terminal::SelectLineUp(bool /*isVisual*/)
+{
+    if (_selection->start.y > 0)
+    {
+        if (_selection->end.y > _selection->pivot.y)
+        {
+            auto end = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y - 1 });
+            _selection->end = end;
+        }
+        else
+        {
+            _selection->start = til::point{ 0, _selection->start.y - 1 };
+        }
+    }
+}
+
+void Terminal::SelectLineDown(bool /*isVisual*/)
+{
+    if (_selection->start.y < _selection->pivot.y)
+    {
+        auto start = til::point{ 0, _selection->start.y + 1 };
+        _selection->start = start;
+    }
+    else
+    {
+        auto end = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y + 1 });
+        _selection->end = end;
+    }
+}
+
 void Terminal::SelectLineLeft(bool isVisual)
 {
     DWORD mods = 0;
@@ -823,7 +943,9 @@ void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
         delimiters = L"";
     }
 
-    auto start = _activeBuffer().GetStartOfNextWord(_selection->end, delimiters);
+    auto startPoint = _selection->start < _selection->pivot ? _selection->start : _selection->end;
+
+    auto start = _activeBuffer().GetStartOfNextWord(startPoint, delimiters);
 
     if (start.second)
     {
@@ -831,6 +953,16 @@ void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
         if (!isVisual)
         {
             _selection->start = _selection->end;
+        }
+        else if (start.first < _selection->pivot)
+        {
+            _selection->end = _selection->pivot;
+            _selection->start = start.first;
+        }
+        else
+        {
+            _selection->end = start.first;
+            _selection->start = _selection->pivot;
         }
     }
     else
@@ -844,6 +976,62 @@ void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
     }
 }
 
+void Terminal::SelectWordLeft(bool isVisual, bool isLargeWord)
+{
+    auto delimiters = _wordDelimiters;
+    if (isLargeWord)
+    {
+        delimiters = L"";
+    }
+
+    auto startPoint = _selection->end > _selection->pivot ? _selection->end : _selection->start;
+
+    auto startPair = _activeBuffer().GetStartOfWord(startPoint, delimiters);
+    if (startPair.second)
+    {
+        if (startPair.first == startPoint)
+        {
+            startPair = _activeBuffer().GetEndOfPreviousWord(startPair.first, delimiters);
+            if (startPair.second)
+            {
+                startPair = _activeBuffer().GetStartOfWord(startPair.first, delimiters);
+            }
+        }
+
+        if (startPair.second)
+        {
+            if (!isVisual)
+            {
+                _selection->end = startPair.first;
+                _selection->start = _selection->end;
+            }
+            else if (startPair.first < _selection->pivot)
+            {
+                _selection->end = _selection->pivot;
+                _selection->start = startPair.first;
+            }
+            else
+            {
+                _selection->end = startPair.first;
+            }
+        }
+        else
+        {
+            auto startOfPreviousLine = til::point{ 0, _selection->end.y - 1 };
+            auto endOfLine = _activeBuffer().GetLineEnd(startOfPreviousLine);
+            startPair = _activeBuffer().GetStartOfWord(endOfLine, delimiters);
+            if (startPair.second)
+            {
+                _selection->start = startPair.first;
+                if (!isVisual)
+                {
+                    _selection->end = _selection->end;
+                }
+            }
+        }
+    }
+}
+
 void Terminal::SelectWordRight(bool isVisual, bool isLargeWord)
 {
     auto delimiters = _wordDelimiters;
@@ -852,10 +1040,12 @@ void Terminal::SelectWordRight(bool isVisual, bool isLargeWord)
         delimiters = L"";
     }
 
-    auto endPair = _activeBuffer().GetEndOfWord(_selection->end, delimiters);
+    auto startPoint = _selection->start < _selection->pivot ? _selection->start : _selection->end;
+
+    auto endPair = _activeBuffer().GetEndOfWord(startPoint, delimiters);
     if (endPair.second)
     {
-        if (endPair.first == _selection->end)
+        if (endPair.first == startPoint)
         {
             endPair = _activeBuffer().GetStartOfNextWord(endPair.first, delimiters);
             if (endPair.second)
@@ -866,10 +1056,20 @@ void Terminal::SelectWordRight(bool isVisual, bool isLargeWord)
 
         if (endPair.second)
         {
-            _selection->end = endPair.first;
             if (!isVisual)
             {
+                _selection->end = endPair.first;
                 _selection->start = _selection->end;
+            }
+            else if (endPair.first < _selection->pivot)
+            {
+                _selection->end = _selection->pivot;
+                _selection->start = endPair.first;
+            }
+            else
+            {
+                _selection->end = endPair.first;
+                _selection->start = _selection->pivot;
             }
         }
         else
@@ -1082,118 +1282,207 @@ void Terminal::_MoveByWord(SelectionDirection direction, til::point& pos)
     }
 }
 
-void Terminal::_FindChar(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase)
+void Terminal::_FindChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUpperCase)
 {
-    wchar_t keyName[256] = { 0 };
-    int scanCode = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
-    GetKeyNameText(scanCode << 16, keyName, 255);
-    auto charStr = std::wstring(keyName);
-    til::point originalStart = _selection->start;
-    if (!isUpperCase)
+    BYTE keyboardState[256];
+    GetKeyboardState(keyboardState);
+    if (isUpperCase)
     {
-        charStr[0] = static_cast<wchar_t>(tolower(charStr[0]));
+        keyboardState[VK_SHIFT] = 0x80;
     }
+    WCHAR charBuffer[2] = { 0 };
+    ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
 
-    auto end = _activeBuffer().GetWordEnd2(til::point{pos.x + 1, pos.y}, charStr, false, true);
+    auto adjustedEnd = til::point{ _selection->end.x + 1, _selection->end.y };
+    auto adjustedStart = til::point{ _selection->start.x + 1, _selection->start.y };
 
-    if (!end.second)
+    auto startPoint = _selection->start < _selection->pivot ? adjustedStart : adjustedEnd;
+
+    til::point originalStart = _selection->start;
+
+    auto result = _activeBuffer().GetWordEnd2(startPoint, charBuffer, false, true);
+
+    if (!result.second)
     {
         return;
     }
 
-    _selection->end = til::point{ end.first.x + 1, end.first.y };
-    if (isVisual)
+    auto adjustedResult = til::point{ result.first.x, result.first.y };
+
+    if (!isVisual)
     {
-        _selection->start = originalStart;    
+        _selection->start = adjustedResult;
+        _selection->end = adjustedResult;
+    }
+    else if (adjustedStart < _selection->pivot)
+    {
+        _selection->start = adjustedResult;
+        _selection->end = _selection->pivot;
     }
     else
     {
-        _selection->start = _selection->end;
+        _selection->end = adjustedResult;
+        _selection->start = _selection->pivot;
     }
+
+    //BYTE keyboardState[256];
+    //GetKeyboardState(keyboardState);
+    //if (isUpperCase)
+    //{
+    //    keyboardState[VK_SHIFT] = 0x80;
+    //}
+    //WCHAR charBuffer[2] = { 0 };
+    //ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
+
+    //til::point originalStart = _selection->start;
+
+    //auto end = _activeBuffer().GetWordEnd2(til::point{pos.x + 1, pos.y}, charBuffer, false, true);
+
+    //if (!end.second)
+    //{
+    //    return;
+    //}
+
+    //_selection->end = til::point{ end.first.x, end.first.y };
+    //if (isVisual)
+    //{
+    //    _selection->start = originalStart;    
+    //}
+    //else
+    //{
+    //    _selection->start = _selection->end;
+    //}
 }
 
-void Terminal::_TilChar(til::point& pos, WORD vkey, bool isVisual)
+void Terminal::_TilChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUpperCase)
 {
-    wchar_t keyName[256] = { 0 };
-    int scanCode = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
-    GetKeyNameText(scanCode << 16, keyName, 255);
-    auto charStr = std::wstring(keyName);
+    BYTE keyboardState[256];
+    GetKeyboardState(keyboardState);
+    if (isUpperCase)
+    {
+        keyboardState[VK_SHIFT] = 0x80;
+    }
+    WCHAR charBuffer[2] = { 0 };
+    ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
+
+    auto adjustedEnd = til::point{ _selection->end.x + 2, _selection->end.y };
+    auto adjustedStart = til::point{ _selection->start.x + 2, _selection->start.y };
+
+    auto startPoint = _selection->start < _selection->pivot ? adjustedStart : adjustedEnd;
+
     til::point originalStart = _selection->start;
-    charStr[0] = static_cast<wchar_t>(tolower(charStr[0]));
 
-    auto end = _activeBuffer().GetWordEnd2(til::point{ pos.x + 2, pos.y }, charStr, false, true);
+    auto result = _activeBuffer().GetWordEnd2(startPoint, charBuffer, false, true);
 
-    if (!end.second)
+    if (!result.second)
     {
         return;
     }
 
-    _selection->end = end.first;
-    if (isVisual)
+    auto adjustedResult = til::point{ result.first.x - 1, result.first.y };
+
+    if (!isVisual)
     {
-        _selection->start = originalStart;
+        _selection->start = adjustedResult;
+        _selection->end = adjustedResult;
+    }
+    else if (adjustedStart < _selection->pivot)
+    {
+        _selection->start = adjustedResult;
+        _selection->end = _selection->pivot;
     }
     else
     {
-        _selection->start = _selection->end;
+        _selection->end = adjustedResult;
+        _selection->start = _selection->pivot;
     }
 }
 
-void Terminal::_FindCharBack(til::point& pos, WORD vkey, bool isVisual)
+void Terminal::_FindCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUpperCase)
 {
-    wchar_t keyName[256] = { 0 };
-    int scanCode = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
-    GetKeyNameText(scanCode << 16, keyName, 255);
-    auto charStr = std::wstring(keyName);
-    til::point originalStart = _selection->start;
-    charStr[0] = static_cast<wchar_t>(tolower(charStr[0]));
+    BYTE keyboardState[256];
+    GetKeyboardState(keyboardState);
+    if (isUpperCase)
+    {
+        keyboardState[VK_SHIFT] = 0x80;
+    }
+    WCHAR charBuffer[2] = { 0 };
+    ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
+    
+    auto adjustedEnd = til::point{ _selection->end.x - 1, _selection->end.y };
+    auto adjustedStart = til::point{ _selection->start.x - 1, _selection->start.y };
 
-    auto end = _activeBuffer().GetWordStart2(til::point{ pos.x - 1, pos.y }, charStr);
+    auto startPoint = _selection->end > _selection->pivot ? adjustedEnd : adjustedStart;
 
-    if (!end.second)
+    auto result = _activeBuffer().GetWordStart2(startPoint, charBuffer);
+
+    if (!result.second)
     {
         return;
     }
 
-    _selection->end = til::point{ end.first.x - 1, end.first.y };
-    if (isVisual)
+    auto adjustedResult = til::point{ result.first.x - 1, result.first.y };
+
+    if (!isVisual)
     {
-        _selection->start = originalStart;
+        _selection->start = adjustedResult;
+        _selection->end = adjustedResult;
+    }
+    else if (adjustedEnd > _selection->pivot)
+    {
+        _selection->start = _selection->pivot;
+        _selection->end = adjustedResult;
     }
     else
     {
-        _selection->start = _selection->end;
+        _selection->end = _selection->pivot;
+        _selection->start = adjustedResult;
     }
 }
 
-void Terminal::_TilCharBack(til::point& pos, WORD vkey, bool isVisual)
+void Terminal::_TilCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUpperCase)
 {
-    wchar_t keyName[256] = { 0 };
-    int scanCode = MapVirtualKey(vkey, MAPVK_VK_TO_VSC);
-    GetKeyNameText(scanCode << 16, keyName, 255);
-    auto charStr = std::wstring(keyName);
-    til::point originalStart = _selection->start;
-    charStr[0] = static_cast<wchar_t>(tolower(charStr[0]));
+    BYTE keyboardState[256];
+    GetKeyboardState(keyboardState);
+    if (isUpperCase)
+    {
+        keyboardState[VK_SHIFT] = 0x80;
+    }
+    WCHAR charBuffer[2] = { 0 };
+    ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
 
-    auto end = _activeBuffer().GetWordStart2(til::point{ pos.x, pos.y }, charStr);
+    auto adjustedEnd = til::point{ _selection->end.x - 2, _selection->end.y };
+    auto adjustedStart = til::point{ _selection->start.x - 2, _selection->start.y };
 
-    if (!end.second)
+    auto startPoint = _selection->end > _selection->pivot ? adjustedEnd : adjustedStart;
+
+    auto result = _activeBuffer().GetWordStart2(startPoint, charBuffer);
+
+    if (!result.second)
     {
         return;
     }
 
-    _selection->end = til::point{ end.first.x - 2, end.first.y };
-    if (isVisual)
+    auto adjustedResult = til::point{ result.first.x, result.first.y };
+
+    if (!isVisual)
     {
-        _selection->start = originalStart;
+        _selection->start = adjustedResult;
+        _selection->end = adjustedResult;
+    }
+    else if (adjustedEnd > _selection->pivot)
+    {
+        _selection->start = _selection->pivot;
+        _selection->end = adjustedResult;
     }
     else
     {
-        _selection->start = _selection->end;
+        _selection->end = _selection->pivot;
+        _selection->start = adjustedResult;
     }
 }
 
-void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter)
+void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
 {
     auto start = _activeBuffer().GetWordStart2(pos, startDelimiter);
     auto end = _activeBuffer().GetWordEnd2(pos, endDelimiter, false, true);
@@ -1203,8 +1492,16 @@ void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, s
         return;
     }
 
-    _selection->start = start.first;
-    _selection->end = end.first;
+    if (includeDelimiter)
+    {
+        _selection->start = til::point{ start.first.x - 1, start.first.y };
+        _selection->end = til::point{ end.first.x + 1, end.first.y };
+    }
+    else
+    {
+        _selection->start = start.first;
+        _selection->end = end.first;
+    }
 }
 
 void Terminal::_InWord(til::point& pos, std::wstring_view delimiters, int8_t startType, bool stopOnControlChar)

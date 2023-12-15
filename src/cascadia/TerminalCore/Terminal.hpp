@@ -298,6 +298,7 @@ public:
     void SetSelectionEnd(const til::point position, std::optional<SelectionExpansion> newExpansionMode = std::nullopt);
     void SetBlockSelection(const bool isEnabled) noexcept;
     void ToggleMarkers(const bool isEnabled) noexcept;
+    void SetPivot();
     void SelectTop(bool isVisual);
     void SelectBottom(bool isVisual);
     void SelectHalfPageUp(bool isVisual);
@@ -308,17 +309,20 @@ public:
     void SelectCharRight(bool isVisual);
     void SelectDown(bool isVisual);
     void SelectUp(bool isVisual);
+    void SelectLineUp(bool isVisual);
+    void SelectLineDown(bool isVisual);
     void SelectLineLeft(bool isVisual);
     void SelectLineRight(bool isVisual);
     void SelectWordRight(bool isVisual, bool isLargeWord);
+    void SelectWordLeft(bool isVisual, bool isLargeWord);
     void SelectWordStartRight(bool isVisual, bool isLargeWord);
     void SelectWordLeft(bool isVisual);
     void SelectInWord(bool largeWord, int8_t startPosType, bool stopOnControlChar);
-    void InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter);
-    void TilChar(WORD vkey, bool isVisual);
+    void InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
+    void TilChar(WORD vkey, bool isVisual, bool isUpperCase);
     void FindChar(WORD vkey, bool isVisual, bool isUpperCase);
-    void FindCharBack(WORD vkey, bool isVisual);
-    void TilCharBack(WORD vkey, bool isVisual);
+    void FindCharBack(WORD vkey, bool isVisual, bool isUpperCase);
+    void TilCharBack(WORD vkey, bool isVisual, bool isUpperCase);
     void UpdateSelection(SelectionDirection direction, SelectionExpansion mode, ControlKeyStates mods);
     void SelectAll();
     SelectionInteractionMode SelectionMode() const noexcept;
@@ -500,13 +504,12 @@ private:
     void _MoveByViewport(SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByHalfViewport(SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByBuffer(SelectionDirection direction, til::point& pos) noexcept;
-    void _EndOfLine(til::point& pos, std::wstring_view delimiters, int8_t startType, bool stopOnControlChar);
     void _InWord(til::point& pos, std::wstring_view delimiters, int8_t startType, bool stopOnControlChar);
-    void _InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter);
+    void _InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
     void _FindChar(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);
-    void _TilChar(til::point& pos, WORD vkey, bool isVisual);
-    void _FindCharBack(til::point& pos, WORD vkey, bool isVisual);
-    void _TilCharBack(til::point& pos, WORD vkey, bool isVisual);
+    void _TilChar(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);
+    void _FindCharBack(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);
+    void _TilCharBack(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);
 #pragma endregion
 
 #ifdef UNIT_TESTING

@@ -282,8 +282,10 @@ public:
     void SetCurrentOutputEnd(const til::point pos, ::MarkCategory category) noexcept;
     std::wstring_view CurrentCommand() const;
 
+    std::pair<til::point, bool> GetStartOfWord(const til::point target, std::wstring_view delimiters) const;
     std::pair<til::point, bool> GetEndOfWord(const til::point target, std::wstring_view delimiters) const;
     std::pair<til::point, bool> GetStartOfNextWord(const til::point target, const std::wstring_view wordDelimiters) const;
+    std::pair<til::point, bool> GetEndOfPreviousWord(const til::point target, const std::wstring_view wordDelimiters) const;
 
 private:
     void _reserve(til::size screenBufferSize, const TextAttribute& defaultAttributes);

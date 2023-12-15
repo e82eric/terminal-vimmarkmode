@@ -120,6 +120,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool SwitchSelectionEndpoint();
         bool ExpandSelectionToWord();
         bool TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates modifiers);
+        bool ExecuteVimSelection(
+            const int16_t action,
+            const int16_t textObject,
+            const int times,
+            const int16_t motion,
+            const bool isVisual,
+            const std::wstring searchString,
+            const int16_t amount,
+            int16_t vkey,
+            bool vkeyIsUpperCase);
         bool TryMarkModeKeybinding(const WORD vkey,
                                    const ::Microsoft::Terminal::Core::ControlKeyStates modifiers);
 
