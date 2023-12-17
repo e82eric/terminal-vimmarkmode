@@ -1342,8 +1342,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             sequenceText += vkeyText;
         }
 
+        auto statusBarSearchString = !searchString.empty() && reverseSearch ? L"?" + searchString : !searchString.empty() ? L"/" + searchString :
+                                                                                                                            L"";
+
         _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(
-            winrt::hstring{ sequenceText }, winrt::hstring{ searchString.empty() && mode != searchMode ? L"" : L"/" + searchString }, winrt::hstring{
+            winrt::hstring{ sequenceText }, winrt::hstring{ statusBarSearchString }, winrt::hstring{
                 mode == searchMode ? L"Search" : mode == normalMode ? L"Normal" : mode == visualMode ? L"Visual" : L"VisualLine" }));
 
         if (sequenceCompleted)
