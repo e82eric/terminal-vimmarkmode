@@ -291,6 +291,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         TYPED_EVENT(Attached,                  IInspectable, IInspectable);
         // clang-format on
+        TYPED_EVENT(ToggleVimMode, IInspectable, Control::ToggleVimModeEventArgs);
+        TYPED_EVENT(VimTextChanged, IInspectable, Control::VimTextChangedEventArgs);
 
     private:
         struct SharedState

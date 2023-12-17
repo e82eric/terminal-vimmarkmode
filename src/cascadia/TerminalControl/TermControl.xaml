@@ -1252,6 +1252,11 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            
             <Grid Grid.Column="0"
                   Background="Transparent"
                   PointerExited="_PointerExitedHandler"
@@ -1331,6 +1336,17 @@
                    IsHitTestVisible="False"
                    Visibility="Collapsed" />
 
+            <Border BorderBrush="Black" Grid.Row="2" x:Name="VimGrid" Visibility="Visible" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="auto" />
+                    </Grid.ColumnDefinitions>
+                    
+                    <TextBlock Text="" x:Name="VimSearchStringTextBox"/>
+                    <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="2"/>
+                </Grid>
+            </Border>
         </Grid>
 
         <local:TSFInputControl x:Name="TSFInputControl"

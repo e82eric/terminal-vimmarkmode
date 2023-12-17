@@ -564,9 +564,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static const int16_t wordTextObject = 2;
         static const int16_t largeWordTextObject = 3;
         static const int16_t lineTextObject = 4;
-        static const int16_t halfPageTextObjext = 5;
-        //static const int16_t bufferTextObject = 6;
-        static const int16_t fullPageTextObject = 7;
         static const int16_t inSquareBracePairTextObject = 8;
         static const int16_t inRoundBracePairTextObject = 9;
         static const int16_t inDoubleQuotePairTextObject = 10;
@@ -916,9 +913,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static const int16_t wordTextObject = 2;
         static const int16_t largeWordTextObject = 3;
         static const int16_t lineTextObject = 4;
-        static const int16_t halfPageTextObjext = 5;
-        //static const int16_t bufferTextObject = 6;
-        static const int16_t fullPageTextObject = 7;
         static const int16_t inSquareBracePairTextObject = 8;
         static const int16_t inRoundBracePairTextObject = 9;
         static const int16_t inDoubleQuotePairTextObject = 10;
@@ -953,6 +947,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static bool reverseSearch;
         static std::wstring searchString;
 
+        static std::wstring sequenceText;
+
         WORD key = vkey;
         bool isUpperCase = mods.IsModifierPressed();
 
@@ -966,6 +962,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool hideMarkers = false;
         bool clearStateOnSequenceCompleted = true;
 
+        wchar_t vkeyText[2] = { 0 };
+
+        BYTE keyboardState[256];
+        GetKeyboardState(keyboardState);
+        if (mods.IsShiftPressed())
+        {
+            keyboardState[VK_SHIFT] = 0x80;
+        }
+        ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, vkeyText, 2, 0);
+
         std::wstringstream timesStringStream(timesString);
         if (!timesString.empty())
         {
@@ -978,6 +984,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (vkey == 16 || vkey == 17)
         {
+            return true;
         }
         else if (textObject == tilCharTextObject || textObject == tilCharReverseTextObject || textObject == findCharTextObject)
         {
@@ -1102,7 +1109,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         else if (vkey == L'N')
         {
             action = search;
-            motion = mods.IsShiftPressed() ? backMotion : forwardMotion;
+            if (reverseSearch)
+            {
+                motion = mods.IsShiftPressed() ? forwardMotion : backMotion;
+            }
+            else
+            {
+                motion = mods.IsShiftPressed() ? backMotion : forwardMotion;
+            }
+            
             sequenceCompleted = true;
         }
         else if (vkey == L'I')
@@ -1310,6 +1325,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             else if (mode == normalMode)
             {
                 sequenceCompleted = true;
+                _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }));
+                searchString = L"";
                 return false;
             }
         }
@@ -1317,7 +1334,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             sequenceCompleted = true;
         }
-        
+
+        if (vkey != VK_RETURN && mode != searchMode)
+        {
+            sequenceText += vkeyText;
+        }
+
+        _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ sequenceText }, winrt::hstring{ searchString.empty() && mode != searchMode ? L"" : L"/" + searchString }));
+
         if (sequenceCompleted)
         {
             ExecuteVimSelection(action, textObject, times, motion, mode == visualMode, searchString, amount, key, mods.IsShiftPressed());
@@ -1330,6 +1354,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             motion = noneMotion;
             lastTimes = times;
             timesString = L"";
+
+            sequenceText = L"";
         }
 
         _renderer->TriggerSelection();

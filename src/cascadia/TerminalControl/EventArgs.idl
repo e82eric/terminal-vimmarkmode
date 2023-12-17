@@ -96,6 +96,17 @@ namespace Microsoft.Terminal.Control
         Boolean ClearMarkers { get; };
     }
 
+    runtimeclass ToggleVimModeEventArgs
+    {
+        Boolean Enable { get; };
+    }
+
+    runtimeclass VimTextChangedEventArgs
+    {
+        String Text { get; };
+        String SearchString;
+    }
+
     runtimeclass CompletionsChangedEventArgs
     {
         String MenuJson { get; };

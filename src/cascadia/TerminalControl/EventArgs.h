@@ -16,6 +16,8 @@
 #include "FoundResultsArgs.g.h"
 #include "ShowWindowArgs.g.h"
 #include "UpdateSelectionMarkersEventArgs.g.h"
+#include "ToggleVimModeEventArgs.g.h"
+#include "VimTextChangedEventArgs.g.h"
 #include "CompletionsChangedEventArgs.g.h"
 #include "KeySentEventArgs.g.h"
 #include "CharSentEventArgs.g.h"
@@ -200,6 +202,30 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         WINRT_PROPERTY(bool, ClearMarkers, false);
+    };
+
+    struct ToggleVimModeEventArgs: public ToggleVimModeEventArgsT<ToggleVimModeEventArgs>
+    {
+    public:
+        ToggleVimModeEventArgs(const bool enable) :
+            _Enable(enable)
+        {
+        }
+
+        WINRT_PROPERTY(bool, Enable, false);
+    };
+
+    struct VimTextChangedEventArgs : public VimTextChangedEventArgsT<VimTextChangedEventArgs>
+    {
+    public:
+        VimTextChangedEventArgs(const winrt::hstring text, const winrt::hstring searchString) :
+            _Text(text),
+            _SearchString(searchString)
+        {
+        }
+
+        WINRT_PROPERTY(winrt::hstring, Text, false);
+        WINRT_PROPERTY(winrt::hstring, SearchString, false);
     };
 
     struct CompletionsChangedEventArgs : public CompletionsChangedEventArgsT<CompletionsChangedEventArgs>

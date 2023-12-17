@@ -327,6 +327,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _ScrollPositionChanged(const IInspectable& sender, const Control::ScrollPositionChangedArgs& args);
         winrt::fire_and_forget _CursorPositionChanged(const IInspectable& sender, const IInspectable& args);
 
+        winrt::fire_and_forget _VimTextChanged(const IInspectable& sender, const Control::VimTextChangedEventArgs args);
+        winrt::fire_and_forget _ToggleVimMode(const IInspectable& sender, const Control::ToggleVimModeEventArgs args);
+
         bool _CapturePointer(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
         bool _ReleasePointerCapture(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
 
@@ -412,6 +415,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Control::ControlInteractivity::ScrollPositionChanged_revoker interactivityScrollPositionChanged;
             Control::ControlInteractivity::PasteFromClipboard_revoker PasteFromClipboard;
             Control::ControlInteractivity::ContextMenuRequested_revoker ContextMenuRequested;
+
+            Control::ControlCore::VimTextChanged_revoker VimTextChanged;
+            Control::ControlCore::ToggleVimMode_revoker ToggleVimMode;
         } _revokers{};
     };
 }

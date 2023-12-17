@@ -170,7 +170,7 @@ void AtlasEngine::_recreateBackend()
     auto deviceFlags =
         D3D11_CREATE_DEVICE_SINGLETHREADED
 #ifndef NDEBUG
-        | D3D11_CREATE_DEVICE_DEBUG
+        // | D3D11_CREATE_DEVICE_DEBUG
 #endif
         // This flag prevents the driver from creating a large thread pool for things like shader computations
         // that would be advantageous for games. For us this has only a minimal performance benefit,
@@ -219,7 +219,7 @@ void AtlasEngine::_recreateBackend()
         // This might happen if you don't have "Graphics debugger and GPU
         // profiler for DirectX" installed in VS. We shouldn't just explode if
         // you don't though - instead, disable debugging and try again.
-        WI_ClearFlag(deviceFlags, D3D11_CREATE_DEVICE_DEBUG);
+        //WI_ClearFlag(deviceFlags, D3D11_CREATE_DEVICE_DEBUG);
 
         hr = D3D11CreateDevice(
             /* pAdapter */ _p.dxgi.adapter.get(),

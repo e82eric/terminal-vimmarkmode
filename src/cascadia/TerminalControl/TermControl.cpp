@@ -94,6 +94,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _revokers.interactivityScrollPositionChanged = _interactivity.ScrollPositionChanged(winrt::auto_revoke, { get_weak(), &TermControl::_ScrollPositionChanged });
         _revokers.ContextMenuRequested = _interactivity.ContextMenuRequested(winrt::auto_revoke, { get_weak(), &TermControl::_contextMenuHandler });
 
+        _revokers.VimTextChanged = _core.VimTextChanged(winrt::auto_revoke, { get_weak(), &TermControl::_VimTextChanged });
+        _revokers.ToggleVimMode = _core.ToggleVimMode(winrt::auto_revoke, { get_weak(), &TermControl::_ToggleVimMode });
+
         // "Bubbled" events - ones we want to handle, by raising our own event.
         _revokers.CopyToClipboard = _core.CopyToClipboard(winrt::auto_revoke, { get_weak(), &TermControl::_bubbleCopyToClipboard });
         _revokers.TitleChanged = _core.TitleChanged(winrt::auto_revoke, { get_weak(), &TermControl::_bubbleTitleChanged });
@@ -2180,6 +2183,33 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (auto control{ weakThis.get() }; !control->_IsClosing())
         {
             control->TSFInputControl().TryRedrawCanvas();
+        }
+    }
+
+        // Method Description:
+    // - Tells TSFInputControl to redraw the Canvas/TextBlock so it'll update
+    //   to be where the current cursor position is.
+    // Arguments:
+    // - N/A
+    winrt::fire_and_forget TermControl::_VimTextChanged(const IInspectable& /*sender*/,
+                                                               const Control::VimTextChangedEventArgs args)
+    {
+        co_await wil::resume_foreground(Dispatcher());
+        VimTextBox().Text(args.Text());
+        VimSearchStringTextBox().Text(args.SearchString());
+    }
+
+    winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,
+                                                        const Control::ToggleVimModeEventArgs args)
+    {
+        co_await wil::resume_foreground(Dispatcher());
+        if (args.Enable())
+        {
+            VimGrid().Visibility(Visibility::Visible);
+        }
+        else
+        {
+            VimGrid().Visibility(Visibility::Collapsed);
         }
     }
 
