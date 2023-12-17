@@ -868,7 +868,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             CopySelectionToClipboard(false, nullptr);
             _terminal->ClearSelection();
-            _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
+            _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
+            auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
         }
         else if (action == toggleVisualOn)
         {
@@ -931,6 +932,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static const int16_t inLargeWordTextObject = 23;
         static const int16_t entireLineTextObject = 24;
 
+        static const int16_t noneAmount = 0;
         static const int16_t inAmount = 1;
         static const int16_t aroundAmount = 2;
 
@@ -1325,7 +1327,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             else if (mode == normalMode)
             {
                 sequenceCompleted = true;
-                _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }));
+                _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
                 searchString = L"";
                 return false;
             }
@@ -1340,7 +1342,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             sequenceText += vkeyText;
         }
 
-        _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ sequenceText }, winrt::hstring{ searchString.empty() && mode != searchMode ? L"" : L"/" + searchString }));
+        _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(
+            winrt::hstring{ sequenceText }, winrt::hstring{ searchString.empty() && mode != searchMode ? L"" : L"/" + searchString }, winrt::hstring{
+                mode == searchMode ? L"Search" : mode == normalMode ? L"Normal" : mode == visualMode ? L"Visual" : L"VisualLine" }));
 
         if (sequenceCompleted)
         {
@@ -1354,6 +1358,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             motion = noneMotion;
             lastTimes = times;
             timesString = L"";
+            amount = noneAmount;
 
             sequenceText = L"";
         }
@@ -1947,7 +1952,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, { cx, cy });
         const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
 
-        _terminal->ClearSelection();
+        //_terminal->ClearSelection();
 
         // Tell the dx engine that our window is now the new size.
         THROW_IF_FAILED(_renderEngine->SetWindowSize({ cx, cy }));
@@ -2154,6 +2159,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::ToggleMarkMode()
     {
+        _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(true));
+        _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }, winrt::hstring{ L"Normal" }));
         const auto lock = _terminal->LockForWriting();
         _terminal->ToggleMarkMode();
         _updateSelectionUI();

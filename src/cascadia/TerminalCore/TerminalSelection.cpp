@@ -1300,7 +1300,7 @@ void Terminal::_FindChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isU
 
     til::point originalStart = _selection->start;
 
-    auto result = _activeBuffer().GetWordEnd2(startPoint, charBuffer, false, true);
+    auto result = _activeBuffer().FindChar(startPoint, charBuffer);
 
     if (!result.second)
     {
@@ -1324,34 +1324,6 @@ void Terminal::_FindChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isU
         _selection->end = adjustedResult;
         _selection->start = _selection->pivot;
     }
-
-    //BYTE keyboardState[256];
-    //GetKeyboardState(keyboardState);
-    //if (isUpperCase)
-    //{
-    //    keyboardState[VK_SHIFT] = 0x80;
-    //}
-    //WCHAR charBuffer[2] = { 0 };
-    //ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
-
-    //til::point originalStart = _selection->start;
-
-    //auto end = _activeBuffer().GetWordEnd2(til::point{pos.x + 1, pos.y}, charBuffer, false, true);
-
-    //if (!end.second)
-    //{
-    //    return;
-    //}
-
-    //_selection->end = til::point{ end.first.x, end.first.y };
-    //if (isVisual)
-    //{
-    //    _selection->start = originalStart;    
-    //}
-    //else
-    //{
-    //    _selection->start = _selection->end;
-    //}
 }
 
 void Terminal::_TilChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUpperCase)
@@ -1372,7 +1344,7 @@ void Terminal::_TilChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUp
 
     til::point originalStart = _selection->start;
 
-    auto result = _activeBuffer().GetWordEnd2(startPoint, charBuffer, false, true);
+    auto result = _activeBuffer().FindChar(startPoint, charBuffer);
 
     if (!result.second)
     {
@@ -1414,7 +1386,7 @@ void Terminal::_FindCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool
 
     auto startPoint = _selection->end > _selection->pivot ? adjustedEnd : adjustedStart;
 
-    auto result = _activeBuffer().GetWordStart2(startPoint, charBuffer);
+    auto result = _activeBuffer().FindCharReverse(startPoint, charBuffer);
 
     if (!result.second)
     {
@@ -1456,7 +1428,7 @@ void Terminal::_TilCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool 
 
     auto startPoint = _selection->end > _selection->pivot ? adjustedEnd : adjustedStart;
 
-    auto result = _activeBuffer().GetWordStart2(startPoint, charBuffer);
+    auto result = _activeBuffer().FindCharReverse(startPoint, charBuffer);
 
     if (!result.second)
     {
@@ -1484,8 +1456,8 @@ void Terminal::_TilCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool 
 
 void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
 {
-    auto start = _activeBuffer().GetWordStart2(pos, startDelimiter);
-    auto end = _activeBuffer().GetWordEnd2(pos, endDelimiter, false, true);
+    auto start = _activeBuffer().FindCharReverse(pos, startDelimiter);
+    auto end = _activeBuffer().FindChar(pos, endDelimiter);
 
     if (!start.second || !end.second)
     {

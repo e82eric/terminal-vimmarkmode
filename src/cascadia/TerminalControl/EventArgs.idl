@@ -104,7 +104,8 @@ namespace Microsoft.Terminal.Control
     runtimeclass VimTextChangedEventArgs
     {
         String Text { get; };
-        String SearchString;
+        String SearchString { get; };
+        String Mode { get; };
     }
 
     runtimeclass CompletionsChangedEventArgs

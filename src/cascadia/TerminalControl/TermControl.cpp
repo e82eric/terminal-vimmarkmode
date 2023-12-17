@@ -2197,6 +2197,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await wil::resume_foreground(Dispatcher());
         VimTextBox().Text(args.Text());
         VimSearchStringTextBox().Text(args.SearchString());
+        VimModeTextBox().Text(args.Mode());
     }
 
     winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,
@@ -2209,7 +2210,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else
         {
-            VimGrid().Visibility(Visibility::Collapsed);
+            VimModeTextBox().Text(L"Shell");
+            VimTextBox().Text(L"");
+            VimSearchStringTextBox().Text(L"");
         }
     }
 

@@ -1336,15 +1336,17 @@
                    IsHitTestVisible="False"
                    Visibility="Collapsed" />
 
-            <Border BorderBrush="Black" Grid.Row="2" x:Name="VimGrid" Visibility="Visible" BorderThickness="1">
+            <Border Background="Black" Grid.Row="2" x:Name="VimGrid" Visibility="Visible" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="auto" />
                     </Grid.ColumnDefinitions>
-                    
-                    <TextBlock Text="" x:Name="VimSearchStringTextBox"/>
-                    <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="2"/>
+
+                    <TextBlock Text="Shell" x:Name="VimModeTextBox" Grid.Column="0" HorizontalAlignment="Left" Margin="0,0,10,0"/>
+                    <TextBlock Text="" x:Name="VimSearchStringTextBox" Grid.Column="1" HorizontalAlignment="Left"/>
+                    <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="2" HorizontalAlignment="Right"/>
                 </Grid>
             </Border>
         </Grid>

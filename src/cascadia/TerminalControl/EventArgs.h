@@ -218,14 +218,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     struct VimTextChangedEventArgs : public VimTextChangedEventArgsT<VimTextChangedEventArgs>
     {
     public:
-        VimTextChangedEventArgs(const winrt::hstring text, const winrt::hstring searchString) :
+        VimTextChangedEventArgs(const winrt::hstring text, const winrt::hstring searchString, const winrt::hstring mode) :
             _Text(text),
-            _SearchString(searchString)
+            _SearchString(searchString),
+            _Mode(mode)
         {
         }
 
         WINRT_PROPERTY(winrt::hstring, Text, false);
         WINRT_PROPERTY(winrt::hstring, SearchString, false);
+        WINRT_PROPERTY(winrt::hstring, Mode, false);
     };
 
     struct CompletionsChangedEventArgs : public CompletionsChangedEventArgsT<CompletionsChangedEventArgs>
