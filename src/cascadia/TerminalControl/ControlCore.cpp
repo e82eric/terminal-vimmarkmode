@@ -1348,8 +1348,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (sequenceCompleted)
         {
-            ExecuteVimSelection(action, textObject, times, motion, mode == visualMode, searchString, amount, key, mods.IsShiftPressed());
+            ExecuteVimSelection(action, textObject, times, motion, mode == visualMode, searchString, amount, key, isUpperCase);
 
+            lastVkeyUpperCase = isUpperCase;
             lastTextObject = textObject;
             lastAction = action;
             lastMotion = motion;
