@@ -989,7 +989,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             times = 1;
         }
 
-        if (textObject == tilCharTextObject || textObject == tilCharReverseTextObject || textObject == findCharTextObject)
+        if (textObject == tilCharTextObject || textObject == tilCharReverseTextObject || textObject == findCharTextObject || textObject == findCharReverseTextObject)
         {
             sequenceCompleted = true;
         }
@@ -1348,9 +1348,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (sequenceText != L"\r")
         {
-            _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ sequenceText }, winrt::hstring{ statusBarSearchString }, winrt::hstring{ mode == searchMode ? L"Search" : mode == normalMode ? L"Normal" :
-                                                                                                                                                                                                                      mode == visualMode     ? L"Visual" :
-                                                                                                                                                                                                                                               L"VisualLine" }));
+            _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ sequenceText }, winrt::hstring{ statusBarSearchString }, winrt::hstring{ mode == searchMode ? L"Search" : mode == normalMode ? L"Normal" :                                                                                                                                                                                                                            L"VisualLine" }));
         }
 
         if (sequenceCompleted)
