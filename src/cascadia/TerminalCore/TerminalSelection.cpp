@@ -1088,7 +1088,7 @@ void Terminal::SelectWordRight(bool isVisual, bool isLargeWord)
     }
 }
 
-void Terminal::SelectInWord(bool largeWord, int8_t startPosType, bool stopOnControlChar)
+void Terminal::SelectInWord(bool largeWord)
 {
     auto delimiters = _wordDelimiters;
     if (largeWord)
@@ -1096,8 +1096,8 @@ void Terminal::SelectInWord(bool largeWord, int8_t startPosType, bool stopOnCont
         delimiters = L"";
     }
 
-    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
-    _InWord(targetPos, delimiters, startPosType, stopOnControlChar);
+    auto targetPos{ _selection->end };
+    _InWord(targetPos, delimiters);
 }
 
 // Method Description:
@@ -1476,30 +1476,13 @@ void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, s
     }
 }
 
-void Terminal::_InWord(til::point& pos, std::wstring_view delimiters, int8_t startType, bool stopOnControlChar)
+void Terminal::_InWord(til::point& pos, std::wstring_view delimiters)
 {
-    auto endPair = _activeBuffer().GetWordEnd2(pos, delimiters, stopOnControlChar, true);
-    if (endPair.first == pos)
-    {
-        _activeBuffer().GetSize().IncrementInBounds(pos);
-        _activeBuffer().GetSize().IncrementInBounds(pos);
-        endPair = _activeBuffer().GetWordEnd2(pos, delimiters, stopOnControlChar, true);
-    }
+    auto endPair = _activeBuffer().GetWordEnd2(pos, delimiters);
     if (endPair.second)
     {
         _selection->end = endPair.first;
-        if (startType == 1)
-        {
-            _selection->start = _activeBuffer().GetWordStart(pos, delimiters);
-        }
-        else if (startType == 2)
-        {
-            _selection->start = pos;
-        }
-        else if (startType == 3)
-        {
-            _selection->start = _selection->end;
-        }
+        _selection->start = _activeBuffer().GetWordStart(pos, delimiters);
     }
 }
 

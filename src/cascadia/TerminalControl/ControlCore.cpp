@@ -706,10 +706,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             else if (textObject == inWordTextObject || textObject == inLargeWordTextObject)
             {
-                _terminal->SelectInWord(
-                    textObject == inLargeWordTextObject,
-                    1,
-                    true);
+                _terminal->SelectInWord(textObject == inLargeWordTextObject);
             }
             else if (textObject == lineTextObject)
             {
@@ -828,7 +825,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto moveForward = motion != forwardMotion; 
             if (textObject == wordTextObject)
             {
-                _terminal->SelectInWord(false, 1, true);
+                _terminal->SelectInWord(false);
                 const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(moveForward);
                 auto searchString = bufferData.text[0];
                 if (_searcher.ResetIfStale(*GetRenderData(), searchString, moveForward, true))

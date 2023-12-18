@@ -317,7 +317,7 @@ public:
     void SelectWordLeft(bool isVisual, bool isLargeWord);
     void SelectWordStartRight(bool isVisual, bool isLargeWord);
     void SelectWordLeft(bool isVisual);
-    void SelectInWord(bool largeWord, int8_t startPosType, bool stopOnControlChar);
+    void SelectInWord(bool largeWord);
     void InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
     void TilChar(WORD vkey, bool isVisual, bool isUpperCase);
     void FindChar(WORD vkey, bool isVisual, bool isUpperCase);
@@ -504,7 +504,7 @@ private:
     void _MoveByViewport(SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByHalfViewport(SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByBuffer(SelectionDirection direction, til::point& pos) noexcept;
-    void _InWord(til::point& pos, std::wstring_view delimiters, int8_t startType, bool stopOnControlChar);
+    void _InWord(til::point& pos, std::wstring_view delimiters);
     void _InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
     void _FindChar(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);
     void _TilChar(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);

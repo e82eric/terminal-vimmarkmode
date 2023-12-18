@@ -1531,7 +1531,7 @@ std::pair<til::point, bool> TextBuffer::FindChar(const til::point target, const 
     return _FindChar(target, wordDelimiters);
 }
 
-std::pair<til::point, bool> TextBuffer::GetWordEnd2(const til::point target, const std::wstring_view wordDelimiters, bool stopOnControlChar, bool stopOnLastNormalChar) const
+std::pair<til::point, bool> TextBuffer::GetWordEnd2(const til::point target, const std::wstring_view wordDelimiters) const
 {
     const auto bufferSize{ GetSize() };
     const auto limit{ bufferSize.EndExclusive() };
@@ -1540,7 +1540,7 @@ std::pair<til::point, bool> TextBuffer::GetWordEnd2(const til::point target, con
         return { {}, false };
     }
 
-    return _GetWordEndForSelection2(target, wordDelimiters, stopOnControlChar, stopOnLastNormalChar);
+    return _GetWordEndForSelection2(target, wordDelimiters);
 }
 
 // Method Description:
@@ -1830,7 +1830,7 @@ std::pair<til::point, bool> TextBuffer::_FindChar(const til::point target, const
     return { result, true };
 }
 
-std::pair<til::point, bool> TextBuffer::_GetWordEndForSelection2(const til::point target, const std::wstring_view wordDelimiters, bool stopOnControlChar, bool stopOnLastNonWhiteSpace) const
+std::pair<til::point, bool> TextBuffer::_GetWordEndForSelection2(const til::point target, const std::wstring_view wordDelimiters) const
 {
     const auto bufferSize = GetSize();
 
@@ -1860,7 +1860,7 @@ std::pair<til::point, bool> TextBuffer::_GetWordEndForSelection2(const til::poin
         {
             normalCharFound = true;
         }
-        if (classAt == DelimiterClass::DelimiterChar || (classAt == DelimiterClass::ControlChar && stopOnControlChar))
+        if (classAt == DelimiterClass::DelimiterChar || (classAt == DelimiterClass::ControlChar))
         {
             bufferSize.DecrementInBounds(result);
             found = true;
@@ -1868,7 +1868,7 @@ std::pair<til::point, bool> TextBuffer::_GetWordEndForSelection2(const til::poin
         }
     }
 
-    if (!found || (!normalCharFound && stopOnLastNonWhiteSpace))
+    if (!found)
     {
         return { {}, false };
     }

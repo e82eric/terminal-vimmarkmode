@@ -214,7 +214,7 @@ public:
     til::point GetWordEnd(const til::point target, const std::wstring_view wordDelimiters, bool accessibilityMode = false, std::optional<til::point> limitOptional = std::nullopt) const;
     til::point GetLineEnd(const til::point target) const;
     std::pair<til::point, bool> FindChar(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> GetWordEnd2(const til::point target, const std::wstring_view wordDelimiters, bool stopOnConrolChar, bool stopOnLastControlChar) const;
+    std::pair<til::point, bool> GetWordEnd2(const til::point target, const std::wstring_view wordDelimiters) const;
     bool MoveToNextWord(til::point& pos, const std::wstring_view wordDelimiters, std::optional<til::point> limitOptional = std::nullopt) const;
     bool MoveToPreviousWord(til::point& pos, const std::wstring_view wordDelimiters) const;
 
@@ -311,7 +311,7 @@ private:
     std::pair<til::point, bool> _GetWordStartForSelection2(const til::point target, const std::wstring_view wordDelimiters) const;
     til::point _GetWordEndForAccessibility(const til::point target, const std::wstring_view wordDelimiters, const til::point limit) const;
     til::point _GetWordEndForSelection(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> _GetWordEndForSelection2(const til::point target, const std::wstring_view wordDelimiters, bool stopOnControlChar, bool stopOnLastNormalChar) const;
+    std::pair<til::point, bool> _GetWordEndForSelection2(const til::point target, const std::wstring_view wordDelimiters) const;
     std::pair<til::point, bool> _FindChar(const til::point target, const std::wstring_view wordDelimiters) const;
     void _PruneHyperlinks();
     void _trimMarksOutsideBuffer();
