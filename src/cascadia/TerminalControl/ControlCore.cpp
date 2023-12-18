@@ -964,6 +964,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool hideMarkers = false;
         bool clearStateOnSequenceCompleted = true;
 
+        if (vkey == 16 || vkey == 17)
+        {
+            return true;
+        }
+
         wchar_t vkeyText[2] = { 0 };
 
         BYTE keyboardState[256];
@@ -984,11 +989,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             times = 1;
         }
 
-        if (vkey == 16 || vkey == 17)
-        {
-            return true;
-        }
-        else if (textObject == tilCharTextObject || textObject == tilCharReverseTextObject || textObject == findCharTextObject)
+        if (textObject == tilCharTextObject || textObject == tilCharReverseTextObject || textObject == findCharTextObject)
         {
             sequenceCompleted = true;
         }
@@ -1345,9 +1346,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto statusBarSearchString = !searchString.empty() && reverseSearch ? L"?" + searchString : !searchString.empty() ? L"/" + searchString :
                                                                                                                             L"";
 
-        _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(
-            winrt::hstring{ sequenceText }, winrt::hstring{ statusBarSearchString }, winrt::hstring{
-                mode == searchMode ? L"Search" : mode == normalMode ? L"Normal" : mode == visualMode ? L"Visual" : L"VisualLine" }));
+        if (sequenceText != L"\r")
+        {
+            _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ sequenceText }, winrt::hstring{ statusBarSearchString }, winrt::hstring{ mode == searchMode ? L"Search" : mode == normalMode ? L"Normal" :
+                                                                                                                                                                                                                      mode == visualMode     ? L"Visual" :
+                                                                                                                                                                                                                                               L"VisualLine" }));
+        }
 
         if (sequenceCompleted)
         {
