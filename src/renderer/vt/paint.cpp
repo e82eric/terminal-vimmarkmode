@@ -233,6 +233,11 @@ using namespace Microsoft::Console::Types;
     return S_OK;
 }
 
+[[nodiscard]] HRESULT VtEngine::PaintYankSelection(const til::rect& /*rect*/) noexcept
+{
+    return S_OK;
+}
+
 [[nodiscard]] HRESULT VtEngine::PaintSelections(const std::vector<til::rect>& /*rect*/) noexcept
 {
     return S_OK;

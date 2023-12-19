@@ -386,6 +386,11 @@ void UiaEngine::WaitUntilCanRender() noexcept
     return S_FALSE;
 }
 
+[[nodiscard]] HRESULT UiaEngine::PaintYankSelection(const til::rect& /*rect*/) noexcept
+{
+    return S_FALSE;
+}
+
 [[nodiscard]] HRESULT UiaEngine::PaintSelections(const std::vector<til::rect>& /*rect*/) noexcept
 {
     return S_FALSE;

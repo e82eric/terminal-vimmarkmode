@@ -378,6 +378,7 @@ namespace Microsoft::Console::Render::Atlas
     {
         u32 backgroundColor = 0;
         u32 selectionColor = 0x7fffffff;
+        u32 yankSelectionColor = 0x7FFF7F00;
         std::wstring customPixelShaderPath;
         bool useRetroTerminalEffect = false;
     };
@@ -446,6 +447,8 @@ namespace Microsoft::Console::Render::Atlas
             lineRendition = LineRendition::SingleWidth;
             selectionFrom = 0;
             selectionTo = 0;
+            yankSelectionFrom = 0;
+            yankSelectionTo = 0;
             dirtyTop = y * cellHeight;
             dirtyBottom = dirtyTop + cellHeight;
         }
@@ -459,6 +462,8 @@ namespace Microsoft::Console::Render::Atlas
         LineRendition lineRendition = LineRendition::SingleWidth;
         u16 selectionFrom = 0;
         u16 selectionTo = 0;
+        u16 yankSelectionFrom = 0;
+        u16 yankSelectionTo = 0;
         til::CoordType dirtyTop = 0;
         til::CoordType dirtyBottom = 0;
     };

@@ -363,6 +363,7 @@ void Renderer::TriggerSelection()
         // Get selection rectangles
         auto rects = _GetSelectionRects();
         auto searchSelections = _GetSearchSelectionRects();
+        auto yankSelections = _GetYankSelectionRects();
 
         // Make a viewport representing the coordinates that are currently presentable.
         const til::rect viewport{ _pData->GetViewport().Dimensions() };
@@ -372,15 +373,22 @@ void Renderer::TriggerSelection()
         {
             sr &= viewport;
         }
+        for (auto& sr : _previousYankSelection)
+        {
+            sr &= viewport;
+        }
 
         FOREACH_ENGINE(pEngine)
         {
             LOG_IF_FAILED(pEngine->InvalidateSelection(_previousSearchSelection));
+            LOG_IF_FAILED(pEngine->InvalidateSelection(_previousYankSelection));
             LOG_IF_FAILED(pEngine->InvalidateSelection(_previousSelection));
             LOG_IF_FAILED(pEngine->InvalidateSelection(searchSelections));
+            LOG_IF_FAILED(pEngine->InvalidateSelection(yankSelections));
             LOG_IF_FAILED(pEngine->InvalidateSelection(rects));
         }
 
+        _previousYankSelection = std::move(yankSelections);
         _previousSelection = std::move(rects);
         _previousSearchSelection = std::move(searchSelections);
 
@@ -1210,6 +1218,7 @@ void Renderer::_PaintSelection(_In_ IRenderEngine* const pEngine)
 
         // Get selection rectangles
         const auto rectangles = _GetSelectionRects();
+        const auto yankRectangles = _GetYankSelectionRects();
         const auto searchRectangles = _GetSearchSelectionRects();
 
         std::vector<til::rect> dirtySearchRectangles;
@@ -1228,6 +1237,14 @@ void Renderer::_PaintSelection(_In_ IRenderEngine* const pEngine)
                 if (const auto rectCopy = rect & dirtyRect)
                 {
                     LOG_IF_FAILED(pEngine->PaintSelection(rectCopy));
+                }
+            }
+
+            for (const auto& rect : yankRectangles)
+            {
+                if (const auto rectCopy = rect & dirtyRect)
+                {
+                    LOG_IF_FAILED(pEngine->PaintYankSelection(rectCopy));
                 }
             }
         }
@@ -1283,6 +1300,32 @@ std::vector<til::rect> Renderer::_GetSelectionRects() const
 {
     const auto& buffer = _pData->GetTextBuffer();
     auto rects = _pData->GetSelectionRects();
+    // Adjust rectangles to viewport
+    auto view = _pData->GetViewport();
+
+    std::vector<til::rect> result;
+    result.reserve(rects.size());
+
+    for (auto rect : rects)
+    {
+        // Convert buffer offsets to the equivalent range of screen cells
+        // expected by callers, taking line rendition into account.
+        const auto lineRendition = buffer.GetLineRendition(rect.Top());
+        rect = Viewport::FromInclusive(BufferToScreenLine(rect.ToInclusive(), lineRendition));
+        result.emplace_back(view.ConvertToOrigin(rect).ToExclusive());
+    }
+
+    return result;
+}
+
+// Routine Description:
+// - Helper to determine the selected region of the buffer.
+// Return Value:
+// - A vector of rectangles representing the regions to select, line by line.
+std::vector<til::rect> Renderer::_GetYankSelectionRects() const
+{
+    const auto& buffer = _pData->GetTextBuffer();
+    auto rects = _pData->GetYankSelectionRects();
     // Adjust rectangles to viewport
     auto view = _pData->GetViewport();
 

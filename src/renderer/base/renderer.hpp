@@ -110,6 +110,7 @@ namespace Microsoft::Console::Render
         [[nodiscard]] HRESULT _UpdateDrawingBrushes(_In_ IRenderEngine* const pEngine, const TextAttribute attr, const bool usingSoftFont, const bool isSettingDefaultBrushes);
         [[nodiscard]] HRESULT _PerformScrolling(_In_ IRenderEngine* const pEngine);
         std::vector<til::rect> _GetSelectionRects() const;
+        std::vector<til::rect> _GetYankSelectionRects() const;
         std::vector<til::rect> _GetSearchSelectionRects() const;
         void _ScrollPreviousSelection(const til::point delta);
         [[nodiscard]] HRESULT _PaintTitle(IRenderEngine* const pEngine);
@@ -128,6 +129,7 @@ namespace Microsoft::Console::Render
         Microsoft::Console::Types::Viewport _viewport;
         std::vector<Cluster> _clusterBuffer;
         std::vector<til::rect> _previousSelection;
+        std::vector<til::rect> _previousYankSelection;
         std::vector<til::rect> _previousSearchSelection;
         std::function<void()> _pfnBackgroundColorChanged;
         std::function<void()> _pfnFrameColorChanged;

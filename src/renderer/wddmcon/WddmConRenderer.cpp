@@ -298,6 +298,11 @@ CATCH_RETURN()
     return S_OK;
 }
 
+[[nodiscard]] HRESULT WddmConEngine::PaintYankSelection(const til::rect& /*rect*/) noexcept
+{
+    return S_OK;
+}
+
 [[nodiscard]] HRESULT WddmConEngine::PaintSelections(const std::vector<til::rect>& /*rects*/) noexcept
 {
     return S_OK;

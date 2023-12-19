@@ -863,6 +863,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else if (action == yankAction)
         {
+            auto selectionInfo = SelectionInfo();
+            _terminal->SelectYankRegion();
+            std::thread hideTimerThread([this]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(400));
+                {
+                    const auto lock = _terminal->LockForWriting();
+                    _terminal->ClearYankRegion();
+                    _renderer->TriggerSelection();
+                }
+            });
+            hideTimerThread.detach();
+
             CopySelectionToClipboard(false, nullptr);
             _terminal->ClearSelection();
             _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
@@ -1351,6 +1363,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (sequenceCompleted)
         {
             ExecuteVimSelection(action, textObject, times, motion, mode == visualMode, searchString, amount, key, isUpperCase);
+
+            if (action == yankAction)
+            {
+                mode = normalMode;
+            }
 
             lastVkeyUpperCase = isUpperCase;
             lastTextObject = textObject;

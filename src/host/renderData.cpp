@@ -84,6 +84,27 @@ std::vector<Viewport> RenderData::GetSelectionRects() noexcept
 //   that should be highlighted in some way to represent a user-interactive selection
 // Return Value:
 // - Vector of Viewports describing the area selected
+std::vector<Viewport> RenderData::GetYankSelectionRects() noexcept
+{
+    std::vector<Viewport> result;
+
+    try
+    {
+        for (const auto& select : Selection::Instance().GetSelectionRects())
+        {
+            result.emplace_back(Viewport::FromInclusive(select));
+        }
+    }
+    CATCH_LOG();
+
+    return result;
+}
+
+// Method Description:
+// - Retrieves one rectangle per line describing the area of the viewport
+//   that should be highlighted in some way to represent a user-interactive selection
+// Return Value:
+// - Vector of Viewports describing the area selected
 std::vector<Viewport> RenderData::GetSearchSelectionRects() noexcept
 {
     return {};
@@ -379,6 +400,14 @@ void RenderData::ClearSelection()
 void RenderData::SelectNewRegion(const til::point coordStart, const til::point coordEnd)
 {
     Selection::Instance().SelectNewRegion(coordStart, coordEnd);
+}
+
+void RenderData::SelectYankRegion()
+{
+}
+
+void RenderData::ClearYankRegion()
+{
 }
 
 void RenderData::SelectSearchRegions(std::vector<til::inclusive_rect> source)

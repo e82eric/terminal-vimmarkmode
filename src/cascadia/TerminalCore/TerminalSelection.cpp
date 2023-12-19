@@ -63,6 +63,23 @@ std::vector<til::inclusive_rect> Terminal::_GetSelectionRects() const noexcept
     return result;
 }
 
+std::vector<til::inclusive_rect> Terminal::_GetYankSelectionRects() const noexcept
+{
+    std::vector<til::inclusive_rect> result;
+
+    if (!_yankSelection.has_value())
+    {
+        return result;
+    }
+
+    try
+    {
+        return _activeBuffer().GetTextRects(_yankSelection->start, _yankSelection->end, false, false);
+    }
+    CATCH_LOG();
+    return result;
+}
+
 // Method Description:
 // - Helper to determine the selected region of the buffer. Used for rendering.
 // Return Value:

@@ -815,6 +815,11 @@ bool GdiEngine::FontHasWesternScript(HDC hdc)
     return S_OK;
 }
 
+[[nodiscard]] HRESULT GdiEngine::PaintYankSelection(const til::rect& /*rect*/) noexcept
+{
+    return S_OK;
+}
+
 [[nodiscard]] HRESULT GdiEngine::PaintSelections(const std::vector<til::rect>& rects) noexcept
 {
     UNREFERENCED_PARAMETER(rects);

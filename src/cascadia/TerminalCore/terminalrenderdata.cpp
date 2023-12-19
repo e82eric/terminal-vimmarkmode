@@ -150,6 +150,24 @@ catch (...)
     return {};
 }
 
+std::vector<Microsoft::Console::Types::Viewport> Terminal::GetYankSelectionRects() noexcept
+try
+{
+    std::vector<Viewport> result;
+
+    for (const auto& lineRect : _GetYankSelectionRects())
+    {
+        result.emplace_back(Viewport::FromInclusive(lineRect));
+    }
+
+    return result;
+}
+catch (...)
+{
+    LOG_CAUGHT_EXCEPTION();
+    return {};
+}
+
 std::vector<Microsoft::Console::Types::Viewport> Terminal::GetSearchSelectionRects() noexcept
 try
 {
@@ -204,6 +222,20 @@ void Terminal::SelectNewRegion(const til::point coordStart, const til::point coo
 
     SetSelectionAnchor(realCoordStart);
     SetSelectionEnd(realCoordEnd, SelectionExpansion::Char);
+}
+
+void Terminal::SelectYankRegion()
+{
+    _yankSelection = SelectionAnchors{};
+
+    _yankSelection->end = _selection->end;
+    _yankSelection->start = _selection->start;
+    _yankSelection->pivot = _selection->pivot;
+}
+
+void Terminal::ClearYankRegion()
+{
+    _yankSelection.reset();
 }
 
 void Terminal::SelectSearchRegions(std::vector<til::inclusive_rect> rects)

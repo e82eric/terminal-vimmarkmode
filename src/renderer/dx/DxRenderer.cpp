@@ -1844,6 +1844,13 @@ try
 }
 CATCH_RETURN()
 
+[[nodiscard]] HRESULT DxEngine::PaintYankSelection(const til::rect& /*rect*/) noexcept
+try
+{
+    return S_OK;
+}
+CATCH_RETURN()
+
 [[nodiscard]] HRESULT DxEngine::PaintSelections(const std::vector<til::rect>& rects) noexcept
 try
 {
