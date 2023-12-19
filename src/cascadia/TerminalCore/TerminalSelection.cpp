@@ -735,6 +735,7 @@ void Terminal::SelectHalfPageUp(bool isVisual)
     {
         _selection->start = newPos;
         _selection->end = newPos;
+        _selection->pivot = newPos;
     }
     else if (newPos < _selection->pivot)
     {
@@ -764,6 +765,7 @@ void Terminal::SelectHalfPageDown(bool isVisual)
     {
         _selection->start = newPos;
         _selection->end = newPos;
+        _selection->pivot = newPos;
     }
     else if (newPos < _selection->pivot)
     {
@@ -792,6 +794,7 @@ void Terminal::SelectPageUp(bool isVisual)
     {
         _selection->start = newPos;
         _selection->end = newPos;
+        _selection->pivot = newPos;
     }
     else if (newPos < _selection->pivot)
     {
@@ -966,10 +969,11 @@ void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
 
     if (start.second)
     {
-        _selection->end = start.first;
         if (!isVisual)
         {
             _selection->start = _selection->end;
+            _selection->end = start.first;
+            _selection->pivot = start.first;
         }
         else if (start.first < _selection->pivot)
         {
@@ -1021,6 +1025,7 @@ void Terminal::SelectWordLeft(bool isVisual, bool isLargeWord)
             {
                 _selection->end = startPair.first;
                 _selection->start = _selection->end;
+                _selection->pivot = _selection->end;
             }
             else if (startPair.first < _selection->pivot)
             {
@@ -1073,10 +1078,13 @@ void Terminal::SelectWordRight(bool isVisual, bool isLargeWord)
 
         if (endPair.second)
         {
+            _selection->end = endPair.first;
+            _selection->start = _selection->end;
             if (!isVisual)
             {
                 _selection->end = endPair.first;
                 _selection->start = _selection->end;
+                _selection->pivot = _selection->pivot;
             }
             else if (endPair.first < _selection->pivot)
             {
@@ -1330,6 +1338,7 @@ void Terminal::_FindChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isU
     {
         _selection->start = adjustedResult;
         _selection->end = adjustedResult;
+        _selection->pivot = adjustedResult;
     }
     else if (adjustedStart < _selection->pivot)
     {
@@ -1374,6 +1383,7 @@ void Terminal::_TilChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUp
     {
         _selection->start = adjustedResult;
         _selection->end = adjustedResult;
+        _selection->pivot = adjustedResult;
     }
     else if (adjustedStart < _selection->pivot)
     {
@@ -1416,6 +1426,7 @@ void Terminal::_FindCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool
     {
         _selection->start = adjustedResult;
         _selection->end = adjustedResult;
+        _selection->pivot = adjustedResult;
     }
     else if (adjustedEnd > _selection->pivot)
     {
@@ -1458,6 +1469,7 @@ void Terminal::_TilCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool 
     {
         _selection->start = adjustedResult;
         _selection->end = adjustedResult;
+        _selection->pivot = adjustedResult;
     }
     else if (adjustedEnd > _selection->pivot)
     {
