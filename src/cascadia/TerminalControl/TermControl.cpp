@@ -65,6 +65,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         InitializeComponent();
 
+        _searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::Search2TextLine>();
+
         _core = _interactivity.Core();
 
         // This event is specifically triggered by the renderer thread, a BG thread. Use a weak ref here.
@@ -220,6 +222,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
             }
         });
+    }
+
+    Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> TermControl::SearchResults()
+    {
+        return _searchResults;
     }
 
     // Function Description:
@@ -407,30 +414,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::CreateSearchBoxControl()
     {
         // Lazy load the search box control.
-        if (auto loadedSearchBox{ FindName(L"SearchBox") })
+        if (auto loadedSearchBox{ FindName(L"SearchBox2") })
         {
-            if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::SearchBoxControl>() })
+            if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::SearchBoxControl2>() })
             {
                 // get at its private implementation
-                _searchBox.copy_from(winrt::get_self<implementation::SearchBoxControl>(searchBox));
-                _searchBox->Visibility(Visibility::Visible);
+                _searchBox2.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::SearchBoxControl2>(searchBox));
+                _searchBox2->Visibility(Visibility::Visible);
 
-                // If a text is selected inside terminal, use it to populate the search box.
-                // If the search box already contains a value, it will be overridden.
-                if (_core.HasSelection())
-                {
-                    // Currently we populate the search box only if a single line is selected.
-                    // Empirically, multi-line selection works as well on sample scenarios,
-                    // but since code paths differ, extra work is required to ensure correctness.
-                    auto bufferText = _core.SelectedText(true);
-                    if (bufferText.Size() == 1)
-                    {
-                        const auto selectedLine{ bufferText.GetAt(0) };
-                        _searchBox->PopulateTextbox(selectedLine);
-                    }
-                }
-
-                _searchBox->SetFocusOnTextbox();
+                _searchBox2->SetFocusOnTextbox();
             }
         }
     }
@@ -478,7 +470,45 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                               const bool goForward,
                               const bool caseSensitive)
     {
+        //Do I still need this?
         _core.Search(text, goForward, caseSensitive);
+        auto b = _core.Search2(text);
+
+        _searchResults.Clear();
+        for (auto a : b)
+        {
+            _searchResults.Append(a);
+        }
+    }
+
+    void TermControl::Search2_OnSelection(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
+    {
+        _searchBox2->Visibility(Visibility::Collapsed);
+         CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
+        _core.SelectRow(args.Row(), args.FirstPosition());
+
+        ToggleMarkMode();
+    }
+
+    void TermControl::Search2_SelectionChanged(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
+    {
+        ToggleMarkMode();
+        _core.SelectRow(args.Row(), args.FirstPosition());
+        auto selInfo = _core.SelectionInfo();
+        Core::Point terminalPos{ 0, selInfo.StartPos.Y };
+        const til::point locationInDIPs{ _toPosInDips(terminalPos) };
+
+        SelectionCanvas().SetLeft(CurrentSearchRowHighlight(),
+                                  (locationInDIPs.x - SwapChainPanel().ActualOffset().x));
+        SelectionCanvas().SetTop(CurrentSearchRowHighlight(),
+                                 (locationInDIPs.y - SwapChainPanel().ActualOffset().y));
+        CurrentSearchRowHighlight().Visibility(Visibility::Visible);
+
+        CurrentSearchRowHighlight().Width(SwapChainPanel().ActualWidth());
+
+        auto orangeBrush = Windows::UI::Xaml::Media::SolidColorBrush();
+        orangeBrush.Color(Windows::UI::ColorHelper::FromArgb(76, 255, 165, 0));
+        CurrentSearchRowHighlight().Fill(orangeBrush);
     }
 
     // Method Description:
@@ -510,8 +540,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::_CloseSearchBoxControl(const winrt::Windows::Foundation::IInspectable& /*sender*/,
                                              const RoutedEventArgs& /*args*/)
     {
-        _core.ClearSearch();
-        _searchBox->Visibility(Visibility::Collapsed);
+        //_core.ClearSearch();
+        _searchBox2->Visibility(Visibility::Collapsed);
+        CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
 
         // Set focus back to terminal control
         this->Focus(FocusState::Programmatic);
@@ -1297,6 +1328,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // If the current focused element is a child element of searchbox,
         // we do not send this event up to terminal
         if (_searchBox && _searchBox->ContainsFocus())
+        {
+            return;
+        }
+
+        if (_searchBox2 && _searchBox2->ContainsFocus())
         {
             return;
         }
@@ -2203,6 +2239,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,
                                                         const Control::ToggleVimModeEventArgs args)
     {
+        auto weakThis{  get_weak() };
         co_await wil::resume_foreground(Dispatcher());
         if (args.Enable())
         {
@@ -2211,8 +2248,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         else
         {
             VimModeTextBox().Text(L"Shell");
-            VimTextBox().Text(L"");
-            VimSearchStringTextBox().Text(L"");
+            
+            auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
+            hideTimer.Interval(std::chrono::milliseconds(400));
+            hideTimer.Tick([hideTimer, weakThis](auto&&, auto&&) {
+                if (auto strongThis = weakThis.get())
+                {
+                    strongThis->VimTextBox().Text(L"");
+                    hideTimer.Stop();
+                }
+            });
+
+            hideTimer.Start();
         }
     }
 
@@ -3433,6 +3480,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         };
         scaleMarker(SelectionStartMarker());
         scaleMarker(SelectionEndMarker());
+
+        CurrentSearchRowHighlight().Height(args.Height());
     }
 
     void TermControl::_coreRaisedNotice(const IInspectable& /*sender*/,

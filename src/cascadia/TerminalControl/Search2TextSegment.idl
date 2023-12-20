@@ -1,0 +1,22 @@
+namespace Microsoft.Terminal.Control
+{
+    [default_interface] runtimeclass Search2TextSegment : Windows.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        Search2TextSegment();
+        Search2TextSegment(String text, Boolean isHighlighted);
+
+        String TextSegment { get; };
+        Boolean IsHighlighted { get; };
+    }
+
+    [default_interface] runtimeclass Search2TextLine : Windows.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        Search2TextLine();
+        Search2TextLine(Windows.Foundation.Collections.IObservableVector<Search2TextSegment> segments, Int32 score, Int32 row, Int32 firstPosition);
+
+        Windows.Foundation.Collections.IObservableVector<Search2TextSegment> Segments;
+        Int32 Score { get; };
+        Int32 Row { get; };
+        Int32 FirstPosition { get; set; };
+    }
+}

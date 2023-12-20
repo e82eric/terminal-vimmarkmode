@@ -1,0 +1,46 @@
+<UserControl x:Class="Microsoft.Terminal.Control.SearchBoxControl2"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="using:Microsoft.Terminal.Control"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             x:Name="Root"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Top"
+             d:DesignHeight="55"
+             d:DesignWidth="285"
+             Background="Black"
+             Opacity="1"
+             TabNavigation="Cycle"
+             mc:Ignorable="d">
+
+    <StackPanel Margin="8"
+                Padding="4,8">
+        <TextBox x:Name="TextBoxZ"
+                 x:Uid="SearchBox2_TextBox"
+                 IsSpellCheckEnabled="False"
+                 KeyDown="TextBoxKeyDown"
+                 Margin="0,0,0,8" 
+                 Background="Black"
+                 Opacity="1"
+                 TextChanged="TextBoxTextChanged"/>
+
+            <ListBox
+            ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
+            x:Name="ListBox"
+            SelectionChanged="OnListBoxSelectionChanged"
+                Background="#FF282828"
+                BorderBrush="DarkGray"
+                BorderThickness="1"
+                Height="330">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="local:Search2TextLine">
+                    <Border BorderThickness="0,0,0,1" BorderBrush="Gray" HorizontalAlignment="Stretch" >
+                        <local:Search2TextControl Text="{x:Bind}" HorizontalAlignment="Stretch" />
+                    </Border>
+                </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+    </StackPanel>
+</UserControl>

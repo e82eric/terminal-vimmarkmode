@@ -4,6 +4,7 @@
 import "ICoreState.idl";
 import "IControlSettings.idl";
 import "EventArgs.idl";
+import "Search2TextSegment.idl";
 
 namespace Microsoft.Terminal.Control
 {
@@ -74,6 +75,7 @@ namespace Microsoft.Terminal.Control
                            Single actualHeight,
                            Single compositionScale);
 
+        void SelectRow(Int32 row, Int32 col);
         void UpdateSettings(IControlSettings settings, IControlAppearance appearance);
         void ApplyAppearance(Boolean focused);
 
@@ -129,6 +131,7 @@ namespace Microsoft.Terminal.Control
         void BlinkAttributeTick();
 
         void Search(String text, Boolean goForward, Boolean caseSensitive);
+        IVector<Search2TextLine> Search2(String text);
         void ClearSearch();
         IVector<Int32> SearchResultRows { get; };
 

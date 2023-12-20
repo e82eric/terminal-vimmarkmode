@@ -19,6 +19,10 @@
 #include "../../renderer/atlas/AtlasEngine.h"
 #include "../../renderer/dx/DxRenderer.hpp"
 
+#include "Search2TextSegment.h"
+
+#include "fzf/fzf.h"
+
 #include "ControlCore.g.cpp"
 #include "SelectionColor.g.cpp"
 
@@ -2542,6 +2546,110 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _FoundMatchHandlers(*this, *foundResults);
     }
 
+    Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::Search2TextLine> ControlCore::Search2(const winrt::hstring& text)
+    {
+        auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::Search2TextLine>();
+
+        if (text.size() <= 0)
+        {
+            return searchResults;
+        }
+
+        const auto lock = _terminal->LockForWriting();
+
+        auto renderData = this->GetRenderData();
+        auto items = std::vector<winrt::Microsoft::Terminal::Control::Search2TextLine>();
+
+        fzf_slab_t* slab = fzf_make_default_slab();
+        std::wstring searchTextCStr = text.c_str();
+
+        int sizeOfSearchTextCStr = WideCharToMultiByte(CP_UTF8, 0, searchTextCStr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+
+        std::string asciiSearchString(sizeOfSearchTextCStr, 0);
+
+        WideCharToMultiByte(CP_UTF8, 0, searchTextCStr.c_str(), -1, &asciiSearchString[0], sizeOfSearchTextCStr, nullptr, nullptr);
+
+        asciiSearchString.pop_back();
+
+        char* asciiSearchStringCStr = const_cast<char*>(asciiSearchString.c_str());
+
+        fzf_pattern_t* pattern = fzf_parse_pattern(CaseSmart, false, asciiSearchStringCStr, true);
+
+        auto rowCount = renderData->GetTextBuffer().TotalRowCount();
+        int minScore = 0;
+        for (int i = 0; i < rowCount; i++)
+        {
+            std::wstring rowFullText;
+            std::wstring_view rowText = renderData->GetTextBuffer().GetRowByOffset(i).GetText();
+            if (rowText.size() > 0)
+            {
+                rowFullText = rowText.data();
+                int bufferSize = WideCharToMultiByte(CP_UTF8, 0, rowText.data(), -1, nullptr, 0, nullptr, nullptr);
+
+                std::string asciiRowText(bufferSize, 0);
+                WideCharToMultiByte(CP_UTF8, 0, rowText.data(), -1, &asciiRowText[0], bufferSize, nullptr, nullptr);
+
+                asciiRowText.pop_back();
+
+                char* asciiRotTextCStr = const_cast<char*>(asciiRowText.c_str());
+                int rowScore = fzf_get_score(asciiRotTextCStr, pattern, slab);
+                if (rowScore > minScore)
+                {
+                    fzf_position_t* pos = fzf_get_positions(asciiRotTextCStr, pattern, slab);
+                    std::sort(pos->data, pos->data + pos->size, [](uint32_t a, uint32_t b) {
+                        return a > b;
+                    });
+                    auto rowTextSegments = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::Search2TextSegment>();
+                    int c = 0;
+                    for (int j = static_cast<int>(pos->size) - 1; j >= 0; j--)
+                    {
+                        auto beforePos = rowFullText.substr(c, pos->data[j] - c);
+                        auto beforePosHstr = winrt::hstring(beforePos);
+                        auto beforeSegment = winrt::make<Search2TextSegment>(beforePosHstr, false);
+                        auto afterPos = rowFullText.substr(pos->data[j], 1);
+                        auto afterPosHstr = winrt::hstring(afterPos);
+                        auto afterPosSegment = winrt::make<Search2TextSegment>(afterPosHstr, true);
+
+                        rowTextSegments.Append(beforeSegment);
+                        rowTextSegments.Append(afterPosSegment);
+
+                        c = pos->data[j] + 1;
+                    }
+
+                    auto lastSegment = rowFullText.substr(c, (rowFullText.length() - c));
+                    auto lastSegmentHstr = winrt::hstring(lastSegment);
+                    auto lastSegmentTextSegment = winrt::make<Search2TextSegment>(lastSegmentHstr, false);
+
+                    rowTextSegments.Append(lastSegmentTextSegment);
+
+                    auto line = winrt::make<Search2TextLine>(rowTextSegments, rowScore, i, static_cast<int32_t>(pos->data[0]));
+
+                    items.push_back(line);
+                    std::sort(items.begin(), items.end(), [](const auto& a, const auto& b) {
+                        return a.Score() > b.Score();
+                    });
+
+                    if (items.size() > 100)
+                    {
+                        items.pop_back();
+                        minScore = items[9].Score();
+                    }
+                    fzf_free_positions(pos);
+                }
+            }
+        }
+
+        fzf_free_pattern(pattern);
+        fzf_free_slab(slab);
+
+        for (auto i : items)
+        {
+            searchResults.Append(i);
+        }
+
+        return searchResults;
+    }
+
     Windows::Foundation::Collections::IVector<int32_t> ControlCore::SearchResultRows()
     {
         const auto lock = _terminal->LockForReading();
@@ -3415,6 +3523,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto end = *nearest->commandEnd;
             _selectSpan(til::point_span{ start, end });
         }
+    }
+
+    void ControlCore::SelectRow(int32_t row, int32_t col)
+    {
+        const auto lock = _terminal->LockForWriting();
+
+        auto start = til::point{ col, row };
+        auto end = til::point{ col + 1, row };
+
+        _selectSpan(til::point_span{ start, end });
     }
 
     void ControlCore::SelectOutput(const bool goUp)

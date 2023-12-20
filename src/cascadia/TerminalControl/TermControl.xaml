@@ -1254,6 +1254,7 @@
 
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
+                <RowDefinition Height="400" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             
@@ -1294,6 +1295,7 @@
                         <Path Name="SelectionEndMarker"
                               Data="M 0 0 L 0 4.1992188 L 0 7 L 0 14 L 1 14 L 1 5.5996094 L 5 0 L 0 0 z "
                               Visibility="Collapsed" />
+                        <Rectangle x:Name="CurrentSearchRowHighlight" Visibility="Collapsed"/>
                     </Canvas>
                 </SwapChainPanel>
 
@@ -1336,7 +1338,19 @@
                    IsHitTestVisible="False"
                    Visibility="Collapsed" />
 
-            <Border Background="Black" Grid.Row="2" x:Name="VimGrid" Visibility="Visible" BorderThickness="1">
+
+            <local:SearchBoxControl2 x:Name="SearchBox2"
+                                     Grid.Row="1"
+                                       Search="_Search"
+                                     Height="400"
+                                        HorizontalAlignment="Right"
+                                         Closed="_CloseSearchBoxControl"
+                                        VerticalAlignment="Top"
+                                         Visibility="Collapsed"
+                                     SelectionChanged="Search2_SelectionChanged"
+                                     OnReturn="Search2_OnSelection"
+                                         ItemsSource="{x:Bind SearchResults}"/>
+                <Border Background="Black" Grid.Row="2" x:Name="VimGrid" Visibility="Visible" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="auto" />

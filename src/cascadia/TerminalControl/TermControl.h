@@ -12,6 +12,8 @@
 #include "../../cascadia/TerminalCore/Terminal.hpp"
 #include "../buffer/out/search.h"
 #include "SearchBoxControl.h"
+#include "SearchBoxControl2.h"
+#include "Search2TextSegment.h"
 
 #include "ControlInteractivity.h"
 #include "ControlSettings.h"
@@ -56,6 +58,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void WindowVisibilityChanged(const bool showOrHide);
 
         void ColorSelection(Control::SelectionColor fg, Control::SelectionColor bg, Core::MatchMode matchMode);
+
+        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> SearchResults();
+        void Search2_SelectionChanged(Control::SearchBoxControl2 const& sender, winrt::Microsoft::Terminal::Control::Search2TextLine const& args);
+        void Search2_OnSelection(Control::SearchBoxControl2 const& sender, winrt::Microsoft::Terminal::Control::Search2TextLine const& args);
 
 #pragma region ICoreState
         const uint64_t TaskbarState() const noexcept;
@@ -213,6 +219,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Control::ControlCore _core{ nullptr };
 
         winrt::com_ptr<SearchBoxControl> _searchBox;
+        winrt::com_ptr<SearchBoxControl2> _searchBox2;
 
         bool _closing{ false };
         bool _focused{ false };
@@ -259,6 +266,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Windows::Foundation::Collections::IObservableVector<Windows::UI::Xaml::Controls::ICommandBarElement> _originalSelectedSecondaryElements{ nullptr };
 
         Control::CursorDisplayState _cursorVisibility{ Control::CursorDisplayState::Default };
+
+        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> _searchResults;
 
         inline bool _IsClosing() const noexcept
         {

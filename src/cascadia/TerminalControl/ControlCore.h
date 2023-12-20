@@ -80,6 +80,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void Detach();
 
+        void SelectRow(int32_t row, int32_t col);
+
         void UpdateSettings(const Control::IControlSettings& settings, const IControlAppearance& newAppearance);
         void ApplyAppearance(const bool& focused);
         Control::IControlSettings Settings() { return *_settings; };
@@ -218,6 +220,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SetEndSelectionPoint(const til::point position);
 
         void Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
+        Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::Search2TextLine> Search2(const winrt::hstring& text);
         void ClearSearch();
 
         Windows::Foundation::Collections::IVector<int32_t> SearchResultRows();

@@ -1,0 +1,15 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+
+import "Search2TextSegment.idl";
+
+namespace Microsoft.Terminal.Control
+{
+    [default_interface] runtimeclass Search2TextControl : Windows.UI.Xaml.Controls.Control
+    {
+        Search2TextControl();
+        Windows.UI.Xaml.DependencyProperty TextProperty { get; };
+        Search2TextLine Text;
+        Windows.UI.Xaml.Controls.TextBlock TextView { get; };
+    }
+}
