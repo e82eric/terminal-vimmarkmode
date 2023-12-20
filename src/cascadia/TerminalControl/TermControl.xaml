@@ -1254,7 +1254,7 @@
 
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="400" />
+                <!--<RowDefinition Height="400" />-->
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             
@@ -1339,6 +1339,7 @@
                    Visibility="Collapsed" />
 
 
+            <StackPanel Grid.Row="2">
             <local:SearchBoxControl2 x:Name="SearchBox2"
                                      Grid.Row="1"
                                        Search="_Search"
@@ -1350,7 +1351,7 @@
                                      SelectionChanged="Search2_SelectionChanged"
                                      OnReturn="Search2_OnSelection"
                                          ItemsSource="{x:Bind SearchResults}"/>
-                <Border Background="Black" Grid.Row="2" x:Name="VimGrid" Visibility="Visible" BorderThickness="1">
+                <Border Background="Black" x:Name="VimGrid" Visibility="Visible" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="auto" />
@@ -1363,6 +1364,7 @@
                     <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="2" HorizontalAlignment="Right"/>
                 </Grid>
             </Border>
+            </StackPanel>
         </Grid>
 
         <local:TSFInputControl x:Name="TSFInputControl"
