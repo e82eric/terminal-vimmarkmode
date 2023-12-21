@@ -18,6 +18,7 @@
 #include "UpdateSelectionMarkersEventArgs.g.h"
 #include "ToggleVimModeEventArgs.g.h"
 #include "VimTextChangedEventArgs.g.h"
+#include "ShowFuzzySearchEventArgs.g.h"
 #include "CompletionsChangedEventArgs.g.h"
 #include "KeySentEventArgs.g.h"
 #include "CharSentEventArgs.g.h"
@@ -228,6 +229,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         WINRT_PROPERTY(winrt::hstring, Text, false);
         WINRT_PROPERTY(winrt::hstring, SearchString, false);
         WINRT_PROPERTY(winrt::hstring, Mode, false);
+    };
+
+    struct ShowFuzzySearchEventArgs : public ShowFuzzySearchEventArgsT<ShowFuzzySearchEventArgs>
+    {
+    public:
+        ShowFuzzySearchEventArgs(const winrt::hstring searchString) :
+            _SearchString(searchString)
+        {
+        }
+
+        WINRT_PROPERTY(winrt::hstring, SearchString, L"");
     };
 
     struct CompletionsChangedEventArgs : public CompletionsChangedEventArgsT<CompletionsChangedEventArgs>

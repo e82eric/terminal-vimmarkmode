@@ -1121,7 +1121,7 @@ void Terminal::SelectInWord(bool largeWord)
         delimiters = L"";
     }
 
-    auto targetPos{ _selection->end };
+    auto targetPos{ _selection->pivot };
     _InWord(targetPos, delimiters);
 }
 

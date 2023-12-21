@@ -13,6 +13,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static winrt::Windows::UI::Xaml::DependencyProperty ItemsSourceProperty();
         winrt::Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> ItemsSource();
         void ItemsSource(winrt::Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> const& value);
+        void SearchString(const winrt::hstring searchString);
 
         void SelectFirstItem();
 

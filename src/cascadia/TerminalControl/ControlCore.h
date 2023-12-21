@@ -296,7 +296,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // clang-format on
         TYPED_EVENT(ToggleVimMode, IInspectable, Control::ToggleVimModeEventArgs);
         TYPED_EVENT(VimTextChanged, IInspectable, Control::VimTextChangedEventArgs);
-        TYPED_EVENT(ShowFuzzySearch, IInspectable, IInspectable);
+        TYPED_EVENT(ShowFuzzySearch, IInspectable, Control::ShowFuzzySearchEventArgs);
 
     private:
         struct SharedState

@@ -2248,11 +2248,22 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     }
 
     winrt::fire_and_forget TermControl::_ShowFuzzySearch(const IInspectable& /*sender*/,
-                                                        const IInspectable /*args*/)
+                                                         const Control::ShowFuzzySearchEventArgs args)
     {
         co_await wil::resume_foreground(Dispatcher());
 
+        if (args.SearchString().size() > 0)
+        {
+            auto b = _core.Search2(args.SearchString());
+            _searchResults.Clear();
+            for (auto a : b)
+            {
+                _searchResults.Append(a);
+            }
+        }
+
         CreateSearchBoxControl();
+        SearchBox2().SearchString(args.SearchString());
     }
 
     winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,

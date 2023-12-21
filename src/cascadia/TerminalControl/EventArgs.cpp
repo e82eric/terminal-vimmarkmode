@@ -18,6 +18,7 @@
 #include "UpdateSelectionMarkersEventArgs.g.cpp"
 #include "ToggleVimModeEventArgs.g.h"
 #include "VimTextChangedEventArgs.g.cpp"
+#include "ShowFuzzySearchEventArgs.g.cpp"
 #include "CompletionsChangedEventArgs.g.cpp"
 #include "KeySentEventArgs.g.cpp"
 #include "CharSentEventArgs.g.cpp"

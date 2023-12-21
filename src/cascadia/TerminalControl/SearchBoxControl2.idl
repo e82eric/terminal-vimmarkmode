@@ -12,6 +12,7 @@ namespace Microsoft.Terminal.Control
         SearchBoxControl2();
         void SetFocusOnTextbox();
         void SelectFirstItem();
+        void SearchString(String searchString);
         event SearchHandler2 Search;
         Boolean ContainsFocus();
         IObservableVector<Search2TextLine> ItemsSource

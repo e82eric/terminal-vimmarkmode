@@ -562,6 +562,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static const int16_t yankAction = 1;
         static const int16_t searchAction = 2;
         static const int16_t toggleVisualOn = 3;
+        static const int16_t fuzzyFindAction = 4;
 
         static const int16_t noneTextObject = 0;
         static const int16_t charTextObject = 1;
@@ -824,7 +825,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
         }
 
-        if (action == searchAction)
+        if (action == fuzzyFindAction)
+        {
+            const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
+            auto searchString = bufferData.text[0];
+            _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ searchString }));
+        }
+        else if (action == searchAction)
         {
             auto moveForward = motion != forwardMotion; 
             if (textObject == wordTextObject)
@@ -894,6 +901,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     bool ControlCore::TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods)
     {
+        static bool leaderSequence = false;
+
         static const int16_t normalMode = 0;
         static const int16_t visualMode = 1;
         static const int16_t searchMode = 2;
@@ -903,6 +912,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static const int16_t yankAction = 1;
         static const int16_t search = 2;
         static const int16_t toggleVisualOn = 3;
+        static const int16_t fuzzyFindAction = 4;
 
         static const int16_t noneMotion = 0;
         static const int16_t moveRightMotion = 1;
@@ -982,9 +992,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return true;
         }
 
-        if (vkey == L'F' && mods.IsCtrlPressed())
+        if (vkey == L'F' && mods.IsShiftPressed() && mods.IsCtrlPressed())
         {
-            _ShowFuzzySearchHandlers(*this, nullptr);
+            _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(L""));
             return true;
         }
 
@@ -1008,7 +1018,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             times = 1;
         }
 
-        if (textObject == tilCharTextObject || textObject == tilCharReverseTextObject || textObject == findCharTextObject || textObject == findCharReverseTextObject)
+        if (vkey == L' ')
+        {
+            leaderSequence = true;
+        }
+        else if (textObject == tilCharTextObject || textObject == tilCharReverseTextObject || textObject == findCharTextObject || textObject == findCharReverseTextObject)
         {
             sequenceCompleted = true;
         }
@@ -1152,7 +1166,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else if (vkey == L'F')
         {
-            if (mods.IsShiftPressed())
+            if (leaderSequence)
+            {
+                action = fuzzyFindAction;
+            }
+            else if (mods.IsShiftPressed())
             {
                 textObject = findCharReverseTextObject;
                 motion = forwardMotion;
@@ -1332,6 +1350,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             sequenceCompleted = true;
         }
+        else if (vkey == L'S')
+        {
+            if (leaderSequence && action == fuzzyFindAction)
+            {
+                textObject = inWordTextObject;
+                sequenceCompleted = true;
+            }
+        }
         else if (vkey == VK_ESCAPE)
         {
             if (mode == visualMode || mode == visualLineMode)
@@ -1389,6 +1415,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             lastTimes = times;
             timesString = L"";
             amount = noneAmount;
+            leaderSequence = false;
 
             sequenceText = L"";
         }

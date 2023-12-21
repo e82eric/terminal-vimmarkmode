@@ -94,6 +94,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SetValue(ItemsSourceProperty(), value);
     }
 
+    void SearchBoxControl2::SearchString(const winrt::hstring searchString)
+    {
+        TextBoxZ().Text(searchString);
+    }
+
     void SearchBoxControl2::SelectFirstItem()
     {
         if (ItemsSource().Size() > 0)
