@@ -476,11 +476,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // Return Value:
     // - <none>
     void TermControl::_Search(const winrt::hstring& text,
-                              const bool goForward,
+                              const bool /*goForward*/,
                               const bool /*caseSensitive*/)
     {
         //Do I still need this?
-        _core.Search(text, goForward, false);
+        //_core.Search(text, goForward, false);
         auto b = _core.Search2(text);
 
         _searchResults.Clear();
