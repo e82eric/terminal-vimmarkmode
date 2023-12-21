@@ -423,6 +423,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _searchBox2->Visibility(Visibility::Visible);
 
                 _searchBox2->SetFocusOnTextbox();
+                //auto b = _core.Search2(L"");
+                //_searchResults.Clear();
+                //for (auto a : b)
+                //{
+                //    _searchResults.Append(a);
+                //}
+
+                //SearchBox2().SelectFirstItem();
             }
         }
     }
@@ -468,10 +476,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // - <none>
     void TermControl::_Search(const winrt::hstring& text,
                               const bool goForward,
-                              const bool caseSensitive)
+                              const bool /*caseSensitive*/)
     {
         //Do I still need this?
-        _core.Search(text, goForward, caseSensitive);
+        _core.Search(text, goForward, false);
         auto b = _core.Search2(text);
 
         _searchResults.Clear();
@@ -479,20 +487,22 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _searchResults.Append(a);
         }
+
+        SearchBox2().SelectFirstItem();
     }
 
-    void TermControl::Search2_OnSelection(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
+    void TermControl::Search2_OnSelection(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& /*args*/)
     {
         _searchBox2->Visibility(Visibility::Collapsed);
          CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
-        _core.SelectRow(args.Row(), args.FirstPosition());
+        //_core.SelectRow(args.Row(), args.FirstPosition());
 
         ToggleMarkMode();
     }
 
     void TermControl::Search2_SelectionChanged(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
     {
-        ToggleMarkMode();
+        //ToggleMarkMode();
         _core.SelectRow(args.Row(), args.FirstPosition());
         auto selInfo = _core.SelectionInfo();
         Core::Point terminalPos{ 0, selInfo.StartPos.Y };

@@ -14,6 +14,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> ItemsSource();
         void ItemsSource(winrt::Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> const& value);
 
+        void SelectFirstItem();
+
         void SetFocusOnTextbox();
         bool ContainsFocus();
 

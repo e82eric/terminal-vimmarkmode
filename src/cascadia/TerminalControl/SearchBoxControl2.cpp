@@ -94,6 +94,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SetValue(ItemsSourceProperty(), value);
     }
 
+    void SearchBoxControl2::SelectFirstItem()
+    {
+        if (ItemsSource().Size() > 0)
+        {
+            ListBox().SelectedIndex(0);
+        }
+    }
+
     void SearchBoxControl2::TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
     {
         auto a = TextBoxZ().Text();

@@ -30,8 +30,8 @@
             x:Name="ListBox"
             SelectionChanged="OnListBoxSelectionChanged"
                 Background="#FF282828"
-                BorderBrush="DarkGray"
-                BorderThickness="1"
+                BorderBrush="#32302F"
+                BorderThickness="3"
                 Height="330">
                 <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="local:Search2TextLine">

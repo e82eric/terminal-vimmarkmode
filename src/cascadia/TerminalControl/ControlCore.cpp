@@ -2548,16 +2548,40 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::Search2TextLine> ControlCore::Search2(const winrt::hstring& text)
     {
-        auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::Search2TextLine>();
-
-        if (text.size() <= 0)
-        {
-            return searchResults;
-        }
-
         const auto lock = _terminal->LockForWriting();
 
+        auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::Search2TextLine>();
         auto renderData = this->GetRenderData();
+
+        auto notBlank = std::any_of(text.begin(), text.end(), [](wchar_t ch) {
+            return !std::iswspace(ch);
+        });
+
+        if (!notBlank)
+        {
+            return searchResults;
+            //auto rowCount = renderData->GetTextBuffer().TotalRowCount();
+            //for (int i = 0; i < rowCount && i < 100; i++)
+            //{
+            //    std::wstring_view rowText = renderData->GetTextBuffer().GetRowByOffset(i).GetText();
+            //    auto notBlank = std::any_of(rowText.begin(), rowText.end(), [](wchar_t ch) {
+            //        return !std::iswspace(ch);
+            //    });
+            //    if (notBlank)
+            //    {
+            //        winrt::hstring rowHString{ rowText };
+
+            //        auto rowTextSegments = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::Search2TextSegment>();
+            //        auto segment = winrt::make<Search2TextSegment>(rowHString, false);
+            //        rowTextSegments.Append(segment);
+            //        auto line = winrt::make<Search2TextLine>(rowTextSegments, 0, i, static_cast<int32_t>(0));
+            //        searchResults.Append(line);
+            //    }
+            //}
+
+            //return searchResults;
+        }
+
         auto items = std::vector<winrt::Microsoft::Terminal::Control::Search2TextLine>();
 
         fzf_slab_t* slab = fzf_make_default_slab();
@@ -2622,7 +2646,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                     rowTextSegments.Append(lastSegmentTextSegment);
 
-                    auto line = winrt::make<Search2TextLine>(rowTextSegments, rowScore, i, static_cast<int32_t>(pos->data[0]));
+                    auto line = winrt::make<Search2TextLine>(rowTextSegments, rowScore, i, static_cast<int32_t>(pos->data[pos->size -1]));
 
                     items.push_back(line);
                     std::sort(items.begin(), items.end(), [](const auto& a, const auto& b) {
