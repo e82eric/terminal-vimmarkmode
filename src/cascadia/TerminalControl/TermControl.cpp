@@ -98,6 +98,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _revokers.VimTextChanged = _core.VimTextChanged(winrt::auto_revoke, { get_weak(), &TermControl::_VimTextChanged });
         _revokers.ToggleVimMode = _core.ToggleVimMode(winrt::auto_revoke, { get_weak(), &TermControl::_ToggleVimMode });
+        _revokers.ShowFuzzySearch = _core.ShowFuzzySearch(winrt::auto_revoke, { get_weak(), &TermControl::_ShowFuzzySearch });
 
         // "Bubbled" events - ones we want to handle, by raising our own event.
         _revokers.CopyToClipboard = _core.CopyToClipboard(winrt::auto_revoke, { get_weak(), &TermControl::_bubbleCopyToClipboard });
@@ -2244,6 +2245,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         VimTextBox().Text(args.Text());
         VimSearchStringTextBox().Text(args.SearchString());
         VimModeTextBox().Text(args.Mode());
+    }
+
+    winrt::fire_and_forget TermControl::_ShowFuzzySearch(const IInspectable& /*sender*/,
+                                                        const IInspectable /*args*/)
+    {
+        co_await wil::resume_foreground(Dispatcher());
+
+        CreateSearchBoxControl();
     }
 
     winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,

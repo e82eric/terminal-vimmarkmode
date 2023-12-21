@@ -982,6 +982,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return true;
         }
 
+        if (vkey == L'F' && mods.IsCtrlPressed())
+        {
+            _ShowFuzzySearchHandlers(*this, nullptr);
+            return true;
+        }
+
         wchar_t vkeyText[2] = { 0 };
 
         BYTE keyboardState[256];

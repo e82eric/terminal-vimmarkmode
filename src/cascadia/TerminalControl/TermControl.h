@@ -338,6 +338,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         winrt::fire_and_forget _VimTextChanged(const IInspectable& sender, const Control::VimTextChangedEventArgs args);
         winrt::fire_and_forget _ToggleVimMode(const IInspectable& sender, const Control::ToggleVimModeEventArgs args);
+        winrt::fire_and_forget _ShowFuzzySearch(const IInspectable& sender, const IInspectable args);
 
         bool _CapturePointer(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
         bool _ReleasePointerCapture(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
@@ -427,6 +428,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             Control::ControlCore::VimTextChanged_revoker VimTextChanged;
             Control::ControlCore::ToggleVimMode_revoker ToggleVimMode;
+            Control::ControlCore::ShowFuzzySearch_revoker ShowFuzzySearch;
         } _revokers{};
     };
 }

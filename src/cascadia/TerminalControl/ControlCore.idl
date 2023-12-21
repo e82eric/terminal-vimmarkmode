@@ -195,5 +195,6 @@ namespace Microsoft.Terminal.Control
 
         event Windows.Foundation.TypedEventHandler<Object, VimTextChangedEventArgs> VimTextChanged;
         event Windows.Foundation.TypedEventHandler<Object, ToggleVimModeEventArgs> ToggleVimMode;
+        event Windows.Foundation.TypedEventHandler<Object, Object> ShowFuzzySearch;
     };
 }
