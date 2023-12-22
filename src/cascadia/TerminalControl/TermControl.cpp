@@ -423,6 +423,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _core.CursorOn(false);
                 // get at its private implementation
                 _searchBox2.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::SearchBoxControl2>(searchBox));
+                _searchBox2->TextBoxZ().Text(L"");
                 _searchBox2->Visibility(Visibility::Visible);
 
                 _searchBox2->SetFocusOnTextbox();
