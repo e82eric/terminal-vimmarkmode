@@ -2291,6 +2291,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             
             auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
             hideTimer.Interval(std::chrono::milliseconds(400));
+            VimSearchStringTextBox().Text(L"");
             hideTimer.Tick([hideTimer, weakThis](auto&&, auto&&) {
                 if (auto strongThis = weakThis.get())
                 {
