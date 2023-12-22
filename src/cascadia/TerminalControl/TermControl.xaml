@@ -1341,7 +1341,7 @@
 
             <StackPanel Grid.Row="2">
             <local:SearchBoxControl2 x:Name="SearchBox2"
-                                     Grid.Row="1"
+                                     Grid.Row="0"
                                        Search="_Search"
                                      Height="400"
                                         HorizontalAlignment="Right"

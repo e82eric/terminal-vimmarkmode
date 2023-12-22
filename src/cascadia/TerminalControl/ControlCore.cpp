@@ -829,6 +829,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
             auto searchString = bufferData.text[0];
+            _terminal->ClearSelection();
             _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ searchString }));
         }
         else if (action == searchAction)
@@ -861,6 +862,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
                 else
                 {
+                    _searcher.MoveToCurrentSelection();
                     _searcher.FindNext();
                 }
 
@@ -994,6 +996,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (vkey == L'F' && mods.IsShiftPressed() && mods.IsCtrlPressed())
         {
+            _terminal->ClearSelection();
             _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(L""));
             return true;
         }
@@ -3537,6 +3540,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bufferSize.DecrementInBounds(s.end);
 
         _terminal->SelectNewRegion(s.start, s.end);
+
         _renderer->TriggerSelection();
     }
 
@@ -3588,8 +3592,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto start = til::point{ col, row };
         auto end = til::point{ col + 1, row };
-
+ 
         _selectSpan(til::point_span{ start, end });
+    }
+
+    void ControlCore::ScrollToRow(int32_t row)
+    {
+        const auto lock = _terminal->LockForWriting();
+        
+        auto halfViewPort = _terminal->GetViewport().Height() / 2;
+
+        _terminal->UserScrollViewport(row - halfViewPort);
     }
 
     void ControlCore::SelectOutput(const bool goUp)

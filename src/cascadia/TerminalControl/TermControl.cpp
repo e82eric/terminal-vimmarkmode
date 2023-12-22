@@ -419,19 +419,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::SearchBoxControl2>() })
             {
+                _core.ClearSelection();
+                _core.CursorOn(false);
                 // get at its private implementation
                 _searchBox2.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::SearchBoxControl2>(searchBox));
                 _searchBox2->Visibility(Visibility::Visible);
 
                 _searchBox2->SetFocusOnTextbox();
-                //auto b = _core.Search2(L"");
-                //_searchResults.Clear();
-                //for (auto a : b)
-                //{
-                //    _searchResults.Append(a);
-                //}
-
-                //SearchBox2().SelectFirstItem();
             }
         }
     }
@@ -479,8 +473,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                               const bool /*goForward*/,
                               const bool /*caseSensitive*/)
     {
-        //Do I still need this?
-        //_core.Search(text, goForward, false);
         auto b = _core.Search2(text);
 
         _searchResults.Clear();
@@ -492,27 +484,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SearchBox2().SelectFirstItem();
     }
 
-    void TermControl::Search2_OnSelection(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& /*args*/)
+    void TermControl::Search2_OnSelection(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
     {
         _searchBox2->Visibility(Visibility::Collapsed);
-         CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
-        //_core.SelectRow(args.Row(), args.FirstPosition());
-
+        CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
+        _core.SelectRow(args.Row(), args.FirstPosition());
         ToggleMarkMode();
     }
 
-    void TermControl::Search2_SelectionChanged(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
+    void TermControl::_highlightYankRow()
     {
-        //ToggleMarkMode();
-        _core.SelectRow(args.Row(), args.FirstPosition());
-        auto selInfo = _core.SelectionInfo();
-        Core::Point terminalPos{ 0, selInfo.StartPos.Y };
+        Core::Point terminalPos { 0, _yankRow - _core.ScrollOffset() };
         const til::point locationInDIPs{ _toPosInDips(terminalPos) };
 
         SelectionCanvas().SetLeft(CurrentSearchRowHighlight(),
-                                  (locationInDIPs.x - SwapChainPanel().ActualOffset().x));
+                                    (locationInDIPs.x - SwapChainPanel().ActualOffset().x));
         SelectionCanvas().SetTop(CurrentSearchRowHighlight(),
-                                 (locationInDIPs.y - SwapChainPanel().ActualOffset().y));
+                                    (locationInDIPs.y - SwapChainPanel().ActualOffset().y));
         CurrentSearchRowHighlight().Visibility(Visibility::Visible);
 
         CurrentSearchRowHighlight().Width(SwapChainPanel().ActualWidth());
@@ -520,6 +508,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto orangeBrush = Windows::UI::Xaml::Media::SolidColorBrush();
         orangeBrush.Color(Windows::UI::ColorHelper::FromArgb(76, 255, 165, 0));
         CurrentSearchRowHighlight().Fill(orangeBrush);
+    }
+
+    void TermControl::Search2_SelectionChanged(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
+    {
+        _yankRow = args.Row();
+        _core.ScrollToRow(args.Row());
+        _highlightYankRow();
     }
 
     // Method Description:
@@ -557,6 +552,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         // Set focus back to terminal control
         this->Focus(FocusState::Programmatic);
+        _core.ScrollToRow(_core.BufferHeight());
+        //ToggleMarkMode();
     }
 
     winrt::fire_and_forget TermControl::UpdateControlSettings(IControlSettings settings)
@@ -2019,7 +2016,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             TSFInputControl().NotifyFocusEnter();
         }
 
-        if (_cursorTimer)
+        if (_cursorTimer && SearchBox2().Visibility() == Visibility::Collapsed)
         {
             // When the terminal focuses, show the cursor immediately
             _core.CursorOn(_core.SelectionMode() != SelectionInteractionMode::Mark);
@@ -2210,6 +2207,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _updateSelectionMarkers(nullptr, winrt::make<UpdateSelectionMarkersEventArgs>(false));
         }
+        if (SearchBox2().Visibility() == Visibility::Visible)
+        {
+            _highlightYankRow();
+        }
     }
 
     // Method Description:
@@ -2252,18 +2253,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         co_await wil::resume_foreground(Dispatcher());
 
-        if (args.SearchString().size() > 0)
+        CreateSearchBoxControl();
+
+        if (_blinkTimer)
         {
-            auto b = _core.Search2(args.SearchString());
-            _searchResults.Clear();
-            for (auto a : b)
-            {
-                _searchResults.Append(a);
-            }
+            _cursorTimer->Stop();
+            _blinkTimer->Stop();
+            _core.CursorOn(false);
         }
 
-        CreateSearchBoxControl();
-        SearchBox2().SearchString(args.SearchString());
+        //if (args.SearchString().size() > 0)
+        //{
+        //    auto b = _core.Search2(args.SearchString());
+        //    _searchResults.Clear();
+        //    for (auto a : b)
+        //    {
+        //        _searchResults.Append(a);
+        //    }
+        //}
+
+        //SearchBox2().SearchString(args.SearchString());
     }
 
     winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,

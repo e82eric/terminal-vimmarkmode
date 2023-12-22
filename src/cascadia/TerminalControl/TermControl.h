@@ -393,6 +393,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _SelectOutputHandler(const IInspectable& sender, const IInspectable& args);
         bool _displayCursorWhileBlurred() const noexcept;
 
+        int32_t _yankRow;
+        void _highlightYankRow();
+
         struct Revokers
         {
             Control::ControlCore::ScrollPositionChanged_revoker coreScrollPositionChanged;

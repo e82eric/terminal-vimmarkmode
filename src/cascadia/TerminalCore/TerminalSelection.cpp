@@ -971,7 +971,7 @@ void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
     {
         if (!isVisual)
         {
-            _selection->start = _selection->end;
+            _selection->start = start.first;
             _selection->end = start.first;
             _selection->pivot = start.first;
         }
@@ -1121,7 +1121,7 @@ void Terminal::SelectInWord(bool largeWord)
         delimiters = L"";
     }
 
-    auto targetPos{ _selection->pivot };
+    auto targetPos{ _selection->end };
     _InWord(targetPos, delimiters);
 }
 

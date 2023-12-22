@@ -81,6 +81,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void Detach();
 
         void SelectRow(int32_t row, int32_t col);
+        void ScrollToRow(int32_t row);
 
         void UpdateSettings(const Control::IControlSettings& settings, const IControlAppearance& newAppearance);
         void ApplyAppearance(const bool& focused);
@@ -216,6 +217,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         bool CopyOnSelect() const;
         Control::SelectionData SelectionInfo() const;
+        int16_t YankRow() const;
         void SetSelectionAnchor(const til::point position);
         void SetEndSelectionPoint(const til::point position);
 
