@@ -395,6 +395,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         int32_t _yankRow;
         void _highlightYankRow();
+        void _highlightCurrentRow(int32_t y);
 
         struct Revokers
         {

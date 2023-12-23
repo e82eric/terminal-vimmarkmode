@@ -1265,12 +1265,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         else if (vkey == L'K' && motion == noneMotion)
         {
             motion = moveUpMotion;
-            textObject = mode == visualLineMode ? entireLineTextObject : charTextObject;
+            textObject = mode == visualLineMode || (times > 1 && action == yankAction) ? entireLineTextObject : charTextObject;
             sequenceCompleted = true;
         }
         else if (vkey == L'J' && motion == noneMotion)
         {
-            textObject = mode == visualLineMode ? entireLineTextObject : charTextObject;
+            textObject = mode == visualLineMode || (times > 1 && action == yankAction) ? entireLineTextObject : charTextObject;
             motion = moveDownMotion;
             sequenceCompleted = true;
         }

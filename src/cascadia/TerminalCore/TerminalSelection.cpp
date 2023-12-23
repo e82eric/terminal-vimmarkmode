@@ -894,7 +894,6 @@ void Terminal::SelectLineRight(bool isVisual)
     _selection->end = endPair;
     if (isVisual)
     {
-        _selection->start = targetPos;
     }
     else
     {
@@ -910,6 +909,14 @@ void Terminal::SelectLineUp(bool /*isVisual*/)
         {
             auto end = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y - 1 });
             _selection->end = end;
+        }
+        else if (_selection->end.y == _selection->pivot.y)
+        {
+            auto currentEnd = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y });
+            auto currentStart = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y - 1 });
+            _selection->end = currentEnd;
+            _selection->start = til::point{ 0, _selection->start.y - 1 };
+            _selection->pivot = currentEnd;
         }
         else
         {

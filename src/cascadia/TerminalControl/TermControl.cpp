@@ -511,6 +511,24 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         CurrentSearchRowHighlight().Fill(orangeBrush);
     }
 
+    void TermControl::_highlightCurrentRow(int32_t y)
+    {
+        Core::Point terminalPos{ 0, y };
+        const til::point locationInDIPs{ _toPosInDips(terminalPos) };
+
+        SelectionCanvas().SetLeft(CurrentRowHighlight(),
+                                  (locationInDIPs.x - SwapChainPanel().ActualOffset().x));
+        SelectionCanvas().SetTop(CurrentRowHighlight(),
+                                 (locationInDIPs.y - SwapChainPanel().ActualOffset().y));
+        CurrentRowHighlight().Visibility(Visibility::Visible);
+
+        CurrentRowHighlight().Width(SwapChainPanel().ActualWidth());
+
+        auto brush = Windows::UI::Xaml::Media::SolidColorBrush();
+        brush.Color(Windows::UI::ColorHelper::FromArgb(76, 60, 56, 44));
+        CurrentRowHighlight().Fill(brush);
+    }
+
     void TermControl::Search2_SelectionChanged(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
     {
         _yankRow = args.Row();
@@ -2279,15 +2297,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,
                                                         const Control::ToggleVimModeEventArgs args)
     {
-        auto weakThis{  get_weak() };
+        auto weakThis{ get_weak() };
         co_await wil::resume_foreground(Dispatcher());
+
         if (args.Enable())
         {
             VimGrid().Visibility(Visibility::Visible);
+
+            auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName());
+            NumberTextBox().FontFamily(fontFamily);
+            NumberTextBox().FontSize(12);
+
+            NumberTextBox().Visibility(Visibility::Visible);
+            CurrentRowHighlight().Visibility(Visibility::Visible);
         }
         else
         {
             VimModeTextBox().Text(L"Shell");
+            NumberTextBox().Visibility(Visibility::Collapsed);
+            CurrentRowHighlight().Visibility(Visibility::Collapsed);
             
             auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
             hideTimer.Interval(std::chrono::milliseconds(400));
@@ -3480,6 +3508,40 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     displayMarker(movingEnd);
                     otherMarker.Visibility(Visibility::Collapsed);
                 }
+
+                auto viewHeight = _core.ViewHeight();
+                auto bufferSize = _core.BufferHeight();
+                auto offSet = _core.ScrollOffset();
+
+                size_t maxWidth = std::to_wstring(bufferSize).length() + 1;
+                std::wstring numbers;
+                std::wstring numStr;
+
+                auto pos = markerData.StartPos;
+
+                for (int i = 0; i <= viewHeight; ++i)
+                {
+                    if ( i == pos.Y)
+                    {
+                        auto num = i + offSet;
+                        numStr = std::to_wstring(num);
+                        numStr = numStr + std::wstring(maxWidth - numStr.length(), L' ');
+                    }
+                    else
+                    {
+                        auto num = abs(i - pos.Y);
+                        numStr = std::to_wstring(num);
+                        numStr = std::wstring(maxWidth - numStr.length(), L' ') + numStr;
+                    }
+
+                    numbers += numStr + L"\r\n";
+                }
+
+                auto directXHeight = _core.FontSize().Height;
+                NumberTextBox().FontFamily(Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName()));
+                NumberTextBox().LineHeight(directXHeight);
+                NumberTextBox().Text(numbers);
+                _highlightCurrentRow(pos.Y);
             }
             else
             {
@@ -3523,6 +3585,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         scaleMarker(SelectionEndMarker());
 
         CurrentSearchRowHighlight().Height(args.Height());
+        CurrentRowHighlight().Height(args.Height());
     }
 
     void TermControl::_coreRaisedNotice(const IInspectable& /*sender*/,
