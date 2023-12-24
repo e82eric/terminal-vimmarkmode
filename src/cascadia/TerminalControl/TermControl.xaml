@@ -1347,21 +1347,6 @@
                    x:Load="False"
                    IsHitTestVisible="False"
                    Visibility="Collapsed" />
-
-
-            <StackPanel Grid.Row="2" Grid.Column="1">
-                <local:SearchBoxControl2 x:Name="SearchBox2"
-                                     Grid.Row="0"
-                                       Search="_Search"
-                                     Height="400"
-                                        HorizontalAlignment="Right"
-                                         Closed="_CloseSearchBoxControl"
-                                        VerticalAlignment="Top"
-                                         Visibility="Collapsed"
-                                     SelectionChanged="Search2_SelectionChanged"
-                                     OnReturn="Search2_OnSelection"
-                                         ItemsSource="{x:Bind SearchResults}"/>
-            </StackPanel>
         </Grid>
 
         <local:TSFInputControl x:Name="TSFInputControl"
@@ -1390,6 +1375,19 @@
             </Border>
         </Grid>
 
+        <StackPanel Grid.Row="2" Grid.Column="1">
+            <local:SearchBoxControl2 x:Name="SearchBox2"
+                                     Grid.Row="0"
+                                       Search="_Search"
+                                     Height="400"
+                                        HorizontalAlignment="Right"
+                                         Closed="_CloseSearchBoxControl"
+                                        VerticalAlignment="Top"
+                                         Visibility="Collapsed"
+                                     SelectionChanged="Search2_SelectionChanged"
+                                     OnReturn="Search2_OnSelection"
+                                         ItemsSource="{x:Bind SearchResults}"/>
+
         <Border Background="Black" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -1403,7 +1401,7 @@
                 <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="2" HorizontalAlignment="Right"/>
             </Grid>
         </Border>
-
+        </StackPanel>
     </Grid>
 
 </UserControl>

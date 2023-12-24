@@ -3540,7 +3540,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 NumberTextBox().FontFamily(Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName()));
                 NumberTextBox().LineHeight(directXHeight);
                 NumberTextBox().Text(numbers);
-                _highlightCurrentRow(_core.GetVimCursorRow());
+                _highlightCurrentRow(cursor);
             }
             else
             {

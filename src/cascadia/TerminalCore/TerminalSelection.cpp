@@ -932,7 +932,6 @@ void Terminal::SelectLineUp(bool /*isVisual*/)
         else if (_selection->end.y == _selection->pivot.y)
         {
             auto currentEnd = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y });
-            auto currentStart = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y - 1 });
             _selection->end = currentEnd;
             _selection->start = til::point{ 0, _selection->start.y - 1 };
             _selection->pivot = currentEnd;
@@ -950,6 +949,15 @@ void Terminal::SelectLineDown(bool /*isVisual*/)
     {
         auto start = til::point{ 0, _selection->start.y + 1 };
         _selection->start = start;
+    }
+    else if (_selection->start.y == _selection->pivot.y)
+    {
+        auto currentStart = til::point{ 0, _selection->start.y };
+        auto currentEnd = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y + 1 });
+
+        _selection->end = currentEnd;
+        _selection->start = currentStart;
+        _selection->pivot = currentStart;
     }
     else
     {
