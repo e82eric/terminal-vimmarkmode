@@ -81,6 +81,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void Detach();
 
         void SelectRow(int32_t row, int32_t col);
+        int32_t GetVimCursorRow();
         void ScrollToRow(int32_t row);
 
         void UpdateSettings(const Control::IControlSettings& settings, const IControlAppearance& newAppearance);
@@ -353,6 +354,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _panelWidth{ 0 };
         float _panelHeight{ 0 };
         float _compositionScale{ 0 };
+
+        til::point _vimCursor = til::point{0,0};
+        bool _inVimMode;
 
         uint64_t _owningHwnd{ 0 };
 

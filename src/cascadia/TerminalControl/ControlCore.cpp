@@ -825,6 +825,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
         }
 
+        _terminal->SetVimCursor(&_vimCursor);
+
         if (action == fuzzyFindAction)
         {
             const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
@@ -2223,6 +2225,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }, winrt::hstring{ L"Normal" }));
         const auto lock = _terminal->LockForWriting();
         _terminal->ToggleMarkMode();
+        _vimCursor.y = _terminal->GetSelectionEnd().y;
         _updateSelectionUI();
     }
 
@@ -3594,6 +3597,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto end = til::point{ col + 1, row };
  
         _selectSpan(til::point_span{ start, end });
+    }
+
+    int32_t ControlCore::GetVimCursorRow()
+    {
+        return _vimCursor.y;
     }
 
     void ControlCore::ScrollToRow(int32_t row)

@@ -3517,11 +3517,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 std::wstring numbers;
                 std::wstring numStr;
 
-                auto pos = markerData.StartPos;
-
+                auto cursor = _core.GetVimCursorRow() - offSet;
                 for (int i = 0; i <= viewHeight; ++i)
                 {
-                    if ( i == pos.Y)
+                    if (i == cursor)
                     {
                         auto num = i + offSet;
                         numStr = std::to_wstring(num);
@@ -3529,7 +3528,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     }
                     else
                     {
-                        auto num = abs(i - pos.Y);
+                        auto num = abs(i - cursor);
                         numStr = std::to_wstring(num);
                         numStr = std::wstring(maxWidth - numStr.length(), L' ') + numStr;
                     }
@@ -3541,7 +3540,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 NumberTextBox().FontFamily(Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName()));
                 NumberTextBox().LineHeight(directXHeight);
                 NumberTextBox().Text(numbers);
-                _highlightCurrentRow(pos.Y);
+                _highlightCurrentRow(_core.GetVimCursorRow());
             }
             else
             {
