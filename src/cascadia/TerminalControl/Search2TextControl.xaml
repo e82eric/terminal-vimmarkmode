@@ -7,6 +7,6 @@
              Background="Transparent"
              mc:Ignorable="d">
 
-    <TextBlock x:Name="_textView" HorizontalAlignment="Stretch" />
+    <TextBlock x:Name="_textView" HorizontalAlignment="Stretch" TextWrapping="Wrap" />
 </UserControl>
 

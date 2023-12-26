@@ -81,6 +81,8 @@ namespace Microsoft.Terminal.Control
         void UpdateSettings(IControlSettings settings, IControlAppearance appearance);
         void ApplyAppearance(Boolean focused);
 
+        void SelectLastNonSpaceChar();
+
         Microsoft.Terminal.TerminalConnection.ITerminalConnection Connection;
 
         IControlSettings Settings { get; };

@@ -100,6 +100,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SizeChanged(const float width, const float height);
         void ScaleChanged(const float scale);
         void SizeOrScaleChanged(const float width, const float height, const float scale);
+        void SelectLastNonSpaceChar();
 
         void AdjustFontSize(float fontSizeDelta);
         void ResetFontSize();

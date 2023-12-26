@@ -35,7 +35,7 @@
                 Height="330">
                 <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="local:Search2TextLine">
-                    <local:Search2TextControl Text="{x:Bind}" HorizontalAlignment="Stretch" />
+                    <local:Search2TextControl Text="{x:Bind}" HorizontalAlignment="Stretch"/>
                 </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>

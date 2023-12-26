@@ -421,6 +421,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 _core.ClearSelection();
                 _core.CursorOn(false);
+                NumberTextBox().Visibility(Visibility::Visible);
                 // get at its private implementation
                 _searchBox2.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::SearchBoxControl2>(searchBox));
                 _searchBox2->TextBoxZ().Text(L"");
@@ -506,9 +507,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         CurrentSearchRowHighlight().Width(SwapChainPanel().ActualWidth());
 
-        auto orangeBrush = Windows::UI::Xaml::Media::SolidColorBrush();
-        orangeBrush.Color(Windows::UI::ColorHelper::FromArgb(76, 255, 165, 0));
-        CurrentSearchRowHighlight().Fill(orangeBrush);
+        auto brush = Windows::UI::Xaml::Media::SolidColorBrush();
+        brush.Color(Windows::UI::ColorHelper::FromArgb(76, 152, 151, 26));
+        CurrentSearchRowHighlight().Fill(brush);
     }
 
     void TermControl::_highlightCurrentRow(int32_t y)
@@ -525,7 +526,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         CurrentRowHighlight().Width(SwapChainPanel().ActualWidth());
 
         auto brush = Windows::UI::Xaml::Media::SolidColorBrush();
-        brush.Color(Windows::UI::ColorHelper::FromArgb(76, 60, 56, 44));
+        brush.Color(Windows::UI::ColorHelper::FromArgb(76, 168, 131, 94));
         CurrentRowHighlight().Fill(brush);
     }
 
@@ -534,6 +535,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _yankRow = args.Row();
         _core.ScrollToRow(args.Row());
         _highlightYankRow();
+        auto offSet = _core.ScrollOffset();
+        auto cursor = args.Row() - offSet;
+        _updateRowNumbers(cursor);
     }
 
     // Method Description:
@@ -567,7 +571,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         //_core.ClearSearch();
         _searchBox2->Visibility(Visibility::Collapsed);
+        NumberTextBox().Visibility(Visibility::Collapsed);
         CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
+        CurrentRowHighlight().Visibility(Visibility::Collapsed);
 
         // Set focus back to terminal control
         this->Focus(FocusState::Programmatic);
@@ -2124,6 +2130,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _automationPeer.UpdateControlBounds();
         }
+
+        if (NumberTextBox().Visibility() == Visibility::Visible)
+        {
+            _core.SelectLastNonSpaceChar();
+        }
+
     }
 
     // Method Description:
@@ -2302,8 +2314,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (args.Enable())
         {
-            VimGrid().Visibility(Visibility::Visible);
-
             auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName());
             NumberTextBox().FontFamily(fontFamily);
             NumberTextBox().FontSize(12);
@@ -2330,6 +2340,41 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             hideTimer.Start();
         }
+    }
+
+    void TermControl::_updateRowNumbers(int cursorRow)
+    {
+        auto viewHeight = _core.ViewHeight();
+        auto bufferSize = _core.BufferHeight();
+        auto offSet = _core.ScrollOffset();
+
+        size_t maxWidth = std::to_wstring(bufferSize).length() + 1;
+        std::wstring numbers;
+        std::wstring numStr;
+
+        for (int i = 0; i <= viewHeight; ++i)
+        {
+            if (i == cursorRow)
+            {
+                auto num = i + offSet;
+                numStr = std::to_wstring(num);
+                numStr = numStr + std::wstring(maxWidth - numStr.length(), L' ');
+            }
+            else
+            {
+                auto num = abs(i - cursorRow);
+                numStr = std::to_wstring(num);
+                numStr = std::wstring(maxWidth - numStr.length(), L' ') + numStr;
+            }
+
+            numbers += numStr + L"\r\n";
+        }
+
+        auto directXHeight = _core.FontSize().Height;
+        NumberTextBox().FontFamily(Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName()));
+        NumberTextBox().LineHeight(directXHeight);
+        NumberTextBox().Text(numbers);
+        _highlightCurrentRow(cursorRow);
     }
 
     hstring TermControl::Title()
@@ -3509,38 +3554,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     otherMarker.Visibility(Visibility::Collapsed);
                 }
 
-                auto viewHeight = _core.ViewHeight();
-                auto bufferSize = _core.BufferHeight();
                 auto offSet = _core.ScrollOffset();
-
-                size_t maxWidth = std::to_wstring(bufferSize).length() + 1;
-                std::wstring numbers;
-                std::wstring numStr;
-
                 auto cursor = _core.GetVimCursorRow() - offSet;
-                for (int i = 0; i <= viewHeight; ++i)
-                {
-                    if (i == cursor)
-                    {
-                        auto num = i + offSet;
-                        numStr = std::to_wstring(num);
-                        numStr = numStr + std::wstring(maxWidth - numStr.length(), L' ');
-                    }
-                    else
-                    {
-                        auto num = abs(i - cursor);
-                        numStr = std::to_wstring(num);
-                        numStr = std::wstring(maxWidth - numStr.length(), L' ') + numStr;
-                    }
-
-                    numbers += numStr + L"\r\n";
-                }
-
-                auto directXHeight = _core.FontSize().Height;
-                NumberTextBox().FontFamily(Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName()));
-                NumberTextBox().LineHeight(directXHeight);
-                NumberTextBox().Text(numbers);
-                _highlightCurrentRow(cursor);
+                _updateRowNumbers(cursor);
             }
             else
             {

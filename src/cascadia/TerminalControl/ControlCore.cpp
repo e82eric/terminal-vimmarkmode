@@ -785,7 +785,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
                 else if (motion == moveUpMotion)
                 {
-                    _terminal->SelectUp(selectFromStart);
+                   _terminal->SelectUp(selectFromStart);
                 }
                 else if (motion == moveRightMotion)
                 {
@@ -823,9 +823,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _terminal->SelectPageDown(selectFromStart);
                 }
             }
-        }
 
-        _terminal->SetVimCursor(&_vimCursor);
+            _terminal->SetVimCursor(&_vimCursor);
+        }
 
         if (action == fuzzyFindAction)
         {
@@ -833,6 +833,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto searchString = bufferData.text[0];
             _terminal->ClearSelection();
             _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ searchString }));
+            _terminal->SetVimCursor(&_vimCursor);
         }
         else if (action == searchAction)
         {
@@ -875,6 +876,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _terminal->ToggleMarkMode();
                 }
             }
+            _terminal->SetVimCursor(&_vimCursor);
         }
         else if (action == yankAction)
         {
@@ -891,6 +893,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             hideTimerThread.detach();
 
             CopySelectionToClipboard(false, nullptr);
+
             _terminal->ClearSelection();
             _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
             auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
@@ -898,6 +901,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         else if (action == toggleVisualOn)
         {
             _terminal->SetPivot();
+            _terminal->SetVimCursor(&_vimCursor);
         }
 
         return clearCommandStateAfter;
@@ -1379,6 +1383,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 sequenceCompleted = true;
                 _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
+                _vimCursor.y = -1;
+                auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
                 searchString = L"";
                 return false;
             }
@@ -1388,13 +1394,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             sequenceCompleted = true;
         }
 
-        if (vkey != VK_RETURN && mode != searchMode)
+        if (vkey != VK_RETURN && mode != searchMode && vkey != L'\r')
         {
             sequenceText += vkeyText;
         }
 
-        auto statusBarSearchString = !searchString.empty() && reverseSearch ? L"?" + searchString : !searchString.empty() ? L"/" + searchString :
-                                                                                                                            L"";
+        std::wstring statusBarSearchString;
+
+        if (mode != searchMode && searchString.empty())
+        {
+            statusBarSearchString = L"";
+        }
+        else if (searchString.empty())
+        {
+            statusBarSearchString = reverseSearch ? L"?" : L"/";
+        }
+        else
+        {
+            statusBarSearchString = reverseSearch ? L"?" + searchString : L"/" + searchString;
+        }
 
         if (sequenceText != L"\r")
         {
@@ -2071,6 +2089,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _refreshSizeUnderLock();
     }
 
+    void ControlCore::SelectLastNonSpaceChar()
+    {
+        auto lock = _terminal->LockForWriting();
+        _terminal->SelectLastChar(&_vimCursor);
+        _terminal->ToggleMarkMode();
+        _updateSelectionUI();
+    }
+
     void ControlCore::SetSelectionAnchor(const til::point position)
     {
         const auto lock = _terminal->LockForWriting();
@@ -2223,10 +2249,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(true));
         _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }, winrt::hstring{ L"Normal" }));
-        const auto lock = _terminal->LockForWriting();
-        _terminal->ToggleMarkMode();
-        _vimCursor.y = _terminal->GetSelectionEnd().y;
-        _updateSelectionUI();
     }
 
     Control::SelectionInteractionMode ControlCore::SelectionMode() const
@@ -2640,10 +2662,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto rowCount = renderData->GetTextBuffer().TotalRowCount();
         int minScore = 0;
-        for (int i = 0; i < rowCount; i++)
+        for (int rowNumber = 0; rowNumber < rowCount; rowNumber++)
         {
             std::wstring rowFullText;
-            std::wstring_view rowText = renderData->GetTextBuffer().GetRowByOffset(i).GetText();
+            std::wstring_view rowText = renderData->GetTextBuffer().GetRowByOffset(rowNumber).GetText();
+            
             if (rowText.size() > 0)
             {
                 rowFullText = rowText.data();
@@ -2654,11 +2677,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                 asciiRowText.pop_back();
 
-                char* asciiRotTextCStr = const_cast<char*>(asciiRowText.c_str());
-                int rowScore = fzf_get_score(asciiRotTextCStr, pattern, slab);
+                char* asciiRowTextCStr = const_cast<char*>(asciiRowText.c_str());
+                int rowScore = fzf_get_score(asciiRowTextCStr, pattern, slab);
                 if (rowScore > minScore)
                 {
-                    fzf_position_t* pos = fzf_get_positions(asciiRotTextCStr, pattern, slab);
+                    fzf_position_t* pos = fzf_get_positions(asciiRowTextCStr, pattern, slab);
                     std::sort(pos->data, pos->data + pos->size, [](uint32_t a, uint32_t b) {
                         return a > b;
                     });
@@ -2685,7 +2708,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                     rowTextSegments.Append(lastSegmentTextSegment);
 
-                    auto line = winrt::make<Search2TextLine>(rowTextSegments, rowScore, i, static_cast<int32_t>(pos->data[pos->size -1]));
+                    auto line = winrt::make<Search2TextLine>(rowTextSegments, rowScore, rowNumber, static_cast<int32_t>(pos->data[pos->size -1]));
 
                     items.push_back(line);
                     std::sort(items.begin(), items.end(), [](const auto& a, const auto& b) {

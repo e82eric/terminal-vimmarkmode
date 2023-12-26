@@ -903,7 +903,7 @@ void Terminal::SelectLineRight(bool isVisual)
 
 void Terminal::SetVimCursor(til::point* vimCursor)
 {
-    if (_selection->start.y > 0)
+    if (_selection->start.y >= 0)
     {
         if (_selection->end.y > _selection->pivot.y)
         {

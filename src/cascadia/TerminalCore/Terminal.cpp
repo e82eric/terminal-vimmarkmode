@@ -417,6 +417,13 @@ try
 }
 CATCH_RETURN()
 
+void Terminal::SelectLastChar(til::point *vimCursor)
+{
+    auto lastNonSpaceChar = _mainBuffer->GetLastNonSpaceCharacter();
+    vimCursor->y = lastNonSpaceChar.y;
+    SelectNewRegion(lastNonSpaceChar, lastNonSpaceChar);
+}
+
 void Terminal::Write(std::wstring_view stringView)
 {
     const auto& cursor = _activeBuffer().GetCursor();
