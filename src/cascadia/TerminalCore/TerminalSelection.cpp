@@ -839,6 +839,13 @@ void Terminal::SelectPageDown(bool isVisual)
     _ScrollToPoint(newPos);
 }
 
+void Terminal::SelectChar(til::point point)
+{
+    _selection->start = point;
+    _selection->end = point;
+    _selection->pivot = point;
+}
+
 void Terminal::SelectCharLeft(bool isVisual)
 {
     DWORD mods = 0;

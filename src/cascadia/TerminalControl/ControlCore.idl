@@ -82,6 +82,8 @@ namespace Microsoft.Terminal.Control
         void ApplyAppearance(Boolean focused);
 
         void SelectLastNonSpaceChar();
+        void EnterVimMode(Boolean setToLastChar);
+        void EnterMarkMode();
 
         Microsoft.Terminal.TerminalConnection.ITerminalConnection Connection;
 

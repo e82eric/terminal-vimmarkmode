@@ -883,11 +883,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto selectionInfo = SelectionInfo();
             _terminal->SelectYankRegion();
             std::thread hideTimerThread([this]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(400));
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
                 {
                     const auto lock = _terminal->LockForWriting();
                     _terminal->ClearYankRegion();
                     _renderer->TriggerSelection();
+                    _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
+                    auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
                 }
             });
             hideTimerThread.detach();
@@ -895,8 +897,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             CopySelectionToClipboard(false, nullptr);
 
             _terminal->ClearSelection();
-            _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
-            auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
         }
         else if (action == toggleVisualOn)
         {
@@ -2092,9 +2092,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::SelectLastNonSpaceChar()
     {
         auto lock = _terminal->LockForWriting();
-        _terminal->SelectLastChar(&_vimCursor);
-        _terminal->ToggleMarkMode();
+        if (_preInVimMode)
+        {
+            if (_setToLastChar)
+            {
+                _terminal->SelectLastChar(&_vimCursor);
+            }
+
+            _terminal->ToggleMarkMode();
+            _preInVimMode = false;
+        }
         _updateSelectionUI();
+    }
+
+    void ControlCore::EnterMarkMode()
+    {
+        auto lock = _terminal->LockForWriting();
+        if (!HasSelection())
+        {
+            _terminal->ToggleMarkMode();
+        }
     }
 
     void ControlCore::SetSelectionAnchor(const til::point position)
@@ -2243,6 +2260,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return true;
         }
         return false;
+    }
+
+    void ControlCore::EnterVimMode(bool setToLastChar)
+    {
+        _preInVimMode = true;
+        _setToLastChar = setToLastChar;
     }
 
     void ControlCore::ToggleMarkMode()
@@ -3615,11 +3638,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::SelectRow(int32_t row, int32_t col)
     {
         const auto lock = _terminal->LockForWriting();
-
-        auto start = til::point{ col, row };
-        auto end = til::point{ col + 1, row };
- 
-        _selectSpan(til::point_span{ start, end });
+        _terminal->SelectChar(til::point{ col, row });
+        ScrollToRow(row);
+        _vimCursor.y = row;
     }
 
     int32_t ControlCore::GetVimCursorRow()

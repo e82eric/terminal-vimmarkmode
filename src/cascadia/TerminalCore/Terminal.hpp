@@ -309,6 +309,7 @@ public:
     void SelectPageUp(bool isVisual);
     void SelectPageDown(bool isVisual);
     void SelectHalfPageDown(bool isVisual);
+    void SelectChar(til::point point);
     void SelectCharLeft(bool isVisual);
     void SelectCharRight(bool isVisual);
     void SelectDown(bool isVisual);

@@ -101,6 +101,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void ScaleChanged(const float scale);
         void SizeOrScaleChanged(const float width, const float height, const float scale);
         void SelectLastNonSpaceChar();
+        void EnterMarkMode();
 
         void AdjustFontSize(float fontSizeDelta);
         void ResetFontSize();
@@ -120,6 +121,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SelectAll();
         void ClearSelection();
         bool ToggleBlockSelection();
+        void EnterVimMode(bool setToLastChar);
         void ToggleMarkMode();
         Control::SelectionInteractionMode SelectionMode() const;
         bool SwitchSelectionEndpoint();
@@ -357,6 +359,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _compositionScale{ 0 };
 
         til::point _vimCursor = til::point{0,0};
+        bool _preInVimMode = false;
+        bool _setToLastChar = false;
         bool _inVimMode;
 
         uint64_t _owningHwnd{ 0 };
