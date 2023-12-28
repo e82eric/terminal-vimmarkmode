@@ -544,7 +544,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto offSet = _core.ScrollOffset();
         auto cursor = args.Row() - offSet;
-        _updateRowNumbers(cursor);
         _highlightYankRow();
         if (_core.YankRow() != -1)
         {
