@@ -339,7 +339,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::fire_and_forget _VimTextChanged(const IInspectable& sender, const Control::VimTextChangedEventArgs args);
         winrt::fire_and_forget _ToggleVimMode(const IInspectable& sender, const Control::ToggleVimModeEventArgs args);
         winrt::fire_and_forget _ShowFuzzySearch(const IInspectable& sender, const Control::ShowFuzzySearchEventArgs args);
-        void _updateRowNumbers(int cursorRow);
+        void _updateRowNumbers();
 
         bool _CapturePointer(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
         bool _ReleasePointerCapture(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
@@ -394,9 +394,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _SelectOutputHandler(const IInspectable& sender, const IInspectable& args);
         bool _displayCursorWhileBlurred() const noexcept;
 
-        int32_t _yankRow;
-        void _highlightYankRow();
-        void _highlightCurrentRow(int32_t y);
+        void _highlightCurrentRow();
 
         struct Revokers
         {

@@ -82,7 +82,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void SelectRow(int32_t row, int32_t col);
         void FuzzySearchSelectionChanged(int32_t row);
-        int32_t GetVimCursorRow();
         void ScrollToRow(int32_t row);
 
         void UpdateSettings(const Control::IControlSettings& settings, const IControlAppearance& newAppearance);
@@ -101,10 +100,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SizeChanged(const float width, const float height);
         void ScaleChanged(const float scale);
         void SizeOrScaleChanged(const float width, const float height, const float scale);
-        void SelectLastNonSpaceChar();
+        void ResetVimModeForSizeChange();
         void EnterMarkMode();
         void StartFuzzySearch();
         void CloseFuzzySearchNoSelection();
+        int32_t RowNumberToHighlight();
+        int32_t ViewportRowNumberToHighlight();
 
         void AdjustFontSize(float fontSizeDelta);
         void ResetFontSize();
@@ -124,7 +125,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SelectAll();
         void ClearSelection();
         bool ToggleBlockSelection();
-        void EnterVimMode(bool setToLastChar);
+        void EnterVimMode();
         void ToggleMarkMode();
         Control::SelectionInteractionMode SelectionMode() const;
         bool SwitchSelectionEndpoint();
@@ -362,10 +363,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _compositionScale{ 0 };
 
         int32_t _fuzzySearchHighlightRow = -1;
-        til::point _vimCursor = til::point{0,0};
+        int32_t _vimCursor = -1;
         bool _preInVimMode = false;
-        bool _setToLastChar = false;
-        bool _inVimMode;
+        bool _fuzzySearchActive = false;
 
         uint64_t _owningHwnd{ 0 };
 

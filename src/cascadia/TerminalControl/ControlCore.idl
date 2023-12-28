@@ -77,17 +77,18 @@ namespace Microsoft.Terminal.Control
 
         void SelectRow(Int32 row, Int32 col);
         void ScrollToRow(Int32 row);
-        Int32 GetVimCursorRow();
         void UpdateSettings(IControlSettings settings, IControlAppearance appearance);
         void ApplyAppearance(Boolean focused);
 
-        void SelectLastNonSpaceChar();
-        void EnterVimMode(Boolean setToLastChar);
+        void ResetVimModeForSizeChange();
+        void EnterVimMode();
         void EnterMarkMode();
         void StartFuzzySearch();
         void CloseFuzzySearchNoSelection();
         void FuzzySearchSelectionChanged(Int32 row);
         Int32 YankRow();
+        Int32 RowNumberToHighlight();
+        Int32 ViewportRowNumberToHighlight();
 
         Microsoft.Terminal.TerminalConnection.ITerminalConnection Connection;
 

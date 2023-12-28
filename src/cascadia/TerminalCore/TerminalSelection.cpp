@@ -908,23 +908,25 @@ void Terminal::SelectLineRight(bool isVisual)
     }
 }
 
-void Terminal::SetVimCursor(til::point* vimCursor)
+int32_t Terminal::SetVimCursor()
 {
     if (_selection->start.y >= 0)
     {
         if (_selection->end.y > _selection->pivot.y)
         {
-            vimCursor->y = _selection->end.y;
+            return _selection->end.y;
         }
         else if (_selection->end.y == _selection->pivot.y)
         {
-            vimCursor->y = _selection->start.y;
+            return _selection->start.y;
         }
         else
         {
-            vimCursor->y = _selection->start.y;
+            return _selection->start.y;
         }
     }
+
+    return -1;
 }
 
 void Terminal::SelectLineUp(bool /*isVisual*/)

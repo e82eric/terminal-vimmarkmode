@@ -417,11 +417,11 @@ try
 }
 CATCH_RETURN()
 
-void Terminal::SelectLastChar(til::point *vimCursor)
+int32_t Terminal::SelectLastChar()
 {
     auto lastNonSpaceChar = _mainBuffer->GetLastNonSpaceCharacter();
-    vimCursor->y = lastNonSpaceChar.y;
     SelectNewRegion(lastNonSpaceChar, lastNonSpaceChar);
+    return lastNonSpaceChar.y;
 }
 
 void Terminal::Write(std::wstring_view stringView)

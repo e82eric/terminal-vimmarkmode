@@ -177,7 +177,7 @@ public:
     [[nodiscard]] ::Microsoft::Console::VirtualTerminal::TerminalInput::OutputType FocusChanged(const bool focused) override;
 
     [[nodiscard]] HRESULT UserResize(const til::size viewportSize) noexcept override;
-    void SelectLastChar(til::point *vimCursor);
+    int32_t SelectLastChar();
     void UserScrollViewport(const int viewTop) override;
     int GetScrollOffset() noexcept override;
 
@@ -313,7 +313,7 @@ public:
     void SelectCharLeft(bool isVisual);
     void SelectCharRight(bool isVisual);
     void SelectDown(bool isVisual);
-    void SetVimCursor(til::point* vimCursor);
+    int32_t SetVimCursor();
     void SelectUp(bool isVisual);
     void SelectLineUp(bool isVisual);
     void SelectLineDown(bool isVisual);
