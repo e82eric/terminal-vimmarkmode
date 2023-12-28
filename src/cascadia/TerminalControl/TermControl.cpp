@@ -419,8 +419,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::SearchBoxControl2>() })
             {
-                _core.ClearSelection();
-                _core.CursorOn(false);
                 NumberTextBox().Visibility(Visibility::Visible);
                 // get at its private implementation
                 _searchBox2.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::SearchBoxControl2>(searchBox));
@@ -428,7 +426,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _searchBox2->Visibility(Visibility::Visible);
 
                 _searchBox2->SetFocusOnTextbox();
-                _core.EnterVimMode(true);
+                _core.ClearSelection();
+                _core.CursorOn(false);
+                _core.StartFuzzySearch();
             }
         }
     }
@@ -491,16 +491,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _searchBox2->Visibility(Visibility::Collapsed);
         CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
-        _yankRow = -1;
-        _core.EnterMarkMode();
         _core.SelectRow(args.Row(), args.FirstPosition());
     }
 
     void TermControl::_highlightYankRow()
     {
-        if (_yankRow != -1)
+        if (_core.YankRow() != -1)
         {
-            Core::Point terminalPos{ 0, _yankRow - _core.ScrollOffset() };
+            Core::Point terminalPos{ 0, _core.YankRow() - _core.ScrollOffset() };
             const til::point locationInDIPs{ _toPosInDips(terminalPos) };
 
             SelectionCanvas().SetLeft(CurrentSearchRowHighlight(),
@@ -514,6 +512,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto brush = Windows::UI::Xaml::Media::SolidColorBrush();
             brush.Color(Windows::UI::ColorHelper::FromArgb(76, 152, 151, 26));
             CurrentSearchRowHighlight().Fill(brush);
+        }
+        else
+        {
+            CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
         }
     }
 
@@ -537,12 +539,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::Search2_SelectionChanged(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
     {
-        _yankRow = args.Row();
-        _core.ScrollToRow(args.Row());
-        _highlightYankRow();
+        auto row = args.Row();
+        _core.FuzzySearchSelectionChanged(row);
+
         auto offSet = _core.ScrollOffset();
         auto cursor = args.Row() - offSet;
-        if (_yankRow != -1)
+        _updateRowNumbers(cursor);
+        _highlightYankRow();
+        if (_core.YankRow() != -1)
         {
             _updateRowNumbers(cursor);
         }
@@ -579,12 +583,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _searchBox2->Visibility(Visibility::Collapsed);
         CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
-        _yankRow = -1;
         CurrentRowHighlight().Visibility(Visibility::Collapsed);
 
         // Set focus back to terminal control
         this->Focus(FocusState::Programmatic);
-        _core.EnterVimMode(true);
+        _core.CloseFuzzySearchNoSelection();
     }
 
     winrt::fire_and_forget TermControl::UpdateControlSettings(IControlSettings settings)
@@ -2137,12 +2140,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _automationPeer.UpdateControlBounds();
         }
 
-        if (NumberTextBox().Visibility() == Visibility::Visible)
+        if (SearchBox2().Visibility() == Visibility::Visible)
         {
-            _core.EnterVimMode(true);
-            //_core.SelectLastNonSpaceChar();
+            _core.SelectLastNonSpaceChar();
             auto offSet = _core.ScrollOffset();
             auto cursor = _core.GetVimCursorRow() - offSet;
+
+            _updateRowNumbers(cursor);
+            _core.ScrollToRow(_core.GetVimCursorRow());
+            _highlightYankRow();
+            _updateRowNumbers(cursor);
+        }
+        else if (NumberTextBox().Visibility() == Visibility::Visible)
+        {
+            _core.SelectLastNonSpaceChar();
+            auto offSet = _core.ScrollOffset();
+            auto cursor = _core.GetVimCursorRow() - offSet;
+            _core.ScrollToRow(_core.GetVimCursorRow());
+            _updateRowNumbers(cursor);
+            _highlightYankRow();
             _updateRowNumbers(cursor);
         }
     }
@@ -2323,6 +2339,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (args.Enable())
         {
+            _core.EnterVimMode(true);
             auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName());
             NumberTextBox().FontFamily(fontFamily);
             NumberTextBox().FontSize(12);

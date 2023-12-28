@@ -84,6 +84,10 @@ namespace Microsoft.Terminal.Control
         void SelectLastNonSpaceChar();
         void EnterVimMode(Boolean setToLastChar);
         void EnterMarkMode();
+        void StartFuzzySearch();
+        void CloseFuzzySearchNoSelection();
+        void FuzzySearchSelectionChanged(Int32 row);
+        Int32 YankRow();
 
         Microsoft.Terminal.TerminalConnection.ITerminalConnection Connection;
 

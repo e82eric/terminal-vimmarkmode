@@ -81,6 +81,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void Detach();
 
         void SelectRow(int32_t row, int32_t col);
+        void FuzzySearchSelectionChanged(int32_t row);
         int32_t GetVimCursorRow();
         void ScrollToRow(int32_t row);
 
@@ -102,6 +103,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SizeOrScaleChanged(const float width, const float height, const float scale);
         void SelectLastNonSpaceChar();
         void EnterMarkMode();
+        void StartFuzzySearch();
+        void CloseFuzzySearchNoSelection();
 
         void AdjustFontSize(float fontSizeDelta);
         void ResetFontSize();
@@ -221,7 +224,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         bool CopyOnSelect() const;
         Control::SelectionData SelectionInfo() const;
-        int16_t YankRow() const;
+        int32_t YankRow();
         void SetSelectionAnchor(const til::point position);
         void SetEndSelectionPoint(const til::point position);
 
@@ -358,6 +361,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _panelHeight{ 0 };
         float _compositionScale{ 0 };
 
+        int32_t _fuzzySearchHighlightRow = -1;
         til::point _vimCursor = til::point{0,0};
         bool _preInVimMode = false;
         bool _setToLastChar = false;

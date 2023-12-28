@@ -973,7 +973,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static int16_t lastMotion;
         static int16_t action;
         static int16_t amount;
-
+        
         static std::wstring timesString;
         static int times;
 
@@ -1382,6 +1382,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             else if (mode == normalMode)
             {
                 sequenceCompleted = true;
+                _terminal->ClearSelection();
                 _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
                 _vimCursor.y = -1;
                 auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
@@ -2097,9 +2098,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (_setToLastChar)
             {
                 _terminal->SelectLastChar(&_vimCursor);
+                _setToLastChar = false;
             }
 
-            _terminal->ToggleMarkMode();
+            if (_terminal->SelectionMode() != ::Terminal::SelectionInteractionMode::Mark)
+            {
+                _terminal->ToggleMarkMode();
+            }
+            
             _preInVimMode = false;
         }
         _updateSelectionUI();
@@ -2112,6 +2118,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _terminal->ToggleMarkMode();
         }
+    }
+
+    void ControlCore::StartFuzzySearch()
+    {
+        _preInVimMode = true;
+        _setToLastChar = true;
+        _fuzzySearchHighlightRow = -1;
+    }
+
+    void ControlCore::CloseFuzzySearchNoSelection()
+    {
+        _preInVimMode = true;
+        _setToLastChar = true;
+        _fuzzySearchHighlightRow = -1;
     }
 
     void ControlCore::SetSelectionAnchor(const til::point position)
@@ -3640,7 +3660,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto lock = _terminal->LockForWriting();
         _terminal->SelectChar(til::point{ col, row });
         ScrollToRow(row);
+        _fuzzySearchHighlightRow = -1;
         _vimCursor.y = row;
+        _preInVimMode = true;
+        _setToLastChar = false;
+    }
+
+    void ControlCore::FuzzySearchSelectionChanged(int32_t row)
+    {
+        _fuzzySearchHighlightRow = row;
+        ScrollToRow(row);
+    }
+
+    int32_t ControlCore::YankRow()
+    {
+        return _fuzzySearchHighlightRow;
     }
 
     int32_t ControlCore::GetVimCursorRow()
