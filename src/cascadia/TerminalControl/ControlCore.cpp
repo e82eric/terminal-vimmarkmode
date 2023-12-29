@@ -548,111 +548,63 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     }
 
     bool ControlCore::ExecuteVimSelection(
-        const int16_t action,
-        const int16_t textObject,
+        const VimActionType action,
+        const VimTextObjectType textObject,
         const int times,
-        const int16_t motion,
+        const VimMotionType motion,
         const bool isVisual,
         const std::wstring searchString,
-        const int16_t /*amount*/,
         int16_t vkey,
         bool vkeyIsUpperCase)
     {
-        static const int16_t noneAction = 0;
-        static const int16_t yankAction = 1;
-        static const int16_t searchAction = 2;
-        static const int16_t toggleVisualOn = 3;
-        static const int16_t fuzzyFindAction = 4;
-
-        static const int16_t noneTextObject = 0;
-        static const int16_t charTextObject = 1;
-        static const int16_t wordTextObject = 2;
-        static const int16_t largeWordTextObject = 3;
-        static const int16_t lineTextObject = 4;
-        static const int16_t inSquareBracePairTextObject = 8;
-        static const int16_t inRoundBracePairTextObject = 9;
-        static const int16_t inDoubleQuotePairTextObject = 10;
-        static const int16_t inSingleQuotePairTextObject = 11;
-        static const int16_t inAngleBracketPairTextObject = 12;
-        static const int16_t aroundSquareBracePairTextObject = 13;
-        static const int16_t aroundRoundBracePairTextObject = 14;
-        static const int16_t aroundDoubleQuotePairTextObject = 15;
-        static const int16_t aroundSingleQuotePairTextObject = 16;
-        static const int16_t aroundAngleBracketPairTextObject = 17;
-        static const int16_t tilCharTextObject = 18;
-        static const int16_t findCharTextObject = 19;
-        static const int16_t tilCharReverseTextObject = 20;
-        static const int16_t findCharReverseTextObject = 21;
-        static const int16_t inWordTextObject = 22;
-        static const int16_t inLargeWordTextObject = 23;
-        static const int16_t entireLineTextObject = 24;
-
-        static const int16_t noneMotion = 0;
-        static const int16_t moveRightMotion = 1;
-        static const int16_t moveLeftMotion = 2;
-        static const int16_t moveUpMotion = 3;
-        static const int16_t moveDownMotion = 4;
-        static const int16_t moveBackToBegining = 5;
-        static const int16_t moveForwardToStart = 6;
-        static const int16_t moveForwardToEnd = 7;
-        static const int16_t gMotion = 8;
-        static const int16_t forwardMotion = 9;
-        static const int16_t backMotion = 10;
-        static const int16_t moveToTopOfBufferMotion = 11;
-        static const int16_t moveToBottomOfBufferMotion = 12;
-        static const int16_t halfPageUpMotion = 13;
-        static const int16_t halfPageDownMotion = 14;
-        static const int16_t pageUpMotion = 15;
-        static const int16_t pageDownMotion = 16;
-
         bool clearCommandStateAfter = true;
-        bool selectFromStart = isVisual || action == yankAction;
+        bool selectFromStart = isVisual || action == VimActionType::yank;
 
         for (int i = 0; i < times; i++)
         {
-            if (textObject == inSquareBracePairTextObject)
+            if (textObject == VimTextObjectType::inSquareBracePair)
             {
                 _terminal->InDelimiter(L"[", L"]", false);
             }
-            else if (textObject == inRoundBracePairTextObject)
+            else if (textObject == VimTextObjectType::inRoundBracePair)
             {
                 _terminal->InDelimiter(L"(", L")", false);
             }
-            else if (textObject == inSingleQuotePairTextObject)
+            else if (textObject == VimTextObjectType::inSingleQuotePair)
             {
                 _terminal->InDelimiter(L"'", L"'", false);
             }
-            else if (textObject == inDoubleQuotePairTextObject)
+            else if (textObject == VimTextObjectType::inDoubleQuotePair)
             {
                 _terminal->InDelimiter(L"\"", L"\"", false);
             }
-            else if (textObject == inAngleBracketPairTextObject)
+            else if (textObject == VimTextObjectType::inAngleBracketPair)
             {
                 _terminal->InDelimiter(L"<", L">", false);
             }
-            else if (textObject == aroundSquareBracePairTextObject)
+            else if (textObject == VimTextObjectType::aroundSquareBracePair)
             {
                 _terminal->InDelimiter(L"[", L"]", true);
             }
-            else if (textObject == aroundRoundBracePairTextObject)
+            else if (textObject == VimTextObjectType::aroundRoundBracePair)
             {
                 _terminal->InDelimiter(L"(", L")", true);
             }
-            else if (textObject == aroundSingleQuotePairTextObject)
+            else if (textObject == VimTextObjectType::aroundSingleQuotePair)
             {
                 _terminal->InDelimiter(L"'", L"'", true);
             }
-            else if (textObject == aroundDoubleQuotePairTextObject)
+            else if (textObject == VimTextObjectType::aroundDoubleQuotePair)
             {
                 _terminal->InDelimiter(L"\"", L"\"", true);
             }
-            else if (textObject == aroundAngleBracketPairTextObject)
+            else if (textObject == VimTextObjectType::aroundAngleBracketPair)
             {
                 _terminal->InDelimiter(L"<", L">", true);
             }
-            else if (textObject == findCharTextObject)
+            else if (textObject == VimTextObjectType::findChar)
             {
-                if (motion == forwardMotion)
+                if (motion == VimMotionType::forward)
                 {
                     _terminal->FindChar(vkey, selectFromStart, vkeyIsUpperCase);
                 }
@@ -661,9 +613,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _terminal->FindCharBack(vkey, selectFromStart, vkeyIsUpperCase);
                 }
             }
-            else if (textObject == tilCharTextObject)
+            else if (textObject == VimTextObjectType::tilChar)
             {
-                if (motion == forwardMotion)
+                if (motion == VimMotionType::forward)
                 {
                     _terminal->TilChar(vkey, selectFromStart, vkeyIsUpperCase);
                 }
@@ -672,9 +624,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _terminal->TilCharBack(vkey, selectFromStart, vkeyIsUpperCase);
                 }
             }
-            else if (textObject == findCharReverseTextObject)
+            else if (textObject == VimTextObjectType::findCharReverse)
             {
-                if (motion == forwardMotion)
+                if (motion == VimMotionType::forward)
                 {
                     _terminal->FindCharBack(vkey, selectFromStart, vkeyIsUpperCase);
                 }
@@ -683,9 +635,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _terminal->FindChar(vkey, selectFromStart, vkeyIsUpperCase);
                 }
             }
-            else if (textObject == tilCharReverseTextObject)
+            else if (textObject == VimTextObjectType::tilCharReverse)
             {
-                if (motion == forwardMotion)
+                if (motion == VimMotionType::forward)
                 {
                     _terminal->TilCharBack(vkey, selectFromStart, vkeyIsUpperCase);
                 }
@@ -694,71 +646,71 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _terminal->TilChar(vkey, selectFromStart, vkeyIsUpperCase);
                 }
             }
-            else if (textObject == wordTextObject || textObject == largeWordTextObject)
+            else if (textObject == VimTextObjectType::word || textObject == VimTextObjectType::largeWord)
             {
-                if (motion == moveForwardToEnd)
+                if (motion == VimMotionType::moveForwardToEnd)
                 {
-                    _terminal->SelectWordRight(selectFromStart, textObject == largeWordTextObject);
+                    _terminal->SelectWordRight(selectFromStart, textObject == VimTextObjectType::largeWord);
                 }
-                else if (motion == moveBackToBegining)
+                else if (motion == VimMotionType::moveBackToBegining)
                 {
-                    _terminal->SelectWordLeft(selectFromStart, textObject == largeWordTextObject);
+                    _terminal->SelectWordLeft(selectFromStart, textObject == VimTextObjectType::largeWord);
                 }
-                else if (motion == moveForwardToStart)
+                else if (motion == VimMotionType::moveForwardToStart)
                 {
-                    _terminal->SelectWordStartRight(selectFromStart, textObject == largeWordTextObject);
+                    _terminal->SelectWordStartRight(selectFromStart, textObject == VimTextObjectType::largeWord);
                 }
             }
-            else if (textObject == inWordTextObject || textObject == inLargeWordTextObject)
+            else if (textObject == VimTextObjectType::inWord || textObject == VimTextObjectType::inLargeWord)
             {
-                _terminal->SelectInWord(textObject == inLargeWordTextObject);
+                _terminal->SelectInWord(textObject == VimTextObjectType::inLargeWord);
             }
-            else if (textObject == lineTextObject)
+            else if (textObject == VimTextObjectType::line)
             {
-                if (motion == moveForwardToEnd)
+                if (motion == VimMotionType::moveForwardToEnd)
                 {
                     _terminal->SelectLineRight(selectFromStart);
                 }
-                else if (motion == moveBackToBegining)
+                else if (motion == VimMotionType::moveBackToBegining)
                 {
                     _terminal->SelectLineLeft(selectFromStart);
                 }
             }
-            else if (textObject == entireLineTextObject)
+            else if (textObject == VimTextObjectType::entireLine)
             {
-                if (motion == moveUpMotion)
+                if (motion == VimMotionType::moveUp)
                 {
                     _terminal->SelectLineUp(true);
                 }
-                else if (motion == moveDownMotion)
+                else if (motion == VimMotionType::moveDown)
                 {
                     _terminal->SelectLineDown(true);
                 }
-                else if (motion == moveToTopOfBufferMotion)
+                else if (motion == VimMotionType::moveToTopOfBuffer)
                 {
                     _terminal->SelectTop(true);
                 }
-                else if (motion == moveToBottomOfBufferMotion)
+                else if (motion == VimMotionType::moveToBottomOfBuffer)
                 {
                     _terminal->SelectBottom(true);
                 }
-                else if (motion == moveToTopOfBufferMotion)
+                else if (motion == VimMotionType::moveToTopOfBuffer)
                 {
                     _terminal->SelectTop(true);
                 }
-                else if (motion == halfPageUpMotion)
+                else if (motion == VimMotionType::halfPageUp)
                 {
                     _terminal->SelectHalfPageUp(true);
                 }
-                else if (motion == halfPageDownMotion)
+                else if (motion == VimMotionType::halfPageDown)
                 {
                     _terminal->SelectHalfPageDown(true);
                 }
-                else if (motion == pageUpMotion)
+                else if (motion == VimMotionType::pageUp)
                 {
                     _terminal->SelectPageUp(true);
                 }
-                else if (motion == pageDownMotion)
+                else if (motion == VimMotionType::pageDown)
                 {
                     _terminal->SelectPageDown(true);
                 }
@@ -768,57 +720,57 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _terminal->SelectLineRight(true);
                 }
             }
-            else if (textObject == charTextObject)
+            else if (textObject == VimTextObjectType::charTextObject)
             {
-                if (motion == noneMotion)
+                if (motion == VimMotionType::none)
                 {
                     _terminal->SelectCharRight(false);
                     _terminal->SelectCharLeft(false);
                 }
-                else if (motion == moveLeftMotion)
+                else if (motion == VimMotionType::moveLeft)
                 {
                     _terminal->SelectCharLeft(selectFromStart);
                 }
-                else if (motion == moveDownMotion)
+                else if (motion == VimMotionType::moveDown)
                 {
                     _terminal->SelectDown(selectFromStart);
                 }
-                else if (motion == moveUpMotion)
+                else if (motion == VimMotionType::moveUp)
                 {
                    _terminal->SelectUp(selectFromStart);
                 }
-                else if (motion == moveRightMotion)
+                else if (motion == VimMotionType::moveRight)
                 {
                     _terminal->SelectCharRight(selectFromStart);
                 }
             }
-            else if (textObject == noneTextObject)
+            else if (textObject == VimTextObjectType::none)
             {
-                if (motion == moveToTopOfBufferMotion)
+                if (motion == VimMotionType::moveToTopOfBuffer)
                 {
                     _terminal->SelectTop(selectFromStart);
                 }
-                else if (motion == moveToBottomOfBufferMotion)
+                else if (motion == VimMotionType::moveToBottomOfBuffer)
                 {
                     _terminal->SelectBottom(selectFromStart);
                 }
-                else if (motion == moveToTopOfBufferMotion)
+                else if (motion == VimMotionType::moveToTopOfBuffer)
                 {
                     _terminal->SelectTop(selectFromStart);
                 }
-                else if (motion == halfPageUpMotion)
+                else if (motion == VimMotionType::halfPageUp)
                 {
                     _terminal->SelectHalfPageUp(selectFromStart);
                 }
-                else if (motion == halfPageDownMotion)
+                else if (motion == VimMotionType::halfPageDown)
                 {
                     _terminal->SelectHalfPageDown(selectFromStart);
                 }
-                else if (motion == pageUpMotion)
+                else if (motion == VimMotionType::pageUp)
                 {
                     _terminal->SelectPageUp(selectFromStart);
                 }
-                else if (motion == pageDownMotion)
+                else if (motion == VimMotionType::pageDown)
                 {
                     _terminal->SelectPageDown(selectFromStart);
                 }
@@ -827,7 +779,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _vimCursor = _terminal->SetVimCursor();
         }
 
-        if (action == fuzzyFindAction)
+        if (action == VimActionType::fuzzyFind)
         {
             const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
             auto searchString = bufferData.text[0];
@@ -835,14 +787,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ searchString }));
             _vimCursor = _terminal->SetVimCursor();
         }
-        else if (action == searchAction)
+        else if (action == VimActionType::search)
         {
-            auto moveForward = motion != forwardMotion; 
-            if (textObject == wordTextObject)
+            auto moveForward = motion != VimMotionType::forward; 
+            if (textObject == VimTextObjectType::word)
             {
                 _terminal->SelectInWord(false);
                 const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(moveForward);
                 auto searchString = bufferData.text[0];
+                _searchString = searchString;
                 if (_searcher.ResetIfStale(*GetRenderData(), searchString, moveForward, true))
                 {
                     _searcher.HighlightResults();
@@ -878,7 +831,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             _vimCursor = _terminal->SetVimCursor();
         }
-        else if (action == yankAction)
+        else if (action == VimActionType::yank)
         {
             auto selectionInfo = SelectionInfo();
             _terminal->SelectYankRegion();
@@ -898,7 +851,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             _terminal->ClearSelection();
         }
-        else if (action == toggleVisualOn)
+        else if (action == VimActionType::toggleVisualOn)
         {
             _terminal->SetPivot();
             _vimCursor = _terminal->SetVimCursor();
@@ -909,88 +862,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     bool ControlCore::TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods)
     {
-        static bool leaderSequence = false;
-
-        static const int16_t normalMode = 0;
-        static const int16_t visualMode = 1;
-        static const int16_t searchMode = 2;
-        static const int16_t visualLineMode = 3;
-
-        static const int16_t noneAction = 0;
-        static const int16_t yankAction = 1;
-        static const int16_t search = 2;
-        static const int16_t toggleVisualOn = 3;
-        static const int16_t fuzzyFindAction = 4;
-
-        static const int16_t noneMotion = 0;
-        static const int16_t moveRightMotion = 1;
-        static const int16_t moveLeftMotion = 2;
-        static const int16_t moveUpMotion = 3;
-        static const int16_t moveDownMotion = 4;
-        static const int16_t moveBackToBegining = 5;
-        static const int16_t moveForwardToStart = 6;
-        static const int16_t moveForwardToEnd = 7;
-        static const int16_t gMotion = 8;
-        static const int16_t forwardMotion = 9;
-        static const int16_t backMotion = 10;
-        static const int16_t moveToTopOfBufferMotion = 11;
-        static const int16_t moveToBottomOfBufferMotion = 12;
-        static const int16_t halfPageUpMotion = 13;
-        static const int16_t halfPageDownMotion = 14;
-        static const int16_t pageUpMotion = 15;
-        static const int16_t pageDownMotion = 16;
-
-        static const int16_t noneTextObject = 0;
-        static const int16_t charTextObject = 1;
-        static const int16_t wordTextObject = 2;
-        static const int16_t largeWordTextObject = 3;
-        static const int16_t lineTextObject = 4;
-        static const int16_t inSquareBracePairTextObject = 8;
-        static const int16_t inRoundBracePairTextObject = 9;
-        static const int16_t inDoubleQuotePairTextObject = 10;
-        static const int16_t inSingleQuotePairTextObject = 11;
-        static const int16_t inAngleBracketPairTextObject = 12;
-        static const int16_t aroundSquareBracePairTextObject = 13;
-        static const int16_t aroundRoundBracePairTextObject = 14;
-        static const int16_t aroundDoubleQuotePairTextObject = 15;
-        static const int16_t aroundSingleQuotePairTextObject = 16;
-        static const int16_t aroundAngleBracketPairTextObject = 17;
-        static const int16_t tilCharTextObject = 18;
-        static const int16_t findCharTextObject = 19;
-        static const int16_t tilCharReverseTextObject = 20;
-        static const int16_t findCharReverseTextObject = 21;
-        static const int16_t inWordTextObject = 22;
-        static const int16_t inLargeWordTextObject = 23;
-        static const int16_t entireLineTextObject = 24;
-
-        static const int16_t noneAmount = 0;
-        static const int16_t inAmount = 1;
-        static const int16_t aroundAmount = 2;
-
-        static int16_t textObject;
-        static int16_t motion;
-        static int16_t mode;
-        static int16_t lastMotion;
-        static int16_t action;
-        static int16_t amount;
-        
-        static std::wstring timesString;
-        static int times;
-
-        static bool reverseSearch;
-        static std::wstring searchString;
-
-        static std::wstring sequenceText;
-
         WORD key = vkey;
         bool isUpperCase = mods.IsModifierPressed();
-
-        static WORD lastVkey = L'\0';
-        static bool lastVkeyUpperCase;
-        static int lastTimes;
-        static int16_t lastAction;
-        static int16_t lastTextObject;
-
         bool sequenceCompleted = false;
         bool hideMarkers = false;
         bool clearStateOnSequenceCompleted = true;
@@ -1017,376 +890,366 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, vkeyText, 2, 0);
 
-        std::wstringstream timesStringStream(timesString);
-        if (!timesString.empty())
+        std::wstringstream timesStringStream(_timesString);
+        if (!_timesString.empty())
         {
-            timesStringStream >> times;
+            timesStringStream >> _times;
         }
         else
         {
-            times = 1;
+            _times = 1;
         }
 
         if (vkey == L' ')
         {
-            leaderSequence = true;
+            _leaderSequence = true;
         }
-        else if (textObject == tilCharTextObject || textObject == tilCharReverseTextObject || textObject == findCharTextObject || textObject == findCharReverseTextObject)
+        else if (_textObject == VimTextObjectType::tilChar || _textObject == VimTextObjectType::tilCharReverse || _textObject == VimTextObjectType::findChar || _textObject == VimTextObjectType::findCharReverse)
         {
             sequenceCompleted = true;
         }
-        else if (vkey >= 0x30 && vkey <= 0x39 && !mods.IsShiftPressed() && mode != searchMode)
+        else if (vkey >= 0x30 && vkey <= 0x39 && !mods.IsShiftPressed() && _mode != VimMode::search)
         {
-            wchar_t ch[2] = { 0 };
-
-            BYTE keyboardState[256];
-            GetKeyboardState(keyboardState);
-            if (mods.IsShiftPressed())
-            {
-                keyboardState[VK_SHIFT] = 0x80;
-            }
-
-            if (ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, ch, 2, 0) == 1)
-            {
-                timesString += ch;
-                std::wstringstream timesStringStream(timesString);
-                int times;
-                timesStringStream >> times;
-            }
+            _timesString += vkeyText;
+            std::wstringstream timesStringStream(_timesString);
+            int times;
+            timesStringStream >> times;
         }
-        else if (mode == searchMode)
+        else if (_mode == VimMode::search)
         {
             if (vkey == VK_RETURN || vkey == VK_ESCAPE)
             {
-                motion = noneMotion;
-                mode = normalMode;
+                _motion = VimMotionType::none;
+                _mode = VimMode::normal;
             }
             else
             {
-                action = search;
+                _action = VimActionType::search;
                 sequenceCompleted = true;
                 clearStateOnSequenceCompleted = false;
                 hideMarkers = true;
 
                 if (vkey == VK_BACK)
                 {
-                    if (!searchString.empty())
+                    if (!_searchString.empty())
                     {
-                        searchString.pop_back();
+                        _searchString.pop_back();
                     }
                 }
                 else
                 {
-                    wchar_t ch[2] = { 0 };
-
-                    BYTE keyboardState[256];
-                    GetKeyboardState(keyboardState);
-                    if (mods.IsShiftPressed())
-                    {
-                        keyboardState[VK_SHIFT] = 0x80;
-                    }
-
-                    if (ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, ch, 2, 0) == 1)
-                    {
-                    }
-
-                    searchString += ch;
+                    _searchString += vkeyText;
                 }
             }
         }
-        else if (vkey == 0x38 && mods.IsShiftPressed())
+        // * #
+        else if ((vkey == 0x38 && mods.IsShiftPressed()) || (vkey == 0x33 && mods.IsShiftPressed()))
         {
-            action = search;
-            amount = inAmount;
-            textObject = wordTextObject;
+            _action = VimActionType::search;
+            _amount = VimTextAmount::in;
+            _textObject = VimTextObjectType::word;
+
+            _reverseSearch = vkey == 0x33;
+
             sequenceCompleted = true;
         }
+        // / ?
         else if (vkey == 0xBF)
         {
             if (mods.IsShiftPressed())
             {
-                motion = backMotion;
-                reverseSearch = true;
+                _motion = VimMotionType::back;
+                _reverseSearch = true;
             }
             else
             {
-                motion = forwardMotion;
-                reverseSearch = false;
+                _motion = VimMotionType::forward;
+                _reverseSearch = false;
             }
-            action = search;
-            mode = searchMode;
-            searchString = L"";
+            _action = VimActionType::search;
+            _mode = VimMode::search;
+            _searchString = L"";
             hideMarkers = true;
             
-            action = search;
+            _action = VimActionType::search;
         }
         else if (vkey == L'U' && mods.IsCtrlPressed())
         {
-            motion = halfPageUpMotion;
-            textObject = mode == visualLineMode ? entireLineTextObject : noneTextObject;
+            _motion = VimMotionType::halfPageUp;
+            _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
             sequenceCompleted = true;
         }
         else if (vkey == L'D' && mods.IsCtrlPressed())
         {
-            motion = halfPageDownMotion;
-            textObject = mode == visualLineMode ? entireLineTextObject : noneTextObject;
+            _motion = VimMotionType::halfPageDown;
+            _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
             sequenceCompleted = true;
         }
-        else if (vkey == L'G' && mods.IsShiftPressed() && motion == noneMotion)
+        else if (vkey == L'G' && mods.IsShiftPressed() && _motion == VimMotionType::none)
         {
-            motion = moveToBottomOfBufferMotion;
-            textObject = mode == visualLineMode ? entireLineTextObject : noneTextObject;
+            _motion = VimMotionType::moveToBottomOfBuffer;
+            _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
             sequenceCompleted = true;
         }
         else if (vkey == L'G' && !mods.IsShiftPressed())
         {
-            if (motion == gMotion)
+            if (_motion == VimMotionType::g)
             {
-                motion = moveToTopOfBufferMotion;
-                textObject = mode == visualLineMode ? entireLineTextObject : noneTextObject;
+                _motion = VimMotionType::moveToTopOfBuffer;
+                _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
                 sequenceCompleted = true;
             }
             else
             {
-                motion = gMotion;
+                _motion = VimMotionType::g;
             }
         }
         else if (vkey == L'N')
         {
-            action = search;
-            if (reverseSearch)
+            _action = VimActionType::search;
+            if (_reverseSearch)
             {
-                motion = mods.IsShiftPressed() ? forwardMotion : backMotion;
+                _motion = mods.IsShiftPressed() ? VimMotionType::forward : VimMotionType::back;
             }
             else
             {
-                motion = mods.IsShiftPressed() ? backMotion : forwardMotion;
+                _motion = mods.IsShiftPressed() ? VimMotionType::back : VimMotionType::forward;
             }
             
             sequenceCompleted = true;
         }
         else if (vkey == L'I')
         {
-            amount = inAmount;
+            _amount = VimTextAmount::in;
         }
         else if (vkey == L'A')
         {
-            amount = aroundAmount;
+            _amount = VimTextAmount::around;
         }
         else if (vkey == L'F')
         {
-            if (leaderSequence)
+            //Ooes this work?
+            if (_leaderSequence)
             {
-                action = fuzzyFindAction;
+                _action = VimActionType::fuzzyFind;
             }
             else if (mods.IsShiftPressed())
             {
-                textObject = findCharReverseTextObject;
-                motion = forwardMotion;
+                _textObject = VimTextObjectType::findCharReverse;
+                _motion = VimMotionType::forward;
             }
             else
             {
                 if (mods.IsCtrlPressed())
                 {
-                    motion = pageDownMotion;
-                    textObject = mode == visualLineMode ? entireLineTextObject : noneTextObject;
+                    _motion = VimMotionType::pageDown;
+                    _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
                     sequenceCompleted = true;
                 }
                 else
                 {
-                    textObject = findCharTextObject;
-                    motion = forwardMotion;
+                    _textObject = VimTextObjectType::findChar;
+                    _motion = VimMotionType::forward;
                 }
             }
         }
         else if (vkey == L'T')
         {
-            motion = forwardMotion;
+            _motion = VimMotionType::forward;
             if (mods.IsShiftPressed())
             {
-                textObject = tilCharReverseTextObject;
+                _textObject = VimTextObjectType::tilCharReverse;
             }
             else
             {
-                textObject = tilCharTextObject;
+                _textObject = VimTextObjectType::tilChar;
             }
         }
-        else if (vkey == L'Y' && motion == noneMotion)
+        else if (vkey == L'Y' && _motion == VimMotionType::none)
         {
-            action = yankAction;
+            _action = VimActionType::yank;
             if (mods.IsShiftPressed())
             {
-                textObject = lineTextObject;
-                motion = moveForwardToEnd;
+                _textObject = VimTextObjectType::line;
+                _motion = VimMotionType::moveForwardToEnd;
                 sequenceCompleted = true;
             }
-            if (lastVkey == L'Y')
+            if (_lastVkey == L'Y')
             {
-                textObject = entireLineTextObject;
+                _textObject = VimTextObjectType::entireLine;
                 sequenceCompleted = true;
             }
             else
             {
-                if (mode == visualMode || mode == visualLineMode)
+                if (_mode == VimMode::visual || _mode == VimMode::visualLine)
                 {
-                    textObject = noneTextObject;
+                    _textObject = VimTextObjectType::none;
                     sequenceCompleted = true;
                 }
             }
         }
-        else if (vkey == L'E' && motion == noneMotion)
+        else if (vkey == L'E' && _motion == VimMotionType::none)
         {
-            textObject = mods.IsShiftPressed() ? largeWordTextObject : wordTextObject;
+            _textObject = mods.IsShiftPressed() ? VimTextObjectType::largeWord : VimTextObjectType::word;
 
             sequenceCompleted = true;
-            motion = moveForwardToEnd;
+            _motion = VimMotionType::moveForwardToEnd;
         }
-        else if (vkey == L'B' && motion == noneMotion)
+        else if (vkey == L'B' && _motion == VimMotionType::none)
         {
             if (mods.IsCtrlPressed())
             {
-                motion = pageUpMotion;
-                textObject = mode == visualLineMode ? entireLineTextObject : noneTextObject;
+                _motion = VimMotionType::pageUp;
+                _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
                 sequenceCompleted = true;
             }
             else
             {
-                motion = moveBackToBegining;
-                textObject = mods.IsShiftPressed() ? largeWordTextObject : wordTextObject;
+                _motion = VimMotionType::moveBackToBegining;
+                _textObject = mods.IsShiftPressed() ? VimTextObjectType::largeWord : VimTextObjectType::word;
                 sequenceCompleted = true;
             }
         }
+        // $
         else if (vkey == 0x34 && mods.IsShiftPressed())
         {
-            motion = moveForwardToEnd;
-            textObject = lineTextObject;
+            _motion = VimMotionType::moveForwardToEnd;
+            _textObject = VimTextObjectType::line;
             sequenceCompleted = true;
         }
+        // ^
         else if (vkey == 0x36 && mods.IsShiftPressed())
         {
-            motion = moveBackToBegining;
-            textObject = lineTextObject;
+            _motion = VimMotionType::moveBackToBegining;
+            _textObject = VimTextObjectType::line;
             sequenceCompleted = true;
         }
-        else if (vkey == L'K' && motion == noneMotion)
+        else if (vkey == L'K' && _motion == VimMotionType::none)
         {
-            motion = moveUpMotion;
-            textObject = mode == visualLineMode || (times > 1 && action == yankAction) ? entireLineTextObject : charTextObject;
+            _motion = VimMotionType::moveUp;
+            _textObject = _mode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
-        else if (vkey == L'J' && motion == noneMotion)
+        else if (vkey == L'J' && _motion == VimMotionType::none)
         {
-            textObject = mode == visualLineMode || (times > 1 && action == yankAction) ? entireLineTextObject : charTextObject;
-            motion = moveDownMotion;
+            _textObject = _mode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
+            _motion = VimMotionType::moveDown;
             sequenceCompleted = true;
         }
-        else if (vkey == L'L' && motion == noneMotion)
+        else if (vkey == L'L' && _motion == VimMotionType::none)
         {
-            motion = moveRightMotion;
-            textObject = charTextObject;
+            _motion = VimMotionType::moveRight;
+            _textObject = VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
-        else if (vkey == L'H' && motion == noneMotion)
+        else if (vkey == L'H' && _motion == VimMotionType::none)
         {
-            motion = moveLeftMotion;
-            textObject = charTextObject;
+            _motion = VimMotionType::moveLeft;
+            _textObject = VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
         else if (vkey == L'W')
         {
-            if (amount == inAmount)
+            if (_amount == VimTextAmount::in)
             {
-                textObject = mods.IsShiftPressed() ? inLargeWordTextObject : inWordTextObject;
+                _textObject = mods.IsShiftPressed() ? VimTextObjectType::inLargeWord : VimTextObjectType::inWord;
             }
             else
             {
-                textObject = mods.IsShiftPressed() ? largeWordTextObject : wordTextObject;
-                motion = moveForwardToStart;
+                _textObject = mods.IsShiftPressed() ? VimTextObjectType::largeWord : VimTextObjectType::word;
+                _motion = VimMotionType::moveForwardToStart;
             }
 
             sequenceCompleted = true;
         }
+        // []
         else if ((vkey == VK_OEM_4 || vkey == VK_OEM_6))
         {
-            textObject = amount == inAmount ? inSquareBracePairTextObject : amount == aroundAmount ? aroundSquareBracePairTextObject : charTextObject;
+            _textObject = _amount == VimTextAmount::in ? VimTextObjectType::inSquareBracePair : _amount == VimTextAmount::around ? VimTextObjectType::aroundSquareBracePair :
+                                                                                                              VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
+        // '
         else if (vkey == 0xDE && !mods.IsShiftPressed())
         {
-            textObject = amount == inAmount ? inSingleQuotePairTextObject : amount == aroundAmount ? aroundSingleQuotePairTextObject :
-                                                                                                     charTextObject;
+            _textObject = _amount == VimTextAmount::in ? VimTextObjectType::inSingleQuotePair : _amount == VimTextAmount::around ? VimTextObjectType::aroundSingleQuotePair :
+                                                                                                              VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
+        // "
         else if (vkey == 0xDE && mods.IsShiftPressed())
         {
-            textObject = amount == inAmount ? inDoubleQuotePairTextObject : amount == aroundAmount ? aroundDoubleQuotePairTextObject :
-                                                                                                     charTextObject;
+            _textObject = _amount == VimTextAmount::in ? VimTextObjectType::inDoubleQuotePair : _amount == VimTextAmount::around ? VimTextObjectType::aroundDoubleQuotePair :
+                                                                                                              VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
-        else if (vkey == 0x39)
+        // ()
+        else if (vkey == 0x39 && mods.IsShiftPressed() || vkey == 0x30 && mods.IsShiftPressed())
         {
-            textObject = amount == inAmount ? inRoundBracePairTextObject : amount == aroundAmount ? aroundRoundBracePairTextObject :
-                                                                                                     charTextObject;
+            _textObject = _amount == VimTextAmount::in ? VimTextObjectType::inRoundBracePair : _amount == VimTextAmount::around ? VimTextObjectType::aroundRoundBracePair :
+                                                                                                             VimTextObjectType::charTextObject;
             sequenceCompleted;
         }
+        // <>
         else if ((vkey == VK_OEM_COMMA && mods.IsShiftPressed()) || (vkey == VK_OEM_PERIOD && mods.IsShiftPressed()))
         {
-            textObject = amount == inAmount ? inAngleBracketPairTextObject : amount == aroundAmount ? aroundAngleBracketPairTextObject :
-                                                                                                     charTextObject;
+            _textObject = _amount == VimTextAmount::in ? VimTextObjectType::inAngleBracketPair : _amount == VimTextAmount::around ? VimTextObjectType::aroundAngleBracketPair :
+                                                                                                               VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
+        // ; ,
         else if (vkey == 186 || vkey == 188)
         {
-            motion = vkey == 186 ? forwardMotion : backMotion;
+            _motion = vkey == 186 ? VimMotionType::forward : VimMotionType::back;
 
-            isUpperCase = lastVkeyUpperCase;
-            action = lastAction;
-            key = lastVkey;
+            isUpperCase = _lastVkeyUpperCase;
+            _action = _lastAction;
+            key = _lastVkey;
             sequenceCompleted = true;
-            textObject = lastTextObject;
+            _textObject = _lastTextObject;
             
             sequenceCompleted = true;
         }
-        else if (vkey == L'V' && mode == normalMode && motion == noneMotion)
+        else if (vkey == L'V' && _mode == VimMode::normal && _motion == VimMotionType::none)
         {
-            mode = visualMode;
-            action = toggleVisualOn;
+            _mode = VimMode::visual;
+            _action = VimActionType::toggleVisualOn;
             if (mods.IsShiftPressed())
             {
-                mode = visualLineMode;
-                textObject = entireLineTextObject;
+                _mode = VimMode::visualLine;
+                _textObject = VimTextObjectType::entireLine;
                 sequenceCompleted = true;
             }
             sequenceCompleted = true;
         }
         else if (vkey == L'S')
         {
-            if (leaderSequence && action == fuzzyFindAction)
+            if (_leaderSequence && _action == VimActionType::fuzzyFind)
             {
-                textObject = inWordTextObject;
+                _textObject = VimTextObjectType::inWord;
                 sequenceCompleted = true;
             }
         }
         else if (vkey == VK_ESCAPE)
         {
-            if (mode == visualMode || mode == visualLineMode)
+            if (_mode == VimMode::visual || _mode == VimMode::visualLine)
             {
-                mode = normalMode;
-                textObject = charTextObject;
+                _mode = VimMode::normal;
+                _textObject = VimTextObjectType::charTextObject;
                 sequenceCompleted = true;
             }
-            else if (mode == searchMode)
+            else if (_mode == VimMode::search)
             {
-                mode = normalMode;
+                _mode = VimMode::normal;
             }
-            else if (mode == normalMode)
+            else if (_mode == VimMode::normal)
             {
                 sequenceCompleted = true;
                 _terminal->ClearSelection();
                 _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
                 _vimCursor = -1;
                 auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
-                searchString = L"";
+                _searchString = L"";
                 return false;
             }
         }
@@ -1395,59 +1258,68 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             sequenceCompleted = true;
         }
 
-        if (vkey != VK_RETURN && mode != searchMode && vkey != L'\r')
+        if (vkey != VK_RETURN && _mode != VimMode::search && vkey != L'\r')
         {
-            sequenceText += vkeyText;
-        }
-
-        std::wstring statusBarSearchString;
-
-        if (mode != searchMode && searchString.empty())
-        {
-            statusBarSearchString = L"";
-        }
-        else if (searchString.empty())
-        {
-            statusBarSearchString = reverseSearch ? L"?" : L"/";
-        }
-        else
-        {
-            statusBarSearchString = reverseSearch ? L"?" + searchString : L"/" + searchString;
-        }
-
-        if (sequenceText != L"\r")
-        {
-            _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ sequenceText }, winrt::hstring{ statusBarSearchString }, winrt::hstring{ mode == searchMode ? L"Search" : mode == normalMode ? L"Normal" :                                                                                                                                                                                                                            L"VisualLine" }));
+            _sequenceText += vkeyText;
         }
 
         if (sequenceCompleted)
         {
-            ExecuteVimSelection(action, textObject, times, motion, mode == visualMode, searchString, amount, key, isUpperCase);
+            ExecuteVimSelection(_action, _textObject, _times, _motion, _mode == VimMode::visual, _searchString, key, isUpperCase);
+        }
 
-            if (action == yankAction)
+        std::wstring statusBarSearchString;
+
+        if (_mode != VimMode::search && _searchString.empty())
+        {
+            statusBarSearchString = L"";
+        }
+        else if (_searchString.empty())
+        {
+            statusBarSearchString = _reverseSearch ? L"?" : L"/";
+        }
+        else
+        {
+            statusBarSearchString = _reverseSearch ? L"?" + _searchString : L"/" + _searchString;
+        }
+
+        if (_sequenceText != L"\r")
+        {
+            auto modeText = _mode == VimMode::search ? L"Search" : _mode == VimMode::normal ? L"Normal" :L"VisualLine";
+            _VimTextChangedHandlers(
+                *this,
+                winrt::make<implementation::VimTextChangedEventArgs>(
+                    winrt::hstring{ _sequenceText },
+                    winrt::hstring{ statusBarSearchString },
+                    winrt::hstring{ modeText }));
+        }
+
+        if (sequenceCompleted)
+        {
+            if (_action == VimActionType::yank)
             {
-                mode = normalMode;
+                _mode = VimMode::normal;
             }
 
-            lastVkeyUpperCase = isUpperCase;
-            lastTextObject = textObject;
-            lastAction = action;
-            lastMotion = motion;
-            textObject = charTextObject;
-            action = noneAction;
-            motion = noneMotion;
-            lastTimes = times;
-            timesString = L"";
-            amount = noneAmount;
-            leaderSequence = false;
+            _lastVkeyUpperCase = isUpperCase;
+            _lastTextObject = _textObject;
+            _lastAction = _action;
+            _lastMotion = _motion;
+            _textObject = VimTextObjectType::charTextObject;
+            _action = VimActionType::none;
+            _motion = VimMotionType::none;
+            _lastTimes = _times;
+            _timesString = L"";
+            _amount = VimTextAmount::none;
+            _leaderSequence = false;
 
-            sequenceText = L"";
+            _sequenceText = L"";
         }
 
         _renderer->TriggerSelection();
         _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(hideMarkers));
 
-        lastVkey = key;
+        _lastVkey = key;
 
         return true;
     }
@@ -2773,11 +2645,24 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                     rowTextSegments.Append(lastSegmentTextSegment);
 
-                    auto line = winrt::make<Search2TextLine>(rowTextSegments, rowScore, rowNumber, static_cast<int32_t>(pos->data[pos->size -1]));
+                    auto findLastNonBlankIndex = [](const std::string& str) {
+                        auto it = std::find_if(str.rbegin(), str.rend(), [](unsigned char ch) {
+                            return !std::isspace(ch);
+                        });
+                        return std::distance(it, str.rend()) - 1;
+                    };
+
+                    auto s1 = findLastNonBlankIndex(asciiRowText);
+
+                    auto line = winrt::make<Search2TextLine>(rowTextSegments, rowScore, rowNumber, static_cast<int32_t>(pos->data[pos->size - 1]), static_cast<int32_t>(s1));
 
                     items.push_back(line);
                     std::sort(items.begin(), items.end(), [](const auto& a, const auto& b) {
-                        return a.Score() > b.Score();
+                        if (a.Score() != b.Score())
+                        {
+                            return a.Score() > b.Score();
+                        }
+                        return a.Length() < b.Length();
                     });
 
                     if (items.size() > 100)

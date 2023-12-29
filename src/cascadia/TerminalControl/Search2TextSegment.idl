@@ -12,11 +12,12 @@ namespace Microsoft.Terminal.Control
     [default_interface] runtimeclass Search2TextLine : Windows.UI.Xaml.Data.INotifyPropertyChanged
     {
         Search2TextLine();
-        Search2TextLine(Windows.Foundation.Collections.IObservableVector<Search2TextSegment> segments, Int32 score, Int32 row, Int32 firstPosition);
+        Search2TextLine(Windows.Foundation.Collections.IObservableVector<Search2TextSegment> segments, Int32 score, Int32 row, Int32 firstPosition, Int32 length);
 
         Windows.Foundation.Collections.IObservableVector<Search2TextSegment> Segments;
         Int32 Score { get; };
         Int32 Row { get; };
         Int32 FirstPosition { get; set; };
+        Int32 Length { get; set; };
     }
 }

@@ -67,6 +67,76 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     struct ControlCore : ControlCoreT<ControlCore>
     {
+        enum class VimMode : int32_t
+        {
+            normal = 0,
+            visual = 1,
+            search = 2,
+            visualLine = 3,
+        };
+
+        enum class VimTextAmount : int32_t
+        {
+            none = 0,
+            in = 1,
+            around = 2,
+        };
+
+        enum class VimActionType : int32_t
+        {
+            none = 0,
+            yank = 1,
+            search = 2,
+            toggleVisualOn = 3,
+            fuzzyFind = 4
+        };
+
+        enum class VimTextObjectType : int32_t
+        {
+            none = 0,
+            charTextObject = 1,
+            word = 2,
+            largeWord = 3,
+            line = 4,
+            inSquareBracePair = 8,
+            inRoundBracePair = 9,
+            inDoubleQuotePair = 10,
+            inSingleQuotePair = 11,
+            inAngleBracketPair = 12,
+            aroundSquareBracePair = 13,
+            aroundRoundBracePair = 14,
+            aroundDoubleQuotePair = 15,
+            aroundSingleQuotePair = 16,
+            aroundAngleBracketPair = 17,
+            tilChar = 18,
+            findChar = 19,
+            tilCharReverse = 20,
+            findCharReverse = 21,
+            inWord = 22,
+            inLargeWord = 23,
+            entireLine = 24,
+        };
+
+        enum class VimMotionType : int32_t
+        {
+            none = 0,
+            moveRight = 1,
+            moveLeft = 2,
+            moveUp = 3,
+            moveDown = 4,
+            moveBackToBegining = 5,
+            moveForwardToStart = 6,
+            moveForwardToEnd = 7,
+            g = 8,
+            forward = 9,
+            back = 10,
+            moveToTopOfBuffer = 11,
+            moveToBottomOfBuffer = 12,
+            halfPageUp = 13,
+            halfPageDown = 14,
+            pageUp = 15,
+            pageDown = 16,
+        };
     public:
         ControlCore(Control::IControlSettings settings,
                     Control::IControlAppearance unfocusedAppearance,
@@ -132,13 +202,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool ExpandSelectionToWord();
         bool TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates modifiers);
         bool ExecuteVimSelection(
-            const int16_t action,
-            const int16_t textObject,
+            const VimActionType action,
+            const VimTextObjectType textObject,
             const int times,
-            const int16_t motion,
+            const VimMotionType motion,
             const bool isVisual,
             const std::wstring searchString,
-            const int16_t amount,
             int16_t vkey,
             bool vkeyIsUpperCase);
         bool TryMarkModeKeybinding(const WORD vkey,
@@ -366,6 +435,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         int32_t _vimCursor = -1;
         bool _preInVimMode = false;
         bool _fuzzySearchActive = false;
+
+        VimTextObjectType _textObject = VimTextObjectType::none;
+        VimMotionType _motion = VimMotionType::none;
+        VimMode _mode = VimMode::normal;
+        VimMotionType _lastMotion = VimMotionType::none;
+        VimActionType _action = VimActionType::none;
+        VimTextAmount _amount = VimTextAmount::none;
+        bool _leaderSequence = false;
+        std::wstring _timesString = L"";
+        int _times = 0;
+        bool _reverseSearch = false;
+        std::wstring _searchString = L"";
+        std::wstring _sequenceText = L"";
+
+        WORD _lastVkey = L'\0';
+        bool _lastVkeyUpperCase = false;
+        int _lastTimes = 0;
+        VimActionType _lastAction = VimActionType::none;
+        VimTextObjectType _lastTextObject = VimTextObjectType::none;
 
         uint64_t _owningHwnd{ 0 };
 
