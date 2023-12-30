@@ -481,7 +481,14 @@ void Terminal::NotifyBufferRotation(const int delta)
         // by the given delta and clamp to the first row.
         if (_selection->end.y < delta)
         {
-            _selection.reset();
+            _selection->end = til::point{ 0, 0 };
+            _selection->start = til::point{ 0, 0 };
+            _selection->pivot = til::point{ 0, 0 };
+            auto vimMode = _selectionClearedFromErase();
+            if (!vimMode)
+            {
+                _selection.reset();
+            }
         }
         else
         {

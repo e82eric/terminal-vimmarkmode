@@ -131,6 +131,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto pfnCompletionsChanged = [=](auto&& menuJson, auto&& replaceLength) { _terminalCompletionsChanged(menuJson, replaceLength); };
         _terminal->CompletionsChangedCallback(pfnCompletionsChanged);
 
+        auto pfnSelectionClearedFromErase = [=]() -> bool { return _selectionClearedFromErase(); };
+        _terminal->SelectionClearedFromErase(pfnSelectionClearedFromErase);
+
         // MSFT 33353327: Initialize the renderer in the ctor instead of Initialize().
         // We need the renderer to be ready to accept new engines before the SwapChainPanel is ready to go.
         // If we wait, a screen reader may try to get the AutomationPeer (aka the UIA Engine), and we won't be able to attach
@@ -848,7 +851,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             hideTimerThread.detach();
 
             CopySelectionToClipboard(false, nullptr);
-
+            _vimMode = VimMode::none;
             _terminal->ClearSelection();
         }
         else if (action == VimActionType::toggleVisualOn)
@@ -908,19 +911,19 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             sequenceCompleted = true;
         }
-        else if (vkey >= 0x30 && vkey <= 0x39 && !mods.IsShiftPressed() && _mode != VimMode::search)
+        else if (vkey >= 0x30 && vkey <= 0x39 && !mods.IsShiftPressed() && _vimMode != VimMode::search)
         {
             _timesString += vkeyText;
             std::wstringstream timesStringStream(_timesString);
             int times;
             timesStringStream >> times;
         }
-        else if (_mode == VimMode::search)
+        else if (_vimMode == VimMode::search)
         {
             if (vkey == VK_RETURN || vkey == VK_ESCAPE)
             {
                 _motion = VimMotionType::none;
-                _mode = VimMode::normal;
+                _vimMode = VimMode::normal;
             }
             else
             {
@@ -967,7 +970,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _reverseSearch = false;
             }
             _action = VimActionType::search;
-            _mode = VimMode::search;
+            _vimMode = VimMode::search;
             _searchString = L"";
             hideMarkers = true;
             
@@ -976,19 +979,19 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         else if (vkey == L'U' && mods.IsCtrlPressed())
         {
             _motion = VimMotionType::halfPageUp;
-            _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+            _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
             sequenceCompleted = true;
         }
         else if (vkey == L'D' && mods.IsCtrlPressed())
         {
             _motion = VimMotionType::halfPageDown;
-            _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+            _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
             sequenceCompleted = true;
         }
         else if (vkey == L'G' && mods.IsShiftPressed() && _motion == VimMotionType::none)
         {
             _motion = VimMotionType::moveToBottomOfBuffer;
-            _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+            _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
             sequenceCompleted = true;
         }
         else if (vkey == L'G' && !mods.IsShiftPressed())
@@ -996,7 +999,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (_motion == VimMotionType::g)
             {
                 _motion = VimMotionType::moveToTopOfBuffer;
-                _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+                _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
                 sequenceCompleted = true;
             }
             else
@@ -1043,7 +1046,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 if (mods.IsCtrlPressed())
                 {
                     _motion = VimMotionType::pageDown;
-                    _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+                    _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
                     sequenceCompleted = true;
                 }
                 else
@@ -1081,7 +1084,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             else
             {
-                if (_mode == VimMode::visual || _mode == VimMode::visualLine)
+                if (_vimMode == VimMode::visual || _vimMode == VimMode::visualLine)
                 {
                     _textObject = VimTextObjectType::none;
                     sequenceCompleted = true;
@@ -1100,7 +1103,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (mods.IsCtrlPressed())
             {
                 _motion = VimMotionType::pageUp;
-                _textObject = _mode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+                _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
                 sequenceCompleted = true;
             }
             else
@@ -1127,12 +1130,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         else if (vkey == L'K' && _motion == VimMotionType::none)
         {
             _motion = VimMotionType::moveUp;
-            _textObject = _mode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
+            _textObject = _vimMode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
         else if (vkey == L'J' && _motion == VimMotionType::none)
         {
-            _textObject = _mode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
+            _textObject = _vimMode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
             _motion = VimMotionType::moveDown;
             sequenceCompleted = true;
         }
@@ -1210,13 +1213,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             
             sequenceCompleted = true;
         }
-        else if (vkey == L'V' && _mode == VimMode::normal && _motion == VimMotionType::none)
+        else if (vkey == L'V' && _vimMode == VimMode::normal && _motion == VimMotionType::none)
         {
-            _mode = VimMode::visual;
+            _vimMode = VimMode::visual;
             _action = VimActionType::toggleVisualOn;
             if (mods.IsShiftPressed())
             {
-                _mode = VimMode::visualLine;
+                _vimMode = VimMode::visualLine;
                 _textObject = VimTextObjectType::entireLine;
                 sequenceCompleted = true;
             }
@@ -1232,24 +1235,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else if (vkey == VK_ESCAPE)
         {
-            if (_mode == VimMode::visual || _mode == VimMode::visualLine)
+            if (_vimMode == VimMode::visual || _vimMode == VimMode::visualLine)
             {
-                _mode = VimMode::normal;
+                _vimMode = VimMode::normal;
                 _textObject = VimTextObjectType::charTextObject;
                 sequenceCompleted = true;
             }
-            else if (_mode == VimMode::search)
+            else if (_vimMode == VimMode::search)
             {
-                _mode = VimMode::normal;
+                _vimMode = VimMode::normal;
             }
-            else if (_mode == VimMode::normal)
+            else if (_vimMode == VimMode::normal)
             {
                 sequenceCompleted = true;
+                _vimMode = VimMode::none;
                 _terminal->ClearSelection();
                 _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
                 _vimCursor = -1;
                 auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
                 _searchString = L"";
+                _updateSelectionUI();
                 return false;
             }
         }
@@ -1258,19 +1263,19 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             sequenceCompleted = true;
         }
 
-        if (vkey != VK_RETURN && _mode != VimMode::search && vkey != L'\r')
+        if (vkey != VK_RETURN && _vimMode != VimMode::search && vkey != L'\r')
         {
             _sequenceText += vkeyText;
         }
 
         if (sequenceCompleted)
         {
-            ExecuteVimSelection(_action, _textObject, _times, _motion, _mode == VimMode::visual, _searchString, key, isUpperCase);
+            ExecuteVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, key, isUpperCase);
         }
 
         std::wstring statusBarSearchString;
 
-        if (_mode != VimMode::search && _searchString.empty())
+        if (_vimMode != VimMode::search && _searchString.empty())
         {
             statusBarSearchString = L"";
         }
@@ -1285,7 +1290,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (_sequenceText != L"\r")
         {
-            auto modeText = _mode == VimMode::search ? L"Search" : _mode == VimMode::normal ? L"Normal" :L"VisualLine";
+            auto modeText = _vimMode == VimMode::search ? L"Search" : _vimMode == VimMode::normal ? L"Normal" :L"VisualLine";
             _VimTextChangedHandlers(
                 *this,
                 winrt::make<implementation::VimTextChangedEventArgs>(
@@ -1298,7 +1303,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (_action == VimActionType::yank)
             {
-                _mode = VimMode::normal;
+                _vimMode = VimMode::normal;
             }
 
             _lastVkeyUpperCase = isUpperCase;
@@ -1381,6 +1386,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             else if (vkey == VK_ESCAPE)
             {
                 _terminal->ClearSelection();
+                _vimMode = VimMode::none;
                 _updateSelectionUI();
                 return true;
             }
@@ -1905,7 +1911,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, { cx, cy });
         const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
 
-        //_terminal->ClearSelection();
+        if (_vimMode == VimMode::none)
+        {
+            _terminal->ClearSelection();
+        }
 
         // Tell the dx engine that our window is now the new size.
         THROW_IF_FAILED(_renderEngine->SetWindowSize({ cx, cy }));
@@ -1965,18 +1974,37 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::ResetVimModeForSizeChange()
     {
         auto lock = _terminal->LockForWriting();
+
+        auto bufHeight = _terminal->GetBufferHeight();
+        if (bufHeight < _vimCursor)
+        {
+            _vimCursor = -1;
+            _preInVimMode = true;
+        }
+
         if (_preInVimMode)
         {
-            if (RowNumberToHighlight() == -1)
+            if (!_terminal->IsSelectionActive())
             {
+                _terminal->ToggleMarkMode();
+                if (_terminal->SelectionMode() != ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Mark)
+                {
+                    _terminal->ToggleMarkMode();
+                }
                 _vimCursor = _terminal->SelectLastChar();
             }
 
             if (_terminal->SelectionMode() != ::Terminal::SelectionInteractionMode::Mark)
             {
                 _terminal->ToggleMarkMode();
+                _vimCursor = _terminal->SelectLastChar();
             }
-            
+
+            if (RowNumberToHighlight() == -1)
+            {
+                _vimCursor = _terminal->SelectLastChar();
+            }
+
             _preInVimMode = false;
         }
         ScrollToRow(RowNumberToHighlight());
@@ -1985,6 +2013,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     int32_t ControlCore::RowNumberToHighlight()
     {
+        const auto lock = _terminal->LockForReading();
+
         if (_fuzzySearchActive && _fuzzySearchHighlightRow > -1)
         {
             return _fuzzySearchHighlightRow;
@@ -2008,12 +2038,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto lock = _terminal->LockForWriting();
         if (!HasSelection())
         {
+
             _terminal->ToggleMarkMode();
         }
     }
 
     void ControlCore::StartFuzzySearch()
     {
+        if (_vimMode == VimMode::none)
+        {
+            _vimMode = VimMode::normal;
+        }
         _preInVimMode = true;
         _vimCursor = -1;
         _fuzzySearchHighlightRow = -1;
@@ -2178,6 +2213,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::EnterVimMode()
     {
+        _vimMode = VimMode::normal;
         _preInVimMode = true;
         _vimCursor = -1;
     }
@@ -3510,6 +3546,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _CompletionsChangedHandlers(*this, *args);
     }
+
+    bool ControlCore::_selectionClearedFromErase()
+    {
+        _vimCursor = 0;
+        const bool showMarkers{ _terminal->SelectionMode() >= ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Keyboard };
+        _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(!showMarkers));
+        return _vimMode != VimMode::none;
+    }
+
     void ControlCore::_selectSpan(til::point_span s)
     {
         const auto bufferSize{ _terminal->GetTextBuffer().GetSize() };

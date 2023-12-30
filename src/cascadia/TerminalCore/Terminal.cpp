@@ -420,7 +420,13 @@ CATCH_RETURN()
 int32_t Terminal::SelectLastChar()
 {
     auto lastNonSpaceChar = _mainBuffer->GetLastNonSpaceCharacter();
-    SelectNewRegion(lastNonSpaceChar, lastNonSpaceChar);
+    if (_inAltBuffer())
+    {
+        lastNonSpaceChar = _altBuffer->GetLastNonSpaceCharacter();
+    }
+    _selection->start = lastNonSpaceChar;
+    _selection->end = lastNonSpaceChar;
+    _selection->pivot = lastNonSpaceChar;
     return lastNonSpaceChar.y;
 }
 
@@ -1255,6 +1261,11 @@ const size_t Microsoft::Terminal::Core::Terminal::GetTaskbarProgress() const noe
 void Microsoft::Terminal::Core::Terminal::CompletionsChangedCallback(std::function<void(std::wstring_view, unsigned int)> pfn) noexcept
 {
     _pfnCompletionsChanged.swap(pfn);
+}
+
+void Microsoft::Terminal::Core::Terminal::SelectionClearedFromErase(std::function<bool()> pfn) noexcept
+{
+    _selectionClearedFromErase.swap(pfn);
 }
 
 Scheme Terminal::GetColorScheme() const

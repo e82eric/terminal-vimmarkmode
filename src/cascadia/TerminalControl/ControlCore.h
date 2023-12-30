@@ -69,10 +69,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         enum class VimMode : int32_t
         {
-            normal = 0,
-            visual = 1,
-            search = 2,
-            visualLine = 3,
+            none = 0,
+            normal = 1,
+            visual = 2,
+            search = 3,
+            visualLine = 4,
         };
 
         enum class VimTextAmount : int32_t
@@ -438,7 +439,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         VimTextObjectType _textObject = VimTextObjectType::none;
         VimMotionType _motion = VimMotionType::none;
-        VimMode _mode = VimMode::normal;
+        VimMode _vimMode = VimMode::normal;
         VimMotionType _lastMotion = VimMotionType::none;
         VimActionType _action = VimActionType::none;
         VimTextAmount _amount = VimTextAmount::none;
@@ -490,6 +491,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                    const std::chrono::microseconds duration);
 
         winrt::fire_and_forget _terminalCompletionsChanged(std::wstring_view menuJson, unsigned int replaceLength);
+        bool _selectionClearedFromErase();
 
 #pragma endregion
 
