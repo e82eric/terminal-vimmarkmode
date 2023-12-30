@@ -560,7 +560,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         int16_t vkey,
         bool vkeyIsUpperCase)
     {
-        bool clearCommandStateAfter = true;
+        bool exitAfter = false;
         bool selectFromStart = isVisual || action == VimActionType::yank;
 
         for (int i = 0; i < times; i++)
@@ -849,10 +849,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
             });
             hideTimerThread.detach();
-
             CopySelectionToClipboard(false, nullptr);
-            _vimMode = VimMode::none;
-            _terminal->ClearSelection();
+            exitAfter = true;
+        }
+        else if (action == VimActionType::exit)
+        {
+            exitAfter = true;
         }
         else if (action == VimActionType::toggleVisualOn)
         {
@@ -860,7 +862,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _vimCursor = _terminal->SetVimCursor();
         }
 
-        return clearCommandStateAfter;
+        return exitAfter;
     }
 
     bool ControlCore::TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods)
@@ -1247,15 +1249,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             else if (_vimMode == VimMode::normal)
             {
+                _action = VimActionType::exit;
+                _textObject = VimTextObjectType::none;
                 sequenceCompleted = true;
-                _vimMode = VimMode::none;
-                _terminal->ClearSelection();
-                _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
-                _vimCursor = -1;
-                auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
-                _searchString = L"";
-                _updateSelectionUI();
-                return false;
             }
         }
         else
@@ -1268,9 +1264,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _sequenceText += vkeyText;
         }
 
+        auto shouldExit = false;
+
         if (sequenceCompleted)
         {
-            ExecuteVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, key, isUpperCase);
+            shouldExit = ExecuteVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, key, isUpperCase);
         }
 
         std::wstring statusBarSearchString;
@@ -1319,10 +1317,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _leaderSequence = false;
 
             _sequenceText = L"";
+            if (shouldExit)
+            {
+                _vimMode = VimMode::none;
+                _lastVkeyUpperCase = false;
+                _lastTextObject = VimTextObjectType::none;
+                _lastAction = VimActionType::none;
+                _lastMotion = VimMotionType::none;
+                _textObject = VimTextObjectType::none;
+                _lastTimes = 0;
+                _sequenceText = L"";
+                _terminal->ClearSelection();
+                _vimCursor = -1;
+                _searchString = L"";
+                _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
+                auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
+            }
         }
 
         _renderer->TriggerSelection();
-        _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(hideMarkers));
+        _updateSelectionUI();
 
         _lastVkey = key;
 
@@ -1973,17 +1987,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::ResetVimModeForSizeChange()
     {
-        auto lock = _terminal->LockForWriting();
-
-        auto bufHeight = _terminal->GetBufferHeight();
-        if (bufHeight < _vimCursor)
+        if (_vimMode != VimMode::none)
         {
-            _vimCursor = -1;
-            _preInVimMode = true;
-        }
+            auto lock = _terminal->LockForWriting();
 
-        if (_preInVimMode)
-        {
+            auto bufHeight = _terminal->GetBufferHeight();
+            if (bufHeight < _vimCursor)
+            {
+                _vimCursor = -1;
+            }
+
             if (!_terminal->IsSelectionActive())
             {
                 _terminal->ToggleMarkMode();
@@ -2005,10 +2018,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _vimCursor = _terminal->SelectLastChar();
             }
 
-            _preInVimMode = false;
+            ScrollToRow(RowNumberToHighlight());
+            _updateSelectionUI();
         }
-        ScrollToRow(RowNumberToHighlight());
-        _updateSelectionUI();
     }
 
     int32_t ControlCore::RowNumberToHighlight()
@@ -2049,7 +2061,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _vimMode = VimMode::normal;
         }
-        _preInVimMode = true;
         _vimCursor = -1;
         _fuzzySearchHighlightRow = -1;
         _fuzzySearchActive = true;
@@ -2057,7 +2068,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::CloseFuzzySearchNoSelection()
     {
-        _preInVimMode = true;
         _vimCursor = -1;
         _fuzzySearchHighlightRow = -1;
         _fuzzySearchActive = false;
@@ -2214,7 +2224,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::EnterVimMode()
     {
         _vimMode = VimMode::normal;
-        _preInVimMode = true;
         _vimCursor = -1;
     }
 
@@ -3614,7 +3623,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         ScrollToRow(row);
         _fuzzySearchHighlightRow = -1;
         _vimCursor = row;
-        _preInVimMode = true;
         _fuzzySearchActive = false;
     }
 

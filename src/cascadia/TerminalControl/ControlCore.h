@@ -89,7 +89,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             yank = 1,
             search = 2,
             toggleVisualOn = 3,
-            fuzzyFind = 4
+            fuzzyFind = 4,
+            exit = 5
         };
 
         enum class VimTextObjectType : int32_t
@@ -434,7 +435,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         int32_t _fuzzySearchHighlightRow = -1;
         int32_t _vimCursor = -1;
-        bool _preInVimMode = false;
         bool _fuzzySearchActive = false;
 
         VimTextObjectType _textObject = VimTextObjectType::none;
