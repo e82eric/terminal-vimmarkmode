@@ -557,100 +557,87 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const VimMotionType motion,
         const bool isVisual,
         const std::wstring searchString,
-        int16_t vkey,
-        bool vkeyIsUpperCase)
+        std::wstring_view vkey)
     {
         bool exitAfter = false;
         bool selectFromStart = isVisual || action == VimActionType::yank;
 
         for (int i = 0; i < times; i++)
         {
-            if (textObject == VimTextObjectType::inSquareBracePair)
+            switch (textObject)
             {
+            case VimTextObjectType::inSquareBracePair:
                 _terminal->InDelimiter(L"[", L"]", false);
-            }
-            else if (textObject == VimTextObjectType::inRoundBracePair)
-            {
+                break;
+            case VimTextObjectType::inRoundBracePair:
                 _terminal->InDelimiter(L"(", L")", false);
-            }
-            else if (textObject == VimTextObjectType::inSingleQuotePair)
-            {
+                break;
+            case VimTextObjectType::inSingleQuotePair:
                 _terminal->InDelimiter(L"'", L"'", false);
-            }
-            else if (textObject == VimTextObjectType::inDoubleQuotePair)
-            {
+                break;
+            case VimTextObjectType::inDoubleQuotePair:
                 _terminal->InDelimiter(L"\"", L"\"", false);
-            }
-            else if (textObject == VimTextObjectType::inAngleBracketPair)
-            {
+                break;
+            case VimTextObjectType::inAngleBracketPair:
                 _terminal->InDelimiter(L"<", L">", false);
-            }
-            else if (textObject == VimTextObjectType::aroundSquareBracePair)
-            {
+                break;
+            case VimTextObjectType::aroundSquareBracePair:
                 _terminal->InDelimiter(L"[", L"]", true);
-            }
-            else if (textObject == VimTextObjectType::aroundRoundBracePair)
-            {
+                break;
+            case VimTextObjectType::aroundRoundBracePair:
                 _terminal->InDelimiter(L"(", L")", true);
-            }
-            else if (textObject == VimTextObjectType::aroundSingleQuotePair)
-            {
+                break;
+            case VimTextObjectType::aroundSingleQuotePair:
                 _terminal->InDelimiter(L"'", L"'", true);
-            }
-            else if (textObject == VimTextObjectType::aroundDoubleQuotePair)
-            {
+                break;
+            case VimTextObjectType::aroundDoubleQuotePair:
                 _terminal->InDelimiter(L"\"", L"\"", true);
-            }
-            else if (textObject == VimTextObjectType::aroundAngleBracketPair)
-            {
+                break;
+            case VimTextObjectType::aroundAngleBracketPair:
                 _terminal->InDelimiter(L"<", L">", true);
-            }
-            else if (textObject == VimTextObjectType::findChar)
-            {
+                break;
+            case VimTextObjectType::findChar:
                 if (motion == VimMotionType::forward)
                 {
-                    _terminal->FindChar(vkey, selectFromStart, vkeyIsUpperCase);
+                    _terminal->FindChar(vkey, selectFromStart);
                 }
                 else
                 {
-                    _terminal->FindCharBack(vkey, selectFromStart, vkeyIsUpperCase);
+                    _terminal->FindCharBack(vkey, selectFromStart);
                 }
-            }
-            else if (textObject == VimTextObjectType::tilChar)
-            {
+                break;
+            case VimTextObjectType::tilChar:
                 if (motion == VimMotionType::forward)
                 {
-                    _terminal->TilChar(vkey, selectFromStart, vkeyIsUpperCase);
+                    _terminal->TilChar(vkey, selectFromStart);
                 }
                 else
                 {
-                    _terminal->TilCharBack(vkey, selectFromStart, vkeyIsUpperCase);
+                    _terminal->TilCharBack(vkey, selectFromStart);
                 }
-            }
-            else if (textObject == VimTextObjectType::findCharReverse)
-            {
+                break;
+            case VimTextObjectType::findCharReverse:
                 if (motion == VimMotionType::forward)
                 {
-                    _terminal->FindCharBack(vkey, selectFromStart, vkeyIsUpperCase);
+                    _terminal->FindCharBack(vkey, selectFromStart);
                 }
                 else
                 {
-                    _terminal->FindChar(vkey, selectFromStart, vkeyIsUpperCase);
+                    _terminal->FindChar(vkey, selectFromStart);
                 }
-            }
-            else if (textObject == VimTextObjectType::tilCharReverse)
-            {
+                break;
+            case VimTextObjectType::tilCharReverse:
                 if (motion == VimMotionType::forward)
                 {
-                    _terminal->TilCharBack(vkey, selectFromStart, vkeyIsUpperCase);
+                    _terminal->TilCharBack(vkey, selectFromStart);
                 }
                 else
                 {
-                    _terminal->TilChar(vkey, selectFromStart, vkeyIsUpperCase);
+                    _terminal->TilChar(vkey, selectFromStart);
                 }
-            }
-            else if (textObject == VimTextObjectType::word || textObject == VimTextObjectType::largeWord)
-            {
+                break;
+            case VimTextObjectType::largeWord:
+            case VimTextObjectType::word:
                 if (motion == VimMotionType::moveForwardToEnd)
                 {
                     _terminal->SelectWordRight(selectFromStart, textObject == VimTextObjectType::largeWord);
@@ -663,13 +650,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 {
                     _terminal->SelectWordStartRight(selectFromStart, textObject == VimTextObjectType::largeWord);
                 }
-            }
-            else if (textObject == VimTextObjectType::inWord || textObject == VimTextObjectType::inLargeWord)
-            {
+                break;
+            case VimTextObjectType::inLargeWord:
+            case VimTextObjectType::inWord:
                 _terminal->SelectInWord(textObject == VimTextObjectType::inLargeWord);
-            }
-            else if (textObject == VimTextObjectType::line)
-            {
+                break;
+            case VimTextObjectType::line:
                 if (motion == VimMotionType::moveForwardToEnd)
                 {
                     _terminal->SelectLineRight(selectFromStart);
@@ -678,121 +664,101 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 {
                     _terminal->SelectLineLeft(selectFromStart);
                 }
-            }
-            else if (textObject == VimTextObjectType::entireLine)
-            {
-                if (motion == VimMotionType::moveUp)
+                break;
+            case VimTextObjectType::entireLine:
+                switch (motion)
                 {
+                case VimMotionType::moveUp:
                     _terminal->SelectLineUp(true);
-                }
-                else if (motion == VimMotionType::moveDown)
-                {
+                    break;
+                case VimMotionType::moveDown:
                     _terminal->SelectLineDown(true);
-                }
-                else if (motion == VimMotionType::moveToTopOfBuffer)
-                {
+                    break;
+                case VimMotionType::moveToTopOfBuffer:
                     _terminal->SelectTop(true);
-                }
-                else if (motion == VimMotionType::moveToBottomOfBuffer)
-                {
+                    break;
+                case VimMotionType::moveToBottomOfBuffer:
                     _terminal->SelectBottom(true);
-                }
-                else if (motion == VimMotionType::moveToTopOfBuffer)
-                {
-                    _terminal->SelectTop(true);
-                }
-                else if (motion == VimMotionType::halfPageUp)
-                {
+                    break;
+                case VimMotionType::halfPageUp:
                     _terminal->SelectHalfPageUp(true);
-                }
-                else if (motion == VimMotionType::halfPageDown)
-                {
+                    break;
+                case VimMotionType::halfPageDown:
                     _terminal->SelectHalfPageDown(true);
-                }
-                else if (motion == VimMotionType::pageUp)
-                {
+                    break;
+                case VimMotionType::pageUp:
                     _terminal->SelectPageUp(true);
-                }
-                else if (motion == VimMotionType::pageDown)
-                {
+                    break;
+                case VimMotionType::pageDown:
                     _terminal->SelectPageDown(true);
-                }
-                else
-                {
+                default:
                     _terminal->SelectLineLeft(false);
                     _terminal->SelectLineRight(true);
+                    break;
                 }
-            }
-            else if (textObject == VimTextObjectType::charTextObject)
-            {
-                if (motion == VimMotionType::none)
+                break;
+            case VimTextObjectType::charTextObject:
+                switch (motion)
                 {
+                case VimMotionType::none:
                     _terminal->SelectCharRight(false);
                     _terminal->SelectCharLeft(false);
-                }
-                else if (motion == VimMotionType::moveLeft)
-                {
+                    break;
+                case VimMotionType::moveLeft:
                     _terminal->SelectCharLeft(selectFromStart);
-                }
-                else if (motion == VimMotionType::moveDown)
-                {
+                    break;
+                case VimMotionType::moveDown:
                     _terminal->SelectDown(selectFromStart);
-                }
-                else if (motion == VimMotionType::moveUp)
-                {
-                   _terminal->SelectUp(selectFromStart);
-                }
-                else if (motion == VimMotionType::moveRight)
-                {
+                    break;
+                case VimMotionType::moveUp:
+                    _terminal->SelectUp(selectFromStart);
+                    break;
+                case VimMotionType::moveRight:
                     _terminal->SelectCharRight(selectFromStart);
+                    break;
                 }
-            }
-            else if (textObject == VimTextObjectType::none)
-            {
-                if (motion == VimMotionType::moveToTopOfBuffer)
+                break;
+            case VimTextObjectType::none:
+                switch (motion)
                 {
+                case VimMotionType::moveToTopOfBuffer:
                     _terminal->SelectTop(selectFromStart);
-                }
-                else if (motion == VimMotionType::moveToBottomOfBuffer)
-                {
+                    break;
+                case VimMotionType::moveToBottomOfBuffer:
                     _terminal->SelectBottom(selectFromStart);
-                }
-                else if (motion == VimMotionType::moveToTopOfBuffer)
-                {
-                    _terminal->SelectTop(selectFromStart);
-                }
-                else if (motion == VimMotionType::halfPageUp)
-                {
+                    break;
+                case VimMotionType::halfPageUp:
                     _terminal->SelectHalfPageUp(selectFromStart);
-                }
-                else if (motion == VimMotionType::halfPageDown)
-                {
+                    break;
+                case VimMotionType::halfPageDown:
                     _terminal->SelectHalfPageDown(selectFromStart);
-                }
-                else if (motion == VimMotionType::pageUp)
-                {
+                    break;
+                case VimMotionType::pageUp:
                     _terminal->SelectPageUp(selectFromStart);
-                }
-                else if (motion == VimMotionType::pageDown)
-                {
+                    break;
+                case VimMotionType::pageDown:
                     _terminal->SelectPageDown(selectFromStart);
+                    break;
                 }
+                break;
             }
-
             _vimCursor = _terminal->SetVimCursor();
         }
 
-        if (action == VimActionType::fuzzyFind)
+        switch (action)
+        {
+        case VimActionType::fuzzyFind:
         {
             const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
             auto searchString = bufferData.text[0];
             _terminal->ClearSelection();
+            //_vimCursor = _terminal->SetVimCursor();
             _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ searchString }));
-            _vimCursor = _terminal->SetVimCursor();
+            break;
         }
-        else if (action == VimActionType::search)
+        case VimActionType::search:
         {
-            auto moveForward = motion != VimMotionType::forward; 
+            auto moveForward = motion != VimMotionType::forward;
             if (textObject == VimTextObjectType::word)
             {
                 _terminal->SelectInWord(false);
@@ -833,8 +799,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
             }
             _vimCursor = _terminal->SetVimCursor();
+            break;
         }
-        else if (action == VimActionType::yank)
+        case VimActionType::yank:
         {
             auto selectionInfo = SelectionInfo();
             _terminal->SelectYankRegion();
@@ -851,15 +818,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             hideTimerThread.detach();
             CopySelectionToClipboard(false, nullptr);
             exitAfter = true;
+            break;
         }
-        else if (action == VimActionType::exit)
-        {
-            exitAfter = true;
-        }
-        else if (action == VimActionType::toggleVisualOn)
-        {
+        case VimActionType::toggleVisualOn:
             _terminal->SetPivot();
             _vimCursor = _terminal->SetVimCursor();
+            break;
+        case VimActionType::exit:
+            exitAfter = true;
+            break;
         }
 
         return exitAfter;
@@ -867,13 +834,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     bool ControlCore::TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods)
     {
-        WORD key = vkey;
-        bool isUpperCase = mods.IsModifierPressed();
         bool sequenceCompleted = false;
         bool hideMarkers = false;
         bool clearStateOnSequenceCompleted = true;
 
-        if (vkey == 16 || vkey == 17)
+        if (vkey == 16 || vkey == 17 || vkey == 18)
         {
             return true;
         }
@@ -886,9 +851,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         wchar_t vkeyText[2] = { 0 };
-
         BYTE keyboardState[256];
-        GetKeyboardState(keyboardState);
+        if (!GetKeyboardState(keyboardState))
+        {
+            return true;
+        }
         if (mods.IsShiftPressed())
         {
             keyboardState[VK_SHIFT] = 0x80;
@@ -1079,7 +1046,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _motion = VimMotionType::moveForwardToEnd;
                 sequenceCompleted = true;
             }
-            if (_lastVkey == L'Y')
+
+            if (_lastVkey[0] == L'y')
             {
                 _textObject = VimTextObjectType::entireLine;
                 sequenceCompleted = true;
@@ -1207,9 +1175,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _motion = vkey == 186 ? VimMotionType::forward : VimMotionType::back;
 
-            isUpperCase = _lastVkeyUpperCase;
             _action = _lastAction;
-            key = _lastVkey;
+            wcsncpy_s(vkeyText, _lastVkey, sizeof(vkeyText) / sizeof(vkeyText[0]));
             sequenceCompleted = true;
             _textObject = _lastTextObject;
             
@@ -1268,7 +1235,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (sequenceCompleted)
         {
-            shouldExit = ExecuteVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, key, isUpperCase);
+            shouldExit = ExecuteVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, vkeyText);
         }
 
         std::wstring statusBarSearchString;
@@ -1297,6 +1264,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     winrt::hstring{ modeText }));
         }
 
+        wcsncpy_s(_lastVkey, vkeyText, sizeof(_lastVkey) / sizeof(_lastVkey[0]));
+
         if (sequenceCompleted)
         {
             if (_action == VimActionType::yank)
@@ -1304,7 +1273,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _vimMode = VimMode::normal;
             }
 
-            _lastVkeyUpperCase = isUpperCase;
             _lastTextObject = _textObject;
             _lastAction = _action;
             _lastMotion = _motion;
@@ -1320,7 +1288,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (shouldExit)
             {
                 _vimMode = VimMode::none;
-                _lastVkeyUpperCase = false;
                 _lastTextObject = VimTextObjectType::none;
                 _lastAction = VimActionType::none;
                 _lastMotion = VimMotionType::none;
@@ -1330,6 +1297,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _terminal->ClearSelection();
                 _vimCursor = -1;
                 _searchString = L"";
+                _lastVkey[0] = L'\0';
                 _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
                 auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
             }
@@ -1337,8 +1305,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _renderer->TriggerSelection();
         _updateSelectionUI();
-
-        _lastVkey = key;
 
         return true;
     }
@@ -1348,7 +1314,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto lock = _terminal->LockForWriting();
 
-        if (_terminal->SelectionMode() == ::Terminal::SelectionInteractionMode::Mark)
+        if (_vimMode != VimMode::none)
         {
             if (TryVimModeKeyBinding(vkey, mods))
             {

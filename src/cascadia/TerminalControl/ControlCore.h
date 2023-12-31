@@ -210,8 +210,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             const VimMotionType motion,
             const bool isVisual,
             const std::wstring searchString,
-            int16_t vkey,
-            bool vkeyIsUpperCase);
+            std::wstring_view vkey);
         bool TryMarkModeKeybinding(const WORD vkey,
                                    const ::Microsoft::Terminal::Core::ControlKeyStates modifiers);
 
@@ -439,7 +438,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         VimTextObjectType _textObject = VimTextObjectType::none;
         VimMotionType _motion = VimMotionType::none;
-        VimMode _vimMode = VimMode::normal;
+        VimMode _vimMode = VimMode::none;
         VimMotionType _lastMotion = VimMotionType::none;
         VimActionType _action = VimActionType::none;
         VimTextAmount _amount = VimTextAmount::none;
@@ -450,8 +449,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         std::wstring _searchString = L"";
         std::wstring _sequenceText = L"";
 
-        WORD _lastVkey = L'\0';
-        bool _lastVkeyUpperCase = false;
+        wchar_t _lastVkey[2] = { L'\0' };
         int _lastTimes = 0;
         VimActionType _lastAction = VimActionType::none;
         VimTextObjectType _lastTextObject = VimTextObjectType::none;

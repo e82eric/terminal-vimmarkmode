@@ -2269,17 +2269,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _core.CursorOn(false);
         }
 
-        //if (args.SearchString().size() > 0)
-        //{
-        //    auto b = _core.Search2(args.SearchString());
-        //    _searchResults.Clear();
-        //    for (auto a : b)
-        //    {
-        //        _searchResults.Append(a);
-        //    }
-        //}
+        if (args.SearchString().size() > 0)
+        {
+            auto b = _core.Search2(args.SearchString());
+            _searchResults.Clear();
+            for (auto a : b)
+            {
+                _searchResults.Append(a);
+            }
+        }
 
-        //SearchBox2().SearchString(args.SearchString());
+        SearchBox2().SearchString(args.SearchString());
     }
 
     winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,

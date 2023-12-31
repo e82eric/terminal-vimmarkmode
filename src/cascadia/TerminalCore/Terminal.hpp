@@ -326,10 +326,10 @@ public:
     void SelectWordLeft(bool isVisual);
     void SelectInWord(bool largeWord);
     void InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
-    void TilChar(WORD vkey, bool isVisual, bool isUpperCase);
-    void FindChar(WORD vkey, bool isVisual, bool isUpperCase);
-    void FindCharBack(WORD vkey, bool isVisual, bool isUpperCase);
-    void TilCharBack(WORD vkey, bool isVisual, bool isUpperCase);
+    void TilChar(std::wstring_view vkey, bool isVisual);
+    void FindChar(std::wstring_view vkey, bool isVisual);
+    void FindCharBack(std::wstring_view vkey, bool isVisual);
+    void TilCharBack(std::wstring_view vkey, bool isVisual);
     void UpdateSelection(SelectionDirection direction, SelectionExpansion mode, ControlKeyStates mods);
     void SelectAll();
     SelectionInteractionMode SelectionMode() const noexcept;
@@ -516,10 +516,10 @@ private:
     void _MoveByBuffer(SelectionDirection direction, til::point& pos) noexcept;
     void _InWord(til::point& pos, std::wstring_view delimiters);
     void _InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
-    void _FindChar(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);
-    void _TilChar(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);
-    void _FindCharBack(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);
-    void _TilCharBack(til::point& pos, WORD vkey, bool isVisual, bool isUpperCase);
+    void _FindChar(std::wstring_view vkey, bool isVisual);
+    void _TilChar(std::wstring_view vkey, bool isVisual);
+    void _FindCharBack(std::wstring_view vkey, bool isVisual);
+    void _TilCharBack(std::wstring_view vkey, bool isVisual);
 #pragma endregion
 
 #ifdef UNIT_TESTING

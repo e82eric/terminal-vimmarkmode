@@ -660,28 +660,24 @@ void Terminal::InDelimiter(std::wstring_view startDelimiter, std::wstring_view e
     _InDelimiter(targetPos, startDelimiter, endDelimiter, includeDelimiter);
 }
 
-void Terminal::TilChar(WORD vkey, bool isVisual, bool isUpperCase)
+void Terminal::TilChar(std::wstring_view vkey, bool isVisual)
 {
-    auto targetPos = _selection->end;
-    _TilChar(targetPos, vkey, isVisual, isUpperCase);
+    _TilChar(vkey, isVisual);
 }
 
-void Terminal::FindChar(WORD vkey, bool isVisual, bool isUpperCase)
+void Terminal::FindChar(std::wstring_view vkey, bool isVisual)
 {
-    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
-    _FindChar(targetPos, vkey, isVisual, isUpperCase);
+    _FindChar(vkey, isVisual);
 }
 
-void Terminal::FindCharBack(WORD vkey, bool isVisual, bool isUpperCase)
+void Terminal::FindCharBack(std::wstring_view vkey, bool isVisual)
 {
-    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
-    _FindCharBack(targetPos, vkey, isVisual, isUpperCase);
+    _FindCharBack(vkey, isVisual);
 }
 
-void Terminal::TilCharBack(WORD vkey, bool isVisual, bool isUpperCase)
+void Terminal::TilCharBack(std::wstring_view vkey, bool isVisual)
 {
-    auto targetPos{ _selection->end };
-    _TilCharBack(targetPos, vkey, isVisual, isUpperCase);
+    _TilCharBack(vkey, isVisual);
 }
 
 void Terminal::SetPivot()
@@ -1350,25 +1346,16 @@ void Terminal::_MoveByWord(SelectionDirection direction, til::point& pos)
     }
 }
 
-void Terminal::_FindChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUpperCase)
+void Terminal::_FindChar(std::wstring_view vkey, bool isVisual)
 {
-    BYTE keyboardState[256];
-    GetKeyboardState(keyboardState);
-    if (isUpperCase)
-    {
-        keyboardState[VK_SHIFT] = 0x80;
-    }
-    WCHAR charBuffer[2] = { 0 };
-    ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
-
     auto adjustedEnd = til::point{ _selection->end.x + 1, _selection->end.y };
     auto adjustedStart = til::point{ _selection->start.x + 1, _selection->start.y };
 
     auto startPoint = _selection->start < _selection->pivot ? adjustedStart : adjustedEnd;
 
-    til::point originalStart = _selection->start;
+    til::point originalStart = _selection->start;;
 
-    auto result = _activeBuffer().FindChar(startPoint, charBuffer);
+    auto result = _activeBuffer().FindChar(startPoint, vkey);
 
     if (!result.second)
     {
@@ -1395,17 +1382,8 @@ void Terminal::_FindChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isU
     }
 }
 
-void Terminal::_TilChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUpperCase)
+void Terminal::_TilChar(std::wstring_view vkey, bool isVisual)
 {
-    BYTE keyboardState[256];
-    GetKeyboardState(keyboardState);
-    if (isUpperCase)
-    {
-        keyboardState[VK_SHIFT] = 0x80;
-    }
-    WCHAR charBuffer[2] = { 0 };
-    ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
-
     auto adjustedEnd = til::point{ _selection->end.x + 2, _selection->end.y };
     auto adjustedStart = til::point{ _selection->start.x + 2, _selection->start.y };
 
@@ -1413,7 +1391,7 @@ void Terminal::_TilChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUp
 
     til::point originalStart = _selection->start;
 
-    auto result = _activeBuffer().FindChar(startPoint, charBuffer);
+    auto result = _activeBuffer().FindChar(startPoint, vkey);
 
     if (!result.second)
     {
@@ -1440,23 +1418,14 @@ void Terminal::_TilChar(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUp
     }
 }
 
-void Terminal::_FindCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUpperCase)
+void Terminal::_FindCharBack(std::wstring_view vkey, bool isVisual)
 {
-    BYTE keyboardState[256];
-    GetKeyboardState(keyboardState);
-    if (isUpperCase)
-    {
-        keyboardState[VK_SHIFT] = 0x80;
-    }
-    WCHAR charBuffer[2] = { 0 };
-    ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
-    
     auto adjustedEnd = til::point{ _selection->end.x - 1, _selection->end.y };
     auto adjustedStart = til::point{ _selection->start.x - 1, _selection->start.y };
 
     auto startPoint = _selection->end > _selection->pivot ? adjustedEnd : adjustedStart;
 
-    auto result = _activeBuffer().FindCharReverse(startPoint, charBuffer);
+    auto result = _activeBuffer().FindCharReverse(startPoint, vkey);
 
     if (!result.second)
     {
@@ -1483,23 +1452,14 @@ void Terminal::_FindCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool
     }
 }
 
-void Terminal::_TilCharBack(til::point& /*pos*/, WORD vkey, bool isVisual, bool isUpperCase)
+void Terminal::_TilCharBack(std::wstring_view vkey, bool isVisual)
 {
-    BYTE keyboardState[256];
-    GetKeyboardState(keyboardState);
-    if (isUpperCase)
-    {
-        keyboardState[VK_SHIFT] = 0x80;
-    }
-    WCHAR charBuffer[2] = { 0 };
-    ToUnicode(vkey, 0, keyboardState, charBuffer, 2, 0);
-
     auto adjustedEnd = til::point{ _selection->end.x - 2, _selection->end.y };
     auto adjustedStart = til::point{ _selection->start.x - 2, _selection->start.y };
 
     auto startPoint = _selection->end > _selection->pivot ? adjustedEnd : adjustedStart;
 
-    auto result = _activeBuffer().FindCharReverse(startPoint, charBuffer);
+    auto result = _activeBuffer().FindCharReverse(startPoint, vkey);
 
     if (!result.second)
     {
