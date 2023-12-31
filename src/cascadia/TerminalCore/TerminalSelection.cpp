@@ -1539,12 +1539,12 @@ void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, s
     if (includeDelimiter)
     {
         _selection->start = til::point{ start.first.x - 1, start.first.y };
-        _selection->end = til::point{ end.first.x + 1, end.first.y };
+        _selection->end = til::point{ end.first.x, end.first.y };
     }
     else
     {
         _selection->start = start.first;
-        _selection->end = end.first;
+        _selection->end = til::point{ end.first.x - 1, end.first.y };
     }
 }
 
