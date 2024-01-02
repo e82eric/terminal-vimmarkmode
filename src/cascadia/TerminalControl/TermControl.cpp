@@ -2348,7 +2348,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             numbers += numStr + L"\r\n";
         }
 
-        auto directXHeight = _core.FontSize().Height;
+        auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
+        auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
         NumberTextBox().FontFamily(Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName()));
         NumberTextBox().LineHeight(directXHeight);
         NumberTextBox().Text(numbers);
