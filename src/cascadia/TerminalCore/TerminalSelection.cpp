@@ -710,23 +710,7 @@ void Terminal::SelectHalfPageUp(bool isVisual)
     const auto newY{ targetPos.y - (viewportHeight / 2) };
     const auto newPos = newY < bufferSize.Top() ? bufferSize.Origin() : til::point{ targetPos.x, newY };
 
-    if (!isVisual)
-    {
-        _selection->start = newPos;
-        _selection->end = newPos;
-        _selection->pivot = newPos;
-    }
-    else if (newPos < _selection->pivot)
-    {
-        _selection->start = newPos;
-        _selection->end = _selection->end;
-    }
-    else
-    {
-        _selection->start = _selection->pivot;
-        _selection->end = newPos;
-    }
-
+    _UpdateSelection(isVisual, newPos);
     _ScrollToPoint(newPos);
 }
 
@@ -740,23 +724,7 @@ void Terminal::SelectHalfPageDown(bool isVisual)
     const auto newY{ targetPos.y + (viewportHeight / 2) };
     const auto newPos = newY > mutableBottom ? til::point{ bufferSize.RightInclusive(), mutableBottom } : til::point{ targetPos.x, newY };
 
-    if (!isVisual)
-    {
-        _selection->start = newPos;
-        _selection->end = newPos;
-        _selection->pivot = newPos;
-    }
-    else if (newPos < _selection->pivot)
-    {
-        _selection->start = newPos;
-        _selection->end = _selection->end;
-    }
-    else
-    {
-        _selection->start = _selection->pivot;
-        _selection->end = newPos;
-    }
-
+    _UpdateSelection(isVisual, newPos);
     _ScrollToPoint(newPos);
 }
 
@@ -769,23 +737,7 @@ void Terminal::SelectPageUp(bool isVisual)
     const auto newY{ targetPos.y - viewportHeight };
     const auto newPos = newY < bufferSize.Top() ? bufferSize.Origin() : til::point{ targetPos.x, newY };
 
-    if (!isVisual)
-    {
-        _selection->start = newPos;
-        _selection->end = newPos;
-        _selection->pivot = newPos;
-    }
-    else if (newPos < _selection->pivot)
-    {
-        _selection->start = newPos;
-        _selection->end = _selection->end;
-    }
-    else
-    {
-        _selection->start = _selection->pivot;
-        _selection->end = newPos;
-    }
-
+    _UpdateSelection(isVisual, newPos);
     _ScrollToPoint(newPos);
 }
 
@@ -799,22 +751,7 @@ void Terminal::SelectPageDown(bool isVisual)
     const auto newY{ targetPos.y + viewportHeight };
     const auto newPos = newY > mutableBottom ? til::point{ bufferSize.RightInclusive(), mutableBottom } : til::point{ targetPos.x, newY };
 
-    if (!isVisual)
-    {
-        _selection->start = newPos;
-        _selection->end = newPos;
-    }
-    else if (newPos < _selection->pivot)
-    {
-        _selection->start = newPos;
-        _selection->end = _selection->end;
-    }
-    else
-    {
-        _selection->start = _selection->pivot;
-        _selection->end = newPos;
-    }
-
+    _UpdateSelection(isVisual, newPos);
     _ScrollToPoint(newPos);
 }
 
@@ -877,14 +814,7 @@ void Terminal::SelectLineRight(bool isVisual)
 {
     auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
     auto endPair = _activeBuffer().GetLineEnd(targetPos);
-    _selection->end = endPair;
-    if (isVisual)
-    {
-    }
-    else
-    {
-        _selection->start = endPair;
-    }
+    _UpdateSelection(isVisual, endPair);
 }
 
 int32_t Terminal::SetVimCursor()
@@ -908,7 +838,7 @@ int32_t Terminal::SetVimCursor()
     return -1;
 }
 
-void Terminal::SelectLineUp(bool /*isVisual*/)
+void Terminal::SelectLineUp()
 {
     if (_selection->start.y > 0)
     {
@@ -931,7 +861,7 @@ void Terminal::SelectLineUp(bool /*isVisual*/)
     }
 }
 
-void Terminal::SelectLineDown(bool /*isVisual*/)
+void Terminal::SelectLineDown()
 {
     if (_selection->start.y < _selection->pivot.y)
     {
@@ -991,31 +921,13 @@ void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
 
     if (start.second)
     {
-        if (!isVisual)
-        {
-            _selection->start = start.first;
-            _selection->end = start.first;
-            _selection->pivot = start.first;
-        }
-        else if (start.first < _selection->pivot)
-        {
-            _selection->end = _selection->pivot;
-            _selection->start = start.first;
-        }
-        else
-        {
-            _selection->end = start.first;
-            _selection->start = _selection->pivot;
-        }
+        _UpdateSelection(isVisual, start.first);
     }
     else
     {
-        auto startOfNextLine = til::point{ 0, _selection->end.y + 1 };
-        _selection->end = startOfNextLine;
-        if (!isVisual)
-        {
-            _selection->start = _selection->end;
-        }
+        auto yToMove = _selection->start < _selection->pivot ? _selection->start.y : _selection->end.y;
+        auto startOfNextLine = til::point{ 0, yToMove + 1 };
+        _UpdateSelection(isVisual, startOfNextLine);
     }
 }
 
@@ -1043,21 +955,7 @@ void Terminal::SelectWordLeft(bool isVisual, bool isLargeWord)
 
         if (startPair.second)
         {
-            if (!isVisual)
-            {
-                _selection->end = startPair.first;
-                _selection->start = _selection->end;
-                _selection->pivot = _selection->end;
-            }
-            else if (startPair.first < _selection->pivot)
-            {
-                _selection->end = _selection->pivot;
-                _selection->start = startPair.first;
-            }
-            else
-            {
-                _selection->end = startPair.first;
-            }
+            _UpdateSelection(isVisual, startPair.first);
         }
         else
         {
@@ -1066,11 +964,7 @@ void Terminal::SelectWordLeft(bool isVisual, bool isLargeWord)
             startPair = _activeBuffer().GetStartOfWord(endOfLine, delimiters);
             if (startPair.second)
             {
-                _selection->start = startPair.first;
-                if (!isVisual)
-                {
-                    _selection->end = _selection->end;
-                }
+                _UpdateSelection(isVisual, startPair.first);
             }
         }
     }
@@ -1100,36 +994,16 @@ void Terminal::SelectWordRight(bool isVisual, bool isLargeWord)
 
         if (endPair.second)
         {
-            _selection->end = endPair.first;
-            _selection->start = _selection->end;
-            if (!isVisual)
-            {
-                _selection->end = endPair.first;
-                _selection->start = _selection->end;
-                _selection->pivot = _selection->pivot;
-            }
-            else if (endPair.first < _selection->pivot)
-            {
-                _selection->end = _selection->pivot;
-                _selection->start = endPair.first;
-            }
-            else
-            {
-                _selection->end = endPair.first;
-                _selection->start = _selection->pivot;
-            }
+            _UpdateSelection(isVisual, endPair.first);
         }
         else
         {
-            auto startOfNextLine = til::point{ 0, _selection->end.y + 1 };
+            auto yToMove = _selection->start < _selection->pivot ? _selection->start.y : _selection->end.y;
+            auto startOfNextLine = til::point{ 0, yToMove + 1 };
             endPair = _activeBuffer().GetEndOfWord(startOfNextLine, delimiters);
             if (endPair.second)
             {
-                _selection->end = endPair.first;
-                if (!isVisual)
-                {
-                    _selection->start = _selection->end;
-                }
+                _UpdateSelection(isVisual, endPair.first);
             }
         }
     }
@@ -1364,23 +1238,7 @@ void Terminal::_FindChar(std::wstring_view vkey, bool isVisual)
     }
 
     auto adjustedResult = til::point{ result.first.x, result.first.y };
-
-    if (!isVisual)
-    {
-        _selection->start = adjustedResult;
-        _selection->end = adjustedResult;
-        _selection->pivot = adjustedResult;
-    }
-    else if (adjustedStart < _selection->pivot)
-    {
-        _selection->start = adjustedResult;
-        _selection->end = _selection->pivot;
-    }
-    else
-    {
-        _selection->end = adjustedResult;
-        _selection->start = _selection->pivot;
-    }
+    _UpdateSelection(isVisual, adjustedResult);
 }
 
 void Terminal::_TilChar(std::wstring_view vkey, bool isVisual)
@@ -1400,23 +1258,7 @@ void Terminal::_TilChar(std::wstring_view vkey, bool isVisual)
     }
 
     auto adjustedResult = til::point{ result.first.x - 1, result.first.y };
-
-    if (!isVisual)
-    {
-        _selection->start = adjustedResult;
-        _selection->end = adjustedResult;
-        _selection->pivot = adjustedResult;
-    }
-    else if (adjustedStart < _selection->pivot)
-    {
-        _selection->start = adjustedResult;
-        _selection->end = _selection->pivot;
-    }
-    else
-    {
-        _selection->end = adjustedResult;
-        _selection->start = _selection->pivot;
-    }
+    _UpdateSelection(isVisual, adjustedResult);
 }
 
 void Terminal::_FindCharBack(std::wstring_view vkey, bool isVisual)
@@ -1433,24 +1275,8 @@ void Terminal::_FindCharBack(std::wstring_view vkey, bool isVisual)
         return;
     }
 
-    auto adjustedResult = til::point{ result.first.x - 1, result.first.y };
-
-    if (!isVisual)
-    {
-        _selection->start = adjustedResult;
-        _selection->end = adjustedResult;
-        _selection->pivot = adjustedResult;
-    }
-    else if (adjustedEnd > _selection->pivot)
-    {
-        _selection->start = _selection->pivot;
-        _selection->end = adjustedResult;
-    }
-    else
-    {
-        _selection->end = _selection->pivot;
-        _selection->start = adjustedResult;
-    }
+    auto adjustedResult = til::point{ result.first.x, result.first.y };
+    _UpdateSelection(isVisual, adjustedResult);
 }
 
 void Terminal::_TilCharBack(std::wstring_view vkey, bool isVisual)
@@ -1467,23 +1293,48 @@ void Terminal::_TilCharBack(std::wstring_view vkey, bool isVisual)
         return;
     }
 
-    auto adjustedResult = til::point{ result.first.x, result.first.y };
+    auto adjustedResult = til::point{ result.first.x + 1, result.first.y };
 
-    if (!isVisual)
+    _UpdateSelection(isVisual, adjustedResult);
+}
+
+void Terminal::_UpdateSelection(bool isVisual, til::point adjusted)
+{
+    if (isVisual)
     {
-        _selection->start = adjustedResult;
-        _selection->end = adjustedResult;
-        _selection->pivot = adjustedResult;
-    }
-    else if (adjustedEnd > _selection->pivot)
-    {
-        _selection->start = _selection->pivot;
-        _selection->end = adjustedResult;
+        auto pivotIsStart = _selection->start == _selection->pivot;
+        //This means that the end is moving
+        if (pivotIsStart)
+        {
+            if (adjusted < _selection->pivot)
+            {
+                _selection->start = adjusted;
+                _selection->end = _selection->pivot;
+            }
+            else
+            {
+                _selection->end = adjusted;
+            }
+        }
+        //This means that the start is moving
+        else
+        {
+            if (adjusted > _selection->pivot)
+            {
+                _selection->start = _selection->pivot;
+                _selection->end = adjusted;
+            }
+            else
+            {
+                _selection->start = adjusted;
+            }
+        }
     }
     else
     {
-        _selection->end = _selection->pivot;
-        _selection->start = adjustedResult;
+        _selection->start = adjusted;
+        _selection->end = adjusted;
+        _selection->pivot = adjusted;
     }
 }
 

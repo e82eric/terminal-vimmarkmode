@@ -669,10 +669,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 switch (motion)
                 {
                 case VimMotionType::moveUp:
-                    _terminal->SelectLineUp(true);
+                    _terminal->SelectLineUp();
                     break;
                 case VimMotionType::moveDown:
-                    _terminal->SelectLineDown(true);
+                    _terminal->SelectLineDown();
                     break;
                 case VimMotionType::moveToTopOfBuffer:
                     _terminal->SelectTop(true);
@@ -752,7 +752,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
             auto searchString = bufferData.text[0];
             _terminal->ClearSelection();
-            //_vimCursor = _terminal->SetVimCursor();
             _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ searchString }));
             break;
         }

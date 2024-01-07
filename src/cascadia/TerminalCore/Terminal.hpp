@@ -316,8 +316,8 @@ public:
     void SelectDown(bool isVisual);
     int32_t SetVimCursor();
     void SelectUp(bool isVisual);
-    void SelectLineUp(bool isVisual);
-    void SelectLineDown(bool isVisual);
+    void SelectLineUp();
+    void SelectLineDown();
     void SelectLineLeft(bool isVisual);
     void SelectLineRight(bool isVisual);
     void SelectWordRight(bool isVisual, bool isLargeWord);
@@ -520,6 +520,7 @@ private:
     void _TilChar(std::wstring_view vkey, bool isVisual);
     void _FindCharBack(std::wstring_view vkey, bool isVisual);
     void _TilCharBack(std::wstring_view vkey, bool isVisual);
+    void _UpdateSelection(bool isVisual, til::point adjusted);
 #pragma endregion
 
 #ifdef UNIT_TESTING

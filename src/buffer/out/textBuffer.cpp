@@ -1426,28 +1426,26 @@ std::pair<til::point, bool> TextBuffer::_GetWordStartForSelection2(const til::po
     const auto bufferSize = GetSize();
 
     const auto initialDelimiter = _GetDelimiterClassAt(result, wordDelimiters);
+    if (initialDelimiter == DelimiterClass::DelimiterChar)
+    {
+        return { result, true };
+    }
+
     bool found = false;
     // expand left until we hit the left boundary or a different delimiter class
     while (result.x > bufferSize.Left())
     {
+        bufferSize.DecrementInBounds(result);
         if (_GetDelimiterClassAt(result, wordDelimiters) == DelimiterClass::DelimiterChar)
         {
             found = true;
             break;
         }
-
-        bufferSize.DecrementInBounds(result);
     }
 
     if (!found)
     {
         return { {}, false };
-    }
-
-    if (_GetDelimiterClassAt(result, wordDelimiters) != initialDelimiter)
-    {
-        // move off of delimiter
-        bufferSize.IncrementInBounds(result);
     }
 
     return { result, true };
@@ -1680,12 +1678,6 @@ std::pair<til::point, bool> TextBuffer::GetEndOfPreviousWord(const til::point ta
 
     const auto bufferSize = GetSize();
 
-    // can't expand right
-    //if (target.x == 0)
-    //{
-    //    return { {}, false };
-    //}
-
     auto result = wordStart.first;
     bool found = false;
 
@@ -1749,11 +1741,6 @@ std::pair<til::point, bool> TextBuffer::GetEndOfWord(const til::point target, co
 std::pair<til::point, bool> TextBuffer::GetStartOfWord(const til::point target, const std::wstring_view wordDelimiters) const
 {
     const auto bufferSize = GetSize();
-
-    //if (target.x == 0)
-    //{
-    //    return { {}, false };
-    //}
 
     auto result = target;
     bool found = false;
