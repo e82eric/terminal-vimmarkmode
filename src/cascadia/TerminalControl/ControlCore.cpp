@@ -836,6 +836,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool sequenceCompleted = false;
         bool hideMarkers = false;
         bool clearStateOnSequenceCompleted = true;
+        bool skipExecute = false;
 
         if (vkey == 16 || vkey == 17 || vkey == 18)
         {
@@ -871,20 +872,71 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _times = 1;
         }
 
-        if (vkey == L' ')
+        if (vkey >= 0x30 && vkey <= 0x39 && !mods.IsShiftPressed() && _vimMode != VimMode::search && _textObject != VimTextObjectType::findChar && _textObject != VimTextObjectType::findCharReverse && _textObject != VimTextObjectType::tilChar && _textObject != VimTextObjectType::tilCharReverse)
+        {
+            _timesString += vkeyText;
+            std::wstringstream timesStringStream(_timesString);
+            int times;
+            timesStringStream >> times;
+        }
+
+        else if (_vimMode == VimMode::visualLine)
+        {
+            _textObject = VimTextObjectType::entireLine;
+            sequenceCompleted = true;
+            if (vkey == L'U' && mods.IsCtrlPressed())
+            {
+                _motion = VimMotionType::halfPageUp;
+            }
+            else if (vkey == L'D' && mods.IsCtrlPressed())
+            {
+                _motion = VimMotionType::halfPageDown;
+            }
+            else if (vkey == L'G' && mods.IsShiftPressed() && _motion == VimMotionType::none)
+            {
+                _motion = VimMotionType::moveToBottomOfBuffer;
+            }
+            else if (vkey == L'G' && !mods.IsShiftPressed())
+            {
+                if (_motion == VimMotionType::g)
+                {
+                    _motion = VimMotionType::moveToTopOfBuffer;
+                }
+            }
+            else if (vkey == L'K' && _motion == VimMotionType::none)
+            {
+                _motion = VimMotionType::moveUp;
+            }
+            else if (vkey == L'J' && _motion == VimMotionType::none)
+            {
+                _motion = VimMotionType::moveDown;
+            }
+            else if (vkey == L'Y' && _motion == VimMotionType::none)
+            {
+                _textObject = VimTextObjectType::none;
+                _action = VimActionType::yank;
+            }
+            else if (vkey == L'F' && mods.IsCtrlPressed())
+            {
+                _motion = VimMotionType::pageDown;
+            }
+            else if (vkey == L'B' && mods.IsCtrlPressed())
+            {
+                _motion = VimMotionType::pageUp;
+            }
+            else if (vkey == VK_ESCAPE)
+            {
+                _vimMode = VimMode::normal;
+                _textObject = VimTextObjectType::charTextObject;
+            }
+        }
+        else if (vkey == L' ')
         {
             _leaderSequence = true;
         }
         else if (_textObject == VimTextObjectType::tilChar || _textObject == VimTextObjectType::tilCharReverse || _textObject == VimTextObjectType::findChar || _textObject == VimTextObjectType::findCharReverse)
         {
             sequenceCompleted = true;
-        }
-        else if (vkey >= 0x30 && vkey <= 0x39 && !mods.IsShiftPressed() && _vimMode != VimMode::search)
-        {
-            _timesString += vkeyText;
-            std::wstringstream timesStringStream(_timesString);
-            int times;
-            timesStringStream >> times;
         }
         else if (_vimMode == VimMode::search)
         {
@@ -947,19 +999,19 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         else if (vkey == L'U' && mods.IsCtrlPressed())
         {
             _motion = VimMotionType::halfPageUp;
-            _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+            _textObject = VimTextObjectType::none;
             sequenceCompleted = true;
         }
         else if (vkey == L'D' && mods.IsCtrlPressed())
         {
             _motion = VimMotionType::halfPageDown;
-            _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+            _textObject = VimTextObjectType::none;
             sequenceCompleted = true;
         }
         else if (vkey == L'G' && mods.IsShiftPressed() && _motion == VimMotionType::none)
         {
             _motion = VimMotionType::moveToBottomOfBuffer;
-            _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+            _textObject = VimTextObjectType::none;
             sequenceCompleted = true;
         }
         else if (vkey == L'G' && !mods.IsShiftPressed())
@@ -967,7 +1019,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (_motion == VimMotionType::g)
             {
                 _motion = VimMotionType::moveToTopOfBuffer;
-                _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+                _textObject = VimTextObjectType::none;
                 sequenceCompleted = true;
             }
             else
@@ -1014,7 +1066,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 if (mods.IsCtrlPressed())
                 {
                     _motion = VimMotionType::pageDown;
-                    _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+                    _textObject = VimTextObjectType::none;
                     sequenceCompleted = true;
                 }
                 else
@@ -1045,19 +1097,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _motion = VimMotionType::moveForwardToEnd;
                 sequenceCompleted = true;
             }
-
-            if (_lastVkey[0] == L'y')
+            else if (_lastVkey[0] == L'y')
             {
                 _textObject = VimTextObjectType::entireLine;
                 sequenceCompleted = true;
             }
-            else
+            else if (_vimMode == VimMode::visual)
             {
-                if (_vimMode == VimMode::visual || _vimMode == VimMode::visualLine)
-                {
-                    _textObject = VimTextObjectType::none;
-                    sequenceCompleted = true;
-                }
+                _textObject = VimTextObjectType::none;
+                sequenceCompleted = true;
             }
         }
         else if (vkey == L'E' && _motion == VimMotionType::none)
@@ -1072,7 +1120,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (mods.IsCtrlPressed())
             {
                 _motion = VimMotionType::pageUp;
-                _textObject = _vimMode == VimMode::visualLine ? VimTextObjectType::entireLine : VimTextObjectType::none;
+                _textObject = VimTextObjectType::none;
                 sequenceCompleted = true;
             }
             else
@@ -1203,15 +1251,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else if (vkey == VK_ESCAPE)
         {
-            if (_vimMode == VimMode::visual || _vimMode == VimMode::visualLine)
+            if (_vimMode == VimMode::search || _vimMode == VimMode::visual)
             {
                 _vimMode = VimMode::normal;
                 _textObject = VimTextObjectType::charTextObject;
+                _motion = VimMotionType::none;
                 sequenceCompleted = true;
-            }
-            else if (_vimMode == VimMode::search)
-            {
-                _vimMode = VimMode::normal;
             }
             else if (_vimMode == VimMode::normal)
             {
@@ -1223,6 +1268,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         else
         {
             sequenceCompleted = true;
+            skipExecute = true;
         }
 
         if (vkey != VK_RETURN && _vimMode != VimMode::search && vkey != L'\r')
@@ -1232,7 +1278,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto shouldExit = false;
 
-        if (sequenceCompleted)
+        if (sequenceCompleted && !skipExecute)
         {
             shouldExit = ExecuteVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, vkeyText);
         }

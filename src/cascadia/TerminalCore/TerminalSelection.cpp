@@ -639,7 +639,7 @@ Terminal::UpdateSelectionParams Terminal::ConvertKeyEventToUpdateSelectionParams
 
 void Terminal::InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
 {
-    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    auto targetPos{ _selection->start };
     _InDelimiter(targetPos, startDelimiter, endDelimiter, includeDelimiter);
 }
 
@@ -665,7 +665,7 @@ void Terminal::TilCharBack(std::wstring_view vkey, bool isVisual)
 
 void Terminal::SetPivot()
 {
-    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
+    auto targetPos{ _selection->start };
     _selection->pivot = targetPos;
 }
 
@@ -678,27 +678,18 @@ void Terminal::SelectTop(bool isVisual)
     }
     else
     {
-        DWORD mods = 0;
-
-        if (isVisual)
-        {
-            mods = 280;
-        }
-
-        UpdateSelection(SelectionDirection::Up, SelectionExpansion::Buffer, ControlKeyStates{ mods });
+        _selection->start = til::point{ 0, 0 };
+        _selection->pivot = til::point{ 0, 0 };
+        _selection->end = til::point{ 0, 0 };
+        _ScrollToPoint(til::point{ 0, 0 });
     }
 }
 
 void Terminal::SelectBottom(bool isVisual)
 {
-    DWORD mods = 0;
-
-    if (isVisual)
-    {
-        mods = 280;
-    }
-
-    UpdateSelection(SelectionDirection::Down, SelectionExpansion::Buffer, ControlKeyStates{ mods });
+    auto lastChar = _activeBuffer().GetLastNonSpaceCharacter();
+    _UpdateSelection(isVisual, lastChar);
+    _ScrollToPoint(lastChar);
 }
 
 void Terminal::SelectHalfPageUp(bool isVisual)
@@ -764,49 +755,25 @@ void Terminal::SelectChar(til::point point)
 
 void Terminal::SelectCharLeft(bool isVisual)
 {
-    DWORD mods = 0;
-
-    if (isVisual)
-    {
-        mods = 280;
-    }
-
+    DWORD mods = isVisual ? 280 : 0;
     UpdateSelection(SelectionDirection::Left, SelectionExpansion::Char, ControlKeyStates{ mods });
 }
 
 void Terminal::SelectCharRight(bool isVisual)
 {
-    DWORD mods = 0;
-
-    if (isVisual)
-    {
-        mods = 280;
-    }
-
+    DWORD mods = isVisual ? 280 : 0;
     UpdateSelection(SelectionDirection::Right, SelectionExpansion::Char, ControlKeyStates{ mods });
 }
 
 void Terminal::SelectDown(bool isVisual)
 {
-    DWORD mods = 0;
-
-    if (isVisual)
-    {
-        mods = 280;
-    }
-
+    DWORD mods = isVisual ? 280 : 0;
     UpdateSelection(SelectionDirection::Down, SelectionExpansion::Char, ControlKeyStates{ mods });
 }
 
 void Terminal::SelectUp(bool isVisual)
 {
-    DWORD mods = 0;
-
-    if (isVisual)
-    {
-        mods = 280;
-    }
-
+    DWORD mods = isVisual ? 280 : 0;
     UpdateSelection(SelectionDirection::Up, SelectionExpansion::Char, ControlKeyStates{ mods });
 }
 
@@ -840,7 +807,7 @@ int32_t Terminal::SetVimCursor()
 
 void Terminal::SelectLineUp()
 {
-    if (_selection->start.y > 0)
+    if (_selection->start.y > 0 || _selection->end.y > 0)
     {
         if (_selection->end.y > _selection->pivot.y)
         {
@@ -886,24 +853,13 @@ void Terminal::SelectLineDown()
 
 void Terminal::SelectLineLeft(bool isVisual)
 {
-    DWORD mods = 0;
-
-    if (isVisual)
-    {
-        mods = 280;
-    }
+    DWORD mods = isVisual ? 280 : 0;
     UpdateSelection(SelectionDirection::Left, SelectionExpansion::Viewport, ControlKeyStates{ mods });
 }
 
 void Terminal::SelectWordLeft(bool isVisual)
 {
-    DWORD mods = 0;
-
-    if (isVisual)
-    {
-        mods = 280;
-    }
-
+    DWORD mods = isVisual ? 280 : 0;
     UpdateSelection(SelectionDirection::Left, SelectionExpansion::Word, ControlKeyStates{ mods });
 }
 
@@ -1226,7 +1182,7 @@ void Terminal::_FindChar(std::wstring_view vkey, bool isVisual)
     auto adjustedEnd = til::point{ _selection->end.x + 1, _selection->end.y };
     auto adjustedStart = til::point{ _selection->start.x + 1, _selection->start.y };
 
-    auto startPoint = _selection->start < _selection->pivot ? adjustedStart : adjustedEnd;
+    auto startPoint = _selection->end == _selection->pivot ? adjustedStart : adjustedEnd;
 
     til::point originalStart = _selection->start;;
 
@@ -1246,7 +1202,7 @@ void Terminal::_TilChar(std::wstring_view vkey, bool isVisual)
     auto adjustedEnd = til::point{ _selection->end.x + 2, _selection->end.y };
     auto adjustedStart = til::point{ _selection->start.x + 2, _selection->start.y };
 
-    auto startPoint = _selection->start < _selection->pivot ? adjustedStart : adjustedEnd;
+    auto startPoint = _selection->end == _selection->pivot ? adjustedStart : adjustedEnd;
 
     til::point originalStart = _selection->start;
 
@@ -1266,7 +1222,7 @@ void Terminal::_FindCharBack(std::wstring_view vkey, bool isVisual)
     auto adjustedEnd = til::point{ _selection->end.x - 1, _selection->end.y };
     auto adjustedStart = til::point{ _selection->start.x - 1, _selection->start.y };
 
-    auto startPoint = _selection->end > _selection->pivot ? adjustedEnd : adjustedStart;
+    auto startPoint = _selection->end == _selection->pivot ? adjustedStart : adjustedEnd;
 
     auto result = _activeBuffer().FindCharReverse(startPoint, vkey);
 
@@ -1284,7 +1240,7 @@ void Terminal::_TilCharBack(std::wstring_view vkey, bool isVisual)
     auto adjustedEnd = til::point{ _selection->end.x - 2, _selection->end.y };
     auto adjustedStart = til::point{ _selection->start.x - 2, _selection->start.y };
 
-    auto startPoint = _selection->end > _selection->pivot ? adjustedEnd : adjustedStart;
+    auto startPoint = _selection->end == _selection->pivot ? adjustedStart : adjustedEnd;
 
     auto result = _activeBuffer().FindCharReverse(startPoint, vkey);
 
@@ -1352,11 +1308,13 @@ void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, s
     {
         _selection->start = til::point{ start.first.x - 1, start.first.y };
         _selection->end = til::point{ end.first.x, end.first.y };
+        _selection->pivot = til::point{ end.first.x - 1, end.first.y };
     }
     else
     {
         _selection->start = start.first;
         _selection->end = til::point{ end.first.x - 1, end.first.y };
+        _selection->pivot = til::point{ end.first.x - 1, end.first.y };
     }
 }
 
@@ -1366,6 +1324,7 @@ void Terminal::_InWord(til::point& pos, std::wstring_view delimiters)
     if (endPair.second)
     {
         _selection->end = endPair.first;
+        _selection->pivot = endPair.first;
         _selection->start = _activeBuffer().GetWordStart(pos, delimiters);
     }
 }
