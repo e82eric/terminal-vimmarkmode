@@ -915,12 +915,6 @@ void IslandWindow::OnApplicationThemeChanged(const winrt::Windows::UI::Xaml::Ele
 // - <none>
 void IslandWindow::FocusModeChanged(const bool focusMode)
 {
-    // Do nothing if the value was unchanged.
-    if (focusMode == _borderless)
-    {
-        return;
-    }
-
     _SetIsBorderless(focusMode);
 }
 
