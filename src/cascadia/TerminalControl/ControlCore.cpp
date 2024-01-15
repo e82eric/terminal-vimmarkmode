@@ -156,6 +156,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _renderer->SetRendererEnteredErrorStateCallback([this]() { _RendererEnteredErrorStateHandlers(nullptr, nullptr); });
 
             THROW_IF_FAILED(localPointerToThread->Initialize(_renderer.get()));
+
+            auto fuzzySearchRenderThread = std::make_unique<::Microsoft::Console::Render::RenderThread>();
+            auto* const localPointerToFuzzySearchThread = fuzzySearchRenderThread.get();
+
+            //Now create the renderer and initialize the render thread.
+            //const auto& renderSettings = _terminal->GetRenderSettings();
+            _ericData = std::make_unique<EricRenderData>(_terminal.get());
+            _fuzzySearchRenderer = std::make_unique<::Microsoft::Console::Render::Renderer>(renderSettings, _ericData.get(), nullptr, 0, std::move(fuzzySearchRenderThread));
+            _ericData->SetRenderer(_fuzzySearchRenderer.get());
+
+            _fuzzySearchRenderer->SetBackgroundColorChangedCallback([this]() { _rendererBackgroundColorChanged(); });
+            _fuzzySearchRenderer->SetFrameColorChangedCallback([this]() { _rendererTabColorChanged(); });
+            _fuzzySearchRenderer->SetRendererEnteredErrorStateCallback([this]() { _RendererEnteredErrorStateHandlers(nullptr, nullptr); });
+
+            THROW_IF_FAILED(localPointerToFuzzySearchThread->Initialize(_fuzzySearchRenderer.get()));
         }
 
         UpdateSettings(settings, unfocusedAppearance);
@@ -425,6 +440,101 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return true;
     }
 
+    bool ControlCore::InitializeFuzzySearch(const float actualWidth,
+                                 const float actualHeight,
+                                 const float compositionScale)
+    {
+        assert(_settings);
+
+        _fuzzySearchPanelWidth = actualWidth;
+        _fuzzySearchPanelHeight = actualHeight;
+        _fuzzySearchCompositionScale = compositionScale;
+
+        { // scope for terminalLock
+            const auto lock = _terminal->LockForWriting();
+
+            const auto windowWidth = actualWidth * compositionScale;
+            const auto windowHeight = actualHeight * compositionScale;
+
+            if (windowWidth == 0 || windowHeight == 0)
+            {
+                return false;
+            }
+
+            if (_settings->UseAtlasEngine())
+            {
+                _fuzzySearchRenderEngine = std::make_unique<::Microsoft::Console::Render::AtlasEngine>();
+            }
+            else
+            {
+                _fuzzySearchRenderEngine = std::make_unique<::Microsoft::Console::Render::DxEngine>();
+            }
+
+            _fuzzySearchRenderer->AddRenderEngine(_fuzzySearchRenderEngine.get());
+
+            const til::size windowSize{ til::math::rounding, windowWidth, windowHeight };
+
+            // First set up the dx engine with the window size in pixels.
+            // Then, using the font, get the number of characters that can fit.
+            // Resize our terminal connection to match that size, and initialize the terminal with that size.
+            const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, windowSize);
+            LOG_IF_FAILED(_fuzzySearchRenderEngine->SetWindowSize({ viewInPixels.Width(), viewInPixels.Height() }));
+
+            // Update DxEngine's SelectionBackground
+            _fuzzySearchRenderEngine->SetSelectionBackground(til::color{ _settings->SelectionBackground() });
+
+            _fuzzySearchRenderEngine->SetWarningCallback(std::bind(&ControlCore::_rendererWarning, this, std::placeholders::_1));
+
+            // Tell the render engine to notify us when the swap chain changes.
+            // We do this after we initially set the swapchain so as to avoid
+            // unnecessary callbacks (and locking problems)
+            _fuzzySearchRenderEngine->SetCallback([this](HANDLE handle) {
+                _fuzzySearchRenderEngineSwapChainChanged(handle);
+            });
+
+            _fuzzySearchRenderEngine->SetRetroTerminalEffect(_settings->RetroTerminalEffect());
+            _fuzzySearchRenderEngine->SetPixelShaderPath(_settings->PixelShaderPath());
+            _fuzzySearchRenderEngine->SetForceFullRepaintRendering(_settings->ForceFullRepaintRendering());
+            _fuzzySearchRenderEngine->SetSoftwareRendering(_settings->SoftwareRendering());
+
+            // GH#5098: Inform the engine of the opacity of the default text background.
+            // GH#11315: Always do this, even if they don't have acrylic on.
+            _fuzzySearchRenderEngine->EnableTransparentBackground(_isBackgroundTransparent());
+
+            THROW_IF_FAILED(_fuzzySearchRenderEngine->Enable());
+
+            const auto newDpi = static_cast<int>(lrint(_compositionScale * USER_DEFAULT_SCREEN_DPI));
+
+            std::unordered_map<std::wstring_view, uint32_t> featureMap;
+            if (const auto fontFeatures = _settings->FontFeatures())
+            {
+                featureMap.reserve(fontFeatures.Size());
+
+                for (const auto& [tag, param] : fontFeatures)
+                {
+                    featureMap.emplace(tag, param);
+                }
+            }
+            std::unordered_map<std::wstring_view, float> axesMap;
+            if (const auto fontAxes = _settings->FontAxes())
+            {
+                axesMap.reserve(fontAxes.Size());
+
+                for (const auto& [axis, value] : fontAxes)
+                {
+                    axesMap.emplace(axis, value);
+                }
+            }
+
+            // TODO: MSFT:20895307 If the font doesn't exist, this doesn't
+            //      actually fail. We need a way to gracefully fallback.
+            LOG_IF_FAILED(_fuzzySearchRenderEngine->UpdateDpi(newDpi));
+            LOG_IF_FAILED(_fuzzySearchRenderEngine->UpdateFont(_desiredFont, _actualFont, featureMap, axesMap));
+        } // scope for TerminalLock
+
+        return true;
+    }
+
     // Method Description:
     // - Tell the renderer to start painting.
     // - !! IMPORTANT !! Make sure that we've attached our swap chain to an
@@ -439,6 +549,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             const auto lock = _terminal->LockForWriting();
             _renderer->EnablePainting();
+            _fuzzySearchRenderer->EnablePainting();
         }
     }
 
@@ -1962,6 +2073,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SizeOrScaleChanged(width, height, _compositionScale);
     }
 
+    void ControlCore::FuzzySearchPreviewSizeChanged(const float width,
+                                  const float height)
+    {
+        _fuzzySearchPanelWidth = width;
+        _fuzzySearchPanelHeight = height;
+
+        auto cx = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelWidth * _compositionScale));
+        auto cy = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelHeight * _compositionScale));
+
+        auto lock =_terminal->LockForWriting();
+        THROW_IF_FAILED(_fuzzySearchRenderEngine->SetWindowSize({cx, cy}));
+        _fuzzySearchRenderer->TriggerRedrawAll();
+    }
+
     void ControlCore::ScaleChanged(const float scale)
     {
         if (!_renderEngine)
@@ -2072,9 +2197,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _vimMode = VimMode::normal;
         }
+        auto size = til::size{ til::math::rounding, _fuzzySearchPanelWidth, _fuzzySearchPanelHeight };
         _vimCursor = -1;
         _fuzzySearchHighlightRow = -1;
         _fuzzySearchActive = true;
+        _ericData->SetSize(size);
+        _ericData->Show();
+
+        auto lock = _terminal->LockForReading();
+        auto newTextBuffer = std::make_unique<TextBuffer>(size,
+                                                          TextAttribute{},
+                                                          0,
+                                                          true,
+                                                          *_fuzzySearchRenderer);
+
+        TextBuffer::Reflow(_terminal->GetTextBuffer(), *newTextBuffer.get());
+        _ericData->SetTextBuffer(std::move(newTextBuffer));
+
+       LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
+        _fuzzySearchRenderer->NotifyPaintFrame();
     }
 
     void ControlCore::CloseFuzzySearchNoSelection()
@@ -2824,6 +2965,37 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
+    winrt::fire_and_forget ControlCore::_fuzzySearchRenderEngineSwapChainChanged(const HANDLE sourceHandle)
+    {
+        // `sourceHandle` is a weak ref to a HANDLE that's ultimately owned by the
+        // render engine's own unique_handle. We'll add another ref to it here.
+        // This will make sure that we always have a valid HANDLE to give to
+        // callers of our own SwapChainHandle method, even if the renderer is
+        // currently in the process of discarding this value and creating a new
+        // one. Callers should have already set up the SwapChainChanged
+        // callback, so this all works out.
+
+        winrt::handle duplicatedHandle;
+        const auto processHandle = GetCurrentProcess();
+        THROW_IF_WIN32_BOOL_FALSE(DuplicateHandle(processHandle, sourceHandle, processHandle, duplicatedHandle.put(), 0, FALSE, DUPLICATE_SAME_ACCESS));
+
+        const auto weakThis{ get_weak() };
+
+        // Concurrent read of _dispatcher is safe, because Detach() calls WaitForPaintCompletionAndDisable()
+        // which blocks until this call returns. _dispatcher will only be changed afterwards.
+        co_await wil::resume_foreground(_dispatcher);
+
+        if (auto core{ weakThis.get() })
+        {
+            // `this` is safe to use now
+
+            _fuzzySearchLastSwapChainHandle = std::move(duplicatedHandle);
+            // Now bubble the event up to the control.
+            _FuzzySearchSwapChainChangedHandlers(*this, winrt::box_value<uint64_t>(reinterpret_cast<uint64_t>(_fuzzySearchLastSwapChainHandle.get())));
+        }
+    }
+
+
     void ControlCore::_rendererBackgroundColorChanged()
     {
         _BackgroundColorChangedHandlers(*this, nullptr);
@@ -3101,6 +3273,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // Otherwise, we only ever use the value from the SwapChainChanged
         // event.
         return reinterpret_cast<uint64_t>(_lastSwapChainHandle.get());
+    }
+
+    uint64_t ControlCore::FuzzySearchSwapChainHandle() const
+    {
+        // This is only ever called by TermControl::AttachContent, which occurs
+        // when we're taking an existing core and moving it to a new control.
+        // Otherwise, we only ever use the value from the SwapChainChanged
+        // event.
+        return reinterpret_cast<uint64_t>(_fuzzySearchLastSwapChainHandle.get());
     }
 
     // Method Description:
@@ -3639,8 +3820,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::FuzzySearchSelectionChanged(int32_t row)
     {
-        _fuzzySearchHighlightRow = row;
-        ScrollToRow(row);
+        auto lock = _terminal->LockForReading();
+        int32_t offsetRow = row;
+        if (row > 2)
+        {
+            offsetRow = row - 3;
+        }
+        _ericData->SetTopRow(offsetRow);
+
+        LOG_IF_FAILED( _fuzzySearchRenderEngine->InvalidateAll());
+        _fuzzySearchRenderer->NotifyPaintFrame();
+        _fuzzySearchHighlightRow = row - offsetRow;
     }
 
     int32_t ControlCore::YankRow()
@@ -3648,13 +3838,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return _fuzzySearchHighlightRow;
     }
 
-    void ControlCore::ScrollToRow(int32_t row)
+    void ControlCore::ScrollToRow(int32_t /*row*/)
     {
-        const auto lock = _terminal->LockForWriting();
-        
-        auto halfViewPort = _terminal->GetViewport().Height() / 2;
-
-        _terminal->UserScrollViewport(row - halfViewPort);
     }
 
     void ControlCore::SelectOutput(const bool goUp)

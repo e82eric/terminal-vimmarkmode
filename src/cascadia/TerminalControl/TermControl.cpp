@@ -80,6 +80,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // ALSO IMPORTANT: Make sure to set this callback up in the ctor, so
         // that we won't miss any swap chain changes.
         _revokers.SwapChainChanged = _core.SwapChainChanged(winrt::auto_revoke, { get_weak(), &TermControl::RenderEngineSwapChainChanged });
+        _revokers.FuzzySearchSwapChainChanged = _core.FuzzySearchSwapChainChanged(winrt::auto_revoke, { get_weak(), &TermControl::FuzzySearchRenderEngineSwapChainChanged });
 
         // These callbacks can only really be triggered by UI interactions. So
         // they don't need weak refs - they can't be triggered unless we're
@@ -266,6 +267,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
         });
         _layoutUpdatedRevoker.swap(r);
+    }
+
+    void TermControl::_fuzzySearchInitializeForAttach(const Microsoft::Terminal::Control::IKeyBindings& /*keyBindings*/)
+    {
+        _AttachDxgiFuzzySearchSwapChainToXaml(reinterpret_cast<HANDLE>(_core.FuzzySearchSwapChainHandle()));
     }
 
     uint64_t TermControl::ContentId() const
@@ -489,26 +495,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::Search2_OnSelection(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
     {
         _searchBox2->Visibility(Visibility::Collapsed);
-        CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
         _core.SelectRow(args.Row(), args.FirstPosition());
     }
 
     void TermControl::_highlightCurrentRow()
     {
-        Core::Point terminalPos{ 0, _core.ViewportRowNumberToHighlight() };
-        const til::point locationInDIPs{ _toPosInDips(terminalPos) };
-
-        SelectionCanvas().SetLeft(CurrentRowHighlight(),
-                                  (locationInDIPs.x - SwapChainPanel().ActualOffset().x));
-        SelectionCanvas().SetTop(CurrentRowHighlight(),
-                                 (locationInDIPs.y - SwapChainPanel().ActualOffset().y));
-        CurrentRowHighlight().Visibility(Visibility::Visible);
-
-        CurrentRowHighlight().Width(SwapChainPanel().ActualWidth());
-
-        auto brush = Windows::UI::Xaml::Media::SolidColorBrush();
-        brush.Color(Windows::UI::ColorHelper::FromArgb(76, 168, 131, 94));
-        CurrentRowHighlight().Fill(brush);
+        _searchBox2->SetRowToSelect(_core.ViewportRowNumberToHighlight());
     }
 
     void TermControl::Search2_SelectionChanged(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
@@ -516,7 +508,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto row = args.Row();
         _core.FuzzySearchSelectionChanged(row);
 
-        _updateRowNumbers();
+        _highlightCurrentRow();
     }
 
     // Method Description:
@@ -549,8 +541,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                              const RoutedEventArgs& /*args*/)
     {
         _searchBox2->Visibility(Visibility::Collapsed);
-        CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
-        CurrentRowHighlight().Visibility(Visibility::Collapsed);
 
         // Set focus back to terminal control
         this->Focus(FocusState::Programmatic);
@@ -1030,6 +1020,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _AttachDxgiSwapChainToXaml(h);
     }
 
+    void TermControl::FuzzySearchRenderEngineSwapChainChanged(IInspectable /*sender*/, IInspectable args)
+    {
+        // This event comes in on the UI thread
+        HANDLE h = reinterpret_cast<HANDLE>(winrt::unbox_value<uint64_t>(args));
+        _AttachDxgiFuzzySearchSwapChainToXaml(h);
+    }
+
     // Method Description:
     // - Called when the renderer triggers a warning. It might do this when it
     //   fails to find a shader file, or fails to compile a shader. We'll take
@@ -1078,6 +1075,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         nativePanel->SetSwapChainHandle(swapChainHandle);
     }
 
+    void TermControl::_AttachDxgiFuzzySearchSwapChainToXaml(HANDLE swapChainHandle)
+    {
+        _searchBox2->SetSwapChainHandle(swapChainHandle);
+    }
+
     bool TermControl::_InitializeTerminal(const InitializeReason reason)
     {
         if (_initializedTerminal)
@@ -1104,10 +1106,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             const auto coreInitialized = _core.Initialize(panelWidth,
                                                           panelHeight,
                                                           panelScaleX);
+
             if (!coreInitialized)
             {
                 return false;
             }
+
+            const auto fuzzyPreviewInitalized = _core.InitializeFuzzySearch(panelWidth, panelHeight, panelScaleX);
+            if (!fuzzyPreviewInitalized)
+            {
+                return false;
+            }
+
             _interactivity.Initialize();
         }
         else
@@ -2114,6 +2124,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
+    void TermControl::_FuzzySearchPreviewSwapChainSizeChanged(const Windows::Foundation::IInspectable& /*sender*/, const Windows::UI::Xaml::SizeChangedEventArgs& e)
+    {
+        _core.FuzzySearchPreviewSizeChanged(e.NewSize().Width, e.NewSize().Height);
+    }
+
     // Method Description:
     // - Triggered when the swapchain changes DPI. When this happens, we're
     //   going to receive 3 events:
@@ -2296,13 +2311,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             NumberTextBox().FontSize(12);
 
             NumberTextBox().Visibility(Visibility::Visible);
-            CurrentRowHighlight().Visibility(Visibility::Visible);
         }
         else
         {
             VimModeTextBox().Text(L"Shell");
             NumberTextBox().Visibility(Visibility::Collapsed);
-            CurrentRowHighlight().Visibility(Visibility::Collapsed);
             
             auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
             hideTimer.Interval(std::chrono::milliseconds(400));
@@ -3576,8 +3589,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         scaleMarker(SelectionStartMarker());
         scaleMarker(SelectionEndMarker());
 
-        CurrentSearchRowHighlight().Height(args.Height());
-        CurrentRowHighlight().Height(args.Height());
+        if (auto loadedSearchBox{ FindName(L"SearchBox2") })
+        {
+            if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::SearchBoxControl2>() })
+            {
+                // get at its private implementation
+                _searchBox2.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::SearchBoxControl2>(searchBox));
+            }
+        }
+
+        _searchBox2->SetFontSize(til::size{ args.Width(), args.Height() });
     }
 
     void TermControl::_coreRaisedNotice(const IInspectable& /*sender*/,

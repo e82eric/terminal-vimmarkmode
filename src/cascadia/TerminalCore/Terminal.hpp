@@ -530,3 +530,208 @@ private:
     friend class TerminalCoreUnitTests::ScrollTest;
 #endif
 };
+
+class EricRenderData : public Microsoft::Console::Render::IRenderData
+{
+public:
+    EricRenderData(IRenderData* pData) :
+        _pData(pData)
+    {
+        auto vp = Microsoft::Console::Types::Viewport{};
+        _viewPort = vp.FromDimensions(til::point{ 0, 5 }, _size);
+    }
+
+    void Show()
+    {
+        TextAttribute ta{};
+        auto tb = std::make_unique<TextBuffer>(_size, ta, 0, true, *_renderer);
+        _textBuffer.swap(tb);
+    }
+
+    void SetSize(til::size size)
+    {
+        _size = size;
+        _viewPort = _viewPort.FromDimensions(til::point{ 0, 0 }, til::size{ _size.width, _size.height });
+    }
+
+    void SetRenderer(::Microsoft::Console::Render::Renderer* renderer)
+    {
+        _renderer = renderer;
+    }
+
+    void SetTopRow(til::CoordType row)
+    {
+        _viewPort = _viewPort.FromDimensions(til::point{ 0, row }, til::size{ _size.width, _size.height - row });
+    }
+
+    Microsoft::Console::Types::Viewport GetViewport() noexcept override
+    {
+        return _viewPort;
+    }
+
+    til::point GetTextBufferEndPosition() const noexcept override
+    {
+        return {};
+    }
+
+    const void SetTextBuffer(std::unique_ptr<TextBuffer> value)
+    {
+        _textBuffer.swap(value);
+    }
+
+    const TextBuffer& GetTextBuffer() const noexcept override
+    {
+        return *_textBuffer;
+    }
+
+    const FontInfo& GetFontInfo() const noexcept override
+    {
+        return _pData->GetFontInfo();
+    }
+
+    std::vector<Microsoft::Console::Types::Viewport> GetYankSelectionRects() noexcept override
+    {
+        return {};
+    }
+
+    void SelectYankRegion() override
+    {
+    }
+    void ClearYankRegion() override
+    {
+    }
+
+    std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept override
+    {
+        return std::vector<Microsoft::Console::Types::Viewport>{};
+    }
+
+    std::vector<Microsoft::Console::Types::Viewport> GetSearchSelectionRects() noexcept override
+    {
+        return std::vector<Microsoft::Console::Types::Viewport>{};
+    }
+
+    void LockConsole() noexcept override
+    {
+        _pData->LockConsole();
+    }
+
+    void UnlockConsole() noexcept override
+    {
+        _pData->UnlockConsole();
+    }
+
+    std::pair<COLORREF, COLORREF> GetAttributeColors(const TextAttribute& attr) const noexcept override
+    {
+        return _pData->GetAttributeColors(attr);
+    }
+
+    til::point GetCursorPosition() const noexcept override
+    {
+        return {};
+    }
+
+    bool IsCursorVisible() const noexcept override
+    {
+        return false;
+    }
+
+    bool IsCursorOn() const noexcept override
+    {
+        return false;
+    }
+
+    ULONG GetCursorHeight() const noexcept override
+    {
+        return 42ul;
+    }
+
+    CursorType GetCursorStyle() const noexcept override
+    {
+        return CursorType::FullBox;
+    }
+
+    ULONG GetCursorPixelWidth() const noexcept override
+    {
+        return 12ul;
+    }
+
+    bool IsCursorDoubleWidth() const override
+    {
+        return false;
+    }
+
+    const std::vector<Microsoft::Console::Render::RenderOverlay> GetOverlays() const noexcept override
+    {
+        return std::vector<Microsoft::Console::Render::RenderOverlay>{};
+    }
+
+    const bool IsGridLineDrawingAllowed() noexcept override
+    {
+        return false;
+    }
+
+    const std::wstring_view GetConsoleTitle() const noexcept override
+    {
+        return std::wstring_view{};
+    }
+
+    const bool IsSelectionActive() const override
+    {
+        return false;
+    }
+
+    const bool IsBlockSelection() const noexcept override
+    {
+        return false;
+    }
+
+    void ClearSelection() override
+    {
+    }
+
+    void SelectNewRegion(const til::point /*coordStart*/, const til::point /*coordEnd*/) override
+    {
+    }
+
+    void SelectSearchRegions(std::vector<til::inclusive_rect> /*source*/) override
+    {
+    }
+
+    const til::point GetSelectionAnchor() const noexcept
+    {
+        return {};
+    }
+
+    const til::point GetSelectionEnd() const noexcept
+    {
+        return {};
+    }
+
+    const bool IsUiaDataInitialized() const noexcept
+    {
+        return true;
+    }
+
+    const std::wstring GetHyperlinkUri(uint16_t /*id*/) const
+    {
+        return {};
+    }
+
+    const std::wstring GetHyperlinkCustomId(uint16_t /*id*/) const
+    {
+        return {};
+    }
+
+    const std::vector<size_t> GetPatternId(const til::point /*location*/) const
+    {
+        return {};
+    }
+
+    private:
+    IRenderData* _pData;
+    ::Microsoft::Console::Render::Renderer* _renderer = nullptr;
+    std::unique_ptr<TextBuffer> _textBuffer;
+    Microsoft::Console::Types::Viewport  _viewPort;
+    til::size _size;
+};

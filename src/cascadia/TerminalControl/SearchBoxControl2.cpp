@@ -60,6 +60,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
             }
         });
+        this->FuzzySearchSwapChainPanel().SizeChanged({ this, &SearchBoxControl2::OnSwapChainPanelSizeChanged });
     }
 
     bool SearchBoxControl2::ContainsFocus()
@@ -73,6 +74,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return false;
     }
 
+    double SearchBoxControl2::PreviewActualHeight()
+    {
+        return FuzzySearchSwapChainPanel().ActualHeight();
+    }
+    double SearchBoxControl2::PreviewActualWidth()
+    {
+        return FuzzySearchSwapChainPanel().ActualWidth();
+    }
+    float SearchBoxControl2::PreviewCompositionScaleX()
+    {
+        return FuzzySearchSwapChainPanel().CompositionScaleX();
+    }
+    float SearchBoxControl2::PreviewCompositionScaleY()
+    {
+        return FuzzySearchSwapChainPanel().CompositionScaleY();
+    }
+
     DependencyProperty SearchBoxControl2::ItemsSourceProperty()
     {
         static DependencyProperty dp = DependencyProperty::Register(
@@ -82,6 +100,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             PropertyMetadata{ nullptr });
 
         return dp;
+    }
+
+    static winrt::Windows::UI::Xaml::DependencyProperty PreviewSwapChainPanelProperty()
+    {
+
     }
 
     Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> SearchBoxControl2::ItemsSource()
@@ -105,6 +128,36 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             ListBox().SelectedIndex(0);
         }
+    }
+
+    void SearchBoxControl2::SetFontSize(til::size fontSize)
+    {
+        _fontSize = fontSize;
+    }
+
+    void SearchBoxControl2::SetSwapChainHandle(HANDLE handle)
+    {
+        auto nativePanel = FuzzySearchSwapChainPanel().as<ISwapChainPanelNative2>();
+        nativePanel->SetSwapChainHandle(handle);
+    }
+
+    void SearchBoxControl2::SetRowToSelect(int32_t row)
+    {
+        Core::Point terminalPos{ 0, row };
+        auto locationInDIPs = _toPosInDips(terminalPos);
+        
+        FuzzySearchSelectionCanvas().SetLeft(CurrentRowHighlight(),
+                                  (locationInDIPs.x - FuzzySearchSwapChainPanel().ActualOffset().x));
+        FuzzySearchSelectionCanvas().SetTop(CurrentRowHighlight(),
+                                 (locationInDIPs.y - FuzzySearchSwapChainPanel().ActualOffset().y));
+        CurrentRowHighlight().Visibility(Visibility::Visible);
+
+        CurrentRowHighlight().Height(_fontSize.height);
+        CurrentRowHighlight().Width(FuzzySearchSwapChainPanel().ActualWidth());
+
+        auto brush = Windows::UI::Xaml::Media::SolidColorBrush();
+        brush.Color(Windows::UI::ColorHelper::FromArgb(76, 168, 131, 94));
+        CurrentRowHighlight().Fill(brush);
     }
 
     void SearchBoxControl2::TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
@@ -148,6 +201,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
+    void SearchBoxControl2::OnSwapChainPanelSizeChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::SizeChangedEventArgs const& e)
+    {
+        _PreviewSwapChainPanelSizeChangedHandlers(*this, e);
+    }
+
     void SearchBoxControl2::SetFocusOnTextbox()
     {
         if (TextBoxZ())
@@ -155,5 +213,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Input::FocusManager::TryFocusAsync(TextBoxZ(), FocusState::Keyboard);
             TextBoxZ().SelectAll();
         }
+    }
+
+    til::point SearchBoxControl2::_toPosInDips(const Core::Point terminalCellPos)
+    {
+        const til::point terminalPos{ terminalCellPos };
+        const til::size marginsInDips{ til::math::rounding, FuzzySearchSwapChainPanel().Margin().Left, FuzzySearchSwapChainPanel().Margin().Top };
+        const til::point posInPixels{ terminalPos * _fontSize };
+        const auto scale{ FuzzySearchSwapChainPanel().CompositionScaleX() };
+        const til::point posInDIPs{ til::math::flooring, posInPixels.x / scale, posInPixels.y / scale };
+        return posInDIPs + marginsInDips;
     }
 }

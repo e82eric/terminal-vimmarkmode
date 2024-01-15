@@ -15,6 +15,10 @@ namespace Microsoft.Terminal.Control
         void SearchString(String searchString);
         event SearchHandler2 Search;
         Boolean ContainsFocus();
+        Double PreviewActualHeight();
+        Double PreviewActualWidth();
+        Single PreviewCompositionScaleX();
+        Single PreviewCompositionScaleY();
         IObservableVector<Search2TextLine> ItemsSource
         {
             get;
@@ -23,5 +27,6 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<SearchBoxControl2, Windows.UI.Xaml.RoutedEventArgs> Closed;
         event Windows.Foundation.TypedEventHandler<SearchBoxControl2, Search2TextLine> SelectionChanged;
         event Windows.Foundation.TypedEventHandler<SearchBoxControl2, Search2TextLine> OnReturn;
+        event Windows.Foundation.TypedEventHandler<SearchBoxControl2, Windows.UI.Xaml.SizeChangedEventArgs> PreviewSwapChainPanelSizeChanged;
     }
 }

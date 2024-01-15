@@ -148,6 +148,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool Initialize(const float actualWidth,
                         const float actualHeight,
                         const float compositionScale);
+
+        bool InitializeFuzzySearch(const float actualWidth,
+                        const float actualHeight,
+                        const float compositionScale);
+
         void EnablePainting();
 
         void Detach();
@@ -167,9 +172,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void ColorScheme(const winrt::Microsoft::Terminal::Core::Scheme& scheme);
 
         uint64_t SwapChainHandle() const;
+        uint64_t FuzzySearchSwapChainHandle() const;
         void AttachToNewControl(const Microsoft::Terminal::Control::IKeyBindings& keyBindings);
 
         void SizeChanged(const float width, const float height);
+        void FuzzySearchPreviewSizeChanged(const float width, const float height);
         void ScaleChanged(const float scale);
         void SizeOrScaleChanged(const float width, const float height, const float scale);
         void ResetVimModeForSizeChange();
@@ -359,6 +366,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         TYPED_EVENT(HoveredHyperlinkChanged,   IInspectable, IInspectable);
         TYPED_EVENT(RendererEnteredErrorState, IInspectable, IInspectable);
         TYPED_EVENT(SwapChainChanged,          IInspectable, IInspectable);
+        TYPED_EVENT(FuzzySearchSwapChainChanged,          IInspectable, IInspectable);
         TYPED_EVENT(RendererWarning,           IInspectable, Control::RendererWarningArgs);
         TYPED_EVENT(RaiseNotice,               IInspectable, Control::NoticeEventArgs);
         TYPED_EVENT(TransparencyChanged,       IInspectable, Control::TransparencyChangedEventArgs);
@@ -405,9 +413,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         std::unique_ptr<::Microsoft::Console::Render::IRenderEngine> _renderEngine{ nullptr };
         std::unique_ptr<::Microsoft::Console::Render::Renderer> _renderer{ nullptr };
 
+        std::unique_ptr<::Microsoft::Console::Render::IRenderEngine> _fuzzySearchRenderEngine{ nullptr };
+        std::unique_ptr<::Microsoft::Console::Render::Renderer> _fuzzySearchRenderer{ nullptr };
+        std::shared_ptr<EricRenderData> _ericData{ nullptr };
+        
+
         ::Search _searcher;
 
         winrt::handle _lastSwapChainHandle{ nullptr };
+        winrt::handle _fuzzySearchLastSwapChainHandle{ nullptr };
 
         FontInfoDesired _desiredFont;
         FontInfo _actualFont;
@@ -431,6 +445,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _panelWidth{ 0 };
         float _panelHeight{ 0 };
         float _compositionScale{ 0 };
+
+        float _fuzzySearchPanelWidth{ 0 };
+        float _fuzzySearchPanelHeight{ 0 };
+        float _fuzzySearchCompositionScale{ 0 };
 
         int32_t _fuzzySearchHighlightRow = -1;
         int32_t _vimCursor = -1;
@@ -499,6 +517,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 #pragma region RendererCallbacks
         void _rendererWarning(const HRESULT hr);
         winrt::fire_and_forget _renderEngineSwapChainChanged(const HANDLE handle);
+        winrt::fire_and_forget _fuzzySearchRenderEngineSwapChainChanged(const HANDLE handle);
         void _rendererBackgroundColorChanged();
         void _rendererTabColorChanged();
 #pragma endregion

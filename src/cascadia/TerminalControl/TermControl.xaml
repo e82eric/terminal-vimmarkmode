@@ -1304,8 +1304,6 @@
                         <Path Name="SelectionEndMarker"
                               Data="M 0 0 L 0 4.1992188 L 0 7 L 0 14 L 1 14 L 1 5.5996094 L 5 0 L 0 0 z "
                               Visibility="Collapsed" />
-                        <Rectangle x:Name="CurrentSearchRowHighlight" Visibility="Collapsed"/>
-                        <Rectangle x:Name="CurrentRowHighlight" Visibility="Collapsed"/>
                     </Canvas>
                 </SwapChainPanel>
 
@@ -1313,14 +1311,7 @@
                     Putting this in a grid w/ the SwapChainPanel
                     ensures that it's always aligned w/ the scrollbar
                 -->
-                <local:SearchBoxControl x:Name="SearchBox"
-                                        HorizontalAlignment="Right"
-                                        VerticalAlignment="Top"
-                                        x:Load="False"
-                                        Closed="_CloseSearchBoxControl"
-                                        Search="_Search"
-                                        SearchChanged="_SearchChanged"
-                                        Visibility="Collapsed" />
+
             </Grid>
 
             <ScrollBar x:Name="ScrollBar"
@@ -1375,20 +1366,38 @@
             </Border>
         </Grid>
 
-        <StackPanel Grid.Row="2" Grid.Column="1">
+        <StackPanel Grid.Row="1" VerticalAlignment="Bottom">
+
+        </StackPanel>
+        <StackPanel VerticalAlignment="Center">
+
+            <!--<Border BorderBrush="Red" BorderThickness="3" Visibility="Collapsed" x:Name="FuzzySearchContainer" Margin="8">
+                <SwapChainPanel x:Name="FuzzySearchSwapChainPanel"
+                                Height="400" HorizontalAlignment="Stretch">
+                    <Canvas x:Name="FuzzySearchSelectionCanvas" Visibility="Visible">
+                        <Rectangle x:Name="CurrentSearchRowHighlight" Visibility="Collapsed"/>
+                        <Rectangle x:Name="CurrentRowHighlight" Visibility="Collapsed"/>
+                    </Canvas>
+                </SwapChainPanel>
+            </Border>-->
+
             <local:SearchBoxControl2 x:Name="SearchBox2"
                                      Grid.Row="0"
+                                     Margin="25,25,25,25"
                                        Search="_Search"
-                                     Height="400"
-                                        HorizontalAlignment="Right"
+                                     VerticalAlignment="Stretch"
+                                        HorizontalAlignment="Stretch"
                                          Closed="_CloseSearchBoxControl"
-                                        VerticalAlignment="Top"
                                          Visibility="Collapsed"
                                      SelectionChanged="Search2_SelectionChanged"
                                      OnReturn="Search2_OnSelection"
+                                     PreviewSwapChainPanelSizeChanged="_FuzzySearchPreviewSwapChainSizeChanged"
                                          ItemsSource="{x:Bind SearchResults}"/>
 
-        <Border Background="Black" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Grid.Column="1">
+            <Border Background="Black" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="auto" />

@@ -75,6 +75,10 @@ namespace Microsoft.Terminal.Control
                            Single actualHeight,
                            Single compositionScale);
 
+        Boolean InitializeFuzzySearch(Single actualWidth,
+                           Single actualHeight,
+                           Single compositionScale);
+
         void SelectRow(Int32 row, Int32 col);
         void ScrollToRow(Int32 row);
         void UpdateSettings(IControlSettings settings, IControlAppearance appearance);
@@ -98,6 +102,7 @@ namespace Microsoft.Terminal.Control
         Boolean HasUnfocusedAppearance();
 
         UInt64 SwapChainHandle { get; };
+        UInt64 FuzzySearchSwapChainHandle { get; };
 
         Windows.Foundation.Size FontSize { get; };
         String FontFaceName { get; };
@@ -130,6 +135,7 @@ namespace Microsoft.Terminal.Control
         void ResetFontSize();
         void AdjustFontSize(Single fontSizeDelta);
         void SizeChanged(Single width, Single height);
+        void FuzzySearchPreviewSizeChanged(Single width, Single height);
         void ScaleChanged(Single scale);
         void SizeOrScaleChanged(Single width, Single height, Single scale);
 
@@ -190,6 +196,7 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, Object> ConnectionStateChanged;
         event Windows.Foundation.TypedEventHandler<Object, Object> HoveredHyperlinkChanged;
         event Windows.Foundation.TypedEventHandler<Object, Object> SwapChainChanged;
+        event Windows.Foundation.TypedEventHandler<Object, Object> FuzzySearchSwapChainChanged;
         event Windows.Foundation.TypedEventHandler<Object, RendererWarningArgs> RendererWarning;
         event Windows.Foundation.TypedEventHandler<Object, NoticeEventArgs> RaiseNotice;
         event Windows.Foundation.TypedEventHandler<Object, TransparencyChangedEventArgs> TransparencyChanged;

@@ -16,11 +16,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SearchString(const winrt::hstring searchString);
 
         void SelectFirstItem();
+        void SetFontSize(til::size fontSize);
+        void SetSwapChainHandle(HANDLE swapChainHandle);
+        void SetRowToSelect(int32_t row);
 
         void SetFocusOnTextbox();
         bool ContainsFocus();
 
+        double PreviewActualHeight();
+        double PreviewActualWidth();
+        float PreviewCompositionScaleX();
+        float PreviewCompositionScaleY();
+
         void OnListBoxSelectionChanged(winrt::Windows::Foundation::IInspectable const&, Windows::UI::Xaml::Controls::SelectionChangedEventArgs const& e);
+        void OnSwapChainPanelSizeChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::SizeChangedEventArgs const& e);
 
         void TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);
         void TextBoxKeyDown(const winrt::Windows::Foundation::IInspectable& /*sender*/, const winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs& e);
@@ -28,9 +37,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         TYPED_EVENT(Closed, Control::SearchBoxControl2, Windows::UI::Xaml::RoutedEventArgs);
         TYPED_EVENT(SelectionChanged, Control::SearchBoxControl2, winrt::Microsoft::Terminal::Control::Search2TextLine);
         TYPED_EVENT(OnReturn, Control::SearchBoxControl2, winrt::Microsoft::Terminal::Control::Search2TextLine);
+        TYPED_EVENT(PreviewSwapChainPanelSizeChanged, Control::SearchBoxControl2, winrt::Windows::UI::Xaml::SizeChangedEventArgs);
 
         private:
+        til::point _toPosInDips(const Core::Point terminalCellPos);
         std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
+        til::size _fontSize;
     };
 }
 

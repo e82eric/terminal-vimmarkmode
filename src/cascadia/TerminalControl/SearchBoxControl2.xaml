@@ -15,14 +15,22 @@
              mc:Ignorable="d">
 
     <StackPanel Margin="8"
-                Padding="4,8">
+                Padding="4,8" Background="Black">
+        <Border BorderBrush="White" BorderThickness="0" x:Name="FuzzySearchContainer" Margin="8">
+            <SwapChainPanel x:Name="FuzzySearchSwapChainPanel"
+                                Height="400" HorizontalAlignment="Stretch">
+                <Canvas x:Name="FuzzySearchSelectionCanvas" Visibility="Visible">
+                    <Rectangle x:Name="CurrentSearchRowHighlight" Visibility="Collapsed"/>
+                    <Rectangle x:Name="CurrentRowHighlight" Visibility="Collapsed"/>
+                </Canvas>
+            </SwapChainPanel>
+        </Border>
         <TextBox x:Name="TextBoxZ"
                  x:Uid="SearchBox2_TextBox"
                  IsSpellCheckEnabled="False"
                  KeyDown="TextBoxKeyDown"
-                 Margin="0,0,0,8" 
+                 Margin="0,0,0,8"
                  Background="Black"
-                 Opacity="1"
                  TextChanged="TextBoxTextChanged"/>
 
             <ListBox

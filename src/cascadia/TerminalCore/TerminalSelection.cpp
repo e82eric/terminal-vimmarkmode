@@ -748,6 +748,10 @@ void Terminal::SelectPageDown(bool isVisual)
 
 void Terminal::SelectChar(til::point point)
 {
+    if (!_selection.has_value())
+    {
+        _selection = SelectionAnchors{};
+    }
     _selection->start = point;
     _selection->end = point;
     _selection->pivot = point;
@@ -786,21 +790,25 @@ void Terminal::SelectLineRight(bool isVisual)
 
 int32_t Terminal::SetVimCursor()
 {
-    if (_selection->start.y >= 0)
+    if (_selection.has_value())
     {
-        if (_selection->end.y > _selection->pivot.y)
+        if (_selection->start.y >= 0)
         {
-            return _selection->end.y;
-        }
-        else if (_selection->end.y == _selection->pivot.y)
-        {
-            return _selection->start.y;
-        }
-        else
-        {
-            return _selection->start.y;
+            if (_selection->end.y > _selection->pivot.y)
+            {
+                return _selection->end.y;
+            }
+            else if (_selection->end.y == _selection->pivot.y)
+            {
+                return _selection->start.y;
+            }
+            else
+            {
+                return _selection->start.y;
+            }
         }
     }
+
 
     return -1;
 }
