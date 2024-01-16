@@ -102,11 +102,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return dp;
     }
 
-    static winrt::Windows::UI::Xaml::DependencyProperty PreviewSwapChainPanelProperty()
-    {
-
-    }
-
     Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> SearchBoxControl2::ItemsSource()
     {
         return GetValue(ItemsSourceProperty()).as<Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine>>();
@@ -139,25 +134,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto nativePanel = FuzzySearchSwapChainPanel().as<ISwapChainPanelNative2>();
         nativePanel->SetSwapChainHandle(handle);
-    }
-
-    void SearchBoxControl2::SetRowToSelect(int32_t row)
-    {
-        Core::Point terminalPos{ 0, row };
-        auto locationInDIPs = _toPosInDips(terminalPos);
-        
-        FuzzySearchSelectionCanvas().SetLeft(CurrentRowHighlight(),
-                                  (locationInDIPs.x - FuzzySearchSwapChainPanel().ActualOffset().x));
-        FuzzySearchSelectionCanvas().SetTop(CurrentRowHighlight(),
-                                 (locationInDIPs.y - FuzzySearchSwapChainPanel().ActualOffset().y));
-        CurrentRowHighlight().Visibility(Visibility::Visible);
-
-        CurrentRowHighlight().Height(_fontSize.height);
-        CurrentRowHighlight().Width(FuzzySearchSwapChainPanel().ActualWidth());
-
-        auto brush = Windows::UI::Xaml::Media::SolidColorBrush();
-        brush.Color(Windows::UI::ColorHelper::FromArgb(76, 168, 131, 94));
-        CurrentRowHighlight().Fill(brush);
     }
 
     void SearchBoxControl2::TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)

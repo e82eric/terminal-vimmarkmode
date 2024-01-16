@@ -425,7 +425,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::SearchBoxControl2>() })
             {
-                NumberTextBox().Visibility(Visibility::Visible);
+                //NumberTextBox().Visibility(Visibility::Visible);
                 // get at its private implementation
                 _searchBox2.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::SearchBoxControl2>(searchBox));
                 _searchBox2->TextBoxZ().Text(L"");
@@ -498,17 +498,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.SelectRow(args.Row(), args.FirstPosition());
     }
 
-    void TermControl::_highlightCurrentRow()
-    {
-        _searchBox2->SetRowToSelect(_core.ViewportRowNumberToHighlight());
-    }
-
     void TermControl::Search2_SelectionChanged(Control::SearchBoxControl2 const& /*sender*/, winrt::Microsoft::Terminal::Control::Search2TextLine const& args)
     {
         auto row = args.Row();
         _core.FuzzySearchSelectionChanged(row);
-
-        _highlightCurrentRow();
     }
 
     // Method Description:
@@ -2366,7 +2359,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         NumberTextBox().FontFamily(Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName()));
         NumberTextBox().LineHeight(directXHeight);
         NumberTextBox().Text(numbers);
-        _highlightCurrentRow();
     }
 
     hstring TermControl::Title()

@@ -18,7 +18,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SelectFirstItem();
         void SetFontSize(til::size fontSize);
         void SetSwapChainHandle(HANDLE swapChainHandle);
-        void SetRowToSelect(int32_t row);
 
         void SetFocusOnTextbox();
         bool ContainsFocus();

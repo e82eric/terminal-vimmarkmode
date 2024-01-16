@@ -1370,17 +1370,6 @@
 
         </StackPanel>
         <StackPanel VerticalAlignment="Center">
-
-            <!--<Border BorderBrush="Red" BorderThickness="3" Visibility="Collapsed" x:Name="FuzzySearchContainer" Margin="8">
-                <SwapChainPanel x:Name="FuzzySearchSwapChainPanel"
-                                Height="400" HorizontalAlignment="Stretch">
-                    <Canvas x:Name="FuzzySearchSelectionCanvas" Visibility="Visible">
-                        <Rectangle x:Name="CurrentSearchRowHighlight" Visibility="Collapsed"/>
-                        <Rectangle x:Name="CurrentRowHighlight" Visibility="Collapsed"/>
-                    </Canvas>
-                </SwapChainPanel>
-            </Border>-->
-
             <local:SearchBoxControl2 x:Name="SearchBox2"
                                      Grid.Row="0"
                                      Margin="25,25,25,25"

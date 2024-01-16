@@ -549,7 +549,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             const auto lock = _terminal->LockForWriting();
             _renderer->EnablePainting();
-            _fuzzySearchRenderer->EnablePainting();
         }
     }
 
@@ -2079,12 +2078,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchPanelWidth = width;
         _fuzzySearchPanelHeight = height;
 
-        auto cx = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelWidth * _compositionScale));
-        auto cy = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelHeight * _compositionScale));
-
-        auto lock =_terminal->LockForWriting();
-        THROW_IF_FAILED(_fuzzySearchRenderEngine->SetWindowSize({cx, cy}));
-        _fuzzySearchRenderer->TriggerRedrawAll();
+        _fuzzySearchRenderer->EnablePainting();
+        StartFuzzySearch();
     }
 
     void ControlCore::ScaleChanged(const float scale)
@@ -2193,18 +2188,28 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::StartFuzzySearch()
     {
+        auto lock = _terminal->LockForReading();
         if (_vimMode == VimMode::none)
         {
             _vimMode = VimMode::normal;
         }
-        auto size = til::size{ til::math::rounding, _fuzzySearchPanelWidth, _fuzzySearchPanelHeight };
+
+        auto cx = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelWidth * _compositionScale));
+        auto cy = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelHeight * _compositionScale));
+
+        cx = std::max(cx, _actualFont.GetSize().width);
+        cy = std::max(cy, _actualFont.GetSize().height);
+
+        const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, { cx, cy });
+        const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
+        _ericData->SetSize(vp.Dimensions());
+
+        auto size = til::size{ til::math::rounding, static_cast<float>(_terminal->GetViewport().Width()), static_cast<float>(_terminal->GetTextBuffer().TotalRowCount()) };
         _vimCursor = -1;
         _fuzzySearchHighlightRow = -1;
         _fuzzySearchActive = true;
-        _ericData->SetSize(size);
         _ericData->Show();
 
-        auto lock = _terminal->LockForReading();
         auto newTextBuffer = std::make_unique<TextBuffer>(size,
                                                           TextAttribute{},
                                                           0,
@@ -2213,8 +2218,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         TextBuffer::Reflow(_terminal->GetTextBuffer(), *newTextBuffer.get());
         _ericData->SetTextBuffer(std::move(newTextBuffer));
-
-       LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
+        THROW_IF_FAILED(_fuzzySearchRenderEngine->SetWindowSize({ cx, cy }));
+        LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
         _fuzzySearchRenderer->NotifyPaintFrame();
     }
 
@@ -3820,17 +3825,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::FuzzySearchSelectionChanged(int32_t row)
     {
-        auto lock = _terminal->LockForReading();
-        int32_t offsetRow = row;
-        if (row > 2)
-        {
-            offsetRow = row - 3;
-        }
-        _ericData->SetTopRow(offsetRow);
-
-        LOG_IF_FAILED( _fuzzySearchRenderEngine->InvalidateAll());
+        _ericData->SetTopRow(row);
+        LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
         _fuzzySearchRenderer->NotifyPaintFrame();
-        _fuzzySearchHighlightRow = row - offsetRow;
     }
 
     int32_t ControlCore::YankRow()

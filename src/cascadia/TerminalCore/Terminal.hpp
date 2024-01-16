@@ -561,7 +561,8 @@ public:
 
     void SetTopRow(til::CoordType row)
     {
-        _viewPort = _viewPort.FromDimensions(til::point{ 0, row }, til::size{ _size.width, _size.height - row });
+        _row = row;
+        _viewPort = _viewPort.FromDimensions(til::point{ 0, row - 3 }, til::size{ _size.width, _size.height });
     }
 
     Microsoft::Console::Types::Viewport GetViewport() noexcept override
@@ -603,7 +604,15 @@ public:
 
     std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept override
     {
-        return std::vector<Microsoft::Console::Types::Viewport>{};
+        auto rects = _textBuffer->GetTextRects(til::point{ 0, _row }, til::point{ _viewPort.Width() - 1, _row }, false, false);
+        std::vector<Microsoft::Console::Types::Viewport> result;
+
+        for (const auto& lineRect : rects)
+        {
+            result.emplace_back(Microsoft::Console::Types::Viewport::FromInclusive(lineRect));
+        }
+
+        return result;
     }
 
     std::vector<Microsoft::Console::Types::Viewport> GetSearchSelectionRects() noexcept override
@@ -613,12 +622,10 @@ public:
 
     void LockConsole() noexcept override
     {
-        _pData->LockConsole();
     }
 
     void UnlockConsole() noexcept override
     {
-        _pData->UnlockConsole();
     }
 
     std::pair<COLORREF, COLORREF> GetAttributeColors(const TextAttribute& attr) const noexcept override
@@ -734,4 +741,5 @@ public:
     std::unique_ptr<TextBuffer> _textBuffer;
     Microsoft::Console::Types::Viewport  _viewPort;
     til::size _size;
+    til::CoordType _row;
 };

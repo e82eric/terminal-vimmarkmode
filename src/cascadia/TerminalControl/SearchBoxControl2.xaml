@@ -15,38 +15,38 @@
              mc:Ignorable="d">
 
     <StackPanel Margin="8"
-                Padding="4,8" Background="Black">
-        <Border BorderBrush="White" BorderThickness="0" x:Name="FuzzySearchContainer" Margin="8">
-            <SwapChainPanel x:Name="FuzzySearchSwapChainPanel"
-                                Height="400" HorizontalAlignment="Stretch">
-                <Canvas x:Name="FuzzySearchSelectionCanvas" Visibility="Visible">
-                    <Rectangle x:Name="CurrentSearchRowHighlight" Visibility="Collapsed"/>
-                    <Rectangle x:Name="CurrentRowHighlight" Visibility="Collapsed"/>
-                </Canvas>
-            </SwapChainPanel>
-        </Border>
-        <TextBox x:Name="TextBoxZ"
-                 x:Uid="SearchBox2_TextBox"
-                 IsSpellCheckEnabled="False"
-                 KeyDown="TextBoxKeyDown"
-                 Margin="0,0,0,8"
-                 Background="Black"
-                 TextChanged="TextBoxTextChanged"/>
+                Padding="4,8" Background="#282828">
 
+            <!-- Border -->
+        <Border BorderBrush="Gray" BorderThickness="2" CornerRadius="4" x:Name="FuzzySearchContainer" Margin="0,0,0,8">
+            <SwapChainPanel x:Name="FuzzySearchSwapChainPanel" Height="400" HorizontalAlignment="Stretch">
+            </SwapChainPanel>
+            </Border>
+
+        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
             <ListBox
             ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
             x:Name="ListBox"
+                                 
             SelectionChanged="OnListBoxSelectionChanged"
                 Background="#FF282828"
                 BorderBrush="#32302F"
                 BorderThickness="3"
                 Height="330">
                 <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="local:Search2TextLine">
-                    <local:Search2TextControl Text="{x:Bind}" HorizontalAlignment="Stretch"/>
-                </DataTemplate>
+                    <DataTemplate x:DataType="local:Search2TextLine">
+                        <local:Search2TextControl Text="{x:Bind}" HorizontalAlignment="Stretch"/>
+                    </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-
+        </Border>
+        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
+            <TextBox x:Name="TextBoxZ"
+                 x:Uid="SearchBox2_TextBox"
+                 IsSpellCheckEnabled="False"
+                 KeyDown="TextBoxKeyDown"
+                 Background="Black"
+                 TextChanged="TextBoxTextChanged"/>
+        </Border>
     </StackPanel>
 </UserControl>
