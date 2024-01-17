@@ -6,7 +6,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              x:Name="Root"
              HorizontalAlignment="Stretch"
-             VerticalAlignment="Top"
+             VerticalAlignment="Stretch"
              d:DesignHeight="55"
              d:DesignWidth="285"
              Background="Black"
@@ -14,16 +14,19 @@
              TabNavigation="Cycle"
              mc:Ignorable="d">
 
-    <StackPanel Margin="8"
-                Padding="4,8" Background="#282828">
+    <Grid Margin="8" Padding="4,8" Background="#282828">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-            <!-- Border -->
-        <Border BorderBrush="Gray" BorderThickness="2" CornerRadius="4" x:Name="FuzzySearchContainer" Margin="0,0,0,8">
-            <SwapChainPanel x:Name="FuzzySearchSwapChainPanel" Height="400" HorizontalAlignment="Stretch">
+        <Border BorderBrush="Gray" BorderThickness="2" CornerRadius="4" x:Name="FuzzySearchContainer" Margin="0,0,0,8" Grid.Row="0">
+            <SwapChainPanel x:Name="FuzzySearchSwapChainPanel"  HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
             </SwapChainPanel>
-            </Border>
+        </Border>
 
-        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
+        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8" Grid.Row="1">
             <ListBox
             ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
             x:Name="ListBox"
@@ -32,7 +35,7 @@
                 Background="#FF282828"
                 BorderBrush="#32302F"
                 BorderThickness="3"
-                Height="330">
+                VerticalAlignment="Stretch">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="local:Search2TextLine">
                         <local:Search2TextControl Text="{x:Bind}" HorizontalAlignment="Stretch"/>
@@ -40,7 +43,7 @@
                 </ListBox.ItemTemplate>
             </ListBox>
         </Border>
-        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
+        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Grid.Row="2">
             <TextBox x:Name="TextBoxZ"
                  x:Uid="SearchBox2_TextBox"
                  IsSpellCheckEnabled="False"
@@ -48,5 +51,5 @@
                  Background="Black"
                  TextChanged="TextBoxTextChanged"/>
         </Border>
-    </StackPanel>
+    </Grid>
 </UserControl>

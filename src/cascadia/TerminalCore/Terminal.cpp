@@ -344,7 +344,7 @@ try
     const auto proposedTopFromScrollback = positionInfo.mutableViewportTop;
 
     auto proposedTop = std::max(proposedTopFromLastLine,
-                                proposedTopFromLastLine);
+                                proposedTopFromScrollback);
 
     // If we're using the new location of the old top line to place the
     // viewport, we might need to make an adjustment to it.

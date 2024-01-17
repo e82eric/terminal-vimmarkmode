@@ -425,7 +425,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::SearchBoxControl2>() })
             {
-                //NumberTextBox().Visibility(Visibility::Visible);
+                NumberTextBox().Visibility(Visibility::Visible);
                 // get at its private implementation
                 _searchBox2.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::SearchBoxControl2>(searchBox));
                 _searchBox2->TextBoxZ().Text(L"");

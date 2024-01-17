@@ -1369,7 +1369,7 @@
         <StackPanel Grid.Row="1" VerticalAlignment="Bottom">
 
         </StackPanel>
-        <StackPanel VerticalAlignment="Center">
+
             <local:SearchBoxControl2 x:Name="SearchBox2"
                                      Grid.Row="0"
                                      Margin="25,25,25,25"
@@ -1383,7 +1383,7 @@
                                      PreviewSwapChainPanelSizeChanged="_FuzzySearchPreviewSwapChainSizeChanged"
                                          ItemsSource="{x:Bind SearchResults}"/>
 
-        </StackPanel>
+
 
         <StackPanel Grid.Row="2" Grid.Column="1">
             <Border Background="Black" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">

@@ -620,12 +620,27 @@ public:
         return std::vector<Microsoft::Console::Types::Viewport>{};
     }
 
+    [[nodiscard]] std::unique_lock<til::recursive_ticket_lock> LockForReading() const noexcept
+    {
+#pragma warning(suppress : 26447) // The function is declared 'noexcept' but calls function 'recursive_ticket_lock>()' which may throw exceptions (f.6).
+#pragma warning(suppress : 26492) // Don't use const_cast to cast away const or volatile
+        return std::unique_lock{ const_cast<til::recursive_ticket_lock&>(_readWriteLock) };
+    }
+
+    [[nodiscard]] std::unique_lock<til::recursive_ticket_lock> LockForWriting() noexcept
+    {
+#pragma warning(suppress : 26447) // The function is declared 'noexcept' but calls function 'recursive_ticket_lock>()' which may throw exceptions (f.6).
+        return std::unique_lock{ _readWriteLock };
+    }
+
     void LockConsole() noexcept override
     {
+        _readWriteLock.lock();
     }
 
     void UnlockConsole() noexcept override
     {
+        _readWriteLock.unlock();
     }
 
     std::pair<COLORREF, COLORREF> GetAttributeColors(const TextAttribute& attr) const noexcept override
@@ -742,4 +757,5 @@ public:
     Microsoft::Console::Types::Viewport  _viewPort;
     til::size _size;
     til::CoordType _row;
+    til::recursive_ticket_lock _readWriteLock;
 };

@@ -2070,6 +2070,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                   const float height)
     {
         SizeOrScaleChanged(width, height, _compositionScale);
+        if (_fuzzySearchActive)
+        {
+            StartFuzzySearch();
+        }
     }
 
     void ControlCore::FuzzySearchPreviewSizeChanged(const float width,
@@ -2188,7 +2192,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::StartFuzzySearch()
     {
-        auto lock = _terminal->LockForReading();
+        auto lock = _terminal->LockForWriting();
+        auto lock2 = _ericData->LockForWriting();
         if (_vimMode == VimMode::none)
         {
             _vimMode = VimMode::normal;
@@ -2208,7 +2213,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _vimCursor = -1;
         _fuzzySearchHighlightRow = -1;
         _fuzzySearchActive = true;
-        _ericData->Show();
 
         auto newTextBuffer = std::make_unique<TextBuffer>(size,
                                                           TextAttribute{},
@@ -3816,6 +3820,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::SelectRow(int32_t row, int32_t col)
     {
         const auto lock = _terminal->LockForWriting();
+        if (_terminal->SelectionMode() != ::Terminal::SelectionInteractionMode::Mark)
+        {
+            _terminal->ToggleMarkMode();
+        }
         _terminal->SelectChar(til::point{ col, row });
         ScrollToRow(row);
         _fuzzySearchHighlightRow = -1;
@@ -3835,8 +3843,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return _fuzzySearchHighlightRow;
     }
 
-    void ControlCore::ScrollToRow(int32_t /*row*/)
+    void ControlCore::ScrollToRow(int32_t row)
     {
+        const auto lock = _terminal->LockForWriting();
+        auto halfViewPort = _terminal->GetViewport().Height() / 2;
+        _terminal->UserScrollViewport(row - halfViewPort);
+        _updateSelectionUI();
     }
 
     void ControlCore::SelectOutput(const bool goUp)
