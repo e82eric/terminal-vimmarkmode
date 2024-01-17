@@ -12,8 +12,8 @@
 #include "../../cascadia/TerminalCore/Terminal.hpp"
 #include "../buffer/out/search.h"
 #include "SearchBoxControl.h"
-#include "SearchBoxControl2.h"
-#include "Search2TextSegment.h"
+#include "FuzzySearchBoxControl.h"
+#include "FuzzySearchTextSegment.h"
 
 #include "ControlInteractivity.h"
 #include "ControlSettings.h"
@@ -59,9 +59,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void ColorSelection(Control::SelectionColor fg, Control::SelectionColor bg, Core::MatchMode matchMode);
 
-        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> SearchResults();
-        void Search2_SelectionChanged(Control::SearchBoxControl2 const& sender, winrt::Microsoft::Terminal::Control::Search2TextLine const& args);
-        void Search2_OnSelection(Control::SearchBoxControl2 const& sender, winrt::Microsoft::Terminal::Control::Search2TextLine const& args);
+        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> SearchResults();
+        void FuzzySearch_SelectionChanged(Control::FuzzySearchBoxControl const& sender, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args);
+        void FuzzySearch_OnSelection(Control::FuzzySearchBoxControl const& sender, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args);
 
 #pragma region ICoreState
         const uint64_t TaskbarState() const noexcept;
@@ -221,7 +221,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Control::ControlCore _core{ nullptr };
 
         winrt::com_ptr<SearchBoxControl> _searchBox;
-        winrt::com_ptr<SearchBoxControl2> _searchBox2;
+        winrt::com_ptr<FuzzySearchBoxControl> _fuzzySearchBox;
 
         bool _closing{ false };
         bool _focused{ false };
@@ -269,7 +269,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         Control::CursorDisplayState _cursorVisibility{ Control::CursorDisplayState::Default };
 
-        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> _searchResults;
+        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> _searchResults;
 
         inline bool _IsClosing() const noexcept
         {

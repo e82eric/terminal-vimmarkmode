@@ -46,17 +46,17 @@
     <ClInclude Include="EventArgs.h">
       <DependentUpon>EventArgs.idl</DependentUpon>
     </ClInclude>
-    <ClInclude Include="Search2TextControl.h">
-      <DependentUpon>Search2TextControl.xaml</DependentUpon>
+    <ClInclude Include="FuzzySearchTextControl.h">
+      <DependentUpon>FuzzySearchTextControl.xaml</DependentUpon>
     </ClInclude>
-    <ClInclude Include="Search2TextSegment.h">
-      <DependentUpon>Search2TextSegment.idl</DependentUpon>
+    <ClInclude Include="FuzzySearchTextSegment.h">
+      <DependentUpon>FuzzySearchTextSegment.idl</DependentUpon>
     </ClInclude>
     <ClInclude Include="SearchBoxControl.h">
       <DependentUpon>SearchBoxControl.xaml</DependentUpon>
     </ClInclude>
-    <ClInclude Include="SearchBoxControl2.h">
-      <DependentUpon>SearchBoxControl2.xaml</DependentUpon>
+    <ClInclude Include="FuzzySearchBoxControl.h">
+      <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClInclude>
     <ClInclude Include="XamlLights.h">
       <DependentUpon>XamlLights.idl</DependentUpon>
@@ -102,17 +102,17 @@
     <ClCompile Include="KeyChord.cpp">
       <DependentUpon>KeyChord.idl</DependentUpon>
     </ClCompile>
-    <ClCompile Include="Search2TextControl.cpp">
-      <DependentUpon>Search2TextControl.xaml</DependentUpon>
+    <ClCompile Include="FuzzySearchTextControl.cpp">
+      <DependentUpon>FuzzySearchTextControl.xaml</DependentUpon>
     </ClCompile>
-    <ClCompile Include="Search2TextSegment.cpp">
-      <DependentUpon>Search2TextSegment.idl</DependentUpon>
+    <ClCompile Include="FuzzySearchTextSegment.cpp">
+      <DependentUpon>FuzzySearchTextSegment.idl</DependentUpon>
     </ClCompile>
     <ClCompile Include="SearchBoxControl.cpp">
       <DependentUpon>SearchBoxControl.xaml</DependentUpon>
     </ClCompile>
-    <ClCompile Include="SearchBoxControl2.cpp">
-      <DependentUpon>SearchBoxControl2.xaml</DependentUpon>
+    <ClCompile Include="FuzzySearchBoxControl.cpp">
+      <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClCompile>
     <ClCompile Include="XamlLights.cpp">
       <DependentUpon>XamlLights.idl</DependentUpon>
@@ -146,16 +146,16 @@
     <Midl Include="IKeyBindings.idl" />
     <Midl Include="IControlSettings.idl" />
     <Midl Include="IControlAppearance.idl" />
-    <Midl Include="Search2TextControl.idl">
-      <DependentUpon>Search2TextControl.xaml</DependentUpon>
+    <Midl Include="FuzzySearchTextControl.idl">
+      <DependentUpon>FuzzySearchTextControl.xaml</DependentUpon>
     </Midl>
-    <Midl Include="Search2TextSegment.idl">
+    <Midl Include="FuzzySearchTextSegment.idl">
     </Midl>
     <Midl Include="SearchBoxControl.idl">
       <DependentUpon>SearchBoxControl.xaml</DependentUpon>
     </Midl>
-    <Midl Include="SearchBoxControl2.idl">
-      <DependentUpon>SearchBoxControl2.xaml</DependentUpon>
+    <Midl Include="FuzzySearchBoxControl.idl">
+      <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </Midl>
     <Midl Include="XamlLights.idl" />
     <Midl Include="TermControl.idl">
@@ -170,11 +170,11 @@
   </ItemGroup>
   <!-- ========================= XAML Files ======================== -->
   <ItemGroup>
-    <Page Include="Search2TextControl.xaml" />
+    <Page Include="FuzzySearchTextControl.xaml" />
     <Page Include="SearchBoxControl.xaml">
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="SearchBoxControl2.xaml" />
+    <Page Include="FuzzySearchBoxControl.xaml" />
     <Page Include="TermControl.xaml">
       <SubType>Designer</SubType>
     </Page>

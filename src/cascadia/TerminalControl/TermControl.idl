@@ -8,7 +8,7 @@ import "IDirectKeyListener.idl";
 import "EventArgs.idl";
 import "ICoreState.idl";
 import "ControlCore.idl";
-import "Search2TextSegment.idl";
+import "FuzzySearchTextSegment.idl";
 
 namespace Microsoft.Terminal.Control
 {
@@ -140,6 +140,6 @@ namespace Microsoft.Terminal.Control
 
         void Detach();
 
-        Windows.Foundation.Collections.IObservableVector<Search2TextLine> SearchResults { get; };
+        Windows.Foundation.Collections.IObservableVector<FuzzySearchTextLine> SearchResults { get; };
     }
 }

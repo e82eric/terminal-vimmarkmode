@@ -307,7 +307,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SetEndSelectionPoint(const til::point position);
 
         void Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
-        Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::Search2TextLine> Search2(const winrt::hstring& text);
+        Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> FuzzySearch(const winrt::hstring& text);
         void ClearSearch();
 
         Windows::Foundation::Collections::IVector<int32_t> SearchResultRows();
@@ -415,7 +415,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         std::unique_ptr<::Microsoft::Console::Render::IRenderEngine> _fuzzySearchRenderEngine{ nullptr };
         std::unique_ptr<::Microsoft::Console::Render::Renderer> _fuzzySearchRenderer{ nullptr };
-        std::shared_ptr<EricRenderData> _ericData{ nullptr };
+        std::shared_ptr<FuzzySearchRenderData> _fuzzySearchRenderData{ nullptr };
         
 
         ::Search _searcher;

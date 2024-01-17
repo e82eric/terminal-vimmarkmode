@@ -531,10 +531,10 @@ private:
 #endif
 };
 
-class EricRenderData : public Microsoft::Console::Render::IRenderData
+class FuzzySearchRenderData : public Microsoft::Console::Render::IRenderData
 {
 public:
-    EricRenderData(IRenderData* pData) :
+    FuzzySearchRenderData(IRenderData* pData) :
         _pData(pData)
     {
         auto vp = Microsoft::Console::Types::Viewport{};
@@ -562,7 +562,7 @@ public:
     void SetTopRow(til::CoordType row)
     {
         _row = row;
-        _viewPort = _viewPort.FromDimensions(til::point{ 0, row - 3 }, til::size{ _size.width, _size.height });
+        _viewPort = _viewPort.FromDimensions(til::point{ 0, std::max(0, row - 3) }, til::size{ _size.width, _size.height });
     }
 
     Microsoft::Console::Types::Viewport GetViewport() noexcept override

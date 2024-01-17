@@ -2,8 +2,8 @@
 // Licensed under the MIT license.
 
 #include "pch.h"
-#include "SearchBoxControl2.h"
-#include "SearchBoxControl2.g.cpp"
+#include "FuzzySearchBoxControl.h"
+#include "FuzzySearchBoxControl.g.cpp"
 #include <LibraryResources.h>
 using namespace winrt::Windows::UI::Xaml::Media;
 
@@ -13,13 +13,13 @@ using namespace winrt::Windows::UI::Core;
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
-    SearchBoxControl2::SearchBoxControl2()
+    FuzzySearchBoxControl::FuzzySearchBoxControl()
     {
         InitializeComponent();
 
-        _focusableElements.insert(TextBoxZ());
+        _focusableElements.insert(FuzzySearchTextBox());
 
-        TextBoxZ().KeyUp([this](const IInspectable& sender, Input::KeyRoutedEventArgs const& e) {
+        FuzzySearchTextBox().KeyUp([this](const IInspectable& sender, Input::KeyRoutedEventArgs const& e) {
             auto textBox{ sender.try_as<Controls::TextBox>() };
 
             if (ListBox() != nullptr)
@@ -51,7 +51,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 auto selectedItem = ListBox().SelectedItem();
                 if (selectedItem)
                 {
-                    auto castedItem = selectedItem.try_as<winrt::Microsoft::Terminal::Control::Search2TextLine>();
+                    auto castedItem = selectedItem.try_as<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
                     if (castedItem)
                     {
                         _OnReturnHandlers(*this, castedItem);
@@ -60,10 +60,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
             }
         });
-        this->FuzzySearchSwapChainPanel().SizeChanged({ this, &SearchBoxControl2::OnSwapChainPanelSizeChanged });
+        this->FuzzySearchSwapChainPanel().SizeChanged({ this, &FuzzySearchBoxControl::OnSwapChainPanelSizeChanged });
     }
 
-    bool SearchBoxControl2::ContainsFocus()
+    bool FuzzySearchBoxControl::ContainsFocus()
     {
         auto focusedElement = Input::FocusManager::GetFocusedElement(this->XamlRoot());
         if (_focusableElements.count(focusedElement) > 0)
@@ -74,50 +74,46 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return false;
     }
 
-    double SearchBoxControl2::PreviewActualHeight()
+    double FuzzySearchBoxControl::PreviewActualHeight()
     {
         return FuzzySearchSwapChainPanel().ActualHeight();
     }
-    double SearchBoxControl2::PreviewActualWidth()
+    double FuzzySearchBoxControl::PreviewActualWidth()
     {
         return FuzzySearchSwapChainPanel().ActualWidth();
     }
-    float SearchBoxControl2::PreviewCompositionScaleX()
+    float FuzzySearchBoxControl::PreviewCompositionScaleX()
     {
         return FuzzySearchSwapChainPanel().CompositionScaleX();
     }
-    float SearchBoxControl2::PreviewCompositionScaleY()
-    {
-        return FuzzySearchSwapChainPanel().CompositionScaleY();
-    }
 
-    DependencyProperty SearchBoxControl2::ItemsSourceProperty()
+    DependencyProperty FuzzySearchBoxControl::ItemsSourceProperty()
     {
         static DependencyProperty dp = DependencyProperty::Register(
             L"ItemsSource",
-            xaml_typename<Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine>>(),
-            xaml_typename<winrt::Microsoft::Terminal::Control::SearchBoxControl2>(),
+            xaml_typename<Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>(),
             PropertyMetadata{ nullptr });
 
         return dp;
     }
 
-    Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> SearchBoxControl2::ItemsSource()
+    Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> FuzzySearchBoxControl::ItemsSource()
     {
-        return GetValue(ItemsSourceProperty()).as<Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine>>();
+        return GetValue(ItemsSourceProperty()).as<Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>>();
     }
 
-    void SearchBoxControl2::ItemsSource(Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::Search2TextLine> const& value)
+    void FuzzySearchBoxControl::ItemsSource(Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> const& value)
     {
         SetValue(ItemsSourceProperty(), value);
     }
 
-    void SearchBoxControl2::SearchString(const winrt::hstring searchString)
+    void FuzzySearchBoxControl::SearchString(const winrt::hstring searchString)
     {
-        TextBoxZ().Text(searchString);
+        FuzzySearchTextBox().Text(searchString);
     }
 
-    void SearchBoxControl2::SelectFirstItem()
+    void FuzzySearchBoxControl::SelectFirstItem()
     {
         if (ItemsSource().Size() > 0)
         {
@@ -125,24 +121,24 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void SearchBoxControl2::SetFontSize(til::size fontSize)
+    void FuzzySearchBoxControl::SetFontSize(til::size fontSize)
     {
         _fontSize = fontSize;
     }
 
-    void SearchBoxControl2::SetSwapChainHandle(HANDLE handle)
+    void FuzzySearchBoxControl::SetSwapChainHandle(HANDLE handle)
     {
         auto nativePanel = FuzzySearchSwapChainPanel().as<ISwapChainPanelNative2>();
         nativePanel->SetSwapChainHandle(handle);
     }
 
-    void SearchBoxControl2::TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
+    void FuzzySearchBoxControl::TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
     {
-        auto a = TextBoxZ().Text();
+        auto a = FuzzySearchTextBox().Text();
         _SearchHandlers(a, false, true);
     }
 
-    void SearchBoxControl2::TextBoxKeyDown(const winrt::Windows::Foundation::IInspectable& /*sender*/, const Input::KeyRoutedEventArgs& e)
+    void FuzzySearchBoxControl::TextBoxKeyDown(const winrt::Windows::Foundation::IInspectable& /*sender*/, const Input::KeyRoutedEventArgs& e)
     {
         if (e.OriginalKey() == winrt::Windows::System::VirtualKey::Escape)
         {
@@ -154,7 +150,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto selectedItem = ListBox().SelectedItem();
             if (selectedItem)
             {
-                auto castedItem = selectedItem.try_as<winrt::Microsoft::Terminal::Control::Search2TextLine>();
+                auto castedItem = selectedItem.try_as<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
                 if (castedItem)
                 {
                     _OnReturnHandlers(*this, castedItem);
@@ -164,12 +160,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void SearchBoxControl2::OnListBoxSelectionChanged(winrt::Windows::Foundation::IInspectable const&, Windows::UI::Xaml::Controls::SelectionChangedEventArgs const& /*e*/)
+    void FuzzySearchBoxControl::OnListBoxSelectionChanged(winrt::Windows::Foundation::IInspectable const&, Windows::UI::Xaml::Controls::SelectionChangedEventArgs const& /*e*/)
     {
         auto selectedItem = ListBox().SelectedItem();
         if (selectedItem)
         {
-            auto castedItem = selectedItem.try_as<winrt::Microsoft::Terminal::Control::Search2TextLine>();
+            auto castedItem = selectedItem.try_as<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
             if (castedItem)
             {
                 _SelectionChangedHandlers(*this, castedItem);
@@ -177,21 +173,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void SearchBoxControl2::OnSwapChainPanelSizeChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::SizeChangedEventArgs const& e)
+    void FuzzySearchBoxControl::OnSwapChainPanelSizeChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::SizeChangedEventArgs const& e)
     {
         _PreviewSwapChainPanelSizeChangedHandlers(*this, e);
     }
 
-    void SearchBoxControl2::SetFocusOnTextbox()
+    void FuzzySearchBoxControl::SetFocusOnTextbox()
     {
-        if (TextBoxZ())
+        if (FuzzySearchTextBox())
         {
-            Input::FocusManager::TryFocusAsync(TextBoxZ(), FocusState::Keyboard);
-            TextBoxZ().SelectAll();
+            Input::FocusManager::TryFocusAsync(FuzzySearchTextBox(), FocusState::Keyboard);
+            FuzzySearchTextBox().SelectAll();
         }
     }
 
-    til::point SearchBoxControl2::_toPosInDips(const Core::Point terminalCellPos)
+    til::point FuzzySearchBoxControl::_toPosInDips(const Core::Point terminalCellPos)
     {
         const til::point terminalPos{ terminalCellPos };
         const til::size marginsInDips{ til::math::rounding, FuzzySearchSwapChainPanel().Margin().Left, FuzzySearchSwapChainPanel().Margin().Top };

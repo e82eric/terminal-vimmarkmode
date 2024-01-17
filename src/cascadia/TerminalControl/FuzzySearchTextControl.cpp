@@ -3,9 +3,9 @@
 
 #include "pch.h"
 #include "winrt/Windows.UI.Xaml.Interop.h"
-#include "Search2TextControl.h"
+#include "FuzzySearchTextControl.h"
 
-#include "Search2TextControl.g.cpp"
+#include "FuzzySearchTextControl.g.cpp"
 
 using namespace winrt;
 using namespace winrt::Windows::UI::Core;
@@ -20,20 +20,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // Our control exposes a "Text" property to be used with Data Binding
     // To allow this we need to register a Dependency Property Identifier to be used by the property system
     // (https://docs.microsoft.com/en-us/windows/uwp/xaml-platform/custom-dependency-properties)
-    DependencyProperty Search2TextControl::_textProperty = DependencyProperty::Register(
+    DependencyProperty FuzzySearchTextControl::_textProperty = DependencyProperty::Register(
         L"Text",
-        xaml_typename<winrt::Microsoft::Terminal::Control::Search2TextLine>(),
-        xaml_typename<winrt::Microsoft::Terminal::Control::Search2TextControl>(),
-        PropertyMetadata(nullptr, Search2TextControl::_onTextChanged));
+        xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>(),
+        xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchTextControl>(),
+        PropertyMetadata(nullptr, FuzzySearchTextControl::_onTextChanged));
 
-    Search2TextControl::Search2TextControl()
+    FuzzySearchTextControl::FuzzySearchTextControl()
     {
         InitializeComponent();
     }
 
     // Method Description:
     // - Returns the Identifier of the "Text" dependency property
-    DependencyProperty Search2TextControl::TextProperty()
+    DependencyProperty FuzzySearchTextControl::TextProperty()
     {
         return _textProperty;
     }
@@ -42,17 +42,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // - Returns the TextBlock view used to render the highlighted text
     // Can be used when the Text property change is triggered by the event system to update the view
     // We need to expose it rather than simply bind a data source because we update the runs in code-behind
-    Controls::TextBlock Search2TextControl::TextView()
+    Controls::TextBlock FuzzySearchTextControl::TextView()
     {
         return _textView();
     }
 
-    winrt::Microsoft::Terminal::Control::Search2TextLine Search2TextControl::Text()
+    winrt::Microsoft::Terminal::Control::FuzzySearchTextLine FuzzySearchTextControl::Text()
     {
-        return winrt::unbox_value<winrt::Microsoft::Terminal::Control::Search2TextLine>(GetValue(_textProperty));
+        return winrt::unbox_value<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>(GetValue(_textProperty));
     }
 
-    void Search2TextControl::Text(const winrt::Microsoft::Terminal::Control::Search2TextLine& value)
+    void FuzzySearchTextControl::Text(const winrt::Microsoft::Terminal::Control::FuzzySearchTextLine& value)
     {
         SetValue(_textProperty, winrt::box_value(value));
     }
@@ -63,10 +63,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // - o - dependency object that was modified, expected to be an instance of this control
     // - e - event arguments of the property changed event fired by the event system upon Text property change.
     // The new value is expected to be an instance of HighlightedText
-    void Search2TextControl::_onTextChanged(const DependencyObject& o, const DependencyPropertyChangedEventArgs& e)
+    void FuzzySearchTextControl::_onTextChanged(const DependencyObject& o, const DependencyPropertyChangedEventArgs& e)
     {
-        const auto control = o.try_as<winrt::Microsoft::Terminal::Control::Search2TextControl>();
-        const auto highlightedText = e.NewValue().try_as<winrt::Microsoft::Terminal::Control::Search2TextLine>();
+        const auto control = o.try_as<winrt::Microsoft::Terminal::Control::FuzzySearchTextControl>();
+        const auto highlightedText = e.NewValue().try_as<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
 
         if (control && highlightedText)
         {

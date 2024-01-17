@@ -19,7 +19,7 @@
 #include "../../renderer/atlas/AtlasEngine.h"
 #include "../../renderer/dx/DxRenderer.hpp"
 
-#include "Search2TextSegment.h"
+#include "FuzzySearchTextSegment.h"
 
 #include "fzf/fzf.h"
 
@@ -162,9 +162,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             //Now create the renderer and initialize the render thread.
             //const auto& renderSettings = _terminal->GetRenderSettings();
-            _ericData = std::make_unique<EricRenderData>(_terminal.get());
-            _fuzzySearchRenderer = std::make_unique<::Microsoft::Console::Render::Renderer>(renderSettings, _ericData.get(), nullptr, 0, std::move(fuzzySearchRenderThread));
-            _ericData->SetRenderer(_fuzzySearchRenderer.get());
+            _fuzzySearchRenderData = std::make_unique<FuzzySearchRenderData>(_terminal.get());
+            _fuzzySearchRenderer = std::make_unique<::Microsoft::Console::Render::Renderer>(renderSettings, _fuzzySearchRenderData.get(), nullptr, 0, std::move(fuzzySearchRenderThread));
+            _fuzzySearchRenderData->SetRenderer(_fuzzySearchRenderer.get());
 
             _fuzzySearchRenderer->SetBackgroundColorChangedCallback([this]() { _rendererBackgroundColorChanged(); });
             _fuzzySearchRenderer->SetFrameColorChangedCallback([this]() { _rendererTabColorChanged(); });
@@ -2193,7 +2193,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::StartFuzzySearch()
     {
         auto lock = _terminal->LockForWriting();
-        auto lock2 = _ericData->LockForWriting();
+        auto lock2 = _fuzzySearchRenderData->LockForWriting();
         if (_vimMode == VimMode::none)
         {
             _vimMode = VimMode::normal;
@@ -2207,7 +2207,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, { cx, cy });
         const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
-        _ericData->SetSize(vp.Dimensions());
+        _fuzzySearchRenderData->SetSize(vp.Dimensions());
 
         auto size = til::size{ til::math::rounding, static_cast<float>(_terminal->GetViewport().Width()), static_cast<float>(_terminal->GetTextBuffer().TotalRowCount()) };
         _vimCursor = -1;
@@ -2221,7 +2221,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                                           *_fuzzySearchRenderer);
 
         TextBuffer::Reflow(_terminal->GetTextBuffer(), *newTextBuffer.get());
-        _ericData->SetTextBuffer(std::move(newTextBuffer));
+        _fuzzySearchRenderData->SetTextBuffer(std::move(newTextBuffer));
         THROW_IF_FAILED(_fuzzySearchRenderEngine->SetWindowSize({ cx, cy }));
         LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
         _fuzzySearchRenderer->NotifyPaintFrame();
@@ -2750,11 +2750,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _FoundMatchHandlers(*this, *foundResults);
     }
 
-    Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::Search2TextLine> ControlCore::Search2(const winrt::hstring& text)
+    Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> ControlCore::FuzzySearch(const winrt::hstring& text)
     {
         const auto lock = _terminal->LockForWriting();
 
-        auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::Search2TextLine>();
+        auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
         auto renderData = this->GetRenderData();
 
         auto notBlank = std::any_of(text.begin(), text.end(), [](wchar_t ch) {
@@ -2786,7 +2786,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             //return searchResults;
         }
 
-        auto items = std::vector<winrt::Microsoft::Terminal::Control::Search2TextLine>();
+        auto items = std::vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
 
         fzf_slab_t* slab = fzf_make_default_slab();
         std::wstring searchTextCStr = text.c_str();
@@ -2828,16 +2828,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     std::sort(pos->data, pos->data + pos->size, [](uint32_t a, uint32_t b) {
                         return a > b;
                     });
-                    auto rowTextSegments = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::Search2TextSegment>();
+                    auto rowTextSegments = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextSegment>();
                     int c = 0;
                     for (int j = static_cast<int>(pos->size) - 1; j >= 0; j--)
                     {
                         auto beforePos = rowFullText.substr(c, pos->data[j] - c);
                         auto beforePosHstr = winrt::hstring(beforePos);
-                        auto beforeSegment = winrt::make<Search2TextSegment>(beforePosHstr, false);
+                        auto beforeSegment = winrt::make<FuzzySearchTextSegment>(beforePosHstr, false);
                         auto afterPos = rowFullText.substr(pos->data[j], 1);
                         auto afterPosHstr = winrt::hstring(afterPos);
-                        auto afterPosSegment = winrt::make<Search2TextSegment>(afterPosHstr, true);
+                        auto afterPosSegment = winrt::make<FuzzySearchTextSegment>(afterPosHstr, true);
 
                         rowTextSegments.Append(beforeSegment);
                         rowTextSegments.Append(afterPosSegment);
@@ -2847,7 +2847,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                     auto lastSegment = rowFullText.substr(c, (rowFullText.length() - c));
                     auto lastSegmentHstr = winrt::hstring(lastSegment);
-                    auto lastSegmentTextSegment = winrt::make<Search2TextSegment>(lastSegmentHstr, false);
+                    auto lastSegmentTextSegment = winrt::make<FuzzySearchTextSegment>(lastSegmentHstr, false);
 
                     rowTextSegments.Append(lastSegmentTextSegment);
 
@@ -2860,7 +2860,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                     auto s1 = findLastNonBlankIndex(asciiRowText);
 
-                    auto line = winrt::make<Search2TextLine>(rowTextSegments, rowScore, rowNumber, static_cast<int32_t>(pos->data[pos->size - 1]), static_cast<int32_t>(s1));
+                    auto line = winrt::make<FuzzySearchTextLine>(rowTextSegments, rowScore, rowNumber, static_cast<int32_t>(pos->data[pos->size - 1]), static_cast<int32_t>(s1));
 
                     items.push_back(line);
                     std::sort(items.begin(), items.end(), [](const auto& a, const auto& b) {
@@ -3833,7 +3833,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::FuzzySearchSelectionChanged(int32_t row)
     {
-        _ericData->SetTopRow(row);
+        _fuzzySearchRenderData->SetTopRow(row);
         LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
         _fuzzySearchRenderer->NotifyPaintFrame();
     }

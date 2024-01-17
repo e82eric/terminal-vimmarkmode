@@ -1,15 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import "Search2TextSegment.idl";
+import "FuzzySearchTextSegment.idl";
 
 namespace Microsoft.Terminal.Control
 {
-    [default_interface] runtimeclass Search2TextControl : Windows.UI.Xaml.Controls.Control
+    [default_interface] runtimeclass FuzzySearchTextControl : Windows.UI.Xaml.Controls.Control
     {
-        Search2TextControl();
+        FuzzySearchTextControl();
         Windows.UI.Xaml.DependencyProperty TextProperty { get; };
-        Search2TextLine Text;
+        FuzzySearchTextLine Text;
         Windows.UI.Xaml.Controls.TextBlock TextView { get; };
     }
 }

@@ -1370,20 +1370,18 @@
 
         </StackPanel>
 
-            <local:SearchBoxControl2 x:Name="SearchBox2"
+        <local:FuzzySearchBoxControl x:Name="FuzzySearchBox"
                                      Grid.Row="0"
                                      Margin="25,25,25,25"
-                                       Search="_Search"
+                                     Search="_Search"
                                      VerticalAlignment="Stretch"
-                                        HorizontalAlignment="Stretch"
-                                         Closed="_CloseSearchBoxControl"
-                                         Visibility="Collapsed"
-                                     SelectionChanged="Search2_SelectionChanged"
-                                     OnReturn="Search2_OnSelection"
+                                     HorizontalAlignment="Stretch"
+                                     Closed="_CloseSearchBoxControl"
+                                     Visibility="Collapsed"
+                                     SelectionChanged="FuzzySearch_SelectionChanged"
+                                     OnReturn="FuzzySearch_OnSelection"
                                      PreviewSwapChainPanelSizeChanged="_FuzzySearchPreviewSwapChainSizeChanged"
-                                         ItemsSource="{x:Bind SearchResults}"/>
-
-
+                                     ItemsSource="{x:Bind SearchResults}"/>
 
         <StackPanel Grid.Row="2" Grid.Column="1">
             <Border Background="Black" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">

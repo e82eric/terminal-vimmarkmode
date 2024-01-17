@@ -2,19 +2,19 @@
 
 #include "winrt/Microsoft.UI.Xaml.Controls.h"
 
-#include "Search2TextSegment.g.h"
-#include "Search2TextControl.g.h"
+#include "FuzzySearchTextSegment.g.h"
+#include "FuzzySearchTextControl.g.h"
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
-    struct Search2TextControl : Search2TextControlT<Search2TextControl>
+    struct FuzzySearchTextControl : FuzzySearchTextControlT<FuzzySearchTextControl>
     {
-        Search2TextControl();
+        FuzzySearchTextControl();
 
         static Windows::UI::Xaml::DependencyProperty TextProperty();
 
-        winrt::Microsoft::Terminal::Control::Search2TextLine Text();
-        void Text(const winrt::Microsoft::Terminal::Control::Search2TextLine& value);
+        winrt::Microsoft::Terminal::Control::FuzzySearchTextLine Text();
+        void Text(const winrt::Microsoft::Terminal::Control::FuzzySearchTextLine& value);
 
         Windows::UI::Xaml::Controls::TextBlock TextView();
 
@@ -26,5 +26,5 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
 namespace winrt::Microsoft::Terminal::Control::factory_implementation
 {
-    BASIC_FACTORY(Search2TextControl);
+    BASIC_FACTORY(FuzzySearchTextControl);
 }

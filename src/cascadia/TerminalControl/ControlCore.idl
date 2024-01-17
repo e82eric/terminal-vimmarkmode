@@ -4,7 +4,7 @@
 import "ICoreState.idl";
 import "IControlSettings.idl";
 import "EventArgs.idl";
-import "Search2TextSegment.idl";
+import "FuzzySearchTextSegment.idl";
 
 namespace Microsoft.Terminal.Control
 {
@@ -148,7 +148,7 @@ namespace Microsoft.Terminal.Control
         void BlinkAttributeTick();
 
         void Search(String text, Boolean goForward, Boolean caseSensitive);
-        IVector<Search2TextLine> Search2(String text);
+        IVector<FuzzySearchTextLine> FuzzySearch(String text);
         void ClearSearch();
         IVector<Int32> SearchResultRows { get; };
 

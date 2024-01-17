@@ -38,16 +38,16 @@
     <Midl Include="IKeyBindings.idl" />
     <Midl Include="IControlSettings.idl" />
     <Midl Include="IControlAppearance.idl" />
-    <Midl Include="Search2TextSegment.idl" />
+    <Midl Include="FuzzySearchTextSegment.idl" />
     <Midl Include="XamlLights.idl" />
     <Midl Include="TermControlAutomationPeer.idl" />
     <Midl Include="InteractivityAutomationPeer.idl" />
     <Midl Include="IMouseWheelListener.idl" />
   </ItemGroup>
   <ItemGroup>
-    <Page Include="Search2TextControl.xaml" />
+    <Page Include="FuzzySearchTextControl.xaml" />
     <Page Include="SearchBoxControl.xaml" />
-    <Page Include="SearchBoxControl2.xaml" />
+    <Page Include="FuzzySearchBoxControl.xaml" />
     <Page Include="TermControl.xaml" />
     <Page Include="TSFInputControl.xaml" />
   </ItemGroup>
