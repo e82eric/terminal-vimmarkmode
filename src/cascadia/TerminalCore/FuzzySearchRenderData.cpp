@@ -30,7 +30,19 @@ void FuzzySearchRenderData::SetRenderer(::Microsoft::Console::Render::Renderer* 
 void FuzzySearchRenderData::SetTopRow(til::CoordType row)
 {
     _row = row;
-    _viewPort = _viewPort.FromDimensions(til::point{ 0, std::max(0, row - 3) }, til::size{ _size.width, _size.height });
+    til::CoordType newY;
+    auto textBufferHeight = _textBuffer->GetSize().Height();
+    auto viewPortHeight = _viewPort.Height();
+    if (row + viewPortHeight > textBufferHeight)
+    {
+        newY = textBufferHeight - viewPortHeight;
+    }
+    else
+    {
+        newY = std::max(0, row - 3);
+    }
+
+    _viewPort = _viewPort.FromDimensions(til::point{ 0, std::max(0, newY) }, til::size{ _size.width, _size.height });
 }
 
 Microsoft::Console::Types::Viewport FuzzySearchRenderData::GetViewport() noexcept
