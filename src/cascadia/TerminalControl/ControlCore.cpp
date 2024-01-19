@@ -2072,7 +2072,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SizeOrScaleChanged(width, height, _compositionScale);
         if (_fuzzySearchActive)
         {
-            StartFuzzySearch();
+            _sizeFuzzySearchPreview();
         }
     }
 
@@ -2083,7 +2083,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchPanelHeight = height;
 
         _fuzzySearchRenderer->EnablePainting();
-        StartFuzzySearch();
+        _sizeFuzzySearchPreview();
     }
 
     void ControlCore::ScaleChanged(const float scale)
@@ -2148,27 +2148,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _vimCursor = _terminal->SelectLastChar();
             }
 
-            if (RowNumberToHighlight() == -1)
+            if (_vimCursor == -1)
             {
                 _vimCursor = _terminal->SelectLastChar();
             }
 
-            ScrollToRow(RowNumberToHighlight());
+            ScrollToRow(_vimCursor);
             _updateSelectionUI();
-        }
-    }
-
-    int32_t ControlCore::RowNumberToHighlight()
-    {
-        const auto lock = _terminal->LockForReading();
-
-        if (_fuzzySearchActive && _fuzzySearchHighlightRow > -1)
-        {
-            return _fuzzySearchHighlightRow;
-        }
-        else
-        {
-            return _vimCursor;
         }
     }
 
@@ -2176,7 +2162,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto lock = _terminal->LockForReading();
         auto offset = _terminal->GetScrollOffset();
-        auto row = RowNumberToHighlight();
+        auto row = _vimCursor;
         return row - offset;
     }
 
@@ -2185,19 +2171,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto lock = _terminal->LockForWriting();
         if (!HasSelection())
         {
-
             _terminal->ToggleMarkMode();
         }
     }
 
-    void ControlCore::StartFuzzySearch()
+    void ControlCore::EnterFuzzySearchMode()
     {
-        auto lock = _terminal->LockForWriting();
-        auto lock2 = _fuzzySearchRenderData->LockForWriting();
         if (_vimMode == VimMode::none)
         {
             _vimMode = VimMode::normal;
         }
+        _vimCursor = -1;
+        _fuzzySearchActive = true;
+        _sizeFuzzySearchPreview();
+    }
+
+    void ControlCore::_sizeFuzzySearchPreview()
+    {
+        auto lock = _terminal->LockForWriting();
+        auto lock2 = _fuzzySearchRenderData->LockForWriting();
 
         auto cx = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelWidth * _compositionScale));
         auto cy = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelHeight * _compositionScale));
@@ -2210,9 +2202,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchRenderData->SetSize(vp.Dimensions());
 
         auto size = til::size{ til::math::rounding, static_cast<float>(_terminal->GetViewport().Width()), static_cast<float>(_terminal->GetTextBuffer().TotalRowCount()) };
-        _vimCursor = -1;
-        _fuzzySearchHighlightRow = -1;
-        _fuzzySearchActive = true;
 
         auto newTextBuffer = std::make_unique<TextBuffer>(size,
                                                           TextAttribute{},
@@ -2230,7 +2219,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::CloseFuzzySearchNoSelection()
     {
         _vimCursor = -1;
-        _fuzzySearchHighlightRow = -1;
         _fuzzySearchActive = false;
     }
 
@@ -2764,26 +2752,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (!notBlank)
         {
             return searchResults;
-            //auto rowCount = renderData->GetTextBuffer().TotalRowCount();
-            //for (int i = 0; i < rowCount && i < 100; i++)
-            //{
-            //    std::wstring_view rowText = renderData->GetTextBuffer().GetRowByOffset(i).GetText();
-            //    auto notBlank = std::any_of(rowText.begin(), rowText.end(), [](wchar_t ch) {
-            //        return !std::iswspace(ch);
-            //    });
-            //    if (notBlank)
-            //    {
-            //        winrt::hstring rowHString{ rowText };
-
-            //        auto rowTextSegments = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::Search2TextSegment>();
-            //        auto segment = winrt::make<Search2TextSegment>(rowHString, false);
-            //        rowTextSegments.Append(segment);
-            //        auto line = winrt::make<Search2TextLine>(rowTextSegments, 0, i, static_cast<int32_t>(0));
-            //        searchResults.Append(line);
-            //    }
-            //}
-
-            //return searchResults;
         }
 
         auto items = std::vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
@@ -3826,7 +3794,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         _terminal->SelectChar(til::point{ col, row });
         ScrollToRow(row);
-        _fuzzySearchHighlightRow = -1;
         _vimCursor = row;
         _fuzzySearchActive = false;
     }
@@ -3836,11 +3803,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchRenderData->SetTopRow(row);
         LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
         _fuzzySearchRenderer->NotifyPaintFrame();
-    }
-
-    int32_t ControlCore::YankRow()
-    {
-        return _fuzzySearchHighlightRow;
     }
 
     void ControlCore::ScrollToRow(int32_t row)

@@ -22,6 +22,7 @@
 #include "../../audio/midi/MidiAudio.hpp"
 #include "../../renderer/base/Renderer.hpp"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
+#include "../../cascadia/TerminalCore/FuzzySearchRenderData.hpp"
 #include "../buffer/out/search.h"
 #include "../buffer/out/TextColor.h"
 
@@ -181,9 +182,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SizeOrScaleChanged(const float width, const float height, const float scale);
         void ResetVimModeForSizeChange();
         void EnterMarkMode();
-        void StartFuzzySearch();
+        void EnterFuzzySearchMode();
         void CloseFuzzySearchNoSelection();
-        int32_t RowNumberToHighlight();
         int32_t ViewportRowNumberToHighlight();
 
         void AdjustFontSize(float fontSizeDelta);
@@ -302,7 +302,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         bool CopyOnSelect() const;
         Control::SelectionData SelectionInfo() const;
-        int32_t YankRow();
         void SetSelectionAnchor(const til::point position);
         void SetEndSelectionPoint(const til::point position);
 
@@ -450,7 +449,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _fuzzySearchPanelHeight{ 0 };
         float _fuzzySearchCompositionScale{ 0 };
 
-        int32_t _fuzzySearchHighlightRow = -1;
         int32_t _vimCursor = -1;
         bool _fuzzySearchActive = false;
 
@@ -518,6 +516,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _rendererWarning(const HRESULT hr);
         winrt::fire_and_forget _renderEngineSwapChainChanged(const HANDLE handle);
         winrt::fire_and_forget _fuzzySearchRenderEngineSwapChainChanged(const HANDLE handle);
+        void _sizeFuzzySearchPreview();
         void _rendererBackgroundColorChanged();
         void _rendererTabColorChanged();
 #pragma endregion

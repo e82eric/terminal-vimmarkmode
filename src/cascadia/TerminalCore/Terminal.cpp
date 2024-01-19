@@ -10,6 +10,7 @@
 #include "../../types/inc/colorTable.hpp"
 #include "../../buffer/out/search.h"
 #include "../../buffer/out/UTextAdapter.h"
+#include "FuzzySearchRenderData.hpp"
 
 #include <til/hash.h>
 #include <winrt/Microsoft.Terminal.Core.h>

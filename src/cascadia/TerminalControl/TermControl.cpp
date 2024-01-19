@@ -433,7 +433,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                 _fuzzySearchBox->SetFocusOnTextbox();
                 _core.CursorOn(false);
-                _core.StartFuzzySearch();
+                _core.EnterFuzzySearchMode();
             }
         }
     }
