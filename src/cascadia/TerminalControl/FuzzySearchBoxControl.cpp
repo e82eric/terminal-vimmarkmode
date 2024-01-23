@@ -98,6 +98,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return dp;
     }
 
+    void FuzzySearchBoxControl::SetStatus(int32_t totalRowsSearched, int32_t numberOfResults)
+    {
+        hstring result;
+        if (totalRowsSearched == 0)
+        {
+            result = RS_(L"TermControl_NoMatch");
+        }
+        else
+        {
+            result = winrt::hstring{ fmt::format(RS_(L"TermControl_NumResults").c_str(), numberOfResults, totalRowsSearched) };
+        }
+
+        StatusBox().Text(result);
+    }
+
     Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> FuzzySearchBoxControl::ItemsSource()
     {
         return GetValue(ItemsSourceProperty()).as<Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>>();

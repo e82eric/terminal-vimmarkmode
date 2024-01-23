@@ -3,6 +3,7 @@
 #include <winrt/Windows.Foundation.h>
 #include "FuzzySearchTextSegment.g.h"
 #include "FuzzySearchTextLine.g.h"
+#include "FuzzySearchResult.g.h"
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
@@ -28,10 +29,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         WINRT_OBSERVABLE_PROPERTY(int32_t, FirstPosition, _PropertyChangedHandlers);
         WINRT_OBSERVABLE_PROPERTY(int32_t, Length, _PropertyChangedHandlers);
     };
+
+    struct FuzzySearchResult : FuzzySearchResultT<FuzzySearchResult>
+    {
+        FuzzySearchResult() = default;
+        FuzzySearchResult(const Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>& results, int32_t totalRowsSearched, int32_t numberOfResults);
+
+        WINRT_PROPERTY(Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>, Results);
+        WINRT_PROPERTY(int32_t, TotalRowsSearched);
+        WINRT_PROPERTY(int32_t, NumberOfResults);
+    };
 }
 
 namespace winrt::Microsoft::Terminal::Control::factory_implementation
 {
     BASIC_FACTORY(FuzzySearchTextSegment);
     BASIC_FACTORY(FuzzySearchTextLine);
+    BASIC_FACTORY(FuzzySearchResult);
 }

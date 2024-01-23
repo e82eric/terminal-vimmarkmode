@@ -20,4 +20,14 @@ namespace Microsoft.Terminal.Control
         Int32 FirstPosition { get; set; };
         Int32 Length { get; set; };
     }
+
+    runtimeclass FuzzySearchResult
+    {
+        FuzzySearchResult();
+        FuzzySearchResult(Windows.Foundation.Collections.IObservableVector<FuzzySearchTextLine> results, Int32 totalRowsSearched, Int32 numberOfResults);
+
+        Windows.Foundation.Collections.IVector<FuzzySearchTextLine> Results;
+        Int32 TotalRowsSearched { get; set; };
+        Int32 NumberOfResults { get; set; };
+    }
 }

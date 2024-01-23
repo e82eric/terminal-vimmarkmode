@@ -430,7 +430,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _fuzzySearchBox.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::FuzzySearchBoxControl>(searchBox));
                 _fuzzySearchBox->FuzzySearchTextBox().Text(L"");
                 _fuzzySearchBox->Visibility(Visibility::Visible);
-
+                _fuzzySearchBox->SetStatus(0, 0);
                 _fuzzySearchBox->SetFocusOnTextbox();
                 _core.CursorOn(false);
                 _core.EnterFuzzySearchMode();
@@ -481,14 +481,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                               const bool /*goForward*/,
                               const bool /*caseSensitive*/)
     {
-        auto b = _core.FuzzySearch(text);
+        auto fuzzySearchResult = _core.FuzzySearch(text);
 
         _searchResults.Clear();
-        for (auto a : b)
+        for (auto result : fuzzySearchResult.Results())
         {
-            _searchResults.Append(a);
+            _searchResults.Append(result);
         }
 
+        _fuzzySearchBox->SetStatus(fuzzySearchResult.TotalRowsSearched(), fuzzySearchResult.NumberOfResults());
         FuzzySearchBox().SelectFirstItem();
     }
 
@@ -2281,7 +2282,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             auto b = _core.FuzzySearch(args.SearchString());
             _searchResults.Clear();
-            for (auto a : b)
+            for (auto a : b.Results())
             {
                 _searchResults.Append(a);
             }

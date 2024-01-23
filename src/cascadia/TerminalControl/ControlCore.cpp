@@ -2738,7 +2738,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _FoundMatchHandlers(*this, *foundResults);
     }
 
-    Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> ControlCore::FuzzySearch(const winrt::hstring& text)
+    Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
     {
         struct RowResult
         {
@@ -2755,13 +2755,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
         auto renderData = this->GetRenderData();
 
-        auto notBlank = std::any_of(text.begin(), text.end(), [](wchar_t ch) {
+        auto searchTextNotBlank = std::any_of(text.begin(), text.end(), [](wchar_t ch) {
             return !std::iswspace(ch);
         });
 
-        if (!notBlank)
+        if (!searchTextNotBlank)
         {
-            return searchResults;
+            return winrt::make<FuzzySearchResult>(searchResults, 0, 0);
         }
 
         fzf_slab_t* slab = fzf_make_default_slab();
@@ -2776,13 +2776,22 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         fzf_pattern_t* pattern = fzf_parse_pattern(CaseSmart, false, asciiSearchStringCStr, true);
 
         auto rowResults = std::vector<RowResult>();
-        auto rowCount = renderData->GetTextBuffer().TotalRowCount();
+        auto rowCount = renderData->GetTextBuffer().GetLastNonSpaceCharacter().y + 1;
         int minScore = 0;
 
         for (int rowNumber = 0; rowNumber < rowCount; rowNumber++)
         {
             std::wstring_view rowText = renderData->GetTextBuffer().GetRowByOffset(rowNumber).GetText();
-            
+
+            auto findLastNonBlankIndex = [](const std::wstring& str) {
+                auto it = std::find_if(str.rbegin(), str.rend(), [](wchar_t ch) {
+                    return !std::iswspace(ch);
+                });
+                return it == str.rend() ? -1 : std::distance(it, str.rend()) - 1;
+            };
+
+            auto length = findLastNonBlankIndex(std::wstring(rowText));
+
             if (rowText.size() > 0)
             {
                 std::wstring rowFullText = rowText.data();
@@ -2797,15 +2806,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 if (rowScore > minScore)
                 {
                     fzf_position_t* pos = fzf_get_positions(asciiRowTextCStr, pattern, slab);
-
-                    auto findLastNonBlankIndex = [](const std::string& str) {
-                        auto it = std::find_if(str.rbegin(), str.rend(), [](unsigned char ch) {
-                            return !std::isspace(ch);
-                        });
-                        return std::distance(it, str.rend()) - 1;
-                    };
-
-                    auto length = findLastNonBlankIndex(asciiRowText);
 
                     auto rowResult = RowResult{};
                     rowResult.rowFullText = rowFullText;
@@ -2920,7 +2920,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             fzf_free_positions(p.pos);
         }
 
-        return searchResults;
+        auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, rowCount, searchResults.Size());
+        return fuzzySearchResult;
     }
 
     Windows::Foundation::Collections::IVector<int32_t> ControlCore::SearchResultRows()

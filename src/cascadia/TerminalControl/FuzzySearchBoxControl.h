@@ -8,9 +8,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 {
     struct FuzzySearchBoxControl : FuzzySearchBoxControlT<FuzzySearchBoxControl>
     {
-        FuzzySearchBoxControl();   
+        FuzzySearchBoxControl();
 
         static winrt::Windows::UI::Xaml::DependencyProperty ItemsSourceProperty();
+
+        void SetStatus(int32_t totalRowsSearched, int32_t numberOfResults);
+
         winrt::Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> ItemsSource();
         void ItemsSource(winrt::Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> const& value);
         void SearchString(const winrt::hstring searchString);

@@ -306,7 +306,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SetEndSelectionPoint(const til::point position);
 
         void Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
-        Windows::Foundation::Collections::IVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> FuzzySearch(const winrt::hstring& text);
+        Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
         void ClearSearch();
 
         Windows::Foundation::Collections::IVector<int32_t> SearchResultRows();

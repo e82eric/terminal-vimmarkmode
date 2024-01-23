@@ -14,6 +14,12 @@
              TabNavigation="Cycle"
              mc:Ignorable="d">
 
+    <UserControl.Resources>
+        <Style x:Key="ClearTextBoxStyle" TargetType="TextBox">
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </UserControl.Resources>
+
     <Grid Margin="8" Padding="4,8" Background="#282828">
         <Grid.RowDefinitions>
             <RowDefinition Height="1*"/>
@@ -43,11 +49,28 @@
             </ListBox>
         </Border>
         <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Grid.Row="2">
-            <TextBox x:Name="FuzzySearchTextBox"
-                 IsSpellCheckEnabled="False"
-                 KeyDown="TextBoxKeyDown"
-                 Background="Black"
-                 TextChanged="TextBoxTextChanged"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox x:Name="FuzzySearchTextBox"
+                         Style="{StaticResource ClearTextBoxStyle}"
+                        IsSpellCheckEnabled="False"
+                        KeyDown="TextBoxKeyDown"
+                        HorizontalAlignment="Stretch"
+                        TextChanged="TextBoxTextChanged"
+                        Grid.Column="0"/>
+                <TextBlock x:Name="StatusBox"
+                           MinWidth="70"
+                        Grid.Column="1"
+                        x:Uid="SearchBox_StatusBox"
+                        HorizontalAlignment="Right"
+                           TextAlignment="Center"
+                           Margin="10,0,10,0"
+                        VerticalAlignment="Center"/>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>
