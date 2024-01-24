@@ -93,6 +93,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _terminal = std::make_shared<::Microsoft::Terminal::Core::Terminal>();
         const auto lock = _terminal->LockForWriting();
 
+        _fzf_slab = fzf_make_default_slab();
         _setupDispatcherAndCallbacks();
 
         Connection(connection);
@@ -245,6 +246,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _renderer->TriggerTeardown();
         }
+
+        fzf_free_slab(_fzf_slab);
     }
 
     void ControlCore::Detach()
@@ -660,6 +663,27 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return _terminal->IsSelectionActive() && ::Microsoft::Terminal::Core::Terminal::IsInputKey(vkey);
     }
 
+    void ControlCore::_resetVimState()
+    {
+        const auto lock = _terminal->LockForWriting();
+        _vimMode = VimMode::none;
+        _lastTextObject = VimTextObjectType::none;
+        _lastAction = VimActionType::none;
+        _lastMotion = VimMotionType::none;
+        _textObject = VimTextObjectType::none;
+        _lastTimes = 0;
+        _sequenceText = L"";
+        _vimCursor = -1;
+        _searchString = L"";
+        _lastVkey[0] = L'\0';
+        _terminal->ClearYankRegion();
+        _terminal->ClearSelection();
+        LOG_IF_FAILED(_renderEngine->InvalidateAll());
+        _renderer->TriggerSelection();
+        _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
+        auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
+    }
+
     bool ControlCore::ExecuteVimSelection(
         const VimActionType action,
         const VimTextObjectType textObject,
@@ -917,16 +941,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::thread hideTimerThread([this]() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(250));
                 {
-                    const auto lock = _terminal->LockForWriting();
-                    _terminal->ClearYankRegion();
-                    _renderer->TriggerSelection();
-                    _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
-                    auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
+                    _resetVimState();
                 }
             });
             hideTimerThread.detach();
             CopySelectionToClipboard(false, nullptr);
-            exitAfter = true;
+            exitAfter = false;
             break;
         }
         case VimActionType::toggleVisualOn:
@@ -1442,19 +1462,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _sequenceText = L"";
             if (shouldExit)
             {
-                _vimMode = VimMode::none;
-                _lastTextObject = VimTextObjectType::none;
-                _lastAction = VimActionType::none;
-                _lastMotion = VimMotionType::none;
-                _textObject = VimTextObjectType::none;
-                _lastTimes = 0;
-                _sequenceText = L"";
-                _terminal->ClearSelection();
-                _vimCursor = -1;
-                _searchString = L"";
-                _lastVkey[0] = L'\0';
-                _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
-                auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
+                _resetVimState();
+                return true;
             }
         }
 
@@ -2764,8 +2773,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return winrt::make<FuzzySearchResult>(searchResults, 0, 0);
         }
 
-        fzf_slab_t* slab = fzf_make_default_slab();
-
         std::wstring searchTextCStr = text.c_str();
         int sizeOfSearchTextCStr = WideCharToMultiByte(CP_UTF8, 0, searchTextCStr.c_str(), -1, nullptr, 0, nullptr, nullptr);
         std::string asciiSearchString(sizeOfSearchTextCStr, 0);
@@ -2802,10 +2809,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 asciiRowText.pop_back();
                 char* asciiRowTextCStr = const_cast<char*>(asciiRowText.c_str());
 
-                int rowScore = fzf_get_score(asciiRowTextCStr, pattern, slab);
+                int rowScore = fzf_get_score(asciiRowTextCStr, pattern, _fzf_slab);
                 if (rowScore > minScore)
                 {
-                    fzf_position_t* pos = fzf_get_positions(asciiRowTextCStr, pattern, slab);
+                    fzf_position_t* pos = fzf_get_positions(asciiRowTextCStr, pattern, _fzf_slab);
 
                     auto rowResult = RowResult{};
                     rowResult.rowFullText = rowFullText;
@@ -2835,7 +2842,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         fzf_free_pattern(pattern);
-        fzf_free_slab(slab);
 
         for (auto p : rowResults)
         {

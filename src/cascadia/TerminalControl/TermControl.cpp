@@ -495,6 +495,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::FuzzySearch_OnSelection(Control::FuzzySearchBoxControl const& /*sender*/, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args)
     {
+        _searchResults.Clear();
         _fuzzySearchBox->Visibility(Visibility::Collapsed);
         _core.SelectRow(args.Row(), args.FirstPosition());
     }
@@ -534,6 +535,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::_CloseSearchBoxControl(const winrt::Windows::Foundation::IInspectable& /*sender*/,
                                              const RoutedEventArgs& /*args*/)
     {
+        _searchResults.Clear();
         _fuzzySearchBox->Visibility(Visibility::Collapsed);
 
         // Set focus back to terminal control
@@ -2302,8 +2304,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _core.EnterVimMode();
             auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName());
             NumberTextBox().FontFamily(fontFamily);
-            NumberTextBox().FontSize(12);
-
+            NumberTextBox().FontSize(10 * 1.2);
             NumberTextBox().Visibility(Visibility::Visible);
         }
         else
@@ -2358,6 +2359,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
         auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
         NumberTextBox().FontFamily(Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName()));
+        NumberTextBox().FontSize(10 * 1.2);
         NumberTextBox().LineHeight(directXHeight);
         NumberTextBox().Text(numbers);
     }

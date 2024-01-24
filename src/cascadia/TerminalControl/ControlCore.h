@@ -489,6 +489,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void _handleControlC();
         void _sendInputToConnection(std::wstring_view wstr);
+        void _resetVimState();
 
 #pragma region TerminalCoreCallbacks
         void _terminalCopyToClipboard(std::wstring_view wstr);
@@ -538,6 +539,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             til::point_span (*getSpan)(const ::ScrollMark&));
 
         bool _clickedOnMark(const til::point& pos, bool (*filter)(const ::ScrollMark&));
+        fzf_slab_t* _fzf_slab;
 
         inline bool _IsClosing() const noexcept
         {

@@ -1265,7 +1265,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Column="0" x:Name="NumberTextBox" Visibility="Collapsed" Margin="0,4,5,0" FontWeight="Normal" />
+            <TextBlock Grid.Column="0" x:Name="NumberTextBox" Visibility="Collapsed" Margin="0,2,5,0" FontWeight="Normal" />
 
             <Grid Grid.Column="1"
                   Background="Transparent"
