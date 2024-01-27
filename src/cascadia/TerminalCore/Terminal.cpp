@@ -939,6 +939,7 @@ void Terminal::_assertUnlocked() const noexcept
 #ifndef NDEBUG
     if (!_suppressLockChecks && _readWriteLock.is_locked())
     {
+
         __debugbreak();
     }
 #endif

@@ -98,6 +98,7 @@ namespace Microsoft.Terminal.Control
         void ScrollViewport(Int32 viewTop);
 
         void CreateSearchBoxControl();
+        void CreateFuzzySearchBoxControl();
         Boolean SearchBoxEditInFocus();
 
         void SearchMatch(Boolean goForward);
@@ -140,6 +141,6 @@ namespace Microsoft.Terminal.Control
 
         void Detach();
 
-        Windows.Foundation.Collections.IObservableVector<FuzzySearchTextLine> SearchResults { get; };
+        Windows.Foundation.Collections.IObservableVector<FuzzySearchTextLine> FuzzySearchResults { get; };
     }
 }

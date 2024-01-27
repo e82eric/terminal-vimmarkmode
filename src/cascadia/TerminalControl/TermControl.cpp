@@ -62,7 +62,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         InitializeComponent();
 
-        _searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
+        _fuzzySearchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
 
         _core = _interactivity.Core();
 
@@ -223,9 +223,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         });
     }
 
-    Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> TermControl::SearchResults()
+    Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> TermControl::FuzzySearchResults()
     {
-        return _searchResults;
+        return _fuzzySearchResults;
     }
 
     // Function Description:
@@ -418,6 +418,37 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::CreateSearchBoxControl()
     {
         // Lazy load the search box control.
+        if (auto loadedSearchBox{ FindName(L"SearchBox") })
+        {
+            if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::SearchBoxControl>() })
+            {
+                // get at its private implementation
+                _searchBox.copy_from(winrt::get_self<implementation::SearchBoxControl>(searchBox));
+                _searchBox->Visibility(Visibility::Visible);
+
+                // If a text is selected inside terminal, use it to populate the search box.
+                // If the search box already contains a value, it will be overridden.
+                if (_core.HasSelection())
+                {
+                    // Currently we populate the search box only if a single line is selected.
+                    // Empirically, multi-line selection works as well on sample scenarios,
+                    // but since code paths differ, extra work is required to ensure correctness.
+                    auto bufferText = _core.SelectedText(true);
+                    if (bufferText.Size() == 1)
+                    {
+                        const auto selectedLine{ bufferText.GetAt(0) };
+                        _searchBox->PopulateTextbox(selectedLine);
+                    }
+                }
+
+                _searchBox->SetFocusOnTextbox();
+            }
+        }
+    }
+
+    void TermControl::CreateFuzzySearchBoxControl()
+    {
+        // Lazy load the search box control.
         if (auto loadedSearchBox{ FindName(L"FuzzySearchBox") })
         {
             if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>() })
@@ -475,15 +506,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // Return Value:
     // - <none>
     void TermControl::_Search(const winrt::hstring& text,
-                              const bool /*goForward*/,
-                              const bool /*caseSensitive*/)
+                              const bool goForward,
+                              const bool caseSensitive)
+    {
+        _core.Search(text, goForward, caseSensitive);
+    }
+
+    void TermControl::_FuzzySearch(const winrt::hstring& text, const bool /*goForward*/, const bool /*caseSensitive*/)
     {
         auto fuzzySearchResult = _core.FuzzySearch(text);
 
-        _searchResults.Clear();
+        _fuzzySearchResults.Clear();
         for (auto result : fuzzySearchResult.Results())
         {
-            _searchResults.Append(result);
+            _fuzzySearchResults.Append(result);
         }
 
         _fuzzySearchBox->SetStatus(fuzzySearchResult.TotalRowsSearched(), fuzzySearchResult.NumberOfResults());
@@ -492,7 +528,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::FuzzySearch_OnSelection(Control::FuzzySearchBoxControl const& /*sender*/, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args)
     {
-        _searchResults.Clear();
+        _fuzzySearchResults.Clear();
         _fuzzySearchBox->Visibility(Visibility::Collapsed);
         _core.SelectRow(args.Row(), args.FirstPosition());
     }
@@ -532,10 +568,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::_CloseSearchBoxControl(const winrt::Windows::Foundation::IInspectable& /*sender*/,
                                              const RoutedEventArgs& /*args*/)
     {
-        _searchResults.Clear();
-        _fuzzySearchBox->Visibility(Visibility::Collapsed);
+        _core.ClearSearch();
+        _searchBox->Visibility(Visibility::Collapsed);
 
         // Set focus back to terminal control
+        this->Focus(FocusState::Programmatic);
+    }
+
+    void TermControl::_CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& /*sender*/,
+                                                  const RoutedEventArgs& /*args*/)
+    {
+        _fuzzySearchResults.Clear();
+        _fuzzySearchBox->Visibility(Visibility::Collapsed);
         this->Focus(FocusState::Programmatic);
         _core.CloseFuzzySearchNoSelection();
     }
@@ -2015,6 +2059,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             TSFInputControl().NotifyFocusEnter();
         }
 
+        //Do I need this?
         if (_cursorTimer && FuzzySearchBox().Visibility() == Visibility::Collapsed)
         {
             // When the terminal focuses, show the cursor immediately
@@ -2217,7 +2262,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _updateSelectionMarkers(nullptr, winrt::make<UpdateSelectionMarkersEventArgs>(false));
         }
-        if (FuzzySearchBox().Visibility() == Visibility::Visible)
+        if (NumberTextBox().Visibility() == Visibility::Visible)
         {
             _updateRowNumbers();
         }
@@ -2263,7 +2308,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         co_await wil::resume_foreground(Dispatcher());
 
-        CreateSearchBoxControl();
+        CreateFuzzySearchBoxControl();
 
         if (_blinkTimer)
         {
@@ -2275,10 +2320,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (args.SearchString().size() > 0)
         {
             auto b = _core.FuzzySearch(args.SearchString());
-            _searchResults.Clear();
+            _fuzzySearchResults.Clear();
             for (auto a : b.Results())
             {
-                _searchResults.Append(a);
+                _fuzzySearchResults.Append(a);
             }
         }
 

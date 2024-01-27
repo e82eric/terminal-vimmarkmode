@@ -1311,6 +1311,14 @@
                     Putting this in a grid w/ the SwapChainPanel
                     ensures that it's always aligned w/ the scrollbar
                 -->
+                <local:SearchBoxControl x:Name="SearchBox"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top"
+                                        x:Load="False"
+                                        Closed="_CloseSearchBoxControl"
+                                        Search="_Search"
+                                        SearchChanged="_SearchChanged"
+                                        Visibility="Collapsed" />
 
             </Grid>
 
@@ -1373,15 +1381,15 @@
         <local:FuzzySearchBoxControl x:Name="FuzzySearchBox"
                                      Grid.Row="0"
                                      Margin="25,25,25,25"
-                                     Search="_Search"
+                                     Search="_FuzzySearch"
                                      VerticalAlignment="Stretch"
                                      HorizontalAlignment="Stretch"
-                                     Closed="_CloseSearchBoxControl"
+                                     Closed="_CloseFuzzySearchBoxControl"
                                      Visibility="Collapsed"
                                      SelectionChanged="FuzzySearch_SelectionChanged"
                                      OnReturn="FuzzySearch_OnSelection"
                                      PreviewSwapChainPanelSizeChanged="_FuzzySearchPreviewSwapChainSizeChanged"
-                                     ItemsSource="{x:Bind SearchResults}"/>
+                                     ItemsSource="{x:Bind FuzzySearchResults}"/>
 
         <StackPanel Grid.Row="2" Grid.Column="1">
             <Border Background="Black" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">

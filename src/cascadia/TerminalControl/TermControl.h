@@ -59,7 +59,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void ColorSelection(Control::SelectionColor fg, Control::SelectionColor bg, Core::MatchMode matchMode);
 
-        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> SearchResults();
+        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> FuzzySearchResults();
         void FuzzySearch_SelectionChanged(Control::FuzzySearchBoxControl const& sender, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args);
         void FuzzySearch_OnSelection(Control::FuzzySearchBoxControl const& sender, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args);
 
@@ -119,6 +119,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                                 Control::RendererWarningArgs args);
 
         void CreateSearchBoxControl();
+        void CreateFuzzySearchBoxControl();
 
         void SearchMatch(const bool goForward);
 
@@ -269,7 +270,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         Control::CursorDisplayState _cursorVisibility{ Control::CursorDisplayState::Default };
 
-        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> _searchResults;
+        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> _fuzzySearchResults;
 
         inline bool _IsClosing() const noexcept
         {
@@ -365,9 +366,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         double _GetAutoScrollSpeed(double cursorDistanceFromBorder) const;
 
         void _Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
+        void _FuzzySearch(const winrt::hstring& text, const bool /*goForward*/, const bool /*caseSensitive*/);
 
         void _SearchChanged(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
         void _CloseSearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
+        void _CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
 
         // TSFInputControl Handlers
         void _CompositionCompleted(winrt::hstring text);
