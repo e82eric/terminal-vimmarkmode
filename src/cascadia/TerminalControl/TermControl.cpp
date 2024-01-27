@@ -2302,10 +2302,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (args.Enable())
         {
             _core.EnterVimMode();
+            auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
+            auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
             auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName());
             NumberTextBox().FontFamily(fontFamily);
-            NumberTextBox().FontSize(10 * 1.2);
+            NumberTextBox().FontSize(_core.Settings().FontSize() * 1.2);
+            NumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
+            NumberTextBox().LineHeight(directXHeight);
             NumberTextBox().Visibility(Visibility::Visible);
+            auto cellHeight = _core.Settings().CellHeight();
+            auto margins = Thickness{};
+            margins.Top = SwapChainPanel().Margin().Top;
+            margins.Left = SwapChainPanel().Margin().Left;
+            margins.Right = 5;
+            margins.Bottom = SwapChainPanel().Margin().Bottom;
+            NumberTextBox().Margin(margins);
         }
         else
         {
@@ -2356,11 +2367,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             numbers += numStr + L"\r\n";
         }
 
-        auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
-        auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
-        NumberTextBox().FontFamily(Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName()));
-        NumberTextBox().FontSize(10 * 1.2);
-        NumberTextBox().LineHeight(directXHeight);
         NumberTextBox().Text(numbers);
     }
 
