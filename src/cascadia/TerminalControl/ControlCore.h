@@ -91,7 +91,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             search = 2,
             toggleVisualOn = 3,
             fuzzyFind = 4,
-            exit = 5
+            exit = 5,
+            scroll = 6
         };
 
         enum class VimTextObjectType : int32_t
@@ -118,6 +119,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             inWord = 22,
             inLargeWord = 23,
             entireLine = 24,
+            centerOfScreen = 25,
+            topOfScreen = 26,
+            bottomOfScreen = 27
         };
 
         enum class VimMotionType : int32_t
@@ -138,7 +142,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             halfPageUp = 13,
             halfPageDown = 14,
             pageUp = 15,
-            pageDown = 16,
+            pageDown = 16
         };
     public:
         ControlCore(Control::IControlSettings settings,
@@ -160,7 +164,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void SelectRow(int32_t row, int32_t col);
         void FuzzySearchSelectionChanged(int32_t row);
-        void ScrollToRow(int32_t row);
 
         void UpdateSettings(const Control::IControlSettings& settings, const IControlAppearance& newAppearance);
         void ApplyAppearance(const bool& focused);
@@ -490,6 +493,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _handleControlC();
         void _sendInputToConnection(std::wstring_view wstr);
         void _resetVimState();
+        void _vimScrollScreenPosition(VimTextObjectType textObjectType);
 
 #pragma region TerminalCoreCallbacks
         void _terminalCopyToClipboard(std::wstring_view wstr);

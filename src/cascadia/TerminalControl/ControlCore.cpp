@@ -679,6 +679,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _terminal->ClearYankRegion();
         _terminal->ClearSelection();
         LOG_IF_FAILED(_renderEngine->InvalidateAll());
+        _updateSelectionUI();
         _renderer->TriggerSelection();
         _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
         auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
@@ -881,6 +882,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         switch (action)
         {
+        case VimActionType::scroll:
+            _vimScrollScreenPosition(_textObject);
+            break;
         case VimActionType::fuzzyFind:
         {
             const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
@@ -1208,14 +1212,22 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else if (vkey == L'T')
         {
-            _motion = VimMotionType::forward;
-            if (mods.IsShiftPressed())
+            if (_action == VimActionType::scroll)
             {
-                _textObject = VimTextObjectType::tilCharReverse;
+                _textObject = VimTextObjectType::topOfScreen;
+                sequenceCompleted = true;
             }
             else
             {
-                _textObject = VimTextObjectType::tilChar;
+                _motion = VimMotionType::forward;
+                if (mods.IsShiftPressed())
+                {
+                    _textObject = VimTextObjectType::tilCharReverse;
+                }
+                else
+                {
+                    _textObject = VimTextObjectType::tilChar;
+                }
             }
         }
         else if (vkey == L'Y' && _motion == VimMotionType::none)
@@ -1245,19 +1257,27 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             sequenceCompleted = true;
             _motion = VimMotionType::moveForwardToEnd;
         }
-        else if (vkey == L'B' && _motion == VimMotionType::none)
+        else if (vkey == L'B' && (_motion == VimMotionType::none))
         {
-            if (mods.IsCtrlPressed())
+            if (_action == VimActionType::scroll)
             {
-                _motion = VimMotionType::pageUp;
-                _textObject = VimTextObjectType::none;
+                _textObject = VimTextObjectType::bottomOfScreen;
                 sequenceCompleted = true;
             }
             else
             {
-                _motion = VimMotionType::moveBackToBegining;
-                _textObject = mods.IsShiftPressed() ? VimTextObjectType::largeWord : VimTextObjectType::word;
-                sequenceCompleted = true;
+                if (mods.IsCtrlPressed())
+                {
+                    _motion = VimMotionType::pageUp;
+                    _textObject = VimTextObjectType::none;
+                    sequenceCompleted = true;
+                }
+                else
+                {
+                    _motion = VimMotionType::moveBackToBegining;
+                    _textObject = mods.IsShiftPressed() ? VimTextObjectType::largeWord : VimTextObjectType::word;
+                    sequenceCompleted = true;
+                }
             }
         }
         // $
@@ -1377,6 +1397,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 _textObject = VimTextObjectType::inWord;
                 sequenceCompleted = true;
+            }
+        }
+        else if (vkey == L'Z')
+        {
+            if (_action == VimActionType::scroll)
+            {
+                _textObject = VimTextObjectType::centerOfScreen;
+                sequenceCompleted = true;
+            }
+            else
+            {
+                _action = VimActionType::scroll;
             }
         }
         else if (vkey == VK_ESCAPE)
@@ -2162,7 +2194,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _vimCursor = _terminal->SelectLastChar();
             }
 
-            ScrollToRow(_vimCursor);
+            _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
             _updateSelectionUI();
         }
     }
@@ -2171,6 +2203,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto lock = _terminal->LockForReading();
         auto offset = _terminal->GetScrollOffset();
+        if (_vimMode == VimMode::none)
+        {
+            return CursorPosition().Y;
+        }
         auto row = _vimCursor;
         return row - offset;
     }
@@ -2387,6 +2423,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _vimMode = VimMode::normal;
         _vimCursor = -1;
+        ResetVimModeForSizeChange();
     }
 
     void ControlCore::ToggleMarkMode()
@@ -3867,9 +3904,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _terminal->ToggleMarkMode();
         }
         _terminal->SelectChar(til::point{ col, row });
-        ScrollToRow(row);
         _vimCursor = row;
+        _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
         _fuzzySearchActive = false;
+        _renderer->TriggerSelection();
+        _updateSelectionUI();
     }
 
     void ControlCore::FuzzySearchSelectionChanged(int32_t row)
@@ -3879,12 +3918,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchRenderer->NotifyPaintFrame();
     }
 
-    void ControlCore::ScrollToRow(int32_t row)
+    void ControlCore::_vimScrollScreenPosition(VimTextObjectType textObjectType)
     {
-        const auto lock = _terminal->LockForWriting();
-        auto halfViewPort = _terminal->GetViewport().Height() / 2;
-        _terminal->UserScrollViewport(row - halfViewPort);
-        _updateSelectionUI();
+        static const int32_t paddingRows = 5;
+        int offset;
+        switch (textObjectType)
+        {
+        case VimTextObjectType::bottomOfScreen:
+            offset = _terminal->GetViewport().Height() - paddingRows;
+            break;
+        case VimTextObjectType::centerOfScreen:
+            offset = _terminal->GetViewport().Height() / 2;
+            break;
+        case VimTextObjectType::topOfScreen:
+            offset = paddingRows;
+            break;
+        }
+        _terminal->UserScrollViewport(_vimCursor - offset);
     }
 
     void ControlCore::SelectOutput(const bool goUp)

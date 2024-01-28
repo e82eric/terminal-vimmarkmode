@@ -453,7 +453,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>() })
             {
-                NumberTextBox().Visibility(Visibility::Visible);
+                _showRowNumbers();
                 // get at its private implementation
                 _fuzzySearchBox.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::FuzzySearchBoxControl>(searchBox));
                 _fuzzySearchBox->FuzzySearchTextBox().Text(L"");
@@ -531,6 +531,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchResults.Clear();
         _fuzzySearchBox->Visibility(Visibility::Collapsed);
         _core.SelectRow(args.Row(), args.FirstPosition());
+        _updateRowNumbers();
     }
 
     void TermControl::FuzzySearch_SelectionChanged(Control::FuzzySearchBoxControl const& /*sender*/, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args)
@@ -2330,6 +2331,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         FuzzySearchBox().SearchString(args.SearchString());
     }
 
+    void TermControl::_showRowNumbers()
+    {
+        auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
+        auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
+        auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName());
+        NumberTextBox().FontFamily(fontFamily);
+        NumberTextBox().FontSize(_core.Settings().FontSize() * 1.2);
+        NumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
+        NumberTextBox().LineHeight(directXHeight);
+        NumberTextBox().Visibility(Visibility::Visible);
+        auto cellHeight = _core.Settings().CellHeight();
+        auto margins = Thickness{};
+        margins.Top = SwapChainPanel().Margin().Top;
+        margins.Left = SwapChainPanel().Margin().Left;
+        margins.Right = 5;
+        margins.Bottom = SwapChainPanel().Margin().Bottom;
+        NumberTextBox().Margin(margins);
+        _updateRowNumbers();
+    }
+
     winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,
                                                         const Control::ToggleVimModeEventArgs args)
     {
@@ -2339,21 +2360,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (args.Enable())
         {
             _core.EnterVimMode();
-            auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
-            auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
-            auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName());
-            NumberTextBox().FontFamily(fontFamily);
-            NumberTextBox().FontSize(_core.Settings().FontSize() * 1.2);
-            NumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
-            NumberTextBox().LineHeight(directXHeight);
-            NumberTextBox().Visibility(Visibility::Visible);
-            auto cellHeight = _core.Settings().CellHeight();
-            auto margins = Thickness{};
-            margins.Top = SwapChainPanel().Margin().Top;
-            margins.Left = SwapChainPanel().Margin().Left;
-            margins.Right = 5;
-            margins.Bottom = SwapChainPanel().Margin().Bottom;
-            NumberTextBox().Margin(margins);
+            _showRowNumbers();
         }
         else
         {
@@ -2985,6 +2992,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const auto cursorPos = _core.CursorPosition();
         eventArgs.CurrentPosition({ static_cast<float>(cursorPos.X), static_cast<float>(cursorPos.Y) });
+        _updateRowNumbers();
     }
 
     // Method Description:

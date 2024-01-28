@@ -80,7 +80,6 @@ namespace Microsoft.Terminal.Control
                            Single compositionScale);
 
         void SelectRow(Int32 row, Int32 col);
-        void ScrollToRow(Int32 row);
         void UpdateSettings(IControlSettings settings, IControlAppearance appearance);
         void ApplyAppearance(Boolean focused);
 
