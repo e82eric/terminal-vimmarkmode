@@ -90,6 +90,7 @@ static constexpr std::string_view SelectAllKey{ "selectAll" };
 static constexpr std::string_view SelectCommandKey{ "selectCommand" };
 static constexpr std::string_view SelectOutputKey{ "selectOutput" };
 static constexpr std::string_view MarkModeKey{ "markMode" };
+static constexpr std::string_view VimModeKey{ "vimMode" };
 static constexpr std::string_view ToggleBlockSelectionKey{ "toggleBlockSelection" };
 static constexpr std::string_view SwitchSelectionEndpointKey{ "switchSelectionEndpoint" };
 static constexpr std::string_view ColorSelectionKey{ "experimental.colorSelection" };
@@ -426,6 +427,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 { ShortcutAction::SelectOutput, MustGenerate },
                 { ShortcutAction::SelectAll, RS_(L"SelectAllCommandKey") },
                 { ShortcutAction::MarkMode, RS_(L"MarkModeCommandKey") },
+                { ShortcutAction::VimMode, RS_(L"VimModeCommandKey") },
                 { ShortcutAction::ToggleBlockSelection, RS_(L"ToggleBlockSelectionCommandKey") },
                 { ShortcutAction::SwitchSelectionEndpoint, RS_(L"SwitchSelectionEndpointCommandKey") },
                 { ShortcutAction::ColorSelection, MustGenerate },

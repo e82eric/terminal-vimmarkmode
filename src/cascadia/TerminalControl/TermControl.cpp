@@ -95,7 +95,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _revokers.ContextMenuRequested = _interactivity.ContextMenuRequested(winrt::auto_revoke, { get_weak(), &TermControl::_contextMenuHandler });
 
         _revokers.VimTextChanged = _core.VimTextChanged(winrt::auto_revoke, { get_weak(), &TermControl::_VimTextChanged });
-        _revokers.ToggleVimMode = _core.ToggleVimMode(winrt::auto_revoke, { get_weak(), &TermControl::_ToggleVimMode });
+        _revokers.ExitVimMode = _core.ExitVimMode(winrt::auto_revoke, { get_weak(), &TermControl::_ExitVimMode });
         _revokers.ShowFuzzySearch = _core.ShowFuzzySearch(winrt::auto_revoke, { get_weak(), &TermControl::_ShowFuzzySearch });
 
         // "Bubbled" events - ones we want to handle, by raising our own event.
@@ -2351,35 +2351,27 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _updateRowNumbers();
     }
 
-    winrt::fire_and_forget TermControl::_ToggleVimMode(const IInspectable& /*sender*/,
-                                                        const Control::ToggleVimModeEventArgs args)
+    winrt::fire_and_forget TermControl::_ExitVimMode(const IInspectable& /*sender*/,
+                                                        const Control::ExitVimModeEventArgs args)
     {
         auto weakThis{ get_weak() };
         co_await wil::resume_foreground(Dispatcher());
 
-        if (args.Enable())
-        {
-            _core.EnterVimMode();
-            _showRowNumbers();
-        }
-        else
-        {
-            VimModeTextBox().Text(L"Shell");
-            NumberTextBox().Visibility(Visibility::Collapsed);
+        VimModeTextBox().Text(L"Shell");
+        NumberTextBox().Visibility(Visibility::Collapsed);
             
-            auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
-            hideTimer.Interval(std::chrono::milliseconds(400));
-            VimSearchStringTextBox().Text(L"");
-            hideTimer.Tick([hideTimer, weakThis](auto&&, auto&&) {
-                if (auto strongThis = weakThis.get())
-                {
-                    strongThis->VimTextBox().Text(L"");
-                    hideTimer.Stop();
-                }
-            });
+        auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
+        hideTimer.Interval(std::chrono::milliseconds(400));
+        VimSearchStringTextBox().Text(L"");
+        hideTimer.Tick([hideTimer, weakThis](auto&&, auto&&) {
+            if (auto strongThis = weakThis.get())
+            {
+                strongThis->VimTextBox().Text(L"");
+                hideTimer.Stop();
+            }
+        });
 
-            hideTimer.Start();
-        }
+        hideTimer.Start();
     }
 
     void TermControl::_updateRowNumbers()
@@ -2480,6 +2472,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::ToggleMarkMode()
     {
         _core.ToggleMarkMode();
+    }
+
+    void TermControl::EnterVimMode()
+    {
+        _core.EnterVimMode();
+        _showRowNumbers();
     }
 
     bool TermControl::SwitchSelectionEndpoint()

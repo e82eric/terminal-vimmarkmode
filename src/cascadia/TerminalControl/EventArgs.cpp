@@ -16,7 +16,7 @@
 #include "FoundResultsArgs.g.cpp"
 #include "ShowWindowArgs.g.cpp"
 #include "UpdateSelectionMarkersEventArgs.g.cpp"
-#include "ToggleVimModeEventArgs.g.h"
+#include "ExitVimModeEventArgs.g.h"
 #include "VimTextChangedEventArgs.g.cpp"
 #include "ShowFuzzySearchEventArgs.g.cpp"
 #include "CompletionsChangedEventArgs.g.cpp"

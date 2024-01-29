@@ -46,6 +46,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SelectAll();
         bool ToggleBlockSelection();
         void ToggleMarkMode();
+        void EnterVimMode();
         bool SwitchSelectionEndpoint();
         bool ExpandSelectionToWord();
         void Close();
@@ -344,7 +345,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void _showRowNumbers();
         winrt::fire_and_forget _VimTextChanged(const IInspectable& sender, const Control::VimTextChangedEventArgs args);
-        winrt::fire_and_forget _ToggleVimMode(const IInspectable& sender, const Control::ToggleVimModeEventArgs args);
+        winrt::fire_and_forget _ExitVimMode(const IInspectable& sender, const Control::ExitVimModeEventArgs args);
         winrt::fire_and_forget _ShowFuzzySearch(const IInspectable& sender, const Control::ShowFuzzySearchEventArgs args);
         void _updateRowNumbers();
 
@@ -438,7 +439,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Control::ControlInteractivity::ContextMenuRequested_revoker ContextMenuRequested;
 
             Control::ControlCore::VimTextChanged_revoker VimTextChanged;
-            Control::ControlCore::ToggleVimMode_revoker ToggleVimMode;
+            Control::ControlCore::ExitVimMode_revoker ExitVimMode;
             Control::ControlCore::ShowFuzzySearch_revoker ShowFuzzySearch;
         } _revokers{};
     };

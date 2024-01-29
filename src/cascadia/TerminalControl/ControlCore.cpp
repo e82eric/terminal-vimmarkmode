@@ -681,7 +681,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         LOG_IF_FAILED(_renderEngine->InvalidateAll());
         _updateSelectionUI();
         _renderer->TriggerSelection();
-        _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(false));
+        _ExitVimModeHandlers(*this, winrt::make<implementation::ExitVimModeEventArgs>(false));
         auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
     }
 
@@ -2424,12 +2424,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _vimMode = VimMode::normal;
         _vimCursor = -1;
         ResetVimModeForSizeChange();
+        _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }, winrt::hstring{ L"Normal" }));
     }
 
     void ControlCore::ToggleMarkMode()
     {
-        _ToggleVimModeHandlers(*this, winrt::make<implementation::ToggleVimModeEventArgs>(true));
-        _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }, winrt::hstring{ L"Normal" }));
+        const auto lock = _terminal->LockForWriting();
+        _terminal->ToggleMarkMode();
+        _updateSelectionUI();
     }
 
     Control::SelectionInteractionMode ControlCore::SelectionMode() const

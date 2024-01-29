@@ -1285,6 +1285,16 @@ namespace winrt::TerminalApp::implementation
         }
     }
 
+    void TerminalPage::_HandleVimMode(const IInspectable& sender,
+                                       const ActionEventArgs& args)
+    {
+        if (const auto& control{ _senderOrActiveControl(sender) })
+        {
+            control.EnterVimMode();
+            args.Handled(true);
+        }
+    }
+
     void TerminalPage::_HandleToggleBlockSelection(const IInspectable& sender,
                                                    const ActionEventArgs& args)
     {
