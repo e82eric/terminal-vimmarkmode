@@ -314,7 +314,6 @@ public:
     void SelectCharLeft(bool isVisual);
     void SelectCharRight(bool isVisual);
     void SelectDown(bool isVisual);
-    int32_t SetVimCursor();
     void SelectUp(bool isVisual);
     void SelectLineUp();
     void SelectLineDown();

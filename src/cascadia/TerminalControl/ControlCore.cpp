@@ -673,7 +673,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _textObject = VimTextObjectType::none;
         _lastTimes = 0;
         _sequenceText = L"";
-        _vimCursor = -1;
         _searchString = L"";
         _lastVkey[0] = L'\0';
         _terminal->ClearYankRegion();
@@ -877,7 +876,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
                 break;
             }
-            _vimCursor = _terminal->SetVimCursor();
         }
 
         switch (action)
@@ -935,7 +933,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _terminal->ToggleMarkMode();
                 }
             }
-            _vimCursor = _terminal->SetVimCursor();
             break;
         }
         case VimActionType::yank:
@@ -955,7 +952,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         case VimActionType::toggleVisualOn:
             _terminal->SetPivot();
-            _vimCursor = _terminal->SetVimCursor();
             break;
         case VimActionType::exit:
             exitAfter = true;
@@ -979,7 +975,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (vkey == L'F' && mods.IsShiftPressed() && mods.IsCtrlPressed())
         {
-            _terminal->ClearSelection();
             _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(L""));
             return true;
         }
@@ -2115,6 +2110,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _sizeFuzzySearchPreview();
         }
+        if (_vimMode != VimMode::none)
+        {
+            _resetVimModeForSizeChange(true);
+        }
     }
 
     void ControlCore::FuzzySearchPreviewSizeChanged(const float width,
@@ -2161,17 +2160,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _refreshSizeUnderLock();
     }
 
-    void ControlCore::ResetVimModeForSizeChange()
+    void ControlCore::_resetVimModeForSizeChange(bool selectLastChar)
     {
         if (_vimMode != VimMode::none)
         {
             auto lock = _terminal->LockForWriting();
-
-            auto bufHeight = _terminal->GetBufferHeight();
-            if (bufHeight < _vimCursor)
-            {
-                _vimCursor = -1;
-            }
 
             if (!_terminal->IsSelectionActive())
             {
@@ -2180,23 +2173,28 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 {
                     _terminal->ToggleMarkMode();
                 }
-                _vimCursor = _terminal->SelectLastChar();
+                selectLastChar = true;
             }
 
             if (_terminal->SelectionMode() != ::Terminal::SelectionInteractionMode::Mark)
             {
                 _terminal->ToggleMarkMode();
-                _vimCursor = _terminal->SelectLastChar();
+                selectLastChar = true;
             }
 
-            if (_vimCursor == -1)
+            if (selectLastChar)
             {
-                _vimCursor = _terminal->SelectLastChar();
+                _terminal->SelectLastChar();
             }
 
             _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
             _updateSelectionUI();
         }
+    }
+
+    void ControlCore::ResetVimModeForSizeChange()
+    {
+        _resetVimModeForSizeChange(false);
     }
 
     int32_t ControlCore::ViewportRowNumberToHighlight()
@@ -2207,8 +2205,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             return CursorPosition().Y;
         }
-        auto row = _vimCursor;
-        return row - offset;
+
+        return _terminal->GetSelectionEnd().y - offset;
     }
 
     void ControlCore::EnterMarkMode()
@@ -2222,11 +2220,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::EnterFuzzySearchMode()
     {
-        if (_vimMode == VimMode::none)
+        if (!IsInVimMode())
         {
-            _vimMode = VimMode::normal;
+            EnterVimMode();
         }
-        _vimCursor = -1;
         _fuzzySearchActive = true;
         _sizeFuzzySearchPreview();
     }
@@ -2263,7 +2260,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::CloseFuzzySearchNoSelection()
     {
-        _vimCursor = -1;
         _fuzzySearchActive = false;
     }
 
@@ -2422,9 +2418,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::EnterVimMode()
     {
         _vimMode = VimMode::normal;
-        _vimCursor = -1;
-        ResetVimModeForSizeChange();
+        _resetVimModeForSizeChange(true);
         _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }, winrt::hstring{ L"Normal" }));
+    }
+
+    bool ControlCore::IsInVimMode()
+    {
+        return _vimMode != VimMode::none;
     }
 
     void ControlCore::ToggleMarkMode()
@@ -2971,6 +2971,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, rowCount, searchResults.Size());
         return fuzzySearchResult;
+    }
+
+    bool ControlCore::ShowRowNumbers()
+    {
+        return _showRowNumbers || _vimMode != VimMode::none;
+    }
+
+    void ControlCore::ShowRowNumbers(bool value)
+    {
+        _showRowNumbers = value;
     }
 
     Windows::Foundation::Collections::IVector<int32_t> ControlCore::SearchResultRows()
@@ -3840,7 +3850,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     bool ControlCore::_selectionClearedFromErase()
     {
-        _vimCursor = 0;
         const bool showMarkers{ _terminal->SelectionMode() >= ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Keyboard };
         _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(!showMarkers));
         return _vimMode != VimMode::none;
@@ -3906,7 +3915,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _terminal->ToggleMarkMode();
         }
         _terminal->SelectChar(til::point{ col, row });
-        _vimCursor = row;
         _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
         _fuzzySearchActive = false;
         _renderer->TriggerSelection();
@@ -3936,7 +3944,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             offset = paddingRows;
             break;
         }
-        _terminal->UserScrollViewport(_vimCursor - offset);
+        _terminal->UserScrollViewport(_terminal->GetSelectionEnd().y - offset);
     }
 
     void ControlCore::SelectOutput(const bool goUp)

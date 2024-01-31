@@ -111,6 +111,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void RenderEngineSwapChainChanged(IInspectable sender, IInspectable args);
         void FuzzySearchRenderEngineSwapChainChanged(IInspectable sender, IInspectable args);
+        void ToggleRowNumbers();
         void _AttachDxgiSwapChainToXaml(HANDLE swapChainHandle);
         void _AttachDxgiFuzzySearchSwapChainToXaml(HANDLE swapChainHandle);
         winrt::fire_and_forget _RendererEnteredErrorState(IInspectable sender, IInspectable args);

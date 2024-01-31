@@ -1295,6 +1295,16 @@ namespace winrt::TerminalApp::implementation
         }
     }
 
+    void TerminalPage::_HandleShowRowNumbers(const IInspectable& sender,
+                                      const ActionEventArgs& args)
+    {
+        if (const auto& control{ _senderOrActiveControl(sender) })
+        {
+            control.ToggleRowNumbers();
+            args.Handled(true);
+        }
+    }
+
     void TerminalPage::_HandleToggleBlockSelection(const IInspectable& sender,
                                                    const ActionEventArgs& args)
     {

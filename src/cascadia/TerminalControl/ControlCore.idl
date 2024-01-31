@@ -85,6 +85,7 @@ namespace Microsoft.Terminal.Control
 
         void ResetVimModeForSizeChange();
         void EnterVimMode();
+        Boolean IsInVimMode();
         void EnterMarkMode();
         void EnterFuzzySearchMode();
         void CloseFuzzySearchNoSelection();
@@ -106,6 +107,7 @@ namespace Microsoft.Terminal.Control
         UInt16 FontWeight { get; };
         Double Opacity { get; };
         Boolean UseAcrylic { get; };
+        Boolean ShowRowNumbers { get; set; };
 
         Boolean TryMarkModeKeybinding(Int16 vkey,
                                       Microsoft.Terminal.Core.ControlKeyStates modifiers);

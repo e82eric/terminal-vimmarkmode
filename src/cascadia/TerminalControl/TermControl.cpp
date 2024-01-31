@@ -466,6 +466,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
+    void TermControl::ToggleRowNumbers()
+    {
+        if (_core.ShowRowNumbers())
+        {
+            _core.ShowRowNumbers(false);
+            NumberTextBox().Visibility(Visibility::Collapsed);
+        }
+        else
+        {
+            _core.ShowRowNumbers(true);
+            _showRowNumbers();
+        }
+    }
+
     void TermControl::SearchMatch(const bool goForward)
     {
         if (_IsClosing())
@@ -583,6 +597,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchBox->Visibility(Visibility::Collapsed);
         this->Focus(FocusState::Programmatic);
         _core.CloseFuzzySearchNoSelection();
+        _updateRowNumbers();
     }
 
     winrt::fire_and_forget TermControl::UpdateControlSettings(IControlSettings settings)
@@ -2061,7 +2076,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         //Do I need this?
-        if (_cursorTimer && FuzzySearchBox().Visibility() == Visibility::Collapsed)
+        if (_cursorTimer && !_core.IsInVimMode())
         {
             // When the terminal focuses, show the cursor immediately
             _core.CursorOn(_core.SelectionMode() != SelectionInteractionMode::Mark);
@@ -2151,7 +2166,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _automationPeer.UpdateControlBounds();
         }
 
-        if (NumberTextBox().Visibility() == Visibility::Visible)
+        if (_core.IsInVimMode())
         {
             _core.ResetVimModeForSizeChange();
             _updateRowNumbers();
@@ -2358,7 +2373,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await wil::resume_foreground(Dispatcher());
 
         VimModeTextBox().Text(L"Shell");
-        NumberTextBox().Visibility(Visibility::Collapsed);
+        if (!_core.ShowRowNumbers())
+        {
+            NumberTextBox().Visibility(Visibility::Collapsed);
+        }
+        else
+        {
+            _updateRowNumbers();
+        }
             
         auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
         hideTimer.Interval(std::chrono::milliseconds(400));

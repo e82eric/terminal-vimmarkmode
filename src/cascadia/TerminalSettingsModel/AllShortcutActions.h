@@ -103,6 +103,7 @@
     ON_ALL_ACTIONS(SelectOutput)            \
     ON_ALL_ACTIONS(MarkMode)                \
     ON_ALL_ACTIONS(VimMode)                 \
+    ON_ALL_ACTIONS(ShowRowNumbers)          \
     ON_ALL_ACTIONS(ToggleBlockSelection)    \
     ON_ALL_ACTIONS(SwitchSelectionEndpoint) \
     ON_ALL_ACTIONS(Suggestions)             \

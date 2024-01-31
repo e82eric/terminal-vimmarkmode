@@ -208,6 +208,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void ClearSelection();
         bool ToggleBlockSelection();
         void EnterVimMode();
+        bool IsInVimMode();
         void ToggleMarkMode();
         Control::SelectionInteractionMode SelectionMode() const;
         bool SwitchSelectionEndpoint();
@@ -311,6 +312,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
         Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
         void ClearSearch();
+
+        bool ShowRowNumbers();
+        void ShowRowNumbers(bool value);
 
         Windows::Foundation::Collections::IVector<int32_t> SearchResultRows();
 
@@ -452,8 +456,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _fuzzySearchPanelHeight{ 0 };
         float _fuzzySearchCompositionScale{ 0 };
 
-        int32_t _vimCursor = -1;
         bool _fuzzySearchActive = false;
+        bool _showRowNumbers = false;
 
         VimTextObjectType _textObject = VimTextObjectType::none;
         VimMotionType _motion = VimMotionType::none;
@@ -494,6 +498,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _sendInputToConnection(std::wstring_view wstr);
         void _resetVimState();
         void _vimScrollScreenPosition(VimTextObjectType textObjectType);
+        void _resetVimModeForSizeChange(bool selectLastChar);
 
 #pragma region TerminalCoreCallbacks
         void _terminalCopyToClipboard(std::wstring_view wstr);

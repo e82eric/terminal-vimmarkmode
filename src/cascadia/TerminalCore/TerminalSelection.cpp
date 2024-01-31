@@ -788,31 +788,6 @@ void Terminal::SelectLineRight(bool isVisual)
     _UpdateSelection(isVisual, endPair);
 }
 
-int32_t Terminal::SetVimCursor()
-{
-    if (_selection.has_value())
-    {
-        if (_selection->start.y >= 0)
-        {
-            if (_selection->end.y > _selection->pivot.y)
-            {
-                return _selection->end.y;
-            }
-            else if (_selection->end.y == _selection->pivot.y)
-            {
-                return _selection->start.y;
-            }
-            else
-            {
-                return _selection->start.y;
-            }
-        }
-    }
-
-
-    return -1;
-}
-
 void Terminal::SelectLineUp()
 {
     if (_selection->start.y > 0 || _selection->end.y > 0)
