@@ -318,6 +318,7 @@ public:
     void SelectLineUp();
     void SelectLineDown();
     void SelectLineLeft(bool isVisual);
+    void SelectLineFirstNonBlankChar(bool isVisual);
     void SelectLineRight(bool isVisual);
     void SelectWordRight(bool isVisual, bool isLargeWord);
     void SelectWordLeft(bool isVisual, bool isLargeWord);

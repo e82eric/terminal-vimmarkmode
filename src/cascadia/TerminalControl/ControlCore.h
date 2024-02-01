@@ -142,7 +142,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             halfPageUp = 13,
             halfPageDown = 14,
             pageUp = 15,
-            pageDown = 16
+            pageDown = 16,
+            backToFirstNonSpaceChar = 17
         };
     public:
         ControlCore(Control::IControlSettings settings,

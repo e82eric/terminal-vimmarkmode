@@ -1738,6 +1738,32 @@ std::pair<til::point, bool> TextBuffer::GetEndOfWord(const til::point target, co
     return { result, true };
 }
 
+std::pair<til::point, bool> TextBuffer::GetLineFirstNonBlankChar(const til::point target) const
+{
+    const auto bufferSize = GetSize();
+
+    auto result = target;
+    bool found = false;
+
+    while (result.x < bufferSize.RightInclusive())
+    {
+        auto classAt = _GetDelimiterClassAt(result, L"");
+        if (classAt != DelimiterClass::ControlChar)
+        {
+            found = true;
+            break;
+        }
+        bufferSize.IncrementInBounds(result);
+    }
+
+    if (!found)
+    {
+        return { {}, false };
+    }
+
+    return { result, true };
+}
+
 std::pair<til::point, bool> TextBuffer::GetStartOfWord(const til::point target, const std::wstring_view wordDelimiters) const
 {
     const auto bufferSize = GetSize();

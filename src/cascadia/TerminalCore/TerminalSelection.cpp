@@ -840,6 +840,21 @@ void Terminal::SelectLineLeft(bool isVisual)
     UpdateSelection(SelectionDirection::Left, SelectionExpansion::Viewport, ControlKeyStates{ mods });
 }
 
+void Terminal::SelectLineFirstNonBlankChar(bool isVisual)
+{
+    auto startOfLine = til::point{ 0, _selection->start.y };
+    auto firstNonBlankChar = _activeBuffer().GetLineFirstNonBlankChar(startOfLine);
+
+    if (firstNonBlankChar.second == true)
+    {
+        _UpdateSelection(isVisual, firstNonBlankChar.first);
+    }
+    else
+    {
+        _UpdateSelection(isVisual, startOfLine);
+    }
+}
+
 void Terminal::SelectWordLeft(bool isVisual)
 {
     DWORD mods = isVisual ? 280 : 0;

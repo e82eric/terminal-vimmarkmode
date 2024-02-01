@@ -798,6 +798,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 {
                     _terminal->SelectLineLeft(selectFromStart);
                 }
+                else if (motion == VimMotionType::backToFirstNonSpaceChar)
+                {
+                    _terminal->SelectLineFirstNonBlankChar(selectFromStart);
+                }
                 break;
             case VimTextObjectType::entireLine:
                 switch (motion)
@@ -1284,6 +1288,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         // ^
         else if (vkey == 0x36 && mods.IsShiftPressed())
+        {
+            _motion = VimMotionType::backToFirstNonSpaceChar;
+            _textObject = VimTextObjectType::line;
+            sequenceCompleted = true;
+        }
+        // |
+        else if (vkey == VK_OEM_5 && mods.IsShiftPressed())
         {
             _motion = VimMotionType::moveBackToBegining;
             _textObject = VimTextObjectType::line;
