@@ -1991,6 +1991,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             //      actually fail. We need a way to gracefully fallback.
             LOG_IF_FAILED(_renderEngine->UpdateDpi(newDpi));
             LOG_IF_FAILED(_renderEngine->UpdateFont(_desiredFont, _actualFont, featureMap, axesMap));
+
+            if (_fuzzySearchRenderEngine)
+            {
+                LOG_IF_FAILED(_fuzzySearchRenderEngine->UpdateDpi(newDpi));
+                LOG_IF_FAILED(_fuzzySearchRenderEngine->UpdateFont(_desiredFont, _actualFont, featureMap, axesMap));
+            }
         }
 
         // If the actual font isn't what was requested...
