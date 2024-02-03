@@ -2373,14 +2373,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await wil::resume_foreground(Dispatcher());
 
         VimModeTextBox().Text(L"Shell");
-        if (!_core.ShowRowNumbers())
-        {
-            NumberTextBox().Visibility(Visibility::Collapsed);
-        }
-        else
-        {
-            _updateRowNumbers();
-        }
+        _updateRowNumbers();
             
         auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
         hideTimer.Interval(std::chrono::milliseconds(400));
@@ -2394,6 +2387,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         });
 
         hideTimer.Start();
+        CursorVisibility(CursorDisplayState::Shown);
     }
 
     void TermControl::_updateRowNumbers()
@@ -2402,7 +2396,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto bufferSize = _core.BufferHeight();
         auto offSet = _core.ScrollOffset();
 
-        size_t maxWidth = std::to_wstring(bufferSize).length() + 1;
+        size_t maxWidth = std::max(static_cast<int32_t>(std::to_wstring(bufferSize).length()), 5);
         std::wstring numbers;
         std::wstring numStr;
         auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
@@ -2498,6 +2492,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::EnterVimMode()
     {
+        _core.ShowRowNumbers(true);
         _core.EnterVimMode();
         _showRowNumbers();
     }

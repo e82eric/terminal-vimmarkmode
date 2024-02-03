@@ -2992,7 +2992,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     bool ControlCore::ShowRowNumbers()
     {
-        return _showRowNumbers || _vimMode != VimMode::none;
+        return _showRowNumbers;
     }
 
     void ControlCore::ShowRowNumbers(bool value)
