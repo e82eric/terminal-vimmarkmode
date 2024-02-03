@@ -1063,10 +1063,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _textObject = VimTextObjectType::charTextObject;
             }
         }
-        else if (vkey == L' ')
-        {
-            _leaderSequence = true;
-        }
         else if (_textObject == VimTextObjectType::tilChar || _textObject == VimTextObjectType::tilCharReverse || _textObject == VimTextObjectType::findChar || _textObject == VimTextObjectType::findCharReverse)
         {
             sequenceCompleted = true;
@@ -1097,6 +1093,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _searchString += vkeyText;
                 }
             }
+        }
+        else if (vkey == L' ')
+        {
+            _leaderSequence = true;
         }
         // * #
         else if ((vkey == 0x38 && mods.IsShiftPressed()) || (vkey == 0x33 && mods.IsShiftPressed()))
