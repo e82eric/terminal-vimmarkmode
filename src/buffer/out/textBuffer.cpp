@@ -3206,6 +3206,43 @@ std::vector<til::point_span> TextBuffer::SearchText(const std::wstring_view& nee
     return results;
 }
 
+std::vector<til::point_span> TextBuffer::SearchTextRegex(const std::wstring_view& needle, bool caseInsensitive) const
+{
+    return SearchTextRegex(needle, caseInsensitive, 0, til::CoordTypeMax);
+}
+
+std::vector<til::point_span> TextBuffer::SearchTextRegex(const std::wstring_view& needle, bool caseInsensitive, til::CoordType rowBeg, til::CoordType rowEnd) const
+{
+    rowEnd = std::min(rowEnd, _estimateOffsetOfLastCommittedRow() + 1);
+
+    std::vector<til::point_span> results;
+
+    // All whitespace strings would match the not-yet-written parts of the TextBuffer which would be weird.
+    if (allWhitespace(needle) || rowBeg >= rowEnd)
+    {
+        return results;
+    }
+
+    auto text = ICU::UTextFromTextBuffer(*this, rowBeg, rowEnd);
+
+    uint32_t flags = 0;
+    WI_SetFlagIf(flags, UREGEX_CASE_INSENSITIVE, caseInsensitive);
+
+    UErrorCode status = U_ZERO_ERROR;
+    const auto re = ICU::CreateRegex(needle, flags, &status);
+    uregex_setUText(re.get(), &text, &status);
+
+    if (uregex_find(re.get(), -1, &status))
+    {
+        do
+        {
+            results.emplace_back(ICU::BufferRangeFromMatch(&text, re.get()));
+        } while (uregex_findNext(re.get(), &status));
+    }
+
+    return results;
+}
+
 const std::vector<ScrollMark>& TextBuffer::GetMarks() const noexcept
 {
     return _marks;

@@ -919,7 +919,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             else
             {
-                if (_searcher.ResetIfStale(*GetRenderData(), searchString, moveForward, true))
+                if (_searcher.ResetIfStaleRegex(*GetRenderData(), searchString, moveForward, true))
                 {
                     _searcher.HighlightResults();
                     _searcher.MoveToCurrentSelection();

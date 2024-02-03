@@ -33,6 +33,31 @@ bool Search::ResetIfStale(Microsoft::Console::Render::IRenderData& renderData, c
     return true;
 }
 
+bool Search::ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive)
+{
+    const auto& textBuffer = renderData.GetTextBuffer();
+    const auto lastMutationId = textBuffer.GetLastMutationId();
+
+    if (_needle == needle &&
+        _caseInsensitive == caseInsensitive &&
+        _lastMutationId == lastMutationId)
+    {
+        _step = reverse ? -1 : 1;
+        return false;
+    }
+
+    _renderData = &renderData;
+    _needle = needle;
+    _caseInsensitive = caseInsensitive;
+    _lastMutationId = lastMutationId;
+
+    _results = textBuffer.SearchTextRegex(needle, caseInsensitive);
+    _index = reverse ? gsl::narrow_cast<ptrdiff_t>(_results.size()) - 1 : 0;
+    _step = reverse ? -1 : 1;
+
+    return true;
+}
+
 void Search::MoveToCurrentSelection()
 {
     if (_renderData->IsSelectionActive())

@@ -271,6 +271,8 @@ public:
 
     std::vector<til::point_span> SearchText(const std::wstring_view& needle, bool caseInsensitive) const;
     std::vector<til::point_span> SearchText(const std::wstring_view& needle, bool caseInsensitive, til::CoordType rowBeg, til::CoordType rowEnd) const;
+    std::vector<til::point_span> SearchTextRegex(const std::wstring_view& needle, bool caseInsensitive) const;
+    std::vector<til::point_span> SearchTextRegex(const std::wstring_view& needle, bool caseInsensitive, til::CoordType rowBeg, til::CoordType rowEnd) const;
 
     const std::vector<ScrollMark>& GetMarks() const noexcept;
     void ClearMarksInRange(const til::point start, const til::point end);
