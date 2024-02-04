@@ -923,18 +923,33 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 {
                     _searcher.HighlightResults();
                     _searcher.MoveToCurrentSelection();
+                    auto results = _searcher.Results();
+                    if (!results.empty())
+                    {
+                        if (moveForward)
+                        {
+                            auto current = results[results.size() - 1];
+                            _terminal->SelectNewRegion(current.start, current.start);
+                            _terminal->ToggleMarkMode();
+                        }
+                        else
+                        {
+                            auto current = results[0];
+                            _terminal->SelectNewRegion(current.start, current.start);
+                            _terminal->ToggleMarkMode();
+                        }
+                    }
                 }
                 else
                 {
                     _searcher.MoveToCurrentSelection();
                     _searcher.FindNext();
-                }
-
-                auto current = _searcher.GetCurrent();
-                if (current)
-                {
-                    _terminal->SelectNewRegion(current->start, current->start);
-                    _terminal->ToggleMarkMode();
+                    auto current = _searcher.GetCurrent();
+                    if (current)
+                    {
+                        _terminal->SelectNewRegion(current->start, current->start);
+                        _terminal->ToggleMarkMode();
+                    }
                 }
             }
             break;
@@ -1077,6 +1092,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             else
             {
                 _action = VimActionType::search;
+                _motion = _reverseSearch ? VimMotionType::back : VimMotionType::forward;
                 sequenceCompleted = true;
                 clearStateOnSequenceCompleted = false;
                 hideMarkers = true;

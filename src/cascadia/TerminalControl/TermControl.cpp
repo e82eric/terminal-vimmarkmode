@@ -453,7 +453,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>() })
             {
-                _showRowNumbers();
                 // get at its private implementation
                 _fuzzySearchBox.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::FuzzySearchBoxControl>(searchBox));
                 _fuzzySearchBox->FuzzySearchTextBox().Text(L"");
@@ -2492,9 +2491,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::EnterVimMode()
     {
-        _core.ShowRowNumbers(true);
         _core.EnterVimMode();
-        _showRowNumbers();
     }
 
     bool TermControl::SwitchSelectionEndpoint()
