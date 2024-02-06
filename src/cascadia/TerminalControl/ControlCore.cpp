@@ -1032,11 +1032,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _textObject = VimTextObjectType::entireLine;
             sequenceCompleted = true;
-            if (vkey == L'U' && mods.IsCtrlPressed())
+            if ((vkey == L'U' && mods.IsCtrlPressed()) || vkey == VK_PRIOR)
             {
                 _motion = VimMotionType::halfPageUp;
             }
-            else if (vkey == L'D' && mods.IsCtrlPressed())
+            else if ((vkey == L'D' && mods.IsCtrlPressed()) || vkey == VK_NEXT)
             {
                 _motion = VimMotionType::halfPageDown;
             }
@@ -1051,11 +1051,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _motion = VimMotionType::moveToTopOfBuffer;
                 }
             }
-            else if (vkey == L'K' && _motion == VimMotionType::none)
+            else if ((vkey == L'K' || vkey == VK_UP) && _motion == VimMotionType::none)
             {
                 _motion = VimMotionType::moveUp;
             }
-            else if (vkey == L'J' && _motion == VimMotionType::none)
+            else if ((vkey == L'J' || vkey == VK_DOWN) && _motion == VimMotionType::none)
             {
                 _motion = VimMotionType::moveDown;
             }
@@ -1145,13 +1145,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             
             _action = VimActionType::search;
         }
-        else if (vkey == L'U' && mods.IsCtrlPressed())
+        else if ((vkey == L'U' && mods.IsCtrlPressed()) || vkey == VK_PRIOR)
         {
             _motion = VimMotionType::halfPageUp;
             _textObject = VimTextObjectType::none;
             sequenceCompleted = true;
         }
-        else if (vkey == L'D' && mods.IsCtrlPressed())
+        else if ((vkey == L'D' && mods.IsCtrlPressed()) || vkey == VK_NEXT)
         {
             _motion = VimMotionType::halfPageDown;
             _textObject = VimTextObjectType::none;
@@ -1316,25 +1316,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _textObject = VimTextObjectType::line;
             sequenceCompleted = true;
         }
-        else if (vkey == L'K' && _motion == VimMotionType::none)
+        else if ((vkey == L'K' || vkey == VK_UP) && _motion == VimMotionType::none)
         {
             _motion = VimMotionType::moveUp;
             _textObject = _vimMode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
-        else if (vkey == L'J' && _motion == VimMotionType::none)
+        else if ((vkey == L'J' || vkey == VK_DOWN) && _motion == VimMotionType::none)
         {
             _textObject = _vimMode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
             _motion = VimMotionType::moveDown;
             sequenceCompleted = true;
         }
-        else if (vkey == L'L' && _motion == VimMotionType::none)
+        else if ((vkey == L'L' || vkey == VK_RIGHT) && _motion == VimMotionType::none)
         {
             _motion = VimMotionType::moveRight;
             _textObject = VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
-        else if (vkey == L'H' && _motion == VimMotionType::none)
+        else if ((vkey == L'H' || vkey == VK_LEFT) && _motion == VimMotionType::none)
         {
             _motion = VimMotionType::moveLeft;
             _textObject = VimTextObjectType::charTextObject;
