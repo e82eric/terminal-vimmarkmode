@@ -2905,7 +2905,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             _terminal->AlwaysNotifyOnBufferRotation(true);
         }
-        LOG_IF_FAILED(_renderEngine->InvalidateAll());
         _renderer->TriggerSelection();
 
         // Raise a FoundMatch event, which the control will use to notify
@@ -2916,14 +2915,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::EnterQuickSelectMode(const winrt::hstring& text)
     {
         const auto lock = _terminal->LockForWriting();
-
         _terminal->EnterQuickSelectMode();
-        if (_searcher.QuickSelectRegex(*GetRenderData(), text, true, false))
-        {
-            _searcher.HighlightResults();
-            _searcher.MoveToCurrentSelection();
-            _cachedSearchResultRows = {};
-        }
+        _searcher.QuickSelectRegex(*GetRenderData(), text, true);
+        _searcher.HighlightResults();
         _renderer->TriggerSelection();
     }
 

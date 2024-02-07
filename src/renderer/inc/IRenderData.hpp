@@ -46,8 +46,6 @@ namespace Microsoft::Console::Render
 
     struct QuickSelectState
     {
-        bool enabled;
-        std::wstring_view chars;
         std::vector<QuickSelectSelection> selections;
     };
 

@@ -1297,7 +1297,7 @@ void Renderer::_PaintQuickSelect(_In_ IRenderEngine* const pEngine)
                         auto exclusive = view.ConvertToOrigin(rect).ToExclusive();
                         if (const auto rectCopy = exclusive & dirtyRect)
                         {
-                            LOG_IF_FAILED(pEngine->PatchLine(til::point{ exclusive.left + static_cast<int32_t>(quickSelectState.chars.size()), exclusive.top }, std::move(sr.remainingChars), 0x00A5FF));
+                            LOG_IF_FAILED(pEngine->PatchLine(til::point{ exclusive.left + static_cast<int32_t>(sr.matchingChars.size()), exclusive.top }, std::move(sr.remainingChars), 0x00A5FF));
                             LOG_IF_FAILED(pEngine->PatchLine(til::point{ exclusive.left, exclusive.top }, std::move(sr.matchingChars), 0x0028ff));
                             dirtySearchRectanglesToPaint.emplace_back(exclusive); 
                         }

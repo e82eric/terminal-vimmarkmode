@@ -190,13 +190,6 @@ Microsoft::Console::Render::QuickSelectState Terminal::GetQuickSelectState() noe
 try
 {
     auto result = QuickSelectState{};
-    result.enabled = _inQuickSelectMode;
-    if (!result.enabled)
-    {
-        return result;
-    }
-    result.chars = _quickSelectChars;
-
     auto selections = _GetSearchSelectionRects(_GetVisibleViewport());
 
     int columns = 1;
