@@ -525,6 +525,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.Search(text, goForward, caseSensitive);
     }
 
+    void TermControl::RegexSearch(const winrt::hstring& text)
+    {
+        _core.EnterQuickSelectMode(text);
+    }
+
     void TermControl::_FuzzySearch(const winrt::hstring& text, const bool /*goForward*/, const bool /*caseSensitive*/)
     {
         auto fuzzySearchResult = _core.FuzzySearch(text);

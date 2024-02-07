@@ -126,6 +126,10 @@ public:
     til::property<bool> AlwaysNotifyOnBufferRotation;
 
     std::wstring_view CurrentCommand() const;
+    void QuickSelectBackspace();
+    bool QuickSelectHandleChar(wchar_t ch);
+    void EnterQuickSelectMode();
+    bool InQuickSelectMode() override;
 
 #pragma region ITerminalApi
     // These methods are defined in TerminalApi.cpp
@@ -218,6 +222,8 @@ public:
     std::vector<Microsoft::Console::Types::Viewport> GetYankSelectionRects() noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetSearchSelectionRects() noexcept override;
+    Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
+    void ExitQuickSelectMode();
     const bool IsSelectionActive() const noexcept override;
     const bool IsBlockSelection() const noexcept override;
     void ClearSelection() override;
@@ -470,6 +476,10 @@ private:
         Output,
     };
     PromptState _currentPromptState{ PromptState::None };
+    std::wstring _quickSelectChars;
+    std::vector<wchar_t> _quickSelectAlphabet = { L'A', L'S', L'D', L'F', L'Q', L'W', L'E', L'R', L'Z', L'X', L'C', L'V', L'J', L'K', L'L', L'M', L'I', L'U', L'O', L'P', L'G', L'H', L'T', L'Y', L'B', L'N' };
+    std::unordered_map<wchar_t, int16_t> _quickSelectAlphabetMap;
+    bool _inQuickSelectMode = false;
 
     static WORD _ScanCodeFromVirtualKey(const WORD vkey) noexcept;
     static WORD _VirtualKeyFromScanCode(const WORD scanCode) noexcept;

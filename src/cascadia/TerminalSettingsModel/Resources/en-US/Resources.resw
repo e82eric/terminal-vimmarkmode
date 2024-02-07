@@ -246,6 +246,9 @@
   <data name="FuzzyFindCommandKey" xml:space="preserve">
     <value>Fuzzy Find</value>
   </data>
+  <data name="QuickSelectCommandKey" xml:space="preserve">
+    <value>Quick Select</value>
+  </data>
 	<data name="IncreaseFontSizeCommandKey" xml:space="preserve">
     <value>Increase font size</value>
   </data>

@@ -83,6 +83,16 @@ void FuzzySearchRenderData::ClearYankRegion()
 {
 }
 
+bool FuzzySearchRenderData::InQuickSelectMode()
+{
+    return false;
+}
+
+Microsoft::Console::Render::QuickSelectState FuzzySearchRenderData::GetQuickSelectState() noexcept
+{
+    return {};
+}
+
 std::vector<Microsoft::Console::Types::Viewport> FuzzySearchRenderData::GetSelectionRects() noexcept
 {
     auto rects = _textBuffer->GetTextRects(til::point{ 0, _row }, til::point{ _viewPort.Width() - 1, _row }, false, false);

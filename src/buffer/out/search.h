@@ -27,6 +27,7 @@ public:
 
     bool ResetIfStale(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive);
     bool ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive);
+    bool QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive);
 
     void MoveToCurrentSelection();
     void MoveToPoint(til::point anchor) noexcept;

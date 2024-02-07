@@ -287,6 +287,21 @@ public:
         return std::vector<Microsoft::Console::Types::Viewport>{};
     }
 
+    std::wstring_view QuickSelectChars() override
+    {
+        return {};
+    }
+
+    bool InQuickSelectMode() override
+    {
+        return false;
+    }
+
+    Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept
+    {
+        return {};
+    }
+
     void LockConsole() noexcept override
     {
     }

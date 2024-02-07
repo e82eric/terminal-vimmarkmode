@@ -147,6 +147,8 @@ namespace Microsoft.Terminal.Control
         void BlinkAttributeTick();
 
         void Search(String text, Boolean goForward, Boolean caseSensitive);
+        void RegexSearch(String text, Boolean goForward, Boolean caseSensitive);
+        void EnterQuickSelectMode(String text);
         FuzzySearchResult FuzzySearch(String text);
         void ClearSearch();
         IVector<Int32> SearchResultRows { get; };

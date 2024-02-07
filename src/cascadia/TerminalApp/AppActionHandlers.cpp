@@ -188,6 +188,20 @@ namespace winrt::TerminalApp::implementation
             }
         }
     }
+    
+    void TerminalPage::_HandleQuickSelect(const IInspectable& sender,
+                                        const ActionEventArgs& args)
+    {
+        if (const auto& realArgs = args.ActionArgs().try_as<QuickSelectArgs>())
+        {
+            if (const auto activeTab{ _senderOrFocusedTab(sender) })
+            {
+                _SetFocusedTab(*activeTab);
+                _QuickSelect(*activeTab, realArgs.Input());
+            }
+            args.Handled(true);
+        }
+    }
 
     void TerminalPage::_HandleCloseOtherPanes(const IInspectable& sender,
                                               const ActionEventArgs& args)

@@ -104,6 +104,7 @@ namespace Microsoft::Console::Render
         void _PaintBufferOutputGridLineHelper(_In_ IRenderEngine* const pEngine, const TextAttribute textAttribute, const size_t cchLine, const til::point coordTarget);
         bool _isHoveredHyperlink(const TextAttribute& textAttribute) const noexcept;
         void _PaintSelection(_In_ IRenderEngine* const pEngine);
+        void _PaintQuickSelect(_In_ IRenderEngine* const pEngine);
         void _PaintCursor(_In_ IRenderEngine* const pEngine);
         void _PaintOverlays(_In_ IRenderEngine* const pEngine);
         void _PaintOverlay(IRenderEngine& engine, const RenderOverlay& overlay);

@@ -186,6 +186,93 @@ catch (...)
     return {};
 }
 
+Microsoft::Console::Render::QuickSelectState Terminal::GetQuickSelectState() noexcept
+try
+{
+    auto result = QuickSelectState{};
+    result.enabled = _inQuickSelectMode;
+    if (!result.enabled)
+    {
+        return result;
+    }
+    result.chars = _quickSelectChars;
+
+    auto selections = _GetSearchSelectionRects(_GetVisibleViewport());
+
+    int columns = 1;
+    while (std::pow(_quickSelectAlphabet.size(), columns) < selections.size())
+    {
+        columns++;
+    }
+
+    std::vector<int> indices(columns, 0);
+
+    std::vector<til::rect> dirtySearchRectanglesToPaint;
+    for (auto& sr : selections)
+    {
+        auto toAdd = QuickSelectSelection{};
+        toAdd.selection = Viewport::FromInclusive(sr);
+
+        bool allMatching = true;
+        for (int i = 0; i < indices.size(); i++)
+        {
+            auto idx = indices[i];
+            if (i < _quickSelectChars.size())
+            {
+                if (_quickSelectAlphabet[idx] != _quickSelectChars[i])
+                {
+                    allMatching = false;
+                    //We are going to throw this away anyways
+                    break;
+                }
+
+                toAdd.matchingChars.emplace_back(_quickSelectAlphabet[idx]);
+            }
+            else
+            {
+                toAdd.remainingChars.emplace_back(_quickSelectAlphabet[idx]);
+            }
+        }
+
+        if ((_quickSelectChars.size() == 0 || toAdd.matchingChars.size() == _quickSelectChars.size()) &&
+            (sr.right - sr.left > columns - 1) &&
+            allMatching)
+        {
+            toAdd.isCurrentMatch = true;
+        }
+        else
+        {
+            toAdd.isCurrentMatch = false;
+        }
+
+        for (int j = columns - 1; j >= 0; --j)
+        {
+            indices[j]++;
+            if (indices[j] < _quickSelectAlphabet.size())
+            {
+                break; // No carry over, break the loop
+            }
+            indices[j] = 0; // Carry over to the previous column
+            if (j == 0)
+            {
+                // If it's the first column, reset to all zeros (optional based on your use case)
+                std::fill(indices.begin(), indices.end(), 0);
+            }
+        }
+
+        if (toAdd.isCurrentMatch)
+        {
+            result.selections.emplace_back(toAdd);
+        }
+    }
+    return result;
+}
+catch (...)
+{
+    LOG_CAUGHT_EXCEPTION();
+    return {};
+}
+
 void Terminal::SelectNewRegion(const til::point coordStart, const til::point coordEnd)
 {
 #pragma warning(push)

@@ -16,6 +16,7 @@
 #include "SwapPaneArgs.g.h"
 #include "AdjustFontSizeArgs.g.h"
 #include "SendInputArgs.g.h"
+#include "QuickSelectArgs.g.h"
 #include "SplitPaneArgs.g.h"
 #include "OpenSettingsArgs.g.h"
 #include "SetFocusModeArgs.g.h"
@@ -133,6 +134,10 @@ private:                                                                    \
 
 ////////////////////////////////////////////////////////////////////////////////
 #define SEND_INPUT_ARGS(X) \
+    X(winrt::hstring, Input, "input", args->Input().empty(), L"")
+
+////////////////////////////////////////////////////////////////////////////////
+#define QUICK_SELECT_ARGS(X) \
     X(winrt::hstring, Input, "input", args->Input().empty(), L"")
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -690,6 +695,8 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
     ACTION_ARGS_STRUCT(AdjustFontSizeArgs, ADJUST_FONT_SIZE_ARGS);
 
     ACTION_ARGS_STRUCT(SendInputArgs, SEND_INPUT_ARGS);
+
+    ACTION_ARGS_STRUCT(QuickSelectArgs, QUICK_SELECT_ARGS);
 
     ACTION_ARGS_STRUCT(OpenSettingsArgs, OPEN_SETTINGS_ARGS);
 

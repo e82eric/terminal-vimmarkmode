@@ -21,6 +21,8 @@ public:
     std::vector<Microsoft::Console::Types::Viewport> GetYankSelectionRects() noexcept override;
     void SelectYankRegion() override;
     void ClearYankRegion() override;
+    bool InQuickSelectMode() override;
+    Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetSearchSelectionRects() noexcept override;
     [[nodiscard]] std::unique_lock<til::recursive_ticket_lock> LockForReading() const noexcept;

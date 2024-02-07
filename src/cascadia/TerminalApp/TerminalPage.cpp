@@ -3537,6 +3537,14 @@ namespace winrt::TerminalApp::implementation
         }
     }
 
+    void TerminalPage::_QuickSelect(const TerminalTab& tab, std::wstring_view input)
+    {
+        if (const auto& control{ tab.GetActiveTerminalControl() })
+        {
+            control.RegexSearch(input);
+        }
+    }
+
     // Method Description:
     // - Toggles borderless mode. Hides the tab row, and raises our
     //   FocusModeChanged event.

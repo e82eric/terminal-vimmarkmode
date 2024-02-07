@@ -1532,6 +1532,53 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto lock = _terminal->LockForWriting();
 
+        if (_terminal->InQuickSelectMode())
+        {
+            if (vkey == VK_ESCAPE)
+            {
+                _terminal->ExitQuickSelectMode();
+                LOG_IF_FAILED(_renderEngine->InvalidateAll());
+                return true;
+            }
+
+            if (vkey == VK_BACK)
+            {
+                _terminal->QuickSelectBackspace();
+                _renderer->TriggerSelection();
+                return true;
+            }
+
+            wchar_t vkeyText[2] = { 0 };
+            BYTE keyboardState[256];
+            if (!GetKeyboardState(keyboardState))
+            {
+                return true;
+            }
+
+            keyboardState[VK_SHIFT] = 0x80;
+            ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, vkeyText, 2, 0);
+
+            auto shouldExit = _terminal->QuickSelectHandleChar(vkeyText[0]);
+
+            if (shouldExit)
+            {
+                std::thread hideTimerThread([this]() {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                    {
+                        auto lock = _terminal->LockForWriting();
+                        _terminal->ExitQuickSelectMode();
+                        LOG_IF_FAILED(_renderEngine->InvalidateAll());
+                        _renderer->NotifyPaintFrame();
+                    }
+                });
+                hideTimerThread.detach();
+            }
+            LOG_IF_FAILED(_renderEngine->InvalidateAll());
+            _renderer->NotifyPaintFrame();
+
+            return true;
+        }
+
         if (_vimMode != VimMode::none)
         {
             if (TryVimModeKeyBinding(vkey, mods))
@@ -1692,6 +1739,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             //      itself - it was initiated by the mouse wheel, or the scrollbar.
             const auto lock = _terminal->LockForWriting();
             _terminal->UserScrollViewport(viewTop);
+            if (_terminal->InQuickSelectMode())
+            {
+                LOG_IF_FAILED(_renderEngine->InvalidateAll());
+            }
         }
 
         const auto shared = _shared.lock_shared();
@@ -2816,11 +2867,64 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             _terminal->AlwaysNotifyOnBufferRotation(true);
         }
+        LOG_IF_FAILED(_renderEngine->InvalidateAll());
         _renderer->TriggerSelection();
 
         // Raise a FoundMatch event, which the control will use to notify
         // narrator if there was any results in the buffer
         _FoundMatchHandlers(*this, *foundResults);
+    }
+
+    void ControlCore::RegexSearch(const winrt::hstring& text, const bool goForward, const bool caseSensitive)
+    {
+        const auto lock = _terminal->LockForWriting();
+
+        if (_searcher.ResetIfStaleRegex(*GetRenderData(), text, !goForward, !caseSensitive))
+        {
+            _searcher.HighlightResults();
+            _searcher.MoveToCurrentSelection();
+            _cachedSearchResultRows = {};
+        }
+        else
+        {
+            _searcher.FindNext();
+        }
+
+        const auto foundMatch = _searcher.SelectCurrent();
+        auto foundResults = winrt::make_self<implementation::FoundResultsArgs>(foundMatch);
+        if (foundMatch)
+        {
+            // this is used for search,
+            // DO NOT call _updateSelectionUI() here.
+            // We don't want to show the markers so manually tell it to clear it.
+            _terminal->SetBlockSelection(false);
+            _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(true));
+
+            foundResults->TotalMatches(gsl::narrow<int32_t>(_searcher.Results().size()));
+            foundResults->CurrentMatch(gsl::narrow<int32_t>(_searcher.CurrentMatch()));
+
+            _terminal->AlwaysNotifyOnBufferRotation(true);
+        }
+        LOG_IF_FAILED(_renderEngine->InvalidateAll());
+        _renderer->TriggerSelection();
+
+        // Raise a FoundMatch event, which the control will use to notify
+        // narrator if there was any results in the buffer
+        _FoundMatchHandlers(*this, *foundResults);
+    }
+
+    void ControlCore::EnterQuickSelectMode(const winrt::hstring& text)
+    {
+        const auto lock = _terminal->LockForWriting();
+
+        _terminal->EnterQuickSelectMode();
+        if (_searcher.QuickSelectRegex(*GetRenderData(), text, true, false))
+        {
+            _searcher.HighlightResults();
+            _searcher.MoveToCurrentSelection();
+            _cachedSearchResultRows = {};
+        }
+        _renderer->TriggerSelection();
     }
 
     Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)

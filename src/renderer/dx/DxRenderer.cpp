@@ -1851,7 +1851,22 @@ try
 }
 CATCH_RETURN()
 
+[[nodiscard]] HRESULT DxEngine::PatchLine(til::point /*point*/, std::vector<wchar_t> /*cluster*/, COLORREF /*fgColorRef*/) noexcept
+try
+{
+    return S_OK;
+}
+CATCH_RETURN()
+
 [[nodiscard]] HRESULT DxEngine::PaintSelections(const std::vector<til::rect>& rects) noexcept
+try
+{
+    UNREFERENCED_PARAMETER(rects);
+    return S_OK;
+}
+CATCH_RETURN()
+
+[[nodiscard]] HRESULT DxEngine::PaintQuickSelectSelections(const std::vector<til::rect>& rects) noexcept
 try
 {
     UNREFERENCED_PARAMETER(rects);

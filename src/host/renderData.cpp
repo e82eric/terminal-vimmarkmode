@@ -410,6 +410,16 @@ void RenderData::ClearYankRegion()
 {
 }
 
+bool RenderData::InQuickSelectMode()
+{
+    return false;
+}
+
+Microsoft::Console::Render::QuickSelectState RenderData::GetQuickSelectState() noexcept
+{
+    return {};
+}
+
 void RenderData::SelectSearchRegions(std::vector<til::inclusive_rect> source)
 {
 }

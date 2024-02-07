@@ -848,6 +848,18 @@ CATCH_RETURN();
     return S_OK;
 }
 
+[[nodiscard]] HRESULT GdiEngine::PaintQuickSelectSelections(const std::vector<til::rect>& rects) noexcept
+{
+    UNREFERENCED_PARAMETER(rects);
+
+    return S_OK;
+}
+
+[[nodiscard]] HRESULT GdiEngine::PatchLine(til::point /*point*/, std::vector<wchar_t> /*cluster*/, COLORREF /*fgColorRef*/) noexcept
+{
+    return S_OK;
+}
+
 #ifdef DBG
 
 void GdiEngine::_CreateDebugWindow()

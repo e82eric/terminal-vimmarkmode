@@ -21,6 +21,7 @@ static constexpr std::string_view DuplicateTabKey{ "duplicateTab" };
 static constexpr std::string_view ExecuteCommandlineKey{ "wt" };
 static constexpr std::string_view FindKey{ "find" };
 static constexpr std::string_view FuzzyFindKey{ "fuzzyFind" };
+
 static constexpr std::string_view MoveFocusKey{ "moveFocus" };
 static constexpr std::string_view MovePaneKey{ "movePane" };
 static constexpr std::string_view SwapPaneKey{ "swapPane" };
@@ -46,6 +47,7 @@ static constexpr std::string_view AddMarkKey{ "addMark" };
 static constexpr std::string_view ClearMarkKey{ "clearMark" };
 static constexpr std::string_view ClearAllMarksKey{ "clearAllMarks" };
 static constexpr std::string_view SendInputKey{ "sendInput" };
+static constexpr std::string_view QuickSelectKey{ "quickSelect" };
 static constexpr std::string_view SetColorSchemeKey{ "setColorScheme" };
 static constexpr std::string_view SetTabColorKey{ "setTabColor" };
 static constexpr std::string_view SplitPaneKey{ "splitPane" };
@@ -385,6 +387,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 { ShortcutAction::ClearMark, RS_(L"ClearMarkCommandKey") },
                 { ShortcutAction::ClearAllMarks, RS_(L"ClearAllMarksCommandKey") },
                 { ShortcutAction::SendInput, MustGenerate },
+                { ShortcutAction::QuickSelect, RS_(L"QuickSelectCommandKey") },
                 { ShortcutAction::SetColorScheme, MustGenerate },
                 { ShortcutAction::SetTabColor, RS_(L"ResetTabColorCommandKey") },
                 { ShortcutAction::SplitPane, RS_(L"SplitPaneCommandKey") },

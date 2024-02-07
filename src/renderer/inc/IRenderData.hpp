@@ -36,6 +36,21 @@ namespace Microsoft::Console::Render
         const Microsoft::Console::Types::Viewport region;
     };
 
+    struct QuickSelectSelection
+    {
+        bool isCurrentMatch;
+        std::vector<wchar_t> matchingChars;
+        std::vector<wchar_t> remainingChars;
+        Microsoft::Console::Types::Viewport selection;
+    };
+
+    struct QuickSelectState
+    {
+        bool enabled;
+        std::wstring_view chars;
+        std::vector<QuickSelectSelection> selections;
+    };
+
     class IRenderData
     {
     public:
@@ -49,6 +64,7 @@ namespace Microsoft::Console::Render
         virtual std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept = 0;
         virtual std::vector<Microsoft::Console::Types::Viewport> GetYankSelectionRects() noexcept = 0;
         virtual std::vector<Microsoft::Console::Types::Viewport> GetSearchSelectionRects() noexcept = 0;
+        virtual QuickSelectState GetQuickSelectState() noexcept = 0;
         virtual void LockConsole() noexcept = 0;
         virtual void UnlockConsole() noexcept = 0;
 
@@ -79,5 +95,6 @@ namespace Microsoft::Console::Render
         virtual const til::point GetSelectionAnchor() const noexcept = 0;
         virtual const til::point GetSelectionEnd() const noexcept = 0;
         virtual const bool IsUiaDataInitialized() const noexcept = 0;
+        virtual bool InQuickSelectMode() = 0;
     };
 }

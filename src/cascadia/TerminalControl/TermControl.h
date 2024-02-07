@@ -174,6 +174,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Control::CursorDisplayState CursorVisibility() const noexcept;
         void CursorVisibility(Control::CursorDisplayState cursorVisibility);
 
+        void RegexSearch(const winrt::hstring& text);
+
         // -------------------------------- WinRT Events ---------------------------------
         // clang-format off
         WINRT_CALLBACK(PropertyChanged, Windows::UI::Xaml::Data::PropertyChangedEventHandler);

@@ -311,6 +311,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SetEndSelectionPoint(const til::point position);
 
         void Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
+        void RegexSearch(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
+        void EnterQuickSelectMode(const winrt::hstring& text);
         Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
         void ClearSearch();
 

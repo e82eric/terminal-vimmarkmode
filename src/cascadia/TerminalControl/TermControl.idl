@@ -104,6 +104,7 @@ namespace Microsoft.Terminal.Control
         Boolean SearchBoxEditInFocus();
 
         void SearchMatch(Boolean goForward);
+        void RegexSearch(String needle);
 
         void AdjustFontSize(Single fontSizeDelta);
         void ResetFontSize();

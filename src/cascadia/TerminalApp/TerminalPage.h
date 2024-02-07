@@ -442,6 +442,7 @@ namespace winrt::TerminalApp::implementation
 
         void _Find(const TerminalTab& tab);
         void _FuzzyFind(const TerminalTab& tab);
+        void _QuickSelect(const TerminalTab& tab, std::wstring_view input);
 
         winrt::Microsoft::Terminal::Control::TermControl _CreateNewControlAndContent(const winrt::Microsoft::Terminal::Settings::Model::TerminalSettingsCreateResult& settings,
                                                                                      const winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection& connection);

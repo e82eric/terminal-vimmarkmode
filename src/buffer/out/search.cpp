@@ -58,6 +58,21 @@ bool Search::ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderDa
     return true;
 }
 
+bool Search::QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive)
+{
+    const auto& textBuffer = renderData.GetTextBuffer();
+
+    _renderData = &renderData;
+    _needle = needle;
+    _caseInsensitive = caseInsensitive;
+
+    _results = textBuffer.SearchTextRegex(needle, caseInsensitive);
+    _index = reverse ? gsl::narrow_cast<ptrdiff_t>(_results.size()) - 1 : 0;
+    _step = reverse ? -1 : 1;
+
+    return true;
+}
+
 void Search::MoveToCurrentSelection()
 {
     if (_renderData->IsSelectionActive())

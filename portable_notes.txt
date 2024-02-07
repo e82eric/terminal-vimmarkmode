@@ -1,5 +1,12 @@
+#From CMD
+git submodule update --init --recursive
+tools\razzle.cmd
+bcz
+msbuild OpenConsole.sln /p:WindowsTerminalOfficialBuild=true;WindowsTerminalBranding=Dev;PGOBuildMode=None /p:Configuration=Release /t:Terminal\CascadiaPackage
+
+#From PWSH
 $ErrorActionPreference = 'stop'
-$PackageFilename = (Resolve-Path .\src\cascadia\CascadiaPackage\AppPackages\CascadiaPackage_0.0.1.0_x64_Debug_Test\CascadiaPackage_0.0.1.0_x64_Debug.msix).Path
+$PackageFilename = (Resolve-Path .\src\cascadia\CascadiaPackage\AppPackages\CascadiaPackage_0.0.1.0_x64_Test\CascadiaPackage_0.0.1.0_x64.msix).Path
 $WindowsTerminalPackagePath = $PackageFilename
 $outDirPath = "bin/x64/release/_appx"
 if (Test-Path $outDirPath) {

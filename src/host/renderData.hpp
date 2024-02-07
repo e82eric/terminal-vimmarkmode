@@ -58,6 +58,8 @@ public:
     void SelectNewRegion(const til::point coordStart, const til::point coordEnd) override;
     void ClearYankRegion() override;
     void SelectYankRegion() override;
+    bool InQuickSelectMode() override;
+    Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
     void SelectSearchRegions(std::vector<til::inclusive_rect> source) override;
     const til::point GetSelectionAnchor() const noexcept override;
     const til::point GetSelectionEnd() const noexcept override;

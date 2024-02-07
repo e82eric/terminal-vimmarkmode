@@ -162,6 +162,7 @@ try
 
     // 4. Paint Selection
     _PaintSelection(pEngine);
+    _PaintQuickSelect(pEngine);
 
     // 5. Paint Cursor
     _PaintCursor(pEngine);
@@ -841,13 +842,19 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
             // We also accumulate clusters according to regex patterns
             do
             {
+                auto origAttr = it->TextAttr();
+                if (_pData->InQuickSelectMode())
+                {
+                    origAttr.SetDefaultForeground();
+                    origAttr.SetDefaultBackground();
+                }
                 til::point thisPoint{ screenPoint.x + cols, screenPoint.y };
                 const auto thisPointPatterns = _pData->GetPatternId(thisPoint);
                 const auto thisUsingSoftFont = s_IsSoftFontChar(it->Chars(), _firstSoftFontChar, _lastSoftFontChar);
                 const auto changedPatternOrFont = patternIds != thisPointPatterns || usingSoftFont != thisUsingSoftFont;
-                if (color != it->TextAttr() || changedPatternOrFont)
+                if (color != origAttr || changedPatternOrFont)
                 {
-                    auto newAttr{ it->TextAttr() };
+                    auto newAttr{ origAttr };
                     // foreground doesn't matter for runs of spaces (!)
                     // if we trick it . . . we call Paint far fewer times for cmatrix
                     if (!_IsAllSpaces(it->Chars()) || !newAttr.HasIdenticalVisualRepresentationForBlankSpace(color, globalInvert) || changedPatternOrFont)
@@ -1215,50 +1222,93 @@ void Renderer::_PaintSelection(_In_ IRenderEngine* const pEngine)
 {
     try
     {
-        std::span<const til::rect> dirtyAreas;
-        LOG_IF_FAILED(pEngine->GetDirtyArea(dirtyAreas));
-
-        // Get selection rectangles
-        const auto rectangles = _GetSelectionRects();
-        const auto yankRectangles = _GetYankSelectionRects();
-        const auto searchRectangles = _GetSearchSelectionRects();
-
-        std::vector<til::rect> dirtySearchRectangles;
-        for (auto& dirtyRect : dirtyAreas)
+        if (!_pData->InQuickSelectMode())
         {
-            for (const auto& sr : searchRectangles)
+            std::span<const til::rect> dirtyAreas;
+            LOG_IF_FAILED(pEngine->GetDirtyArea(dirtyAreas));
+
+            // Get selection rectangles
+            const auto rectangles = _GetSelectionRects();
+            const auto yankRectangles = _GetYankSelectionRects();
+            const auto searchRectangles = _GetSearchSelectionRects();
+
+            std::vector<til::rect> dirtySearchRectangles;
+            for (auto& dirtyRect : dirtyAreas)
             {
-                if (const auto rectCopy = sr & dirtyRect)
+                for (const auto& sr : searchRectangles)
                 {
-                    dirtySearchRectangles.emplace_back(rectCopy);
+                    if (const auto rectCopy = sr & dirtyRect)
+                    {
+                        dirtySearchRectangles.emplace_back(rectCopy);
+                    }
+                }
+
+                for (const auto& rect : rectangles)
+                {
+                    if (const auto rectCopy = rect & dirtyRect)
+                    {
+                        LOG_IF_FAILED(pEngine->PaintSelection(rectCopy));
+                    }
+                }
+
+                for (const auto& rect : yankRectangles)
+                {
+                    if (const auto rectCopy = rect & dirtyRect)
+                    {
+                        LOG_IF_FAILED(pEngine->PaintYankSelection(rectCopy));
+                    }
                 }
             }
 
-            for (const auto& rect : rectangles)
+            if (!dirtySearchRectangles.empty())
             {
-                if (const auto rectCopy = rect & dirtyRect)
-                {
-                    LOG_IF_FAILED(pEngine->PaintSelection(rectCopy));
-                }
-            }
-
-            for (const auto& rect : yankRectangles)
-            {
-                if (const auto rectCopy = rect & dirtyRect)
-                {
-                    LOG_IF_FAILED(pEngine->PaintYankSelection(rectCopy));
-                }
+                LOG_IF_FAILED(pEngine->PaintSelections(std::move(dirtySearchRectangles)));
             }
         }
+    }
+    CATCH_LOG();
+}
 
-        if (!dirtySearchRectangles.empty())
+void Renderer::_PaintQuickSelect(_In_ IRenderEngine* const pEngine)
+{
+    try
+    {
+        if (_pData->InQuickSelectMode())
         {
-            LOG_IF_FAILED(pEngine->PaintSelections(std::move(dirtySearchRectangles)));
-        }
+            LOG_IF_FAILED(pEngine->PaintSelections({}));
 
-        if (!dirtySearchRectangles.empty())
-        {
-            LOG_IF_FAILED(pEngine->PaintSelections(std::move(dirtySearchRectangles)));
+            std::span<const til::rect> dirtyAreas;
+            LOG_IF_FAILED(pEngine->GetDirtyArea(dirtyAreas));
+
+            auto quickSelectState = _pData->GetQuickSelectState();
+            auto view = _pData->GetViewport();
+            const auto& buffer = _pData->GetTextBuffer();
+
+            std::vector<til::rect> dirtySearchRectanglesToPaint;
+
+            for (auto sr : quickSelectState.selections)
+            {
+                if (sr.isCurrentMatch)
+                {
+                    for (auto& dirtyRect : dirtyAreas)
+                    {
+                        const auto lineRendition = buffer.GetLineRendition(sr.selection.Top());
+                        auto rect = Viewport::FromInclusive(BufferToScreenLine(sr.selection.ToInclusive(), lineRendition));
+                        auto exclusive = view.ConvertToOrigin(rect).ToExclusive();
+                        if (const auto rectCopy = exclusive & dirtyRect)
+                        {
+                            LOG_IF_FAILED(pEngine->PatchLine(til::point{ exclusive.left + static_cast<int32_t>(quickSelectState.chars.size()), exclusive.top }, std::move(sr.remainingChars), 0x00A5FF));
+                            LOG_IF_FAILED(pEngine->PatchLine(til::point{ exclusive.left, exclusive.top }, std::move(sr.matchingChars), 0x0028ff));
+                            dirtySearchRectanglesToPaint.emplace_back(exclusive); 
+                        }
+                    }
+                }
+            }
+
+            if (!dirtySearchRectanglesToPaint.empty())
+            {
+                LOG_IF_FAILED(pEngine->PaintQuickSelectSelections(std::move(dirtySearchRectanglesToPaint)));
+            }
         }
     }
     CATCH_LOG();

@@ -29,6 +29,11 @@ Terminal::Terminal()
 {
     _renderSettings.SetColorAlias(ColorAlias::DefaultForeground, TextColor::DEFAULT_FOREGROUND, RGB(255, 255, 255));
     _renderSettings.SetColorAlias(ColorAlias::DefaultBackground, TextColor::DEFAULT_BACKGROUND, RGB(0, 0, 0));
+
+    for (int16_t i = 0; i < _quickSelectAlphabet.size(); ++i)
+    {
+        _quickSelectAlphabetMap[_quickSelectAlphabet[i]] = i;
+    }
 }
 
 #pragma warning(suppress : 26455) // default constructor is throwing, too much effort to rearrange at this time.
@@ -1567,6 +1572,71 @@ std::wstring_view Terminal::CurrentCommand() const
     }
 
     return _activeBuffer().CurrentCommand();
+}
+
+void Terminal::QuickSelectBackspace()
+{
+    if (!_quickSelectChars.empty())
+    {
+        _quickSelectChars.pop_back();
+    }
+}
+
+bool Terminal::QuickSelectHandleChar(wchar_t ch)
+{
+    auto selections = GetSearchSelectionRects();
+    int columns = 1;
+    while (std::pow(_quickSelectAlphabet.size(), columns) < selections.size())
+    {
+        columns++;
+    }
+
+    _quickSelectChars += ch;
+
+    if (_quickSelectChars.size() == columns)
+    {
+        int16_t selectionIndex = 0;
+        int16_t power = static_cast<int16_t>(_quickSelectChars.size() - 1);
+        for (int16_t i = 0; i < _quickSelectChars.size(); i++)
+        {
+            auto ch = _quickSelectChars[i];
+            auto index = _quickSelectAlphabetMap[ch];
+            selectionIndex += index * static_cast<int16_t>(std::pow(_quickSelectAlphabet.size(), power--));
+        }
+
+        auto rect = selections[selectionIndex];
+        auto selections = std::vector<til::inclusive_rect>{ til::inclusive_rect{ rect.ToInclusive() } };
+        auto text = GetTextBuffer().GetText(true, true, selections);
+        if (!text.text.empty())
+        {
+            std::wstring textData;
+            for (const auto& text : text.text)
+            {
+                textData += text;
+            }
+
+            CopyToClipboard(textData);
+            return true;
+        }
+    }
+    return false;
+}
+
+void Terminal::EnterQuickSelectMode()
+{
+    _inQuickSelectMode = true;
+}
+
+bool Terminal::InQuickSelectMode()
+{
+    return _inQuickSelectMode;
+}
+
+void Terminal::ExitQuickSelectMode()
+{
+    _inQuickSelectMode = false;
+    _quickSelectChars.clear();
+    ClearSelection();
 }
 
 void Terminal::ColorSelection(const TextAttribute& attr, winrt::Microsoft::Terminal::Core::MatchMode matchMode)
