@@ -2959,10 +2959,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto rowResults = std::vector<RowResult>();
         auto rowCount = renderData->GetTextBuffer().GetLastNonSpaceCharacter().y + 1;
         int minScore = 0;
-
+        int actualRowNumber = 0;
         for (int rowNumber = 0; rowNumber < rowCount; rowNumber++)
         {
+            actualRowNumber = rowNumber;
             std::wstring_view rowText = renderData->GetTextBuffer().GetRowByOffset(rowNumber).GetText();
+            auto wrapped = renderData->GetTextBuffer().GetRowByOffset(rowNumber).WasWrapForced();
+            std::wstring concatenatedText;
+            if (wrapped)
+            {
+                concatenatedText += std::wstring(rowText);
+                while (wrapped)
+                {
+                    rowNumber++;
+                    rowText = renderData->GetTextBuffer().GetRowByOffset(rowNumber).GetText();
+                    concatenatedText += std::wstring(rowText);
+                    wrapped = renderData->GetTextBuffer().GetRowByOffset(rowNumber).WasWrapForced();
+                }
+
+                rowText = std::wstring_view(concatenatedText);
+            }
 
             auto findLastNonBlankIndex = [](const std::wstring& str) {
                 auto it = std::find_if(str.rbegin(), str.rend(), [](wchar_t ch) {
@@ -2992,7 +3008,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     rowResult.rowFullText = rowFullText;
                     rowResult.asciiRowText = asciiRowText;
                     rowResult.pos = pos;
-                    rowResult.rowNumber = rowNumber;
+                    rowResult.rowNumber = actualRowNumber;
                     rowResult.score = rowScore;
                     rowResult.length = length;
                     rowResults.push_back(rowResult);
@@ -4045,6 +4061,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _terminal->ToggleMarkMode();
         }
+
+        auto vp = _terminal->GetViewport();
+        if (col > vp.Width())
+        {
+            int32_t rows = col / vp.Width();
+            col %= vp.Width();
+            row += rows;
+        }
+
         _terminal->SelectChar(til::point{ col, row });
         _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
         _fuzzySearchActive = false;
