@@ -1606,18 +1606,10 @@ bool Terminal::QuickSelectHandleChar(wchar_t ch)
 
         auto rect = selections[selectionIndex];
         auto selections = std::vector<til::inclusive_rect>{ til::inclusive_rect{ rect.ToInclusive() } };
-        auto text = GetTextBuffer().GetText(true, true, selections);
-        if (!text.text.empty())
-        {
-            std::wstring textData;
-            for (const auto& text : text.text)
-            {
-                textData += text;
-            }
-
-            CopyToClipboard(textData);
-            return true;
-        }
+        const auto req = TextBuffer::CopyRequest::FromConfig(GetTextBuffer(), til::point{ rect.Left(), rect.Top() }, til::point{ rect.RightInclusive(), rect.Top() }, true, false, false);
+        auto text = GetTextBuffer().GetPlainText(req);
+        CopyToClipboard(text);
+        return true;
     }
     return false;
 }
