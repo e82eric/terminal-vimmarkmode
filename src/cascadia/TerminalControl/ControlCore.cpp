@@ -891,7 +891,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
             auto searchString = bufferData.plainText;
-            _terminal->ClearSelection();
             _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ searchString }));
             break;
         }
