@@ -439,85 +439,6 @@ try
 }
 CATCH_RETURN()
 
-[[nodiscard]] HRESULT AtlasEngine::PatchLine(til::point point, std::vector<wchar_t> cluster, COLORREF fgColorRef) noexcept
-try
-{
-    WI_SetFlag(_api.attributes, FontRelevantAttributes::Bold);
-    WI_SetFlag(_api.attributes, FontRelevantAttributes::Italic);
-    auto fg = fgColorRef |= 0xff000000;
-
-    auto& row = *_p.rows[point.y];
-
-    for (int16_t i = 0; i < cluster.size(); i++)
-    {
-        u32 mappedLength = 0;
-        wil::com_ptr<IDWriteFontFace2> mappedFontFace;
-        _mapCharacters(&cluster[i], 1, &mappedLength, mappedFontFace.addressof());
-
-        if (!mappedFontFace)
-        {
-            //_mapReplacementCharacter(idx, mappedEnd, row);
-            //continue;
-        }
-
-        //const auto initialIndicesCount = row.glyphIndices.size();
-
-        // GetTextComplexity() returns as many glyph indices as its textLength parameter (here: mappedLength).
-        // This block ensures that the buffer has sufficient capacity. It also initializes the glyphProps buffer because it and
-        // glyphIndices sort of form a "pair" in the _mapComplex() code and are always simultaneously resized there as well.
-        if (mappedLength > _api.glyphIndices.size())
-        {
-            auto size = _api.glyphIndices.size();
-            size = size + (size >> 1);
-            size = std::max<size_t>(size, mappedLength);
-            Expects(size > _api.glyphIndices.size());
-            _api.glyphIndices = Buffer<u16>{ size };
-            _api.glyphProps = Buffer<DWRITE_SHAPING_GLYPH_PROPERTIES>{ size };
-        }
-
-        if (_api.s->font->fontFeatures.empty())
-        {
-            // We can reuse idx here, as it'll be reset to "idx = mappedEnd" in the outer loop anyways.
-            //for (u32 complexityLength = 0; /*idx < mappedEnd*/; u32 idx += complexityLength)
-            //{
-            u32 complexityLength;
-            BOOL isTextSimple = FALSE;
-            THROW_IF_FAILED(_p.textAnalyzer->GetTextComplexity(&cluster[i], 1, mappedFontFace.get(), &isTextSimple, &complexityLength, _api.glyphIndices.data()));
-
-            if (isTextSimple)
-            {
-                //const auto shift = gsl::narrow_cast<u8>(row.lineRendition != LineRendition::SingleWidth);
-                const auto colors = _p.foregroundBitmap.begin() + _p.colorBitmapRowStride * _api.lastPaintBufferLineCoord.y;
-
-                for (size_t j = 0; j < complexityLength; ++j)
-                {
-                    //const size_t col1 = x + i;
-                    const auto glyphAdvance = 1 * _p.s->font->cellSize.x;
-                    //const auto fg = colors[col1 << shift];
-					if (row.glyphIndices.size() >= point.x + i + 1)
-					{
-                        row.glyphIndices[point.x + i] = _api.glyphIndices[j];
-                        row.glyphAdvances[point.x + i] = (static_cast<f32>(glyphAdvance));
-                        row.glyphOffsets.emplace_back();
-                        row.colors[point.x + i] = fg;
-					}
-                }
-            }
-            else
-            {
-                _mapComplex(mappedFontFace.get(), point.x + i, complexityLength, row);
-            }
-            //}
-        }
-        else
-        {
-            _mapComplex(mappedFontFace.get(), point.x + i, mappedLength, row);
-        }
-    }
-    return S_OK;
-}
-CATCH_RETURN()
-
 [[nodiscard]] HRESULT AtlasEngine::PaintSelections(const std::vector<til::rect>& rects) noexcept
 try
 {
@@ -542,41 +463,6 @@ try
         const auto fg = &_p.foregroundBitmap[_p.colorBitmapRowStride * y];
         std::fill(bg + from, bg + to, 0xff3296ff);
         std::fill(fg + from, fg + to, 0xff000000);
-    }
-
-    for (int i = 0; i < 2; ++i)
-    {
-        _p.colorBitmapGenerations[i].bump();
-    }
-
-    return S_OK;
-}
-CATCH_RETURN()
-
-[[nodiscard]] HRESULT AtlasEngine::PaintQuickSelectSelections(const std::vector<til::rect>& rects) noexcept
-try
-{
-    _flushBufferLine();
-    if (rects.empty())
-    {
-        return S_OK;
-    }
-
-    for (const auto& rect : rects)
-    {
-        const auto y = gsl::narrow_cast<u16>(clamp<til::CoordType>(rect.top, 0, _p.s->viewportCellCount.y));
-        const auto from = gsl::narrow_cast<u16>(clamp<til::CoordType>(rect.left, 0, _p.s->viewportCellCount.x - 1));
-        const auto to = gsl::narrow_cast<u16>(clamp<til::CoordType>(rect.right, from, _p.s->viewportCellCount.x));
-
-        if (rect.bottom <= 0 || rect.top >= _p.s->viewportCellCount.y)
-        {
-            continue;
-        }
-
-        const auto bg = &_p.backgroundBitmap[_p.colorBitmapRowStride * y];
-        const auto fg = &_p.foregroundBitmap[_p.colorBitmapRowStride * y];
-        std::fill(bg + from, bg + to, 0x00000000);
-        std::fill(fg + from, fg + to, 0x80000000);
     }
 
     for (int i = 0; i < 2; ++i)

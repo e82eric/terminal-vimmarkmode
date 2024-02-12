@@ -391,17 +391,7 @@ void UiaEngine::WaitUntilCanRender() noexcept
     return S_FALSE;
 }
 
-[[nodiscard]] HRESULT UiaEngine::PatchLine(til::point /*point*/, std::vector<wchar_t> /*cluster*/, COLORREF /*fgColorRef*/) noexcept
-{
-    return S_FALSE;
-}
-
 [[nodiscard]] HRESULT UiaEngine::PaintSelections(const std::vector<til::rect>& /*rect*/) noexcept
-{
-    return S_FALSE;
-}
-
-[[nodiscard]] HRESULT UiaEngine::PaintQuickSelectSelections(const std::vector<til::rect>& /*rect*/) noexcept
 {
     return S_FALSE;
 }

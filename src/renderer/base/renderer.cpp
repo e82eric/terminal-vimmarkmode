@@ -162,7 +162,6 @@ try
 
     // 4. Paint Selection
     _PaintSelection(pEngine);
-    _PaintQuickSelect(pEngine);
 
     // 5. Paint Cursor
     _PaintCursor(pEngine);
@@ -711,6 +710,8 @@ void Renderer::_PaintBufferOutput(_In_ IRenderEngine* const pEngine)
         LOG_IF_FAILED(pEngine->ResetLineTransform());
     });
 
+    auto quickSelectState = _pData->GetQuickSelectState();
+
     for (const auto& dirtyRect : dirtyAreas)
     {
         if (!dirtyRect)
@@ -764,8 +765,13 @@ void Renderer::_PaintBufferOutput(_In_ IRenderEngine* const pEngine)
             // Prepare the appropriate line transform for the current row and viewport offset.
             LOG_IF_FAILED(pEngine->PrepareLineTransform(lineRendition, screenPosition.y, view.Left()));
 
-            // Ask the helper to paint through this specific line.
-            _PaintBufferOutputHelper(pEngine, it, screenPosition, lineWrapped);
+            auto smIt = quickSelectState.selectionMap.find(row);
+            _PaintBufferOutputHelper(
+                pEngine,
+                it,
+                screenPosition,
+                lineWrapped,
+                smIt != quickSelectState.selectionMap.end() ? smIt->second : decltype(smIt->second)());
         }
     }
 }
@@ -779,7 +785,8 @@ static bool _IsAllSpaces(const std::wstring_view v)
 void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                                         TextBufferCellIterator it,
                                         const til::point target,
-                                        const bool lineWrapped)
+                                        const bool lineWrapped,
+                                        std::vector<QuickSelectSelection> highlights)
 {
     auto globalInvert{ _renderSettings.GetRenderMode(RenderSettings::Mode::ScreenReversed) };
 
@@ -840,14 +847,41 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
             // This inner loop will accumulate clusters until the color changes.
             // When the color changes, it will save the new color off and break.
             // We also accumulate clusters according to regex patterns
+            std::wstring charOverrides;
             do
             {
                 auto origAttr = it->TextAttr();
                 if (_pData->InQuickSelectMode())
                 {
+                    bool isHighlight = false;
+                    QuickSelectSelection overlay;
+                    auto tx = screenPoint.x + cols;
+                    for (auto highlight : highlights)
+                    {
+                        if (tx >= highlight.selection.Left() && tx <= highlight.selection.RightInclusive())
+                        {
+                            overlay = highlight;
+                            isHighlight = true;
+                            break;
+                        }
+                    }
+
+                    //Override all formating to make it easier to see whats selectable and not
                     origAttr.SetDefaultForeground();
-                    origAttr.SetDefaultBackground();
+                    if (isHighlight)
+                    {
+                        origAttr.SetBackground(0xff000000);
+                        auto overlayOffset = screenPoint.x + cols - overlay.selection.Left();
+                        if (overlayOffset < overlay.chars.size())
+                        {
+                            auto ch = overlay.chars[overlayOffset];
+                            COLORREF colorref = ch.isMatch ? 0xFF0028FF : 0xFF00A5FF;
+                            origAttr.SetForeground(colorref);
+                            charOverrides += ch.val;
+                        }
+                    }
                 }
+
                 til::point thisPoint{ screenPoint.x + cols, screenPoint.y };
                 const auto thisPointPatterns = _pData->GetPatternId(thisPoint);
                 const auto thisUsingSoftFont = s_IsSoftFontChar(it->Chars(), _firstSoftFontChar, _lastSoftFontChar);
@@ -888,7 +922,9 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                 }
 
                 // Advance the cluster and column counts.
-                _clusterBuffer.emplace_back(it->Chars(), columnCount);
+                auto clusterChars = charOverrides.size() > 0 ? std::wstring_view{ charOverrides.data() + cols, 1 } : it->Chars();
+                _clusterBuffer.emplace_back(clusterChars, columnCount);
+
                 it += std::max(it->Columns(), 1); // prevent infinite loop for no visible columns
                 cols += columnCount;
 
@@ -1182,7 +1218,7 @@ void Renderer::_PaintOverlay(IRenderEngine& engine,
 
                     auto it = overlay.buffer.GetCellLineDataAt(source);
 
-                    _PaintBufferOutputHelper(&engine, it, target, false);
+                    _PaintBufferOutputHelper(&engine, it, target, false, {});
                 }
             }
         }
@@ -1263,51 +1299,6 @@ void Renderer::_PaintSelection(_In_ IRenderEngine* const pEngine)
             if (!dirtySearchRectangles.empty())
             {
                 LOG_IF_FAILED(pEngine->PaintSelections(std::move(dirtySearchRectangles)));
-            }
-        }
-    }
-    CATCH_LOG();
-}
-
-void Renderer::_PaintQuickSelect(_In_ IRenderEngine* const pEngine)
-{
-    try
-    {
-        if (_pData->InQuickSelectMode())
-        {
-            LOG_IF_FAILED(pEngine->PaintSelections({}));
-
-            std::span<const til::rect> dirtyAreas;
-            LOG_IF_FAILED(pEngine->GetDirtyArea(dirtyAreas));
-
-            auto quickSelectState = _pData->GetQuickSelectState();
-            auto view = _pData->GetViewport();
-            const auto& buffer = _pData->GetTextBuffer();
-
-            std::vector<til::rect> dirtySearchRectanglesToPaint;
-
-            for (auto sr : quickSelectState.selections)
-            {
-                if (sr.isCurrentMatch)
-                {
-                    for (auto& dirtyRect : dirtyAreas)
-                    {
-                        const auto lineRendition = buffer.GetLineRendition(sr.selection.Top());
-                        auto rect = Viewport::FromInclusive(BufferToScreenLine(sr.selection.ToInclusive(), lineRendition));
-                        auto exclusive = view.ConvertToOrigin(rect).ToExclusive();
-                        if (const auto rectCopy = exclusive & dirtyRect)
-                        {
-                            LOG_IF_FAILED(pEngine->PatchLine(til::point{ exclusive.left + static_cast<int32_t>(sr.matchingChars.size()), exclusive.top }, std::move(sr.remainingChars), 0x00A5FF));
-                            LOG_IF_FAILED(pEngine->PatchLine(til::point{ exclusive.left, exclusive.top }, std::move(sr.matchingChars), 0x0028ff));
-                            dirtySearchRectanglesToPaint.emplace_back(exclusive); 
-                        }
-                    }
-                }
-            }
-
-            if (!dirtySearchRectanglesToPaint.empty())
-            {
-                LOG_IF_FAILED(pEngine->PaintQuickSelectSelections(std::move(dirtySearchRectanglesToPaint)));
             }
         }
     }

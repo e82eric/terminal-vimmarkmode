@@ -238,17 +238,7 @@ using namespace Microsoft::Console::Types;
     return S_OK;
 }
 
-[[nodiscard]] HRESULT VtEngine::PatchLine(til::point /*point*/, std::vector<wchar_t> /*cluster*/, COLORREF /*fgColorRef*/) noexcept
-{
-    return S_OK;
-}
-
 [[nodiscard]] HRESULT VtEngine::PaintSelections(const std::vector<til::rect>& /*rect*/) noexcept
-{
-    return S_OK;
-}
-
-[[nodiscard]] HRESULT VtEngine::PaintQuickSelectSelections(const std::vector<til::rect>& /*rect*/) noexcept
 {
     return S_OK;
 }

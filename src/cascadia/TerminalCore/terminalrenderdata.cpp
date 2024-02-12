@@ -190,6 +190,11 @@ Microsoft::Console::Render::QuickSelectState Terminal::GetQuickSelectState() noe
 try
 {
     auto result = QuickSelectState{};
+    if (!InQuickSelectMode())
+    {
+        return result;
+    }
+
     auto selections = _GetSearchSelectionRects(_GetVisibleViewport());
 
     int columns = 1;
@@ -200,6 +205,7 @@ try
 
     std::vector<int> indices(columns, 0);
 
+    til::CoordType lastY = -1;
     std::vector<til::rect> dirtySearchRectanglesToPaint;
     for (auto& sr : selections)
     {
@@ -210,6 +216,8 @@ try
         for (int i = 0; i < indices.size(); i++)
         {
             auto idx = indices[i];
+            auto ch = QuickSelectChar{};
+            ch.val = _quickSelectAlphabet[idx];
             if (i < _quickSelectChars.size())
             {
                 if (_quickSelectAlphabet[idx] != _quickSelectChars[i])
@@ -219,15 +227,16 @@ try
                     break;
                 }
 
-                toAdd.matchingChars.emplace_back(_quickSelectAlphabet[idx]);
+                ch.isMatch = true;
             }
             else
             {
-                toAdd.remainingChars.emplace_back(_quickSelectAlphabet[idx]);
+                ch.isMatch = false;
             }
+            toAdd.chars.emplace_back(ch);
         }
 
-        if ((_quickSelectChars.size() == 0 || toAdd.matchingChars.size() == _quickSelectChars.size()) &&
+        if ((_quickSelectChars.size() == 0 || toAdd.chars.size() >= _quickSelectChars.size()) &&
             (sr.right - sr.left > columns - 1) &&
             allMatching)
         {
@@ -255,7 +264,17 @@ try
 
         if (toAdd.isCurrentMatch)
         {
-            result.selections.emplace_back(toAdd);
+            if (lastY == toAdd.selection.Top())
+            {
+                result.selectionMap.at(toAdd.selection.Top()).emplace_back(toAdd);
+            }
+            else
+            {
+                auto rowSelections = std::vector<QuickSelectSelection>{};
+                rowSelections.emplace_back(toAdd);
+                result.selectionMap.emplace(toAdd.selection.Top(), rowSelections);
+                lastY = toAdd.selection.Top();
+            }
         }
     }
     return result;

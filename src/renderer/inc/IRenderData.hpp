@@ -16,6 +16,7 @@ Author(s):
 
 #include "../../host/conimeinfo.h"
 #include "../../buffer/out/TextAttribute.hpp"
+#include <map>
 
 class Cursor;
 
@@ -35,18 +36,23 @@ namespace Microsoft::Console::Render
         // for painting purposes.
         const Microsoft::Console::Types::Viewport region;
     };
+    
+    struct QuickSelectChar
+    {
+        bool isMatch = false;
+        wchar_t val;
+    };
 
     struct QuickSelectSelection
     {
         bool isCurrentMatch;
-        std::vector<wchar_t> matchingChars;
-        std::vector<wchar_t> remainingChars;
+        std::vector<QuickSelectChar> chars;
         Microsoft::Console::Types::Viewport selection;
     };
 
     struct QuickSelectState
     {
-        std::vector<QuickSelectSelection> selections;
+        std::map<til::CoordType, std::vector<QuickSelectSelection>> selectionMap;
     };
 
     class IRenderData
