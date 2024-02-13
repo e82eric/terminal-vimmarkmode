@@ -380,7 +380,6 @@
         { "command": "openAbout" },
         { "command": "vimMode" },
         { "command": "fuzzyFind" },
-        { "command": "showRowNumbers" },
 
         // Tab Management
         // "command": "closeTab" is unbound by default.

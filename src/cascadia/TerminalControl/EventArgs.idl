@@ -113,6 +113,11 @@ namespace Microsoft.Terminal.Control
         String SearchString { get; };
     }
 
+    runtimeclass ToggleRowNumbersEventArgs
+    {
+        Boolean Enable { get; };
+    }
+
     runtimeclass CompletionsChangedEventArgs
     {
         String MenuJson { get; };

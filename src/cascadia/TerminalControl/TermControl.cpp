@@ -97,6 +97,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _revokers.VimTextChanged = _core.VimTextChanged(winrt::auto_revoke, { get_weak(), &TermControl::_VimTextChanged });
         _revokers.ExitVimMode = _core.ExitVimMode(winrt::auto_revoke, { get_weak(), &TermControl::_ExitVimMode });
         _revokers.ShowFuzzySearch = _core.ShowFuzzySearch(winrt::auto_revoke, { get_weak(), &TermControl::_ShowFuzzySearch });
+        _revokers.ToggleRowNumbers= _core.ToggleRowNumbers(winrt::auto_revoke, { get_weak(), &TermControl::_ToggleRowNumbers });
 
         // "Bubbled" events - ones we want to handle, by raising our own event.
         _revokers.CopyToClipboard = _core.CopyToClipboard(winrt::auto_revoke, { get_weak(), &TermControl::_bubbleCopyToClipboard });
@@ -464,20 +465,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void TermControl::ToggleRowNumbers()
-    {
-        if (_core.ShowRowNumbers())
-        {
-            _core.ShowRowNumbers(false);
-            NumberTextBox().Visibility(Visibility::Collapsed);
-        }
-        else
-        {
-            _core.ShowRowNumbers(true);
-            _showRowNumbers();
-        }
-    }
-
     void TermControl::SearchMatch(const bool goForward)
     {
         if (_IsClosing())
@@ -524,9 +511,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.Search(text, goForward, caseSensitive);
     }
 
-    void TermControl::RegexSearch(const winrt::hstring& text)
+    void TermControl::RegexSearch(const winrt::hstring& text, bool copy)
     {
-        _core.EnterQuickSelectMode(text);
+        _core.EnterQuickSelectMode(text, copy);
     }
 
     void TermControl::_FuzzySearch(const winrt::hstring& text, const bool /*goForward*/, const bool /*caseSensitive*/)
@@ -548,7 +535,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchResults.Clear();
         _fuzzySearchBox->Visibility(Visibility::Collapsed);
         _core.SelectRow(args.Row(), args.FirstPosition());
-        _updateRowNumbers();
     }
 
     void TermControl::FuzzySearch_SelectionChanged(Control::FuzzySearchBoxControl const& /*sender*/, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args)
@@ -600,7 +586,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchBox->Visibility(Visibility::Collapsed);
         this->Focus(FocusState::Programmatic);
         _core.CloseFuzzySearchNoSelection();
-        _updateRowNumbers();
     }
 
     winrt::fire_and_forget TermControl::UpdateControlSettings(IControlSettings settings)
@@ -2281,10 +2266,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _updateSelectionMarkers(nullptr, winrt::make<UpdateSelectionMarkersEventArgs>(false));
         }
-        if (NumberTextBox().Visibility() == Visibility::Visible)
-        {
-            _updateRowNumbers();
-        }
+
+        _updateRowNumbers();
     }
 
     // Method Description:
@@ -2349,6 +2332,22 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         FuzzySearchBox().SearchString(args.SearchString());
     }
 
+    winrt::fire_and_forget TermControl::_ToggleRowNumbers(const IInspectable& /*sender*/,
+                                                         const Control::ToggleRowNumbersEventArgs args)
+    {
+        co_await wil::resume_foreground(Dispatcher());
+
+        if (args.Enable())
+        {
+            _showRowNumbers();
+        }
+        else
+        {
+            NumberTextBox().Visibility(Visibility::Collapsed);
+            NumberBorder().Visibility(Visibility::Collapsed);
+        }
+    }
+
     void TermControl::_showRowNumbers()
     {
         auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
@@ -2359,6 +2358,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         NumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
         NumberTextBox().LineHeight(directXHeight);
         NumberTextBox().Visibility(Visibility::Visible);
+        NumberBorder().Visibility(Visibility::Visible);
         auto cellHeight = _core.Settings().CellHeight();
         auto margins = Thickness{};
         margins.Top = SwapChainPanel().Margin().Top;
@@ -2376,7 +2376,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await wil::resume_foreground(Dispatcher());
 
         VimModeTextBox().Text(L"Shell");
-        _updateRowNumbers();
             
         auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
         hideTimer.Interval(std::chrono::milliseconds(400));

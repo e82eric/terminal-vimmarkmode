@@ -197,7 +197,7 @@ namespace winrt::TerminalApp::implementation
             if (const auto activeTab{ _senderOrFocusedTab(sender) })
             {
                 _SetFocusedTab(*activeTab);
-                _QuickSelect(*activeTab, realArgs.Input());
+                _QuickSelect(*activeTab, realArgs.Input(), realArgs.ShouldCopy());
             }
             args.Handled(true);
         }
@@ -1302,16 +1302,6 @@ namespace winrt::TerminalApp::implementation
         if (const auto& control{ _senderOrActiveControl(sender) })
         {
             control.EnterVimMode();
-            args.Handled(true);
-        }
-    }
-
-    void TerminalPage::_HandleShowRowNumbers(const IInspectable& sender,
-                                      const ActionEventArgs& args)
-    {
-        if (const auto& control{ _senderOrActiveControl(sender) })
-        {
-            control.ToggleRowNumbers();
             args.Handled(true);
         }
     }

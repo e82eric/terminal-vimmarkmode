@@ -127,7 +127,7 @@ public:
 
     std::wstring_view CurrentCommand() const;
     void QuickSelectBackspace();
-    bool QuickSelectHandleChar(wchar_t ch);
+    std::tuple<bool, Microsoft::Console::Types::Viewport> QuickSelectHandleChar(wchar_t ch);
     void EnterQuickSelectMode();
     bool InQuickSelectMode() override;
 

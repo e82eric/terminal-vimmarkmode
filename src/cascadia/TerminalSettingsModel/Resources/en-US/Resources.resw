@@ -600,10 +600,6 @@
     <value>Toggle vim mode</value>
     <comment>A command that will toggle "vim mode".</comment>
   </data>
-  <data name="ShowRowNumbersKey" xml:space="preserve">
-    <value>Toggle Row Numbers</value>
-    <comment>A command that will toggle relative row numbers to be shown of the left.</comment>
-  </data>
   <data name="ToggleBlockSelectionCommandKey" xml:space="preserve">
     <value>Toggle block selection</value>
   </data>

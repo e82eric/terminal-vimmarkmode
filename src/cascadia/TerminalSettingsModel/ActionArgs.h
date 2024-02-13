@@ -138,7 +138,8 @@ private:                                                                    \
 
 ////////////////////////////////////////////////////////////////////////////////
 #define QUICK_SELECT_ARGS(X) \
-    X(winrt::hstring, Input, "input", args->Input().empty(), L"")
+    X(winrt::hstring, Input, "input", args->Input().empty(), L"") \
+    X(bool, ShouldCopy, "shouldCopy", false, false)
 
 ////////////////////////////////////////////////////////////////////////////////
 #define OPEN_SETTINGS_ARGS(X) \
@@ -864,4 +865,5 @@ namespace winrt::Microsoft::Terminal::Settings::Model::factory_implementation
     BASIC_FACTORY(SuggestionsArgs);
     BASIC_FACTORY(SelectCommandArgs);
     BASIC_FACTORY(SelectOutputArgs);
+    BASIC_FACTORY(QuickSelectArgs);
 }

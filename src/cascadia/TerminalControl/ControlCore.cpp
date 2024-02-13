@@ -681,6 +681,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _updateSelectionUI();
         _renderer->TriggerSelection();
         _ExitVimModeHandlers(*this, winrt::make<implementation::ExitVimModeEventArgs>(false));
+        if (_showRowNumbers)
+        {
+            _ToggleRowNumbersHandlers(*this, winrt::make<implementation::ToggleRowNumbersEventArgs>(false));
+        }
         auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
     }
 
@@ -1111,7 +1115,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else if (vkey == L' ')
         {
-            _leaderSequence = true;
+            if (_leaderSequence)
+            {
+                auto args = winrt::make<implementation::ToggleRowNumbersEventArgs>(true);
+                _showRowNumbers = true;
+                _ToggleRowNumbersHandlers(*this, args);
+            }
+            else
+            {
+                _leaderSequence = true;
+            }
         }
         // * #
         else if ((vkey == 0x38 && mods.IsShiftPressed()) || (vkey == 0x33 && mods.IsShiftPressed()))
@@ -1557,20 +1570,35 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             keyboardState[VK_SHIFT] = 0x80;
             ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, vkeyText, 2, 0);
 
-            auto shouldExit = _terminal->QuickSelectHandleChar(vkeyText[0]);
+            auto quickSelectResult = _terminal->QuickSelectHandleChar(vkeyText[0]);
+            auto vp = std::get<1>(quickSelectResult);
+            auto shouldExit = std::get<0>(quickSelectResult);
 
             if (shouldExit)
             {
-                std::thread hideTimerThread([this]() {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(250));
-                    {
-                        auto lock = _terminal->LockForWriting();
-                        _terminal->ExitQuickSelectMode();
-                        LOG_IF_FAILED(_renderEngine->InvalidateAll());
-                        _renderer->NotifyPaintFrame();
-                    }
-                });
-                hideTimerThread.detach();
+                if (!_quickSelectCopy)
+                {
+                    _terminal->ExitQuickSelectMode();
+                    EnterVimMode2();
+                    _terminal->SelectChar(til::point{ vp.Left(), vp.Top() });
+                }
+                else
+                {
+                    const auto req = TextBuffer::CopyRequest::FromConfig(_terminal->GetTextBuffer(), til::point{ vp.Left(), vp.Top() }, til::point{ vp.RightInclusive(), vp.Top() }, true, false, false);
+                    auto text = _terminal->GetTextBuffer().GetPlainText(req);
+                    _terminal->CopyToClipboard(text);
+
+                    std::thread hideTimerThread([this]() {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                        {
+                            auto lock = _terminal->LockForWriting();
+                            _terminal->ExitQuickSelectMode();
+                            LOG_IF_FAILED(_renderEngine->InvalidateAll());
+                            _renderer->NotifyPaintFrame();
+                        }
+                    });
+                    hideTimerThread.detach();
+                }
             }
             LOG_IF_FAILED(_renderEngine->InvalidateAll());
             _renderer->NotifyPaintFrame();
@@ -2305,7 +2333,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         if (!IsInVimMode())
         {
-            EnterVimMode();
+            auto lock = _terminal->LockForReading();
+            EnterVimMode2();
         }
         _fuzzySearchActive = true;
         _sizeFuzzySearchPreview();
@@ -2473,11 +2502,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return false;
     }
 
-    void ControlCore::EnterVimMode()
+    void ControlCore::_enterVimMode()
     {
         _vimMode = VimMode::normal;
         _resetVimModeForSizeChange(true);
+    }
+
+    void ControlCore::EnterVimMode2()
+    {
+        _enterVimMode();
         _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }, winrt::hstring{ L"Normal" }));
+    }
+
+    void ControlCore::EnterVimMode()
+    {
+        auto lock = _terminal->LockForReading();
+        _enterVimMode();
+        TryVimModeKeyBinding(0xBF, ControlKeyStates{VirtualKeyModifiers::Shift});
     }
 
     bool ControlCore::IsInVimMode()
@@ -2890,13 +2931,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _FoundMatchHandlers(*this, *foundResults);
     }
 
-    void ControlCore::EnterQuickSelectMode(const winrt::hstring& text)
+    void ControlCore::EnterQuickSelectMode(const winrt::hstring& text, bool copy)
     {
         const auto lock = _terminal->LockForWriting();
         _terminal->EnterQuickSelectMode();
         _searcher.QuickSelectRegex(*GetRenderData(), text, true);
         _searcher.HighlightResults();
         _renderer->TriggerSelection();
+        _quickSelectCopy = copy;
     }
 
     Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
@@ -3101,11 +3143,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     bool ControlCore::ShowRowNumbers()
     {
         return _showRowNumbers;
-    }
-
-    void ControlCore::ShowRowNumbers(bool value)
-    {
-        _showRowNumbers = value;
     }
 
     Windows::Foundation::Collections::IVector<int32_t> ControlCore::SearchResultRows()

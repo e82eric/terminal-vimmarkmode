@@ -1582,7 +1582,7 @@ void Terminal::QuickSelectBackspace()
     }
 }
 
-bool Terminal::QuickSelectHandleChar(wchar_t ch)
+std::tuple<bool, Microsoft::Console::Types::Viewport> Terminal::QuickSelectHandleChar(wchar_t ch)
 {
     auto selections = GetSearchSelectionRects();
     int columns = 1;
@@ -1606,12 +1606,10 @@ bool Terminal::QuickSelectHandleChar(wchar_t ch)
 
         auto rect = selections[selectionIndex];
         auto selections = std::vector<til::inclusive_rect>{ til::inclusive_rect{ rect.ToInclusive() } };
-        const auto req = TextBuffer::CopyRequest::FromConfig(GetTextBuffer(), til::point{ rect.Left(), rect.Top() }, til::point{ rect.RightInclusive(), rect.Top() }, true, false, false);
-        auto text = GetTextBuffer().GetPlainText(req);
-        CopyToClipboard(text);
-        return true;
+
+        return std::make_tuple(true, rect);
     }
-    return false;
+    return std::make_tuple(false, Microsoft::Console::Types::Viewport{});
 }
 
 void Terminal::EnterQuickSelectMode()

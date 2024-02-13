@@ -1265,8 +1265,6 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Column="0" x:Name="NumberTextBox" Visibility="Collapsed" FontWeight="Normal" />
-
             <Grid Grid.Column="1"
                   Background="Transparent"
                   PointerExited="_PointerExitedHandler"
@@ -1275,6 +1273,7 @@
                   PointerReleased="_PointerReleasedHandler"
                   Visibility="Visible">
 
+                
                 <SwapChainPanel x:Name="SwapChainPanel"
                                 CompositionScaleChanged="_SwapChainScaleChanged"
                                 SizeChanged="_SwapChainSizeChanged">
@@ -1319,6 +1318,9 @@
                                         Search="_Search"
                                         SearchChanged="_SearchChanged"
                                         Visibility="Collapsed" />
+                <Border Background="#282828" x:Name="NumberBorder" Visibility="Collapsed" Width="50" HorizontalAlignment="Left">
+                    <TextBlock x:Name="NumberTextBox" Visibility="Collapsed" FontWeight="Normal" />
+                </Border>
 
             </Grid>
 
