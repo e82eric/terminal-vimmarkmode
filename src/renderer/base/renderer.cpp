@@ -385,8 +385,6 @@ void Renderer::TriggerSelection()
             LOG_IF_FAILED(pEngine->InvalidateSelection(_previousSelection));
             LOG_IF_FAILED(pEngine->InvalidateSelection(searchSelections));
             LOG_IF_FAILED(pEngine->InvalidateSelection(yankSelections));
-            LOG_IF_FAILED(pEngine->InvalidateSelection(_previousSelection));
-            LOG_IF_FAILED(pEngine->InvalidateSelection(searchSelections));
             LOG_IF_FAILED(pEngine->InvalidateSelection(rects));
         }
 

@@ -1534,6 +1534,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         _renderer->TriggerSelection();
+        _renderer->NotifyPaintFrame();
         _updateSelectionUI();
 
         return true;
@@ -1581,6 +1582,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     _terminal->ExitQuickSelectMode();
                     EnterVimMode2();
                     _terminal->SelectChar(til::point{ vp.Left(), vp.Top() });
+                    _renderer->TriggerSelection();
                 }
                 else
                 {
@@ -1600,7 +1602,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     hideTimerThread.detach();
                 }
             }
-            LOG_IF_FAILED(_renderEngine->InvalidateAll());
+            _renderer->TriggerRedrawAll();
             _renderer->NotifyPaintFrame();
 
             return true;
