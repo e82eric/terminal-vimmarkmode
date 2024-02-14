@@ -2495,9 +2495,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.ToggleMarkMode();
     }
 
-    void TermControl::EnterVimMode()
+    void TermControl::EnterVimModeWithSearch()
     {
-        _core.EnterVimMode();
+        _core.EnterVimModeWithSearch();
     }
 
     bool TermControl::SwitchSelectionEndpoint()

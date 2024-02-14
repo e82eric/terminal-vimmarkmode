@@ -208,8 +208,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SelectAll();
         void ClearSelection();
         bool ToggleBlockSelection();
+        void EnterVimModeWithSearch();
         void EnterVimMode();
-        void EnterVimMode2();
         bool IsInVimMode();
         void ToggleMarkMode();
         Control::SelectionInteractionMode SelectionMode() const;

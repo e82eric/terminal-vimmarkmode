@@ -46,7 +46,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SelectAll();
         bool ToggleBlockSelection();
         void ToggleMarkMode();
-        void EnterVimMode();
+        void EnterVimModeWithSearch();
         bool SwitchSelectionEndpoint();
         bool ExpandSelectionToWord();
         void Close();

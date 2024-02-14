@@ -1301,7 +1301,7 @@ namespace winrt::TerminalApp::implementation
     {
         if (const auto& control{ _senderOrActiveControl(sender) })
         {
-            control.EnterVimMode();
+            control.EnterVimModeWithSearch();
             args.Handled(true);
         }
     }

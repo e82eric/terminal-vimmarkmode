@@ -84,7 +84,7 @@ namespace Microsoft.Terminal.Control
         void ApplyAppearance(Boolean focused);
 
         void ResetVimModeForSizeChange();
-        void EnterVimMode();
+        void EnterVimModeWithSearch();
         Boolean IsInVimMode();
         void EnterMarkMode();
         void EnterFuzzySearchMode();

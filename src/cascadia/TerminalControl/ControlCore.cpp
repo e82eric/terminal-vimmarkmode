@@ -1580,7 +1580,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 if (!_quickSelectCopy)
                 {
                     _terminal->ExitQuickSelectMode();
-                    EnterVimMode2();
+                    EnterVimMode();
                     _terminal->SelectChar(til::point{ vp.Left(), vp.Top() });
                     _renderer->TriggerSelection();
                 }
@@ -2336,7 +2336,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (!IsInVimMode())
         {
             auto lock = _terminal->LockForReading();
-            EnterVimMode2();
+            EnterVimMode();
         }
         _fuzzySearchActive = true;
         _sizeFuzzySearchPreview();
@@ -2510,13 +2510,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _resetVimModeForSizeChange(true);
     }
 
-    void ControlCore::EnterVimMode2()
+    void ControlCore::EnterVimMode()
     {
         _enterVimMode();
         _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }, winrt::hstring{ L"Normal" }));
     }
 
-    void ControlCore::EnterVimMode()
+    void ControlCore::EnterVimModeWithSearch()
     {
         auto lock = _terminal->LockForReading();
         _enterVimMode();

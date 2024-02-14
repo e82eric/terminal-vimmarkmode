@@ -85,7 +85,7 @@ namespace Microsoft.Terminal.Control
         void SelectAll();
         Boolean ToggleBlockSelection();
         void ToggleMarkMode();
-        void EnterVimMode();
+        void EnterVimModeWithSearch();
         Boolean SwitchSelectionEndpoint();
         Boolean ExpandSelectionToWord();
         void ClearBuffer(ClearBufferType clearType);
