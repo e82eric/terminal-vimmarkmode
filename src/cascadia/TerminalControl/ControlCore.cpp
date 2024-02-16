@@ -893,6 +893,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _resetVimState();
             EnterQuickSelectMode(L"[\\w\\d\\S]+", action == VimActionType::enterQuickCopyMode);
             break;
+        case VimActionType::toggleRowNumbersOn:
+        {
+            auto args = winrt::make<implementation::ToggleRowNumbersEventArgs>(true);
+            _showRowNumbers = true;
+            _ToggleRowNumbersHandlers(*this, args);
+            break;
+        }
+        case VimActionType::toggleRowNumbersOff:
+        {
+            auto args = winrt::make<implementation::ToggleRowNumbersEventArgs>(false);
+            _showRowNumbers = false;
+            _ToggleRowNumbersHandlers(*this, args);
+            break;
+        }
         case VimActionType::scroll:
             _vimScrollScreenPosition(_textObject);
             break;
@@ -1035,7 +1049,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             int times;
             timesStringStream >> times;
         }
-
+        else if (vkey == VK_ESCAPE && _showRowNumbers)
+        {
+            _action = VimActionType::toggleRowNumbersOff;
+            sequenceCompleted = true;
+        }
         else if (_vimMode == VimMode::visualLine)
         {
             _textObject = VimTextObjectType::entireLine;
@@ -1122,9 +1140,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (_leaderSequence)
             {
-                auto args = winrt::make<implementation::ToggleRowNumbersEventArgs>(true);
-                _showRowNumbers = true;
-                _ToggleRowNumbersHandlers(*this, args);
+                _action = VimActionType::toggleRowNumbersOn;
+                sequenceCompleted = true;
             }
             else
             {
