@@ -888,6 +888,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         switch (action)
         {
+        case VimActionType::enterQuickCopyMode:
+        case VimActionType::enterQuickSelectMode:
+            _resetVimState();
+            EnterQuickSelectMode(L"[\\w\\d\\S]+", action == VimActionType::enterQuickCopyMode);
+            break;
         case VimActionType::scroll:
             _vimScrollScreenPosition(_textObject);
             break;
@@ -1354,7 +1359,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else if (vkey == L'W')
         {
-            if (_amount == VimTextAmount::in)
+            if (_leaderSequence)
+            {
+                _action = mods.IsShiftPressed() ? VimActionType::enterQuickCopyMode : VimActionType::enterQuickSelectMode;
+                sequenceCompleted = true;
+            }
+            else if (_amount == VimTextAmount::in)
             {
                 _textObject = mods.IsShiftPressed() ? VimTextObjectType::inLargeWord : VimTextObjectType::inWord;
             }

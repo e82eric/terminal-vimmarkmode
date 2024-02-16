@@ -92,7 +92,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             toggleVisualOn = 3,
             fuzzyFind = 4,
             exit = 5,
-            scroll = 6
+            scroll = 6,
+            enterQuickSelectMode,
+            enterQuickCopyMode
         };
 
         enum class VimTextObjectType : int32_t
