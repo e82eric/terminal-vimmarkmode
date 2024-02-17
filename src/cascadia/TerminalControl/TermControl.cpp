@@ -2350,22 +2350,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::_showRowNumbers()
     {
-        auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
-        auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
-        auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName());
-        NumberTextBox().FontFamily(fontFamily);
-        NumberTextBox().FontSize(_core.Settings().FontSize() * 1.2);
-        NumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
-        NumberTextBox().LineHeight(directXHeight);
         NumberTextBox().Visibility(Visibility::Visible);
         NumberBorder().Visibility(Visibility::Visible);
-        auto cellHeight = _core.Settings().CellHeight();
-        auto margins = Thickness{};
-        margins.Top = SwapChainPanel().Margin().Top;
-        margins.Left = SwapChainPanel().Margin().Left;
-        margins.Right = 5;
-        margins.Bottom = SwapChainPanel().Margin().Bottom;
-        NumberTextBox().Margin(margins);
         _updateRowNumbers();
     }
 
@@ -2405,7 +2391,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::wstring numStr;
             auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
 
-            for (int i = 0; i <= viewHeight; ++i)
+            for (int i = 0; i < viewHeight; ++i)
             {
                 if (i == cursorViewportRow)
                 {
@@ -3661,7 +3647,43 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
         }
 
+        auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
+        auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
+        auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.FontFaceName());
+        auto fontSize = _core.Settings().FontSize() * 1.2;
+
         _fuzzySearchBox->SetFontSize(til::size{ args.Width(), args.Height() });
+        _setVimBarFontSize(directXHeight, fontSize, fontFamily);
+        _setRowNumberFontSize(directXHeight, fontSize, fontFamily);
+    }
+
+    void TermControl::_setVimBarFontSize(double lineHeight, double fontSize, Windows::UI::Xaml::Media::FontFamily fontFamily)
+    {
+        VimModeTextBox().FontFamily(fontFamily);
+        VimModeTextBox().FontSize(fontSize);
+        VimModeTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
+        VimModeTextBox().LineHeight(lineHeight);
+        VimSearchStringTextBox().FontSize(fontSize);
+        VimSearchStringTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
+        VimSearchStringTextBox().LineHeight(lineHeight);
+        VimTextBox().FontSize(fontSize);
+        VimTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
+        VimTextBox().LineHeight(lineHeight);
+    }
+
+    void TermControl::_setRowNumberFontSize(double lineHeight, double fontSize, Windows::UI::Xaml::Media::FontFamily fontFamily)
+    {
+        NumberTextBox().FontFamily(fontFamily);
+        NumberTextBox().FontSize(fontSize);
+        NumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
+        NumberTextBox().LineHeight(lineHeight);
+        auto cellHeight = _core.Settings().CellHeight();
+        auto margins = Thickness{};
+        margins.Top = SwapChainPanel().Margin().Top;
+        margins.Left = SwapChainPanel().Margin().Left;
+        margins.Right = 5;
+        margins.Bottom = SwapChainPanel().Margin().Bottom;
+        NumberTextBox().Margin(margins);
     }
 
     void TermControl::_coreRaisedNotice(const IInspectable& /*sender*/,

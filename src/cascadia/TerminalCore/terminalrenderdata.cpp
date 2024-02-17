@@ -237,7 +237,7 @@ try
         }
 
         if ((_quickSelectChars.size() == 0 || toAdd.chars.size() >= _quickSelectChars.size()) &&
-            (sr.right - sr.left > columns - 1) &&
+            (sr.right - sr.left > columns - 2) &&
             allMatching)
         {
             toAdd.isCurrentMatch = true;

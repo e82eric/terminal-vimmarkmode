@@ -1318,8 +1318,8 @@
                                         Search="_Search"
                                         SearchChanged="_SearchChanged"
                                         Visibility="Collapsed" />
-                <Border Background="#282828" x:Name="NumberBorder" Visibility="Collapsed" Width="50" HorizontalAlignment="Left">
-                    <TextBlock x:Name="NumberTextBox" Visibility="Collapsed" FontWeight="Normal" />
+                <Border Background="#282828" x:Name="NumberBorder" Visibility="Collapsed" HorizontalAlignment="Left">
+                    <TextBlock x:Name="NumberTextBox" Visibility="Collapsed" FontWeight="Normal"  Foreground="#bdae93"/>
                 </Border>
 
             </Grid>
@@ -1394,7 +1394,7 @@
                                      ItemsSource="{x:Bind FuzzySearchResults}"/>
 
         <StackPanel Grid.Row="2" Grid.Column="1">
-            <Border Background="Black" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">
+            <Border Background="#3c3836" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="auto" />
@@ -1402,9 +1402,9 @@
                     <ColumnDefinition Width="auto" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Text="Shell" x:Name="VimModeTextBox" Grid.Column="0" HorizontalAlignment="Left" Margin="0,0,10,0"/>
-                <TextBlock Text="" x:Name="VimSearchStringTextBox" Grid.Column="1" HorizontalAlignment="Left"/>
-                <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="2" HorizontalAlignment="Right"/>
+                    <TextBlock Text="Shell" x:Name="VimModeTextBox" Grid.Column="0" HorizontalAlignment="Left" Margin="0,0,10,0" Foreground="#ebdbb2" FontWeight="ExtraBold"/>
+                    <TextBlock Text="" x:Name="VimSearchStringTextBox" Grid.Column="1" HorizontalAlignment="Left" Foreground="#458588" FontWeight="ExtraBold"/>
+                    <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="2" HorizontalAlignment="Right" Foreground="#458588" FontWeight="ExtraBold"/>
             </Grid>
         </Border>
         </StackPanel>
