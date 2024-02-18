@@ -1582,11 +1582,18 @@ void Terminal::QuickSelectBackspace()
     }
 }
 
-std::tuple<bool, Microsoft::Console::Types::Viewport> Terminal::QuickSelectHandleChar(wchar_t ch)
+std::tuple<bool, til::point, til::point> Terminal::QuickSelectHandleChar(wchar_t ch)
 {
-    auto selections = GetSearchSelectionRects();
+    auto lowerIt = std::lower_bound(_searchSelections.begin(), _searchSelections.end(), _GetVisibleViewport().Top(), [](const til::inclusive_rect& rect, til::CoordType value) {
+        return rect.top < value;
+    });
+
+    auto upperIt = std::upper_bound(_searchSelections.begin(), _searchSelections.end(), _GetVisibleViewport().BottomExclusive(), [](til::CoordType value, const til::inclusive_rect& rect) {
+        return value < rect.top;
+    });
+
     int columns = 1;
-    while (std::pow(_quickSelectAlphabet.size(), columns) < selections.size())
+    while (std::pow(_quickSelectAlphabet.size(), columns) < std::distance(lowerIt, upperIt))
     {
         columns++;
     }
@@ -1604,12 +1611,17 @@ std::tuple<bool, Microsoft::Console::Types::Viewport> Terminal::QuickSelectHandl
             selectionIndex += index * static_cast<int16_t>(std::pow(_quickSelectAlphabet.size(), power--));
         }
 
-        auto rect = selections[selectionIndex];
-        auto selections = std::vector<til::inclusive_rect>{ til::inclusive_rect{ rect.ToInclusive() } };
+        if (selectionIndex < std::distance(lowerIt, upperIt))
+        {
+            auto selectedIt = lowerIt;
+            std::advance(selectedIt, selectionIndex);
+            auto rect = *selectedIt;
 
-        return std::make_tuple(true, rect);
+            return std::make_tuple(true, til::point{ rect.left, rect.top }, til::point{ rect.right, rect.bottom });
+        }
+        return std::make_tuple(true, til::point{}, til::point{});
     }
-    return std::make_tuple(false, Microsoft::Console::Types::Viewport{});
+    return std::make_tuple(false, til::point{}, til::point{});
 }
 
 void Terminal::EnterQuickSelectMode()

@@ -1599,7 +1599,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, vkeyText, 2, 0);
 
             auto quickSelectResult = _terminal->QuickSelectHandleChar(vkeyText[0]);
-            auto vp = std::get<1>(quickSelectResult);
+            auto startPoint = std::get<1>(quickSelectResult);
+            auto endPoint = std::get<2>(quickSelectResult);
             auto shouldExit = std::get<0>(quickSelectResult);
 
             if (shouldExit)
@@ -1608,12 +1609,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 {
                     _terminal->ExitQuickSelectMode();
                     EnterVimMode();
-                    _terminal->SelectChar(til::point{ vp.Left(), vp.Top() });
+                    _terminal->SelectChar(startPoint);
                     _renderer->TriggerSelection();
                 }
                 else
                 {
-                    const auto req = TextBuffer::CopyRequest::FromConfig(_terminal->GetTextBuffer(), til::point{ vp.Left(), vp.Top() }, til::point{ vp.RightInclusive(), vp.Top() }, true, false, false);
+                    const auto req = TextBuffer::CopyRequest::FromConfig(_terminal->GetTextBuffer(), startPoint, endPoint, true, false, false);
                     auto text = _terminal->GetTextBuffer().GetPlainText(req);
                     _terminal->CopyToClipboard(text);
 

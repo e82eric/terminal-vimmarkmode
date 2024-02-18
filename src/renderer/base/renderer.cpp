@@ -866,6 +866,7 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
 
                     //Override all formating to make it easier to see whats selectable and not
                     origAttr.SetDefaultForeground();
+                    origAttr.SetDefaultBackground();
                     if (isHighlight)
                     {
                         origAttr.SetBackground(0xff000000);
@@ -880,6 +881,8 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                     }
                 }
 
+                auto clusterChars = charOverrides.size() > 0 ? std::wstring_view{ charOverrides.data() + cols, 1 } : it->Chars();
+
                 til::point thisPoint{ screenPoint.x + cols, screenPoint.y };
                 const auto thisPointPatterns = _pData->GetPatternId(thisPoint);
                 const auto thisUsingSoftFont = s_IsSoftFontChar(it->Chars(), _firstSoftFontChar, _lastSoftFontChar);
@@ -889,7 +892,7 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                     auto newAttr{ origAttr };
                     // foreground doesn't matter for runs of spaces (!)
                     // if we trick it . . . we call Paint far fewer times for cmatrix
-                    if (!_IsAllSpaces(it->Chars()) || !newAttr.HasIdenticalVisualRepresentationForBlankSpace(color, globalInvert) || changedPatternOrFont)
+                    if (!_IsAllSpaces(clusterChars) || !newAttr.HasIdenticalVisualRepresentationForBlankSpace(color, globalInvert) || changedPatternOrFont)
                     {
                         color = newAttr;
                         patternIds = thisPointPatterns;
@@ -920,7 +923,6 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                 }
 
                 // Advance the cluster and column counts.
-                auto clusterChars = charOverrides.size() > 0 ? std::wstring_view{ charOverrides.data() + cols, 1 } : it->Chars();
                 _clusterBuffer.emplace_back(clusterChars, columnCount);
 
                 it += std::max(it->Columns(), 1); // prevent infinite loop for no visible columns

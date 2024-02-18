@@ -3275,24 +3275,12 @@ std::vector<til::point_span> TextBuffer::SearchTextRegex(const std::wstring_view
         return results;
     }
 
-    auto text = ICU::UTextFromTextBuffer(*this, rowBeg, rowEnd);
-
     uint32_t flags = 0;
     WI_SetFlagIf(flags, UREGEX_CASE_INSENSITIVE, caseInsensitive);
 
     UErrorCode status = U_ZERO_ERROR;
-    const auto re = ICU::CreateRegex(needle, flags, &status);
-    uregex_setUText(re.get(), &text, &status);
-
-    if (uregex_find(re.get(), -1, &status))
-    {
-        do
-        {
-            results.emplace_back(ICU::BufferRangeFromMatch(&text, re.get()));
-        } while (uregex_findNext(re.get(), &status));
-    }
-
-    return results;
+    const auto re  = ICU::SearchBuffer(needle, *this, flags, &status);
+    return re;
 }
 
 const std::vector<ScrollMark>& TextBuffer::GetMarks() const noexcept

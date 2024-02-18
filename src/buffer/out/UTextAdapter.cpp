@@ -289,6 +289,93 @@ Microsoft::Console::ICU::unique_uregex Microsoft::Console::ICU::CreateRegex(cons
     return unique_uregex{ re };
 }
 
+std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::wstring_view& pattern, const TextBuffer& textBuffer, uint32_t flags, UErrorCode* status) noexcept
+{
+    std::vector<til::point_span> results;
+    auto rowCount = textBuffer.GetLastNonSpaceCharacter().y + 1;
+
+    URegularExpression* regex = uregex_open(reinterpret_cast<const char16_t*>(pattern.data()), -1, flags, nullptr, status);
+    if (U_FAILURE(*status))
+    {
+        return results;
+    }
+
+    for (int32_t i = 0; i < rowCount; i++)
+    {
+        std::wstring accumulatedInput;
+        int32_t realI = i;
+        bool isWrap;
+        size_t lineLen;
+
+        do
+        {
+            lineLen = textBuffer.GetRowByOffset(i).GetText().size();
+            auto input = textBuffer.GetRowByOffset(i).GetText();
+            isWrap = textBuffer.GetRowByOffset(i).WasWrapForced();
+            accumulatedInput += input;
+
+            if (isWrap)
+            {
+                i++;
+            }
+        } while (isWrap && i < rowCount);
+
+        auto lastNonSpace = textBuffer.GetRowByOffset(i).GetLastNonSpaceColumn();
+        auto adjustedLen = lineLen * (i - realI) + lastNonSpace;
+
+        std::vector<UChar> ustr(adjustedLen + 1);
+        u_strFromWCS(ustr.data(), static_cast<int32_t>(ustr.size()), nullptr, reinterpret_cast<const wchar_t*>(accumulatedInput.data()), static_cast<int32_t>(adjustedLen), status);
+
+        if (U_FAILURE(*status))
+        {
+            uregex_close(regex);
+            return results;
+        }
+
+        uregex_setText(regex, ustr.data(), static_cast<int32_t>(ustr.size() - 1), status);
+        if (U_FAILURE(*status))
+        {
+            uregex_close(regex);
+            return results;
+        }
+
+        while (uregex_findNext(regex, status) && !U_FAILURE(*status))
+        {
+            int32_t icuStart = uregex_start(regex, 0, status);
+            int32_t icuEnd = uregex_end(regex, 0, status);
+            icuEnd--;
+
+            //Start of line is 0,0 and should be skipped
+            if (icuEnd >= 0)
+            {
+                auto adjustedStart = icuStart - 1 == adjustedLen ? icuStart - 1 : icuStart;
+                auto adjustedEnd = std::min(static_cast<int32_t>(adjustedLen), static_cast<int32_t>(icuEnd));
+
+                size_t startLine = (adjustedStart / lineLen) + realI;
+                size_t endLine = (adjustedEnd / lineLen) + realI;
+
+                if (startLine > realI)
+                {
+                    adjustedStart %= (startLine - realI) * lineLen;
+                }
+
+                if (endLine > realI)
+                {
+                    adjustedEnd %= ((endLine - realI) * lineLen);
+                }
+
+                auto ps = til::point_span{};
+                ps.start = til::point{ adjustedStart, static_cast<int32_t>(startLine) };
+                ps.end = til::point{ adjustedEnd, static_cast<int32_t>(endLine) };
+                results.emplace_back(ps);
+            }
+        }
+    }
+    uregex_close(regex);
+
+    return results;
+}
+
 // Returns an inclusive point range given a text start and end position.
 // This function is designed to be used with uregex_start64/uregex_end64.
 til::point_span Microsoft::Console::ICU::BufferRangeFromMatch(UText* ut, URegularExpression* re)
