@@ -289,10 +289,10 @@ Microsoft::Console::ICU::unique_uregex Microsoft::Console::ICU::CreateRegex(cons
     return unique_uregex{ re };
 }
 
-std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::wstring_view& pattern, const TextBuffer& textBuffer, uint32_t flags, UErrorCode* status) noexcept
+std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::wstring_view& pattern, const TextBuffer& textBuffer, const uint32_t flags, UErrorCode* status) noexcept
 {
     std::vector<til::point_span> results;
-    auto rowCount = textBuffer.GetLastNonSpaceCharacter().y + 1;
+    const auto rowCount = textBuffer.GetLastNonSpaceCharacter().y + 1;
 
     URegularExpression* regex = uregex_open(reinterpret_cast<const char16_t*>(pattern.data()), -1, flags, nullptr, status);
     if (U_FAILURE(*status))
@@ -300,19 +300,23 @@ std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::ws
         return results;
     }
 
+    const auto viewPortWidth = textBuffer.GetSize().Width();
+    std::vector<UChar> uStr(viewPortWidth + 1);
+    auto maxNumberOfLineWraps = 0;
+    std::wstring accumulatedInput;
+    accumulatedInput.reserve(viewPortWidth);
+
     for (int32_t i = 0; i < rowCount; i++)
     {
-        std::wstring accumulatedInput;
-        int32_t realI = i;
+        const int32_t realI = i;
         bool isWrap;
-        size_t lineLen;
+        accumulatedInput.clear();
 
         do
         {
-            lineLen = textBuffer.GetRowByOffset(i).GetText().size();
             auto input = textBuffer.GetRowByOffset(i).GetText();
             isWrap = textBuffer.GetRowByOffset(i).WasWrapForced();
-            accumulatedInput += input;
+            accumulatedInput.append(input);
 
             if (isWrap)
             {
@@ -320,11 +324,18 @@ std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::ws
             }
         } while (isWrap && i < rowCount);
 
-        auto lastNonSpace = textBuffer.GetRowByOffset(i).GetLastNonSpaceColumn();
-        auto adjustedLen = lineLen * (i - realI) + lastNonSpace;
-
-        std::vector<UChar> ustr(adjustedLen + 1);
-        u_strFromWCS(ustr.data(), static_cast<int32_t>(ustr.size()), nullptr, reinterpret_cast<const wchar_t*>(accumulatedInput.data()), static_cast<int32_t>(adjustedLen), status);
+        const auto numberOfLineWraps = i - realI;
+        if (numberOfLineWraps > maxNumberOfLineWraps)
+        {
+            maxNumberOfLineWraps = numberOfLineWraps;
+            const auto newUStrSize = ((maxNumberOfLineWraps + 1) * viewPortWidth) + 1;
+            uStr.resize(newUStrSize);
+            accumulatedInput.resize(newUStrSize);
+        }
+        const auto lastNonSpace = textBuffer.GetRowByOffset(i).GetLastNonSpaceColumn();
+        const auto adjustedLen = viewPortWidth * (i - realI) + lastNonSpace;
+        
+        u_strFromWCS(uStr.data(), static_cast<int32_t>(uStr.size()), nullptr, reinterpret_cast<const wchar_t*>(accumulatedInput.data()), static_cast<int32_t>(adjustedLen), status);
 
         if (U_FAILURE(*status))
         {
@@ -332,7 +343,7 @@ std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::ws
             return results;
         }
 
-        uregex_setText(regex, ustr.data(), static_cast<int32_t>(ustr.size() - 1), status);
+        uregex_setText(regex, uStr.data(), static_cast<int32_t>(adjustedLen), status);
         if (U_FAILURE(*status))
         {
             uregex_close(regex);
@@ -341,7 +352,7 @@ std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::ws
 
         while (uregex_findNext(regex, status) && !U_FAILURE(*status))
         {
-            int32_t icuStart = uregex_start(regex, 0, status);
+            const int32_t icuStart = uregex_start(regex, 0, status);
             int32_t icuEnd = uregex_end(regex, 0, status);
             icuEnd--;
 
@@ -351,17 +362,17 @@ std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::ws
                 auto adjustedStart = icuStart - 1 == adjustedLen ? icuStart - 1 : icuStart;
                 auto adjustedEnd = std::min(static_cast<int32_t>(adjustedLen), static_cast<int32_t>(icuEnd));
 
-                size_t startLine = (adjustedStart / lineLen) + realI;
-                size_t endLine = (adjustedEnd / lineLen) + realI;
+                const size_t startLine = (adjustedStart / viewPortWidth) + realI;
+                const size_t endLine = (adjustedEnd / viewPortWidth) + realI;
 
                 if (startLine > realI)
                 {
-                    adjustedStart %= (startLine - realI) * lineLen;
+                    adjustedStart %= (startLine - realI) * viewPortWidth;
                 }
 
                 if (endLine > realI)
                 {
-                    adjustedEnd %= ((endLine - realI) * lineLen);
+                    adjustedEnd %= ((endLine - realI) * viewPortWidth);
                 }
 
                 auto ps = til::point_span{};
