@@ -869,7 +869,7 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                     origAttr.SetDefaultBackground();
                     if (isHighlight)
                     {
-                        origAttr.SetBackground(0xff000000);
+                        origAttr.SetBackground(0xff3c3836);
                         auto overlayOffset = screenPoint.x + cols - overlay.selection.Left();
                         if (overlayOffset < overlay.chars.size())
                         {
