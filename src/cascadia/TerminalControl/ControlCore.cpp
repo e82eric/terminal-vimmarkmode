@@ -2963,6 +2963,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::EnterQuickSelectMode(const winrt::hstring& text, bool copy)
     {
+        if (_vimMode != VimMode::none)
+        {
+            _resetVimState();
+        }
+
         const auto lock = _terminal->LockForWriting();
         _terminal->EnterQuickSelectMode();
         _searcher.QuickSelectRegex(*GetRenderData(), text, true);
