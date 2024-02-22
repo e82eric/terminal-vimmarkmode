@@ -1627,6 +1627,7 @@ std::tuple<bool, til::point, til::point> Terminal::QuickSelectHandleChar(wchar_t
 void Terminal::EnterQuickSelectMode()
 {
     _inQuickSelectMode = true;
+    _activeBuffer().GetCursor().SetIsVisible(false);
 }
 
 bool Terminal::InQuickSelectMode()
@@ -1639,6 +1640,7 @@ void Terminal::ExitQuickSelectMode()
     _inQuickSelectMode = false;
     _quickSelectChars.clear();
     ClearSelection();
+    _activeBuffer().GetCursor().SetIsVisible(true);
 }
 
 void Terminal::ColorSelection(const TextAttribute& attr, winrt::Microsoft::Terminal::Core::MatchMode matchMode)
