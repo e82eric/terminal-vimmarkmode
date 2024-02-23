@@ -769,6 +769,16 @@ void Terminal::SelectCharRight(bool isVisual)
     UpdateSelection(SelectionDirection::Right, SelectionExpansion::Char, ControlKeyStates{ mods });
 }
 
+til::CoordType _getStartLineOfRow(TextBuffer& textBuffer, til::CoordType row)
+{
+    auto result = row;
+    while (textBuffer.GetRowByOffset(result - 1).WasWrapForced())
+    {
+        result--;
+    }
+    return result;
+}
+
 void Terminal::SelectDown(bool isVisual)
 {
     DWORD mods = isVisual ? 280 : 0;
@@ -783,9 +793,14 @@ void Terminal::SelectUp(bool isVisual)
 
 void Terminal::SelectLineRight(bool isVisual)
 {
-    auto targetPos{ WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) ? _selection->start : _selection->end };
-    auto endPair = _activeBuffer().GetLineEnd(targetPos);
-    _UpdateSelection(isVisual, endPair);
+    til::CoordType endLine = _selection->end.y;
+    while (_activeBuffer().GetRowByOffset(endLine).WasWrapForced())
+    {
+        endLine++;
+    }
+
+    auto lastNonSpaceColumn = std::max(0, _activeBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() - 1);
+    _UpdateSelection(isVisual, til::point{ lastNonSpaceColumn, endLine });
 }
 
 void Terminal::SelectLineUp()
@@ -836,13 +851,14 @@ void Terminal::SelectLineDown()
 
 void Terminal::SelectLineLeft(bool isVisual)
 {
-    DWORD mods = isVisual ? 280 : 0;
-    UpdateSelection(SelectionDirection::Left, SelectionExpansion::Viewport, ControlKeyStates{ mods });
+    til::CoordType startLine = _getStartLineOfRow(_activeBuffer(), _selection->end.y);
+    _UpdateSelection(isVisual, til::point{ 0, startLine });
 }
 
 void Terminal::SelectLineFirstNonBlankChar(bool isVisual)
 {
-    auto startOfLine = til::point{ 0, _selection->start.y };
+    auto startLine = _getStartLineOfRow(_activeBuffer(), _selection->start.y);
+    auto startOfLine = til::point{ 0, startLine };
     auto firstNonBlankChar = _activeBuffer().GetLineFirstNonBlankChar(startOfLine);
 
     if (firstNonBlankChar.second == true)
