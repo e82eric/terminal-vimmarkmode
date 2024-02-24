@@ -2345,6 +2345,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             NumberTextBox().Visibility(Visibility::Collapsed);
             NumberBorder().Visibility(Visibility::Collapsed);
+            CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
         }
     }
 
@@ -2386,7 +2387,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto bufferSize = _core.BufferHeight();
             auto offSet = _core.ScrollOffset();
 
-            size_t maxWidth = std::max(static_cast<int32_t>(std::to_wstring(bufferSize).length()), 5);
+            size_t maxWidth = static_cast<int32_t>(std::to_wstring(bufferSize).length()) + 1;
             std::wstring numbers;
             std::wstring numStr;
             auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
@@ -2410,6 +2411,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
 
             NumberTextBox().Text(numbers);
+
+            Core::Point terminalPos{ 0, cursorViewportRow };
+            const til::point locationInDIPs{ _toPosInDips(terminalPos) };
+            SelectionCanvas().SetLeft(CurrentSearchRowHighlight(),
+                                      (locationInDIPs.x - SwapChainPanel().ActualOffset().x));
+            SelectionCanvas().SetTop(CurrentSearchRowHighlight(),
+                                     (locationInDIPs.y - SwapChainPanel().ActualOffset().y));
+            CurrentSearchRowHighlight().Visibility(Visibility::Visible);
+            CurrentSearchRowHighlight().Width(SwapChainPanel().ActualWidth());
+            auto orangeBrush = Windows::UI::Xaml::Media::SolidColorBrush();
+            orangeBrush.Color(Windows::UI::ColorHelper::FromArgb(76, 255, 165, 0));
+            CurrentSearchRowHighlight().Fill(orangeBrush);
         }
     }
 
@@ -3655,6 +3668,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchBox->SetFontSize(til::size{ args.Width(), args.Height() });
         _setVimBarFontSize(directXHeight, fontSize, fontFamily);
         _setRowNumberFontSize(directXHeight, fontSize, fontFamily);
+        CurrentSearchRowHighlight().Height(directXHeight);
     }
 
     void TermControl::_setVimBarFontSize(double lineHeight, double fontSize, Windows::UI::Xaml::Media::FontFamily fontFamily)

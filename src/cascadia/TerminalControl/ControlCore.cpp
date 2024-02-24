@@ -683,6 +683,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _ExitVimModeHandlers(*this, winrt::make<implementation::ExitVimModeEventArgs>(false));
         if (_showRowNumbers)
         {
+            _showRowNumbers = false;
             _ToggleRowNumbersHandlers(*this, winrt::make<implementation::ToggleRowNumbersEventArgs>(false));
         }
         auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
@@ -2341,12 +2342,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     int32_t ControlCore::ViewportRowNumberToHighlight()
     {
         auto lock = _terminal->LockForReading();
-        auto offset = _terminal->GetScrollOffset();
         if (_vimMode == VimMode::none)
         {
             return CursorPosition().Y;
         }
 
+        const auto offset = _terminal->GetScrollOffset();
         return _terminal->GetSelectionEnd().y - offset;
     }
 
