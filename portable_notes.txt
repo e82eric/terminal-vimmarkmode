@@ -31,4 +31,4 @@ Move-Item "$($expandedDir.FullName)" $termDir
 $settingsDir = "$($termDir)\settings\"
 New-Item $settingsDir -Type Directory
 
-copy ~\AppData\Local\Packages\WindowsTerminalDev_8wekyb3d8bbwe\LocalState\settings.json $settingsDir
+copy settings.json $settingsDir
