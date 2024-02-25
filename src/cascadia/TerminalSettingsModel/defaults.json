@@ -379,6 +379,7 @@
         { "command": "restoreLastClosed" },
         { "command": "openAbout" },
         { "command": "vimMode" },
+        { "command": "vimSearch" },
         { "command": "fuzzyFind" },
 
         // Tab Management

@@ -85,6 +85,7 @@ namespace Microsoft.Terminal.Control
 
         void ResetVimModeForSizeChange();
         void EnterVimModeWithSearch();
+        void EnterVimMode();
         Boolean IsInVimMode();
         void EnterMarkMode();
         void EnterFuzzySearchMode();

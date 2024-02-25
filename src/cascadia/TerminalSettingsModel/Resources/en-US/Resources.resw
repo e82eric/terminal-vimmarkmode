@@ -600,6 +600,10 @@
     <value>Toggle vim mode</value>
     <comment>A command that will toggle "vim mode".</comment>
   </data>
+  <data name="VimSearchKey" xml:space="preserve">
+    <value>Toggle vim search mode</value>
+    <comment>A command that will toggle "vim search".</comment>
+  </data>
   <data name="ToggleBlockSelectionCommandKey" xml:space="preserve">
     <value>Toggle block selection</value>
   </data>

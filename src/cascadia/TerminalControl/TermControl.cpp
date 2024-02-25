@@ -2499,6 +2499,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.EnterVimModeWithSearch();
     }
 
+    void TermControl::EnterVimMode()
+    {
+        _core.EnterVimMode();
+    }
+
     bool TermControl::SwitchSelectionEndpoint()
     {
         return _core.SwitchSelectionEndpoint();

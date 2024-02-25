@@ -1301,6 +1301,16 @@ namespace winrt::TerminalApp::implementation
     {
         if (const auto& control{ _senderOrActiveControl(sender) })
         {
+            control.EnterVimMode();
+            args.Handled(true);
+        }
+    }
+
+    void TerminalPage::_HandleVimSearch(const IInspectable& sender,
+                                      const ActionEventArgs& args)
+    {
+        if (const auto& control{ _senderOrActiveControl(sender) })
+        {
             control.EnterVimModeWithSearch();
             args.Handled(true);
         }

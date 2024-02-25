@@ -10,8 +10,12 @@
       "keys": "ctrl+c"
     },
     {
-      "command": "vimMode",
+      "command": "vimSearch",
       "keys": "ctrl+shift+/"
+    },
+    {
+      "command": "vimMode",
+      "keys": "ctrl+shift+m"
     },
     {
       "command": {
