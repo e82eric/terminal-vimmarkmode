@@ -995,6 +995,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         case VimActionType::toggleVisualOn:
             _terminal->SetPivot();
             break;
+        case VimActionType::enterBlockSelectionMode:
+            _vimMode = _terminal->IsBlockSelection() ? VimMode::normal : VimMode::visual;
+            ToggleBlockSelection();
+            break;
         case VimActionType::exit:
             exitAfter = true;
             break;
@@ -1049,6 +1053,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::wstringstream timesStringStream(_timesString);
             int times;
             timesStringStream >> times;
+        }
+        else if (vkey == VK_ESCAPE && _terminal->IsBlockSelection())
+        {
+            _action = VimActionType::enterBlockSelectionMode;
+            sequenceCompleted = true;
         }
         else if (vkey == VK_ESCAPE && _showRowNumbers)
         {
@@ -1179,6 +1188,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             hideMarkers = true;
             
             _action = VimActionType::search;
+        }
+        else if (vkey == L'Q'  && mods.IsCtrlPressed())
+        {
+            _action = VimActionType::enterBlockSelectionMode;
+            sequenceCompleted = true;
         }
         else if ((vkey == L'U' && mods.IsCtrlPressed()) || vkey == VK_PRIOR)
         {

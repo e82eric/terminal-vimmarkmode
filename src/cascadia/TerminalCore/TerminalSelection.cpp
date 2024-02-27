@@ -794,6 +794,10 @@ void Terminal::SelectUp(bool isVisual)
 void Terminal::SelectLineRight(bool isVisual)
 {
     til::CoordType endLine = _selection->end.y;
+    if (_blockSelection)
+    {
+        endLine = _selection->start.y == _selection->pivot.y ? _selection->end.y : _selection->start.y;
+    }
     while (_activeBuffer().GetRowByOffset(endLine).WasWrapForced())
     {
         endLine++;
@@ -852,12 +856,20 @@ void Terminal::SelectLineDown()
 void Terminal::SelectLineLeft(bool isVisual)
 {
     til::CoordType startLine = _getStartLineOfRow(_activeBuffer(), _selection->end.y);
+    if (_blockSelection)
+    {
+        startLine = _selection->start.y == _selection->pivot.y ? _selection->end.y : _selection->start.y;
+    }
     _UpdateSelection(isVisual, til::point{ 0, startLine });
 }
 
 void Terminal::SelectLineFirstNonBlankChar(bool isVisual)
 {
     auto startLine = _getStartLineOfRow(_activeBuffer(), _selection->start.y);
+    if (_blockSelection)
+    {
+        startLine = _selection->start.y == _selection->pivot.y ? _selection->end.y : _selection->start.y;
+    }
     auto startOfLine = til::point{ 0, startLine };
     auto firstNonBlankChar = _activeBuffer().GetLineFirstNonBlankChar(startOfLine);
 
@@ -1003,7 +1015,7 @@ std::vector<til::inclusive_rect> Terminal::_GetYankSelectionRects() const noexce
 
     try
     {
-        return _activeBuffer().GetTextRects(_yankSelection->start, _yankSelection->end, false, false);
+        return _activeBuffer().GetTextRects(_yankSelection->start, _yankSelection->end, _blockSelection, false);
     }
     CATCH_LOG();
     return result;

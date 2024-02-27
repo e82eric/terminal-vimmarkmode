@@ -96,7 +96,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             toggleRowNumbersOn,
             toggleRowNumbersOff,
             enterQuickSelectMode,
-            enterQuickCopyMode
+            enterQuickCopyMode,
+            enterBlockSelectionMode
         };
 
         enum class VimTextObjectType : int32_t
