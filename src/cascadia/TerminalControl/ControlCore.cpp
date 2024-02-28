@@ -3,6 +3,7 @@
 
 #include "pch.h"
 #include "ControlCore.h"
+#include <icu.h>
 
 // MidiAudio
 #include <mmeapi.h>
@@ -2993,12 +2994,41 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
     {
+         UErrorCode status = U_ZERO_ERROR;
+        //UChar uText[1024];
+        //UChar patternUchar[1024];
+
+        //u_strFromWCS(uText, 1024, NULL, L"Cé is a test", -1, &status);
+        //if (U_FAILURE(status))
+        //{
+        //    assert(false);
+        //}
+        //u_strFromWCS(patternUchar, 1024, NULL, L"Cé", -1, &status);
+        //if (U_FAILURE(status))
+        //{
+        //    assert(false);
+        //}
+
+        //ufzf_pattern_t* uP = ufzf_parse_pattern(CaseSmart, false, patternUchar, true);
+        //auto s = ufzf_get_score(uText, uP, _fzf_slab);
+        //if (s > 0)
+        //{
+        //    
+        //}
+
+        //fzf_position_t* pos = fzf_pos_array(0);
+        //ufzf_string_t input = { .data = uText, .size = (size_t)u_strlen(uText) };
+        //ufzf_string_t fzfPattern = { .data = patternUchar, .size = (size_t)u_strlen(patternUchar) };
+        //fzf_result_t r = ufzf_fuzzy_match_v2(true, false, &input, &fzfPattern, pos, _fzf_slab);
+
         struct RowResult
         {
             std::wstring rowFullText;
-            std::string asciiRowText;
-            fzf_position_t* pos;
-            int score;
+            //std::string asciiRowText;
+            //fzf_position_t* pos;
+            fzf_position_t* icuPos;
+            //int score;
+            int icuScore;
             int rowNumber;
             long long length;
         };
@@ -3024,16 +3054,36 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         asciiSearchString.pop_back();
         char* asciiSearchStringCStr = const_cast<char*>(asciiSearchString.c_str());
 
+        UChar icuPatternBuf[1024];
+        u_strFromWCS(icuPatternBuf, 1024, NULL, text.c_str(), text.size(), &status);
+        if (U_FAILURE(status))
+        {
+            assert(false);
+        }
+        ufzf_pattern_t* icuPattern = ufzf_parse_pattern(CaseSmart, false, icuPatternBuf, true);
         fzf_pattern_t* pattern = fzf_parse_pattern(CaseSmart, false, asciiSearchStringCStr, true);
+
+        if (icuPattern->size > 0)
+        {
+            
+        }
 
         auto rowResults = std::vector<RowResult>();
         auto rowCount = renderData->GetTextBuffer().GetLastNonSpaceCharacter().y + 1;
         int minScore = 0;
         int actualRowNumber = 0;
+
+        UChar icuTextBuf[1024];
         for (int rowNumber = 0; rowNumber < rowCount; rowNumber++)
         {
             actualRowNumber = rowNumber;
             std::wstring_view rowText = renderData->GetTextBuffer().GetRowByOffset(rowNumber).GetText();
+            u_strFromWCS(icuTextBuf, 1024, NULL, rowText.data(), (int32_t)rowText.size(), &status);
+            if (U_FAILURE(status))
+            {
+                assert(false);
+            }
+
             auto wrapped = renderData->GetTextBuffer().GetRowByOffset(rowNumber).WasWrapForced();
             std::wstring concatenatedText;
             if (wrapped)
@@ -3067,35 +3117,39 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 std::string asciiRowText(bufferSize, 0);
                 WideCharToMultiByte(CP_UTF8, 0, rowText.data(), -1, &asciiRowText[0], bufferSize, nullptr, nullptr);
                 asciiRowText.pop_back();
-                char* asciiRowTextCStr = const_cast<char*>(asciiRowText.c_str());
+                //char* asciiRowTextCStr = const_cast<char*>(asciiRowText.c_str());
 
-                int rowScore = fzf_get_score(asciiRowTextCStr, pattern, _fzf_slab);
-                if (rowScore > minScore)
+                //int rowScore = fzf_get_score(asciiRowTextCStr, pattern, _fzf_slab);
+                int icuRowScore = ufzf_get_score(icuTextBuf, icuPattern, _fzf_slab);
+                if (icuRowScore > minScore)
                 {
-                    fzf_position_t* pos = fzf_get_positions(asciiRowTextCStr, pattern, _fzf_slab);
+                    //fzf_position_t* pos = fzf_get_positions(asciiRowTextCStr, pattern, _fzf_slab);
+                    fzf_position_t* icuPos = ufzf_get_positions(icuTextBuf, icuPattern, _fzf_slab);
 
                     auto rowResult = RowResult{};
                     rowResult.rowFullText = rowFullText;
-                    rowResult.asciiRowText = asciiRowText;
-                    rowResult.pos = pos;
+                    //rowResult.asciiRowText = asciiRowText;
+                    //rowResult.pos = pos;
+                    rowResult.icuPos = icuPos;
                     rowResult.rowNumber = actualRowNumber;
-                    rowResult.score = rowScore;
+                    //rowResult.score = rowScore;
+                    rowResult.icuScore = icuRowScore;
                     rowResult.length = length;
                     rowResults.push_back(rowResult);
 
                     std::sort(rowResults.begin(), rowResults.end(), [](const auto& a, const auto& b) {
-                        if (a.score != b.score)
+                        if (a.icuScore != b.icuScore)
                         {
-                            return a.score > b.score;
+                            return a.icuScore > b.icuScore;
                         }
                         return a.length < b.length;
                     });
 
                     if (rowResults.size() > 100)
                     {
-                        fzf_free_positions(rowResults[100].pos);
+                        //fzf_free_positions(rowResults[100].pos);
                         rowResults.pop_back();
-                        minScore = rowResults[99].score;
+                        minScore = rowResults[99].icuScore;
                     }
                 }
             }
@@ -3105,27 +3159,35 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         for (auto p : rowResults)
         {
-            std::sort(p.pos->data, p.pos->data + p.pos->size, [](uint32_t a, uint32_t b) {
-                return a > b;
+            //std::sort(p.icuPos->data, p.icuPos->data + p.icuPos->size, [](uint32_t a, uint32_t b) {
+            //    return a > b;
+            //});
+
+            std::sort(p.icuPos->data, p.icuPos->data + p.icuPos->size, [](uint32_t a, uint32_t b) {
+                return a < b;
             });
 
             std::vector<size_t> wideCharPositions;
-            size_t wideCharIndex = 0;
-            size_t asciiCharIndex = 0;
-            while (wideCharIndex < p.rowFullText.length() && asciiCharIndex < p.asciiRowText.length())
+            //size_t wideCharIndex = 0;
+            //size_t asciiCharIndex = 0;
+            for (size_t i = 0; i < p.icuPos->size; i++)
             {
-                if (std::find(p.pos->data, p.pos->data + p.pos->size, asciiCharIndex) != p.pos->data + p.pos->size)
-                {
-                    wideCharPositions.push_back(wideCharIndex);
-                }
-
-                wchar_t wideChar = p.rowFullText[wideCharIndex];
-
-                char utf8Char[5];
-                size_t length = WideCharToMultiByte(CP_UTF8, 0, &wideChar, 1, utf8Char, 5, nullptr, nullptr);
-                wideCharIndex++;
-                asciiCharIndex += length;
+                wideCharPositions.emplace_back(p.icuPos->data[i]);
             }
+            //while (wideCharIndex < p.rowFullText.length() && asciiCharIndex < p.asciiRowText.length())
+            //{
+            //    if (std::find(p.icuPos->data, p.icuPos->data + p.pos->size, asciiCharIndex) != p.pos->data + p.pos->size)
+            //    {
+            //        wideCharPositions.push_back(wideCharIndex);
+            //    }
+
+            //    wchar_t wideChar = p.rowFullText[wideCharIndex];
+
+            //    char utf8Char[5];
+            //    size_t length = WideCharToMultiByte(CP_UTF8, 0, &wideChar, 1, utf8Char, 5, nullptr, nullptr);
+            //    wideCharIndex++;
+            //    asciiCharIndex += length;
+            //}
 
             auto runs = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextSegment>();
             std::wstring currentRun;
@@ -3180,10 +3242,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 return std::distance(it, str.rend()) - 1;
             };
 
-            auto line = winrt::make<FuzzySearchTextLine>(runs, p.score, p.rowNumber, static_cast<int32_t>(p.pos->data[p.pos->size - 1]), static_cast<int32_t>(p.length));
+            auto line = winrt::make<FuzzySearchTextLine>(runs, p.icuScore, p.rowNumber, static_cast<int32_t>(p.icuPos->data[p.icuPos->size - 1]), static_cast<int32_t>(p.length));
 
             searchResults.Append(line);
-            fzf_free_positions(p.pos);
+            fzf_free_positions(p.icuPos);
         }
 
         auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, rowCount, searchResults.Size());

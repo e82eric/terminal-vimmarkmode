@@ -336,6 +336,12 @@ std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::ws
         const auto adjustedLen = viewPortWidth * (i - realI) + lastNonSpace;
         
         u_strFromWCS(uStr.data(), static_cast<int32_t>(uStr.size()), nullptr, reinterpret_cast<const wchar_t*>(accumulatedInput.data()), static_cast<int32_t>(adjustedLen), status);
+        auto b = u"Café";
+        auto a = u_strlen(b);
+        if (a > 4)
+        {
+            
+        }
 
         if (U_FAILURE(*status))
         {
