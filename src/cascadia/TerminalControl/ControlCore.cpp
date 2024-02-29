@@ -1075,7 +1075,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 _motion = VimMotionType::moveUp;
             }
-            else if ((vkey == L'J' || vkey == VK_DOWN) && _motion == VimMotionType::none)
+            else if ((vkey == L'J' || vkey == VK_DOWN || vkey == VK_RETURN) && _motion == VimMotionType::none)
             {
                 _motion = VimMotionType::moveDown;
             }
@@ -1355,7 +1355,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _textObject = _vimMode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
             sequenceCompleted = true;
         }
-        else if ((vkey == L'J' || vkey == VK_DOWN) && _motion == VimMotionType::none)
+        else if ((vkey == L'J' || vkey == VK_DOWN || vkey == VK_RETURN) && _motion == VimMotionType::none)
         {
             _textObject = _vimMode == VimMode::visualLine || (_times > 1 && _action == VimActionType::yank) ? VimTextObjectType::entireLine : VimTextObjectType::charTextObject;
             _motion = VimMotionType::moveDown;
