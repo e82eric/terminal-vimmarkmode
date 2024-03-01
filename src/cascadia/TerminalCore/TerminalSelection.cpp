@@ -1322,26 +1322,52 @@ void Terminal::_UpdateSelection(bool isVisual, til::point adjusted)
 
 void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
 {
-    auto start = _activeBuffer().FindCharReverse(pos, startDelimiter);
-    auto end = _activeBuffer().FindChar(pos, endDelimiter);
+    til::CoordType startX = -1;
+    til::CoordType endX = -1;
 
-    if (!start.second || !end.second)
+    for (auto i = 0; i < _activeBuffer().GetRowByOffset(pos.y).size(); i++)
+    {
+        auto g = _activeBuffer().GetRowByOffset(pos.y).GlyphAt(i);
+        if (g == startDelimiter && startX == -1)
+        {
+            if (startX > i)
+            {
+                return;   
+            }
+            else
+            {
+                startX = i;
+                endX = -1;
+            }
+        }
+        else if (g == endDelimiter && startX != -1)
+        {
+            if (i >= pos.x)
+            {
+                endX = i;
+                break;
+            }
+            startX = -1;
+            endX = -1;
+        }
+    }
+
+    if (startX == -1 || endX == -1)
     {
         return;
     }
 
     if (includeDelimiter)
     {
-        _selection->start = til::point{ start.first.x - 1, start.first.y };
-        _selection->end = til::point{ end.first.x, end.first.y };
-        _selection->pivot = til::point{ end.first.x - 1, end.first.y };
+        _selection->start = til::point{ startX, pos.y };
+        _selection->end = til::point{ endX, pos.y };
     }
     else
     {
-        _selection->start = start.first;
-        _selection->end = til::point{ end.first.x - 1, end.first.y };
-        _selection->pivot = til::point{ end.first.x - 1, end.first.y };
+        _selection->start = til::point{ startX + 1, pos.y };
+        _selection->end = til::point{ endX - 1, pos.y };
     }
+    _selection->pivot = _selection->start;
 }
 
 void Terminal::_InWord(til::point& pos, std::wstring_view delimiters)
