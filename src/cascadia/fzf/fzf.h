@@ -97,7 +97,7 @@ fzf_result_t ufzf_suffix_match(bool case_sensitive, bool normalize,
                               fzf_position_t *pos, fzf_slab_t *slab);
 /* interface */
 ufzf_pattern_t *ufzf_parse_pattern(fzf_case_types case_mode, bool normalize,
-                                 UChar *pattern, bool fuzzy);
+                                 const UChar *pattern, bool fuzzy);
 void ufzf_free_pattern(ufzf_pattern_t* pattern);
 
 int32_t ufzf_get_score(UText *text, ufzf_pattern_t *pattern,

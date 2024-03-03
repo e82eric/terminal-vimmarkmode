@@ -1110,7 +1110,7 @@ UChar* u_strdup(const UChar* src) {
 }
 
 ufzf_pattern_t *ufzf_parse_pattern(fzf_case_types case_mode, bool normalize,
-                                 UChar *pattern, bool fuzzy) {
+                                 const UChar *pattern, bool fuzzy) {
     ufzf_pattern_t *pat_obj = (ufzf_pattern_t *)malloc(sizeof(ufzf_pattern_t));
     memset(pat_obj, 0, sizeof(*pat_obj));
 
@@ -1118,20 +1118,23 @@ ufzf_pattern_t *ufzf_parse_pattern(fzf_case_types case_mode, bool normalize,
     if (pat_len == 0) {
         return pat_obj;
     }
-    pattern = utrim_whitespace_left(pattern, &pat_len);
+
+    UChar* patternDup = u_strdup(pattern);
+
+    patternDup = utrim_whitespace_left(patternDup, &pat_len);
 
     UChar spaceChar = 0x0020;
     UChar space_suffix[] = { 0x0020, 0x0000 };
     UChar escaped_space_suffix[] = { 0x005C, 0x0020, 0 };
     UChar tabChar = 0x0009;
     UChar tab[] = { tabChar, 0x0000 };
-    while (uhas_suffix(pattern, pat_len, space_suffix, 1) &&
-           !uhas_suffix(pattern, pat_len, escaped_space_suffix, 2)) {
-        pattern[pat_len - 1] = 0;
+    while (uhas_suffix(patternDup, pat_len, space_suffix, 1) &&
+           !uhas_suffix(patternDup, pat_len, escaped_space_suffix, 2)) {
+        patternDup[pat_len - 1] = 0;
         pat_len--;
     }
 
-    UChar* pattern_copy = ustr_replace(pattern, escaped_space_suffix, tab);
+    UChar* pattern_copy = ustr_replace(patternDup, escaped_space_suffix, tab);
     UChar* context = NULL;
     UChar udelim = 0x0020;
     UChar* ptr = ustrtok_r(pattern_copy, udelim, &context);
@@ -1150,15 +1153,10 @@ ufzf_pattern_t *ufzf_parse_pattern(fzf_case_types case_mode, bool normalize,
         UChar* text = u_strdup(ptr);
 
         UChar* og_str = text;
-        //UChar* lower_text = u_str_tolower(text, (int32_t)len);
         int32_t bufferLength = (int32_t)len + 1;
         UChar* lower_text = malloc(bufferLength * sizeof(UChar));
         UErrorCode status = U_ZERO_ERROR;
         u_strToLower(lower_text, bufferLength, text, (int32_t)len, "", &status);
-        if (U_FAILURE(status))
-        {
-            // I am not sure what to do here...
-        }
         bool case_sensitive =
                 case_mode == CaseRespect ||
                 (case_mode == CaseSmart && u_strcmp(text, lower_text) != 0);
@@ -1263,6 +1261,7 @@ ufzf_pattern_t *ufzf_parse_pattern(fzf_case_types case_mode, bool normalize,
     }
     pat_obj->only_inv = only;
     SFREE(pattern_copy);
+    SFREE(patternDup);
     return pat_obj;
 }
 
