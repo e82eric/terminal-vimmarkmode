@@ -1418,7 +1418,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _textObject = _amount == VimTextAmount::in ? VimTextObjectType::inRoundBracePair : _amount == VimTextAmount::around ? VimTextObjectType::aroundRoundBracePair :
                                                                                                              VimTextObjectType::charTextObject;
-            sequenceCompleted;
+            sequenceCompleted = true;
         }
         // <>
         else if ((vkey == VK_OEM_COMMA && mods.IsShiftPressed()) || (vkey == VK_OEM_PERIOD && mods.IsShiftPressed()))
