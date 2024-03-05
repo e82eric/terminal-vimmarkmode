@@ -431,3 +431,104 @@ til::point_span Microsoft::Console::ICU::BufferRangeFromMatch(UText* ut, URegula
 
     return ret;
 }
+
+    static UText* U_CALLCONV utextLogicalRowClone(UText* dest, const UText* src, UBool deep, UErrorCode* status) noexcept
+{
+    __assume(status != nullptr);
+
+    if (deep)
+    {
+        *status = U_UNSUPPORTED_ERROR;
+        return dest;
+    }
+
+    dest = utext_setup(dest, 0, status);
+    if (*status <= U_ZERO_ERROR)
+    {
+        memcpy(dest, src, sizeof(UText));
+    }
+
+    return dest;
+}
+
+static int64_t U_CALLCONV utextLogicalRowNativeLength(UText* ut) noexcept
+try
+{
+    return gsl::narrow_cast<int64_t>(ut->c);
+}
+catch (...)
+{
+    return 0;
+}
+
+static UBool U_CALLCONV utextLogicalRowAccess(UText* ut, int64_t nativeIndex, UBool /*forward*/) noexcept
+try
+{
+    if (nativeIndex < 0)
+    {
+        nativeIndex = 0;
+    }
+
+    const auto& textBuffer = *static_cast<const TextBuffer*>(ut->context);
+    auto startRow = static_cast<til::CoordType>(ut->a);
+    auto endRow = ut->b;
+    auto length = ut->c;
+    auto numberOfRows = endRow - startRow + 1;
+    auto charsInRow = length / numberOfRows;
+    til::CoordType rowNumber = static_cast<til::CoordType>(nativeIndex / charsInRow);
+    auto rowIndex = nativeIndex - (rowNumber * charsInRow);
+
+    auto text = textBuffer.GetRowByOffset(startRow + rowNumber).GetText();
+
+    ut->chunkOffset = 0;
+    ut->chunkNativeStart = nativeIndex;
+    ut->chunkNativeLimit = charsInRow - rowIndex;
+    ut->chunkLength = charsInRow - static_cast<int32_t>(rowIndex);
+#pragma warning(suppress : 26490) // Don't use reinterpret_cast (type.1).
+    ut->chunkContents = reinterpret_cast<const char16_t*>(text.data() + rowIndex);
+    ut->nativeIndexingLimit = ut->chunkLength;
+
+    return true;
+}
+catch (...)
+{
+    return false;
+}
+
+static constexpr UTextFuncs utextLogicalRowFuncs{
+    .tableSize = sizeof(UTextFuncs),
+    .clone = utextLogicalRowClone,
+    .nativeLength = utextLogicalRowNativeLength,
+    .access = utextLogicalRowAccess,
+};
+
+UText Microsoft::Console::ICU::UTextForLogicalRow(const TextBuffer& textBuffer, til::CoordType& row) noexcept
+{
+    UText ut = UTEXT_INITIALIZER;
+    ut.pFuncs = &utextLogicalRowFuncs;
+    ut.context = &textBuffer;
+    ut.a = row;
+
+    auto length = 0;
+    while (textBuffer.GetRowByOffset(row).WasWrapForced())
+    {
+        row++;
+        length += textBuffer.GetRowByOffset(row).size();
+    }
+    length += textBuffer.GetRowByOffset(row).size();
+
+    ut.b = row;
+    ut.c = length;
+
+    return ut;
+}
+
+til::CoordType utextLogicalRowStartRowNumber(UText& utext)
+{
+    return static_cast<til::CoordType>(utext.a);
+}
+
+til::CoordType utextLogicalRowEndRowNumber(UText& utext)
+{
+    return static_cast<til::CoordType>(utext.b);
+}

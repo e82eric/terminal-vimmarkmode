@@ -5,6 +5,7 @@
 #include "search.h"
 
 #include "textBuffer.hpp"
+#include "UTextAdapter.h"
 
 using namespace Microsoft::Console::Types;
 
@@ -69,6 +70,105 @@ void Search::QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderDat
     _results = textBuffer.SearchTextRegex(needle, caseInsensitive);
     _index =  0;
     _step = 1;
+}
+
+
+std::vector<FuzzySearchResultRow> Search::FuzzySearch(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle) const
+{
+    struct RowResult
+    {
+        UText text;
+        int icuScore;
+        til::CoordType startRowNumber;
+        long long length;
+    };
+
+    auto searchResults = std::vector<FuzzySearchResultRow>();
+    const auto& textBuffer = renderData.GetTextBuffer();
+
+    auto searchTextNotBlank = std::ranges::any_of(needle, [](wchar_t ch) {
+        return !std::iswspace(ch);
+    });
+
+    if (!searchTextNotBlank)
+    {
+        return {};
+    }
+
+    const UChar* uPattern = reinterpret_cast<const UChar*>(needle.data());
+    ufzf_pattern_t* fzfPattern = ufzf_parse_pattern(CaseSmart, false, uPattern, true);
+
+    auto rowResults = std::vector<RowResult>();
+    auto rowCount = textBuffer.GetLastNonSpaceCharacter().y + 1;
+    int minScore = 1;
+
+    for (int rowNumber = 0; rowNumber < rowCount; rowNumber++)
+    {
+        //Row number is going to get incremented by this function if there is a row wrap
+        auto uRowText = Microsoft::Console::ICU::UTextForLogicalRow(textBuffer, rowNumber);
+        auto length = utext_nativeLength(&uRowText);
+
+        if (length > 0)
+        {
+            int icuRowScore = ufzf_get_score(&uRowText, fzfPattern, _fzf_slab);
+            if (icuRowScore >= minScore)
+            {
+                auto rowResult = RowResult{};
+                //I think this is small enough to copy
+                rowResult.text = uRowText;
+                rowResult.startRowNumber = rowNumber;
+                rowResult.icuScore = icuRowScore;
+                rowResult.length = length;
+                rowResults.push_back(rowResult);
+
+                //sort so the highest scores and shortest lengths are first
+                std::ranges::sort(rowResults, [](const auto& a, const auto& b) {
+                    if (a.icuScore != b.icuScore)
+                    {
+                        return a.icuScore > b.icuScore;
+                    }
+                    return a.length < b.length;
+                });
+
+                //remove any results after 100 to save from having to get positions and render in xaml
+                if (rowResults.size() > 100)
+                {
+                    utext_close(&rowResults[100].text);
+                    rowResults.pop_back();
+                    minScore = rowResults[99].icuScore;
+                }
+            }
+        }
+    }
+
+    for (auto p : rowResults)
+    {
+        fzf_position_t* icuPos = ufzf_get_positions(&p.text, fzfPattern, _fzf_slab);
+
+        if (!icuPos || icuPos->size == 0)
+        {
+            searchResults.emplace_back(FuzzySearchResultRow{ p.startRowNumber, p.text.b, {} });
+            fzf_free_positions(icuPos);
+        }
+        else
+        {
+            std::vector<int32_t> vec;
+            vec.reserve(icuPos->size);
+
+            for (size_t i = 0; i < icuPos->size; ++i)
+            {
+                vec.push_back(static_cast<int32_t>(icuPos->data[i]));
+            }
+
+            searchResults.emplace_back(FuzzySearchResultRow{ p.startRowNumber, p.text.b, vec });
+            fzf_free_positions(icuPos);
+            utext_close(&p.text);
+        }
+    }
+
+    ufzf_free_pattern(fzfPattern);
+
+    return searchResults;
 }
 
 void Search::MoveToCurrentSelection()

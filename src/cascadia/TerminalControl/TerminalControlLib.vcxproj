@@ -201,9 +201,6 @@
       <Project>{CA5CAD1A-039A-4929-BA2A-8BEB2E4106FE}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
-    <ProjectReference Include="..\fzf\fzf.vcxproj">
-      <Project>{52a1ac32-34ae-407c-9306-d5117efdcec3}</Project>
-    </ProjectReference>
   </ItemGroup>
   <!-- ====================== Compiler & Linker Flags ===================== -->
   <ItemDefinitionGroup>

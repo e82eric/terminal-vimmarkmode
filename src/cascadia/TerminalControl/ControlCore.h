@@ -25,7 +25,6 @@
 #include "../../cascadia/TerminalCore/FuzzySearchRenderData.hpp"
 #include "../buffer/out/search.h"
 #include "../buffer/out/TextColor.h"
-#include "../../fzf/fzf.h"
 
 namespace ControlUnitTests
 {

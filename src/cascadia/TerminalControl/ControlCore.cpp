@@ -21,8 +21,6 @@
 
 #include "FuzzySearchTextSegment.h"
 
-#include "../../fzf/fzf.h"
-
 #include "ControlCore.g.cpp"
 #include "SelectionColor.g.cpp"
 
@@ -2977,111 +2975,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _quickSelectCopy = copy;
     }
 
-    static UText* U_CALLCONV utextLogicalRowClone(UText* dest, const UText* src, UBool deep, UErrorCode* status) noexcept
-    {
-        __assume(status != nullptr);
-
-        if (deep)
-        {
-            *status = U_UNSUPPORTED_ERROR;
-            return dest;
-        }
-
-        dest = utext_setup(dest, 0, status);
-        if (*status <= U_ZERO_ERROR)
-        {
-            memcpy(dest, src, sizeof(UText));
-        }
-
-        return dest;
-    }
-
-    static int64_t U_CALLCONV utextLogicalRowNativeLength(UText* ut) noexcept
-    try
-    {
-        return gsl::narrow_cast<int64_t>(ut->c);
-    }
-    catch (...)
-    {
-        return 0;
-    }
-
-    static UBool U_CALLCONV utextLogicalRowAccess(UText* ut, int64_t nativeIndex, UBool /*forward*/) noexcept
-    try
-    {
-        if (nativeIndex < 0)
-        {
-            nativeIndex = 0;
-        }
-
-        const auto& textBuffer = *static_cast<const TextBuffer*>(ut->context);
-        auto startRow = static_cast<til::CoordType>(ut->a);
-        auto endRow = ut->b;
-        auto length = ut->c;
-        auto numberOfRows = endRow - startRow + 1;
-        auto charsInRow = length / numberOfRows;
-        til::CoordType rowNumber = static_cast<til::CoordType>(nativeIndex / charsInRow);
-        auto rowIndex = nativeIndex - (rowNumber * charsInRow);
-
-        auto text = textBuffer.GetRowByOffset(startRow + rowNumber).GetText();
-
-        ut->chunkOffset = 0;
-        ut->chunkNativeStart = nativeIndex;
-        ut->chunkNativeLimit = charsInRow - rowIndex;
-        ut->chunkLength = charsInRow - static_cast<int32_t>(rowIndex);
-#pragma warning(suppress : 26490) // Don't use reinterpret_cast (type.1).
-        ut->chunkContents = reinterpret_cast<const char16_t*>(text.data() + rowIndex);
-        ut->nativeIndexingLimit = ut->chunkLength;
-
-        return true;
-    }
-    catch (...)
-    {
-        return false;
-    }
-
-    static constexpr UTextFuncs utextFuncs{
-        .tableSize = sizeof(UTextFuncs),
-        .clone = utextLogicalRowClone,
-        .nativeLength = utextLogicalRowNativeLength,
-        .access = utextLogicalRowAccess,
-    };
-
-    static UText utextForLogicalRow(const TextBuffer& textBuffer, til::CoordType& row) 
-    {
-        UText ut = UTEXT_INITIALIZER;
-        ut.pFuncs = &utextFuncs;
-        ut.context = &textBuffer;
-        ut.a = row;
-
-        auto length = 0;
-        while (textBuffer.GetRowByOffset(row).WasWrapForced())
-        {
-            row++;
-            length += textBuffer.GetRowByOffset(row).size();
-        }
-        length += textBuffer.GetRowByOffset(row).size();
-
-        ut.b = row;
-        ut.c = length;
-
-        return ut;
-    }
-
-    til::CoordType utextLogicalRowStartRowNumber(UText &utext)
-    {
-        return static_cast<til::CoordType>(utext.a);
-    }
-
-    std::wstring utextLogicalRowFullText(UText &uText, TextBuffer &buffer)
+    std::wstring utextLogicalRowFullText(FuzzySearchResultRow &fuzzySearchResult2, TextBuffer &textBuffer)
     {
         std::wstring result;
-        auto start = static_cast<til::CoordType>(uText.a);
-        auto end = uText.b;
 
-        for (til::CoordType i = start; i <= end; i++)
+        for (auto i = fuzzySearchResult2.startRowNumber; i <= fuzzySearchResult2.endRowNumber; i++)
         {
-            result += buffer.GetRowByOffset(i).GetText();
+            result += textBuffer.GetRowByOffset(i).GetText();
         }
 
         return result;
@@ -3089,154 +2989,75 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
     {
-        struct RowResult
-        {
-            UText uText;
-            int icuScore;
-            til::CoordType startRowNumber;
-            long long length;
-        };
-
         const auto lock = _terminal->LockForWriting();
 
+        auto sr = _searcher.FuzzySearch(*GetRenderData(), text);
+
         auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
-        auto renderData = this->GetRenderData();
 
-        auto searchTextNotBlank = std::ranges::any_of(text, [](wchar_t ch) {
-            return !std::iswspace(ch);
-        });
-
-        if (!searchTextNotBlank)
+        for (auto p : sr)
         {
-            return winrt::make<FuzzySearchResult>(searchResults, 0, 0);
-        }
+            auto rowFullText = utextLogicalRowFullText(p, _terminal->GetTextBuffer());
+            
+            //sort the positions descending so that it is easier to create text segments from them
+            std::ranges::sort(p.positions, [](int32_t a, int32_t b) {
+                return a < b;
+            });
 
-        const UChar* uPattern = reinterpret_cast<const UChar*>(text.data());
-        ufzf_pattern_t* fzfPattern = ufzf_parse_pattern(CaseSmart, false, uPattern, true);
+            //Covert row text to text runs
+            auto runs = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextSegment>();
+            std::wstring currentRun;
+            bool isCurrentRunHighlighted = false;
+            size_t highlightIndex = 0;
 
-        auto rowResults = std::vector<RowResult>();
-        auto rowCount = renderData->GetTextBuffer().GetLastNonSpaceCharacter().y + 1;
-        int minScore = 1;
-
-        for (int rowNumber = 0; rowNumber < rowCount; rowNumber++)
-        {
-            auto uRowText = utextForLogicalRow(_terminal->GetTextBuffer(), rowNumber);
-            auto length = utext_nativeLength(&uRowText);
-
-            if (length > 0)
+            for (int32_t i = 0; i < rowFullText.length() - 1; ++i)
             {
-                int icuRowScore = ufzf_get_score(&uRowText, fzfPattern, _fzf_slab);
-                if (icuRowScore >= minScore)
+                if (highlightIndex < p.positions.size() && i == p.positions[highlightIndex])
                 {
-                    auto rowResult = RowResult{};
-                    //I think this is small enough to copy
-                    rowResult.uText = uRowText;
-                    rowResult.startRowNumber = utextLogicalRowStartRowNumber(uRowText);
-                    rowResult.icuScore = icuRowScore;
-                    rowResult.length = length;
-                    rowResults.push_back(rowResult);
-
-                    //sort so the highest scores and shortest lengths are first
-                    std::ranges::sort(rowResults, [](const auto& a, const auto& b) {
-                        if (a.icuScore != b.icuScore)
-                        {
-                            return a.icuScore > b.icuScore;
-                        }
-                        return a.length < b.length;
-                    });
-
-                    //remove any results after 100 to save from having to get positions and render in xaml
-                    if (rowResults.size() > 100)
+                    if (!isCurrentRunHighlighted)
                     {
-                        utext_close(&rowResults[100].uText);
-                        rowResults.pop_back();
-                        minScore = rowResults[99].icuScore;
+                        if (!currentRun.empty())
+                        {
+                            auto textSegmentHString = winrt::hstring(currentRun);
+                            auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
+                            runs.Append(textSegment);
+                            currentRun.clear();
+                        }
+                        isCurrentRunHighlighted = true;
+                    }
+                    highlightIndex++;
+                }
+                else
+                {
+                    if (isCurrentRunHighlighted)
+                    {
+                        if (!currentRun.empty())
+                        {
+                            winrt::hstring textSegmentHString = winrt::hstring(currentRun);
+                            auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, true);
+                            runs.Append(textSegment);
+                            currentRun.clear();
+                        }
+                        isCurrentRunHighlighted = false;
                     }
                 }
+                currentRun += rowFullText[i];
             }
-        }
 
-        for (auto p : rowResults)
-        {
-            auto rowFullText = utextLogicalRowFullText(p.uText, _terminal->GetTextBuffer());
-            fzf_position_t* icuPos = ufzf_get_positions(&p.uText, fzfPattern, _fzf_slab);
-
-            if (!icuPos || icuPos->size == 0)
+            if (!currentRun.empty())
             {
-                fzf_free_positions(icuPos);
-                auto runs = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextSegment>();
-                auto textSegmentHString = winrt::hstring(rowFullText);
-                auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, true);
+                auto textSegmentHString = winrt::hstring(currentRun);
+                auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
                 runs.Append(textSegment);
-                auto line = winrt::make<FuzzySearchTextLine>(runs, p.icuScore, p.startRowNumber, 0, static_cast<int32_t>(p.length));
-                searchResults.Append(line);
             }
-            else
-            {
-                //Sort the positions descending to make creating the text runs easier
-                std::sort(icuPos->data, icuPos->data + icuPos->size, [](uint32_t a, uint32_t b) {
-                    return a < b;
-                });
 
-                //Covert row text to text runs
-                auto runs = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextSegment>();
-                std::wstring currentRun;
-                bool isCurrentRunHighlighted = false;
-                size_t highlightIndex = 0;
+            auto firstPosition = p.positions[0];
+            auto line = winrt::make<FuzzySearchTextLine>(runs, p.startRowNumber, firstPosition);
 
-                for (uint32_t i = 0; i < rowFullText.length() - 1; ++i)
-                {
-                    if (highlightIndex < icuPos->size && i == icuPos->data[highlightIndex])
-                    {
-                        if (!isCurrentRunHighlighted)
-                        {
-                            if (!currentRun.empty())
-                            {
-                                auto textSegmentHString = winrt::hstring(currentRun);
-                                auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
-                                runs.Append(textSegment);
-                                currentRun.clear();
-                            }
-                            isCurrentRunHighlighted = true;
-                        }
-                        highlightIndex++;
-                    }
-                    else
-                    {
-                        if (isCurrentRunHighlighted)
-                        {
-                            if (!currentRun.empty())
-                            {
-                                winrt::hstring textSegmentHString = winrt::hstring(currentRun);
-                                auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, true);
-                                runs.Append(textSegment);
-                                currentRun.clear();
-                            }
-                            isCurrentRunHighlighted = false;
-                        }
-                    }
-                    currentRun += rowFullText[i];
-                }
-
-                if (!currentRun.empty())
-                {
-                    auto textSegmentHString = winrt::hstring(currentRun);
-                    auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
-                    runs.Append(textSegment);
-                }
-
-                auto firstPosition = icuPos->data[0];
-                auto line = winrt::make<FuzzySearchTextLine>(runs, p.icuScore, p.startRowNumber, firstPosition, static_cast<int32_t>(p.length));
-
-                searchResults.Append(line);
-                fzf_free_positions(icuPos);
-                utext_close(&p.uText);
-            }
+            searchResults.Append(line);
         }
 
-        ufzf_free_pattern(fzfPattern);
-
-        auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, rowCount, searchResults.Size());
+        auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, static_cast<int32_t>(sr.size()), static_cast<int32_t>(searchResults.Size()));
         return fuzzySearchResult;
     }
 
