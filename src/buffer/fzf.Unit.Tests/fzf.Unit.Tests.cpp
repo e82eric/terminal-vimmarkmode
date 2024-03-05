@@ -120,17 +120,18 @@ namespace fzfUnitTests
     {
         ScoreInputTest(L"fooBarbazz", CaseRespect, L"fooBarbaz", 0);
     }
+    //\U0001F600: 😀 \u01C5: ǅ \u00CF: Ĩ
     TEST_METHOD(FuzzyMatchV2_UnicodeCase1)
     {
-        ScoreInputTest(L"😀", CaseRespect, L"😀 Danco", 104, { 3, 2, 1, 0 });
+        ScoreInputTest(L"\U0001F600", CaseRespect, L"\U0001F600 Danco", 56, { 1, 0 });
     }
     TEST_METHOD(FuzzyMatchV2_UnicodeCase2)
     {
-        ScoreInputTest(L"😀ǅ", CaseRespect, L"😀ǅ Danco", 152, { 5, 4, 3, 2, 1, 0 });
+        ScoreInputTest(L"\U0001F600\u01C5", CaseRespect, L"\U0001F600\u01C5 Danco", 80, { 2, 1, 0 });
     }
     TEST_METHOD(FuzzyMatchV2_UnicodeCase3)
     {
-        ScoreInputTest(L"😀ǅĨ", CaseRespect, L"😀ǅ DĨnco", 188, { 9, 8, 5, 4, 3, 2, 1, 0 });
+        ScoreInputTest(L"\U0001F600\u01C5\u00CF", CaseRespect, L"\U0001F600\u01C5 D\u00CFnco", 92, { 5, 2, 1, 0 });
     }
     TEST_METHOD(PrefixMatch_Case1)
     {
@@ -146,15 +147,15 @@ namespace fzfUnitTests
     }
     TEST_METHOD(PrefixMatchUnicode_Case1)
     {
-        ScoreInputTest(L"^ĨSo", CaseRespect, L"ĨSo Danco Samba", 104);
+        ScoreInputTest(L"^\u00CFSo", CaseRespect, L"\u00CFSo Danco Samba", 80);
     }
     TEST_METHOD(PrefixMatchUnicode_Case2)
     {
-        ScoreInputTest(L"^Ĩsodc", CaseRespect, L"Ĩ So Danco Samba", 0);
+        ScoreInputTest(L"^\u00CFsodc", CaseRespect, L"\u00CF So Danco Samba", 0);
     }
     TEST_METHOD(PrefixMatchUnicode_Case3)
     {
-        ScoreInputTest(L"^Ĩdanco", CaseRespect, L"ĨDanco", 0);
+        ScoreInputTest(L"^\u00CFdanco", CaseRespect, L"\u00CFDanco", 0);
     }
     TEST_METHOD(SufixMatch_Case1)
     {
@@ -170,15 +171,15 @@ namespace fzfUnitTests
     }
     TEST_METHOD(SufixMatchUnicode_Case1)
     {
-        ScoreInputTest(L"ĨSo$", CaseRespect, L"ĨSo Danco Samba", 0);
+        ScoreInputTest(L"\u00CFSo$", CaseRespect, L"\u00CFSo Danco Samba", 0);
     }
     TEST_METHOD(SufixMatchUnicode_Case2)
     {
-        ScoreInputTest(L"Ĩsodc$", CaseIgnore, L"ĨSo Danco Samba", 0);
+        ScoreInputTest(L"\u00CFsodc$", CaseIgnore, L"\u00CFSo Danco Samba", 0);
     }
     TEST_METHOD(SufixMatchUnicode_Case3)
     {
-        ScoreInputTest(L"sambĨa$", CaseIgnore, L"Danco SambĨa", 176);
+        ScoreInputTest(L"samb\u00CFa$", CaseIgnore, L"Danco Samb\u00CFa", 152);
     }
     TEST_METHOD(EqualMatch_Case1)
     {

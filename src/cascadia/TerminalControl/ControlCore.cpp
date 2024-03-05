@@ -2975,14 +2975,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _quickSelectCopy = copy;
     }
 
-    std::wstring utextLogicalRowFullText(FuzzySearchResultRow &fuzzySearchResult2, TextBuffer &textBuffer)
+    std::wstring GetRowFullText(FuzzySearchResultRow &fuzzySearchResult2, TextBuffer &textBuffer)
     {
         std::wstring result;
 
-        for (auto i = fuzzySearchResult2.startRowNumber; i <= fuzzySearchResult2.endRowNumber; i++)
+        auto i = fuzzySearchResult2.startRowNumber;
+        while (textBuffer.GetRowByOffset(i).WasWrapForced())
         {
             result += textBuffer.GetRowByOffset(i).GetText();
+            i++;
         }
+        result += textBuffer.GetRowByOffset(i).GetText();
 
         return result;
     }
@@ -2991,13 +2994,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         const auto lock = _terminal->LockForWriting();
 
-        auto sr = _searcher.FuzzySearch(*GetRenderData(), text);
+        const auto fuzzySearchResultRows = _searcher.FuzzySearch(*GetRenderData(), text);
 
         auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
 
-        for (auto p : sr)
+        for (auto p : fuzzySearchResultRows)
         {
-            auto rowFullText = utextLogicalRowFullText(p, _terminal->GetTextBuffer());
+            auto rowFullText = GetRowFullText(p, _terminal->GetTextBuffer());
             
             //sort the positions descending so that it is easier to create text segments from them
             std::ranges::sort(p.positions, [](int32_t a, int32_t b) {
@@ -3010,7 +3013,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             bool isCurrentRunHighlighted = false;
             size_t highlightIndex = 0;
 
-            for (int32_t i = 0; i < rowFullText.length() - 1; ++i)
+            for (int32_t i = 0; i < rowFullText.length(); ++i)
             {
                 if (highlightIndex < p.positions.size() && i == p.positions[highlightIndex])
                 {
@@ -3047,7 +3050,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (!currentRun.empty())
             {
                 auto textSegmentHString = winrt::hstring(currentRun);
-                auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
+                auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, isCurrentRunHighlighted);
                 runs.Append(textSegment);
             }
 
@@ -3057,7 +3060,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             searchResults.Append(line);
         }
 
-        auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, static_cast<int32_t>(sr.size()), static_cast<int32_t>(searchResults.Size()));
+        auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, static_cast<int32_t>(fuzzySearchResultRows.size()), static_cast<int32_t>(searchResults.Size()));
         return fuzzySearchResult;
     }
 

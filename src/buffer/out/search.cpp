@@ -52,23 +52,89 @@ bool Search::ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderDa
     _caseInsensitive = caseInsensitive;
     _lastMutationId = lastMutationId;
 
-    _results = textBuffer.SearchTextRegex(needle, caseInsensitive);
+    _results = _regexSearch(renderData, needle, caseInsensitive);
     _index = reverse ? gsl::narrow_cast<ptrdiff_t>(_results.size()) - 1 : 0;
     _step = reverse ? -1 : 1;
 
     return true;
 }
 
-void Search::QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive)
+std::vector<til::point_span> Search::_regexSearch(const Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive)
 {
+    std::vector<til::point_span> results;
+    UErrorCode status = U_ZERO_ERROR;
+    uint32_t flags = 0;
+    WI_SetFlagIf(flags, UREGEX_CASE_INSENSITIVE, caseInsensitive);
     const auto& textBuffer = renderData.GetTextBuffer();
 
+    const auto rowCount = textBuffer.GetLastNonSpaceCharacter().y + 1;
+
+    const auto regex = Microsoft::Console::ICU::CreateRegex(needle, flags, &status);
+    if (U_FAILURE(status))
+    {
+        return results;
+    }
+
+    const auto viewPortWidth = textBuffer.GetSize().Width();
+
+    for (int32_t i = 0; i < rowCount; i++)
+    {
+        auto startRow = i;
+        auto uText = Microsoft::Console::ICU::UTextForWrappableRow(textBuffer, i);
+
+        uregex_setUText(regex.get(), &uText, &status);
+        if (U_FAILURE(status))
+        {
+            return results;
+        }
+
+        if (uregex_find(regex.get(), -1, &status))
+        {
+            do
+            {
+                const int32_t icuStart = uregex_start(regex.get(), 0, &status);
+                int32_t icuEnd = uregex_end(regex.get(), 0, &status);
+                icuEnd--;
+
+                //Start of line is 0,0 and should be skipped (^)
+                if (icuEnd >= 0)
+                {
+                    const auto matchLength = utext_nativeLength(&uText);
+                    auto adjustedMatchStart = icuStart - 1 == matchLength ? icuStart - 1 : icuStart;
+                    auto adjustedMatchEnd = std::min(static_cast<int32_t>(matchLength), icuEnd);
+
+                    const size_t matchStartLine = (adjustedMatchStart / viewPortWidth) + startRow;
+                    const size_t matchEndLine = (adjustedMatchEnd / viewPortWidth) + startRow;
+
+                    if (matchStartLine > startRow)
+                    {
+                        adjustedMatchStart %= (matchStartLine - startRow) * viewPortWidth;
+                    }
+
+                    if (matchEndLine > startRow)
+                    {
+                        adjustedMatchEnd %= (matchEndLine - startRow) * viewPortWidth;
+                    }
+
+                    auto ps = til::point_span{};
+                    ps.start = til::point{ adjustedMatchStart, static_cast<int32_t>(matchStartLine) };
+                    ps.end = til::point{ adjustedMatchEnd, static_cast<int32_t>(matchEndLine) };
+                    results.emplace_back(ps);
+                }
+            } while (uregex_findNext(regex.get(), &status));
+        }
+    }
+    return results;
+}
+
+void Search::QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive)
+{
     _renderData = &renderData;
     _needle = needle;
     _caseInsensitive = caseInsensitive;
 
-    _results = textBuffer.SearchTextRegex(needle, caseInsensitive);
-    _index =  0;
+    _results = _regexSearch(renderData, needle, caseInsensitive);
+    _index = 0;
     _step = 1;
 }
 
@@ -78,7 +144,7 @@ std::vector<FuzzySearchResultRow> Search::FuzzySearch(Microsoft::Console::Render
     struct RowResult
     {
         UText text;
-        int icuScore;
+        int score;
         til::CoordType startRowNumber;
         long long length;
     };
@@ -86,7 +152,7 @@ std::vector<FuzzySearchResultRow> Search::FuzzySearch(Microsoft::Console::Render
     auto searchResults = std::vector<FuzzySearchResultRow>();
     const auto& textBuffer = renderData.GetTextBuffer();
 
-    auto searchTextNotBlank = std::ranges::any_of(needle, [](wchar_t ch) {
+    auto searchTextNotBlank = std::ranges::any_of(needle, [](const wchar_t ch) {
         return !std::iswspace(ch);
     });
 
@@ -98,72 +164,75 @@ std::vector<FuzzySearchResultRow> Search::FuzzySearch(Microsoft::Console::Render
     const UChar* uPattern = reinterpret_cast<const UChar*>(needle.data());
     ufzf_pattern_t* fzfPattern = ufzf_parse_pattern(CaseSmart, false, uPattern, true);
 
+    constexpr int32_t maxResults = 100;
     auto rowResults = std::vector<RowResult>();
     auto rowCount = textBuffer.GetLastNonSpaceCharacter().y + 1;
+    //overkill?
+    rowResults.reserve(rowCount);
+    searchResults.reserve(maxResults);
     int minScore = 1;
 
     for (int rowNumber = 0; rowNumber < rowCount; rowNumber++)
     {
-        //Row number is going to get incremented by this function if there is a row wrap
-        auto uRowText = Microsoft::Console::ICU::UTextForLogicalRow(textBuffer, rowNumber);
+        const auto startRowNumber = rowNumber;
+        //Warn: row number will be incremented by this function if there is a row wrap.  Is there a better way
+        auto uRowText = Microsoft::Console::ICU::UTextForWrappableRow(textBuffer, rowNumber);
         auto length = utext_nativeLength(&uRowText);
 
         if (length > 0)
         {
-            int icuRowScore = ufzf_get_score(&uRowText, fzfPattern, _fzf_slab);
+            int icuRowScore = ufzf_get_score(&uRowText, fzfPattern, _fzfSlab);
             if (icuRowScore >= minScore)
             {
                 auto rowResult = RowResult{};
                 //I think this is small enough to copy
                 rowResult.text = uRowText;
-                rowResult.startRowNumber = rowNumber;
-                rowResult.icuScore = icuRowScore;
+                rowResult.startRowNumber = startRowNumber;
+                rowResult.score = icuRowScore;
                 rowResult.length = length;
                 rowResults.push_back(rowResult);
-
-                //sort so the highest scores and shortest lengths are first
-                std::ranges::sort(rowResults, [](const auto& a, const auto& b) {
-                    if (a.icuScore != b.icuScore)
-                    {
-                        return a.icuScore > b.icuScore;
-                    }
-                    return a.length < b.length;
-                });
-
-                //remove any results after 100 to save from having to get positions and render in xaml
-                if (rowResults.size() > 100)
-                {
-                    utext_close(&rowResults[100].text);
-                    rowResults.pop_back();
-                    minScore = rowResults[99].icuScore;
-                }
             }
         }
     }
 
-    for (auto p : rowResults)
+    //sort so the highest scores and shortest lengths are first
+    std::ranges::sort(rowResults, [](const auto& a, const auto& b) {
+        if (a.score != b.score)
+        {
+            return a.score > b.score;
+        }
+        return a.length < b.length;
+    });
+
+    for (size_t rank = 0; rank < rowResults.size(); rank++)
     {
-        fzf_position_t* icuPos = ufzf_get_positions(&p.text, fzfPattern, _fzf_slab);
-
-        if (!icuPos || icuPos->size == 0)
+        auto rowResult = rowResults[rank];
+        if (rank <= maxResults)
         {
-            searchResults.emplace_back(FuzzySearchResultRow{ p.startRowNumber, p.text.b, {} });
-            fzf_free_positions(icuPos);
-        }
-        else
-        {
-            std::vector<int32_t> vec;
-            vec.reserve(icuPos->size);
+            fzf_position_t* fzfPositions = ufzf_get_positions(&rowResult.text, fzfPattern, _fzfSlab);
 
-            for (size_t i = 0; i < icuPos->size; ++i)
+            //This is likely the result of an inverse search that didn't have any positions
+            //We want to return it in the results.  It just won't have any highlights
+            if (!fzfPositions || fzfPositions->size == 0)
             {
-                vec.push_back(static_cast<int32_t>(icuPos->data[i]));
+                searchResults.emplace_back(FuzzySearchResultRow{ rowResult.startRowNumber, {} });
+                fzf_free_positions(fzfPositions);
             }
+            else
+            {
+                std::vector<int32_t> vec;
+                vec.reserve(fzfPositions->size);
 
-            searchResults.emplace_back(FuzzySearchResultRow{ p.startRowNumber, p.text.b, vec });
-            fzf_free_positions(icuPos);
-            utext_close(&p.text);
+                for (size_t i = 0; i < fzfPositions->size; ++i)
+                {
+                    vec.push_back(static_cast<int32_t>(fzfPositions->data[i]));
+                }
+
+                searchResults.emplace_back(FuzzySearchResultRow{ rowResult.startRowNumber, vec });
+                fzf_free_positions(fzfPositions);
+            }
         }
+        utext_close(&rowResult.text);
     }
 
     ufzf_free_pattern(fzfPattern);

@@ -24,7 +24,7 @@ Revision History:
 struct FuzzySearchResultRow
 {
     til::CoordType startRowNumber;
-    til::CoordType endRowNumber;
+    //til::CoordType endRowNumber;
     std::vector<int32_t> positions;
 };
 
@@ -35,6 +35,7 @@ public:
 
     bool ResetIfStale(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive);
     bool ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive);
+    bool get_value1(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive, std::vector<til::point_span>& results);
     void QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive);
     std::vector<FuzzySearchResultRow> FuzzySearch(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle) const;
 
@@ -48,7 +49,7 @@ public:
     bool SelectCurrent() const;
 
     const std::vector<til::point_span>& Results() const noexcept;
-    fzf_slab_t* _fzf_slab = fzf_make_default_slab();
+    fzf_slab_t* _fzfSlab = fzf_make_default_slab();
     ptrdiff_t CurrentMatch() const noexcept;
 
 private:
@@ -57,6 +58,7 @@ private:
     std::wstring _needle;
     bool _caseInsensitive = false;
     uint64_t _lastMutationId = 0;
+    static std::vector<til::point_span> _regexSearch(const Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive);
 
     std::vector<til::point_span> _results;
     ptrdiff_t _index = 0;

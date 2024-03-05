@@ -1071,19 +1071,27 @@ static void uappend_pattern(ufzf_pattern_t *pattern, ufzf_term_set_t *value) {
   term->fn((term)->case_sensitive, normalize, &(input),                        \
            (ufzf_string_t *)(term)->text, pos, slab)
 
-UChar *ustrtok_r(UChar *src, const UChar delim, UChar** context) {
-    if (src == NULL && (src = *context) == NULL) {
+UChar* ustrtok_r(UChar* src, const UChar delim, UChar** context, size_t length)
+{
+    if (src == NULL && (src = *context) == NULL)
+    {
         return NULL; // No more tokens
     }
 
-    UChar *end = src;
-    while (*end && *end != delim) {
+    UChar* end = src;
+    UChar* src_end = src + length; // Calculate the end of the src based on the length
+
+    while (end < src_end && *end && *end != delim)
+    {
         ++end;
     }
 
-    if (*end == 0) { // End of string
+    if (end >= src_end || *end == 0)
+    { // End of string or reaching the length limit
         *context = NULL;
-    } else {
+    }
+    else
+    {
         *end = 0; // Replace delim with null terminator to end token
         *context = end + 1;
     }
@@ -1096,15 +1104,13 @@ UChar* u_strdup(const UChar* src) {
         return NULL;
     }
 
-    int32_t len = u_strlen(src); // Get the length of the source string
-    // Allocate memory for the duplicate string, including space for the null terminator
-    UChar* dup = (UChar*)malloc((len + 1) * sizeof(UChar));
+    int32_t len = u_strlen(src);
+    UChar* dup = malloc((len + 1) * sizeof(UChar));
     if (dup == NULL) {
-        return NULL; // Memory allocation failed
+        return NULL;
     }
 
-    // Copy the string into the newly allocated memory
-    u_memcpy(dup, src, len + 1); // +1 to include the null terminator
+    u_memcpy(dup, src, len + 1);
 
     return dup;
 }
@@ -1137,7 +1143,7 @@ ufzf_pattern_t *ufzf_parse_pattern(fzf_case_types case_mode, bool normalize,
     UChar* pattern_copy = ustr_replace(patternDup, escaped_space_suffix, tab);
     UChar* context = NULL;
     UChar udelim = 0x0020;
-    UChar* ptr = ustrtok_r(pattern_copy, udelim, &context);
+    UChar* ptr = ustrtok_r(pattern_copy, udelim, &context, pat_len);
 
     ufzf_term_set_t *set = (ufzf_term_set_t *)malloc(sizeof(ufzf_term_set_t));
     memset(set, 0, sizeof(*set));
@@ -1174,7 +1180,7 @@ ufzf_pattern_t *ufzf_parse_pattern(fzf_case_types case_mode, bool normalize,
         if (set->size > 0 && !after_bar && u_strcmp(text, pipeChar) == 0) {
             switch_set = false;
             after_bar = true;
-            ptr = ustrtok_r(NULL, udelim, &context);
+            ptr = ustrtok_r(NULL, udelim, &context, pat_len);
             SFREE(og_str);
             continue;
         }
@@ -1239,7 +1245,7 @@ ufzf_pattern_t *ufzf_parse_pattern(fzf_case_types case_mode, bool normalize,
             SFREE(og_str);
         }
 
-        ptr = ustrtok_r(NULL, udelim, &context);
+        ptr = ustrtok_r(NULL, udelim, &context, pat_len);
     }
     if (set->size > 0) {
         uappend_pattern(pat_obj, set);

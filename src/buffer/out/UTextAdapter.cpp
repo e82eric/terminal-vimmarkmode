@@ -136,6 +136,8 @@ try
             do
             {
                 --y;
+                //I think <= can cause an infinite loop without setting the ut chunk* fields
+                //It kept requesting the same nativeIndex over and over (139)
                 if (y < range.begin)
                 {
                     return false;
@@ -289,110 +291,6 @@ Microsoft::Console::ICU::unique_uregex Microsoft::Console::ICU::CreateRegex(cons
     return unique_uregex{ re };
 }
 
-std::vector<til::point_span> Microsoft::Console::ICU::SearchBuffer(const std::wstring_view& pattern, const TextBuffer& textBuffer, const uint32_t flags, UErrorCode* status) noexcept
-{
-    std::vector<til::point_span> results;
-    const auto rowCount = textBuffer.GetLastNonSpaceCharacter().y + 1;
-
-    URegularExpression* regex = uregex_open(reinterpret_cast<const char16_t*>(pattern.data()), -1, flags, nullptr, status);
-    if (U_FAILURE(*status))
-    {
-        return results;
-    }
-
-    const auto viewPortWidth = textBuffer.GetSize().Width();
-    std::vector<UChar> uStr(viewPortWidth + 1);
-    auto maxNumberOfLineWraps = 0;
-    std::wstring accumulatedInput;
-    accumulatedInput.reserve(viewPortWidth);
-
-    for (int32_t i = 0; i < rowCount; i++)
-    {
-        const int32_t realI = i;
-        bool isWrap;
-        accumulatedInput.clear();
-
-        do
-        {
-            auto input = textBuffer.GetRowByOffset(i).GetText();
-            isWrap = textBuffer.GetRowByOffset(i).WasWrapForced();
-            accumulatedInput.append(input);
-
-            if (isWrap)
-            {
-                i++;
-            }
-        } while (isWrap && i < rowCount);
-
-        const auto numberOfLineWraps = i - realI;
-        if (numberOfLineWraps > maxNumberOfLineWraps)
-        {
-            maxNumberOfLineWraps = numberOfLineWraps;
-            const auto newUStrSize = ((maxNumberOfLineWraps + 1) * viewPortWidth) + 1;
-            uStr.resize(newUStrSize);
-            accumulatedInput.resize(newUStrSize);
-        }
-        const auto lastNonSpace = textBuffer.GetRowByOffset(i).GetLastNonSpaceColumn();
-        const auto adjustedLen = viewPortWidth * (i - realI) + lastNonSpace;
-        
-        u_strFromWCS(uStr.data(), static_cast<int32_t>(uStr.size()), nullptr, reinterpret_cast<const wchar_t*>(accumulatedInput.data()), static_cast<int32_t>(adjustedLen), status);
-        auto b = u"Café";
-        auto a = u_strlen(b);
-        if (a > 4)
-        {
-            
-        }
-
-        if (U_FAILURE(*status))
-        {
-            uregex_close(regex);
-            return results;
-        }
-
-        uregex_setText(regex, uStr.data(), static_cast<int32_t>(adjustedLen), status);
-        if (U_FAILURE(*status))
-        {
-            uregex_close(regex);
-            return results;
-        }
-
-        while (uregex_findNext(regex, status) && !U_FAILURE(*status))
-        {
-            const int32_t icuStart = uregex_start(regex, 0, status);
-            int32_t icuEnd = uregex_end(regex, 0, status);
-            icuEnd--;
-
-            //Start of line is 0,0 and should be skipped
-            if (icuEnd >= 0)
-            {
-                auto adjustedStart = icuStart - 1 == adjustedLen ? icuStart - 1 : icuStart;
-                auto adjustedEnd = std::min(static_cast<int32_t>(adjustedLen), static_cast<int32_t>(icuEnd));
-
-                const size_t startLine = (adjustedStart / viewPortWidth) + realI;
-                const size_t endLine = (adjustedEnd / viewPortWidth) + realI;
-
-                if (startLine > realI)
-                {
-                    adjustedStart %= (startLine - realI) * viewPortWidth;
-                }
-
-                if (endLine > realI)
-                {
-                    adjustedEnd %= ((endLine - realI) * viewPortWidth);
-                }
-
-                auto ps = til::point_span{};
-                ps.start = til::point{ adjustedStart, static_cast<int32_t>(startLine) };
-                ps.end = til::point{ adjustedEnd, static_cast<int32_t>(endLine) };
-                results.emplace_back(ps);
-            }
-        }
-    }
-    uregex_close(regex);
-
-    return results;
-}
-
 // Returns an inclusive point range given a text start and end position.
 // This function is designed to be used with uregex_start64/uregex_end64.
 til::point_span Microsoft::Console::ICU::BufferRangeFromMatch(UText* ut, URegularExpression* re)
@@ -432,83 +330,9 @@ til::point_span Microsoft::Console::ICU::BufferRangeFromMatch(UText* ut, URegula
     return ret;
 }
 
-    static UText* U_CALLCONV utextLogicalRowClone(UText* dest, const UText* src, UBool deep, UErrorCode* status) noexcept
+UText Microsoft::Console::ICU::UTextForWrappableRow(const TextBuffer& textBuffer, til::CoordType& row) noexcept
 {
-    __assume(status != nullptr);
-
-    if (deep)
-    {
-        *status = U_UNSUPPORTED_ERROR;
-        return dest;
-    }
-
-    dest = utext_setup(dest, 0, status);
-    if (*status <= U_ZERO_ERROR)
-    {
-        memcpy(dest, src, sizeof(UText));
-    }
-
-    return dest;
-}
-
-static int64_t U_CALLCONV utextLogicalRowNativeLength(UText* ut) noexcept
-try
-{
-    return gsl::narrow_cast<int64_t>(ut->c);
-}
-catch (...)
-{
-    return 0;
-}
-
-static UBool U_CALLCONV utextLogicalRowAccess(UText* ut, int64_t nativeIndex, UBool /*forward*/) noexcept
-try
-{
-    if (nativeIndex < 0)
-    {
-        nativeIndex = 0;
-    }
-
-    const auto& textBuffer = *static_cast<const TextBuffer*>(ut->context);
-    auto startRow = static_cast<til::CoordType>(ut->a);
-    auto endRow = ut->b;
-    auto length = ut->c;
-    auto numberOfRows = endRow - startRow + 1;
-    auto charsInRow = length / numberOfRows;
-    til::CoordType rowNumber = static_cast<til::CoordType>(nativeIndex / charsInRow);
-    auto rowIndex = nativeIndex - (rowNumber * charsInRow);
-
-    auto text = textBuffer.GetRowByOffset(startRow + rowNumber).GetText();
-
-    ut->chunkOffset = 0;
-    ut->chunkNativeStart = nativeIndex;
-    ut->chunkNativeLimit = charsInRow - rowIndex;
-    ut->chunkLength = charsInRow - static_cast<int32_t>(rowIndex);
-#pragma warning(suppress : 26490) // Don't use reinterpret_cast (type.1).
-    ut->chunkContents = reinterpret_cast<const char16_t*>(text.data() + rowIndex);
-    ut->nativeIndexingLimit = ut->chunkLength;
-
-    return true;
-}
-catch (...)
-{
-    return false;
-}
-
-static constexpr UTextFuncs utextLogicalRowFuncs{
-    .tableSize = sizeof(UTextFuncs),
-    .clone = utextLogicalRowClone,
-    .nativeLength = utextLogicalRowNativeLength,
-    .access = utextLogicalRowAccess,
-};
-
-UText Microsoft::Console::ICU::UTextForLogicalRow(const TextBuffer& textBuffer, til::CoordType& row) noexcept
-{
-    UText ut = UTEXT_INITIALIZER;
-    ut.pFuncs = &utextLogicalRowFuncs;
-    ut.context = &textBuffer;
-    ut.a = row;
-
+    const auto startRow = row;
     auto length = 0;
     while (textBuffer.GetRowByOffset(row).WasWrapForced())
     {
@@ -516,19 +340,7 @@ UText Microsoft::Console::ICU::UTextForLogicalRow(const TextBuffer& textBuffer, 
         length += textBuffer.GetRowByOffset(row).size();
     }
     length += textBuffer.GetRowByOffset(row).size();
-
-    ut.b = row;
-    ut.c = length;
+    const auto ut = UTextFromTextBuffer(textBuffer, startRow, row + 1);
 
     return ut;
-}
-
-til::CoordType utextLogicalRowStartRowNumber(UText& utext)
-{
-    return static_cast<til::CoordType>(utext.a);
-}
-
-til::CoordType utextLogicalRowEndRowNumber(UText& utext)
-{
-    return static_cast<til::CoordType>(utext.b);
 }
