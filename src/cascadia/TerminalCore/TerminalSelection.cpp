@@ -645,22 +645,38 @@ void Terminal::InDelimiter(std::wstring_view startDelimiter, std::wstring_view e
 
 void Terminal::TilChar(std::wstring_view vkey, bool isVisual)
 {
-    _TilChar(vkey, isVisual);
+    til::point target;
+    if (_FindChar(vkey, true, target))
+    {
+        _UpdateSelection(isVisual, target);
+    }
 }
 
 void Terminal::FindChar(std::wstring_view vkey, bool isVisual)
 {
-    _FindChar(vkey, isVisual);
+    til::point target;
+    if(_FindChar(vkey, false, target))
+    {
+        _UpdateSelection(isVisual, target);    
+    }
 }
 
 void Terminal::FindCharBack(std::wstring_view vkey, bool isVisual)
 {
-    _FindCharBack(vkey, isVisual);
+    til::point target;
+    if(_FindCharBack(vkey, false, target))
+    {
+        _UpdateSelection(isVisual, target);
+    }
 }
 
 void Terminal::TilCharBack(std::wstring_view vkey, bool isVisual)
 {
-    _TilCharBack(vkey, isVisual);
+    til::point target;
+    if (_FindCharBack(vkey, true, target))
+    {
+        _UpdateSelection(isVisual, target);
+    }
 }
 
 void Terminal::SetPivot()
@@ -1203,81 +1219,75 @@ void Terminal::_MoveByWord(SelectionDirection direction, til::point& pos)
     }
 }
 
-void Terminal::_FindChar(std::wstring_view vkey, bool isVisual)
+bool Terminal::_FindChar(std::wstring_view vkey, bool isTil, til::point & target)
 {
-    auto adjustedEnd = til::point{ _selection->end.x + 1, _selection->end.y };
-    auto adjustedStart = til::point{ _selection->start.x + 1, _selection->start.y };
+    auto startPoint = _selection->end == _selection->pivot ?
+                                til::point{ _selection->start.x + 1, _selection->start.y } :
+                                til::point{ _selection->end.x + 1, _selection->end.y };
 
-    auto startPoint = _selection->end == _selection->pivot ? adjustedStart : adjustedEnd;
-
-    til::point originalStart = _selection->start;;
-
-    auto result = _activeBuffer().FindChar(startPoint, vkey);
-
-    if (!result.second)
+    if (isTil)
     {
-        return;
+        startPoint.x++;
     }
 
-    auto adjustedResult = til::point{ result.first.x, result.first.y };
-    _UpdateSelection(isVisual, adjustedResult);
+    auto newY = startPoint.y;
+    auto lineWrapped = false;
+
+    while (lineWrapped || newY == startPoint.y)
+    {
+        const auto startX = newY > startPoint.y ? 0 : startPoint.x;
+        auto& row = _activeBuffer().GetRowByOffset(newY);
+        for (auto i = startX; i < row.size(); i++)
+        {
+            const auto glyphAt = row.GlyphAt(i);
+            if (glyphAt == vkey)
+            {
+                target = til::point{ i, newY };
+                if (isTil)
+                {
+                    target.x--;   
+                }
+                return true;
+            }
+        }
+
+        lineWrapped = row.WasWrapForced();
+        newY++;
+    }
+    return false;
 }
 
-void Terminal::_TilChar(std::wstring_view vkey, bool isVisual)
+bool Terminal::_FindCharBack(std::wstring_view vkey, bool isTil, til::point& target)
 {
-    auto adjustedEnd = til::point{ _selection->end.x + 2, _selection->end.y };
-    auto adjustedStart = til::point{ _selection->start.x + 2, _selection->start.y };
+    const auto startPoint = _selection->end == _selection->pivot ?
+                                til::point{ _selection->start.x - 2, _selection->start.y } :
+                                til::point{ _selection->end.x -2, _selection->end.y };
 
-    auto startPoint = _selection->end == _selection->pivot ? adjustedStart : adjustedEnd;
+    auto newY = startPoint.y;
 
-    til::point originalStart = _selection->start;
-
-    auto result = _activeBuffer().FindChar(startPoint, vkey);
-
-    if (!result.second)
+    while (_activeBuffer().GetRowByOffset(newY).WasWrapForced() || newY == startPoint.y)
     {
-        return;
+        auto& row = _activeBuffer().GetRowByOffset(newY);
+        const auto startX = newY != startPoint.y ? row.size() : startPoint.x;
+        
+        for (auto i = startX; i >= 0; i--)
+        {
+            const auto glyphAt = row.GlyphAt(i);
+            if (glyphAt == vkey)
+            {
+                target = til::point{ i, newY };
+                if (isTil)
+                {
+                    target.x++;
+                }
+                return true;
+            }
+        }
+
+        newY--;
     }
 
-    auto adjustedResult = til::point{ result.first.x - 1, result.first.y };
-    _UpdateSelection(isVisual, adjustedResult);
-}
-
-void Terminal::_FindCharBack(std::wstring_view vkey, bool isVisual)
-{
-    auto adjustedEnd = til::point{ _selection->end.x - 1, _selection->end.y };
-    auto adjustedStart = til::point{ _selection->start.x - 1, _selection->start.y };
-
-    auto startPoint = _selection->end == _selection->pivot ? adjustedStart : adjustedEnd;
-
-    auto result = _activeBuffer().FindCharReverse(startPoint, vkey);
-
-    if (!result.second)
-    {
-        return;
-    }
-
-    auto adjustedResult = til::point{ result.first.x, result.first.y };
-    _UpdateSelection(isVisual, adjustedResult);
-}
-
-void Terminal::_TilCharBack(std::wstring_view vkey, bool isVisual)
-{
-    auto adjustedEnd = til::point{ _selection->end.x - 2, _selection->end.y };
-    auto adjustedStart = til::point{ _selection->start.x - 2, _selection->start.y };
-
-    auto startPoint = _selection->end == _selection->pivot ? adjustedStart : adjustedEnd;
-
-    auto result = _activeBuffer().FindCharReverse(startPoint, vkey);
-
-    if (!result.second)
-    {
-        return;
-    }
-
-    auto adjustedResult = til::point{ result.first.x + 1, result.first.y };
-
-    _UpdateSelection(isVisual, adjustedResult);
+    return false;
 }
 
 void Terminal::_UpdateSelection(bool isVisual, til::point adjusted)

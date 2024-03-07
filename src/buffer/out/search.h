@@ -24,7 +24,6 @@ Revision History:
 struct FuzzySearchResultRow
 {
     til::CoordType startRowNumber;
-    //til::CoordType endRowNumber;
     std::vector<int32_t> positions;
 };
 
@@ -49,7 +48,6 @@ public:
     bool SelectCurrent() const;
 
     const std::vector<til::point_span>& Results() const noexcept;
-    fzf_slab_t* _fzfSlab = fzf_make_default_slab();
     ptrdiff_t CurrentMatch() const noexcept;
 
 private:
@@ -63,4 +61,5 @@ private:
     std::vector<til::point_span> _results;
     ptrdiff_t _index = 0;
     ptrdiff_t _step = 0;
+    fzf_slab_t* _fzfSlab = fzf_make_default_slab();
 };

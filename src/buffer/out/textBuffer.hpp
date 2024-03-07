@@ -211,10 +211,8 @@ public:
     void TriggerNewTextNotification(const std::wstring_view newText);
 
     til::point GetWordStart(const til::point target, const std::wstring_view wordDelimiters, bool accessibilityMode = false, std::optional<til::point> limitOptional = std::nullopt) const;
-    std::pair<til::point, bool> FindCharReverse(const til::point target, const std::wstring_view wordDelimiters) const;
     til::point GetWordEnd(const til::point target, const std::wstring_view wordDelimiters, bool accessibilityMode = false, std::optional<til::point> limitOptional = std::nullopt) const;
     til::point GetLineEnd(const til::point target) const;
-    std::pair<til::point, bool> FindChar(const til::point target, const std::wstring_view wordDelimiters) const;
     std::pair<til::point, bool> GetWordEnd2(const til::point target, const std::wstring_view wordDelimiters) const;
     bool MoveToNextWord(til::point& pos, const std::wstring_view wordDelimiters, std::optional<til::point> limitOptional = std::nullopt) const;
     bool MoveToPreviousWord(til::point& pos, const std::wstring_view wordDelimiters) const;
@@ -375,7 +373,6 @@ private:
     til::point _GetWordEndForAccessibility(const til::point target, const std::wstring_view wordDelimiters, const til::point limit) const;
     til::point _GetWordEndForSelection(const til::point target, const std::wstring_view wordDelimiters) const;
     std::pair<til::point, bool> _GetWordEndForSelection2(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> _FindChar(const til::point target, const std::wstring_view wordDelimiters) const;
     void _PruneHyperlinks();
     void _trimMarksOutsideBuffer();
     std::tuple<til::CoordType, til::CoordType, bool> _RowCopyHelper(const CopyRequest& req, const til::CoordType iRow, const ROW& row) const;

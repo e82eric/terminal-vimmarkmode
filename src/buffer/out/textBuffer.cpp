@@ -1355,32 +1355,6 @@ til::point TextBuffer::GetWordStart(const til::point target, const std::wstring_
     }
 }
 
-std::pair<til::point, bool> TextBuffer::FindCharReverse(const til::point target, const std::wstring_view wordDelimiters) const
-{
-#pragma warning(suppress : 26496)
-    auto copy{ target };
-    const auto bufferSize{ GetSize() };
-    const auto limit{ bufferSize.EndExclusive() };
-    if (target == bufferSize.Origin())
-    {
-        // can't expand left
-        return { {}, false };
-    }
-    else if (target == bufferSize.EndExclusive())
-    {
-        // GH#7664: Treat EndExclusive as EndInclusive so
-        // that it actually points to a space in the buffer
-        copy = bufferSize.BottomRightInclusive();
-    }
-    else if (bufferSize.CompareInBounds(target, limit, true) >= 0)
-    {
-        // if at/past the limit --> clamp to limit
-        copy = bufferSize.BottomRightInclusive();
-    }
-
-    return _GetWordStartForSelection2(copy, wordDelimiters);
-}
-
 // Method Description:
 // - Helper method for GetWordStart(). Get the til::point for the beginning of the word (accessibility definition) you are on
 // Arguments:
@@ -1554,18 +1528,6 @@ til::point TextBuffer::GetLineEnd(const til::point target) const
     }
 
     return til::point{lastNonControlChar, target.y };
-}
-
-std::pair<til::point, bool> TextBuffer::FindChar(const til::point target, const std::wstring_view wordDelimiters) const
-{
-    const auto bufferSize{ GetSize() };
-    const auto limit{ bufferSize.EndExclusive() };
-    if (bufferSize.CompareInBounds(target, limit, true) >= 0)
-    {
-        return { {}, false };
-    }
-
-    return _FindChar(target, wordDelimiters);
 }
 
 std::pair<til::point, bool> TextBuffer::GetWordEnd2(const til::point target, const std::wstring_view wordDelimiters) const
@@ -1827,51 +1789,6 @@ std::pair<til::point, bool> TextBuffer::GetStartOfWord(const til::point target, 
     if (result.x != 0)
     {
         bufferSize.IncrementInBounds(result);
-    }
-
-    return { result, true };
-}
-
-std::pair<til::point, bool> TextBuffer::_FindChar(const til::point target, const std::wstring_view wordDelimiters) const
-{
-    const auto bufferSize = GetSize();
-
-    // can't expand right
-    if (target.x == bufferSize.RightInclusive())
-    {
-        return { {}, false };
-    }
-
-    auto result = target;
-    const auto initialDelimiter = _GetDelimiterClassAt(result, wordDelimiters);
-    bool found = false;
-    bool normalCharFound = false;
-
-    if (initialDelimiter == DelimiterClass::DelimiterChar)
-    {
-        return { result, true };
-    }
-
-    // expand right until we hit the right boundary or a different delimiter class
-    while (result.x < bufferSize.RightInclusive())
-    {
-        bufferSize.IncrementInBounds(result);
-
-        auto classAt = _GetDelimiterClassAt(result, wordDelimiters);
-        if (classAt != DelimiterClass::ControlChar)
-        {
-            normalCharFound = true;
-        }
-        if (classAt == DelimiterClass::DelimiterChar)
-        {
-            found = true;
-            break;
-        }
-    }
-
-    if (!found || (!normalCharFound))
-    {
-        return { {}, false };
     }
 
     return { result, true };
