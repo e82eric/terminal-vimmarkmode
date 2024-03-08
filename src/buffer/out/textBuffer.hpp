@@ -212,8 +212,6 @@ public:
 
     til::point GetWordStart(const til::point target, const std::wstring_view wordDelimiters, bool accessibilityMode = false, std::optional<til::point> limitOptional = std::nullopt) const;
     til::point GetWordEnd(const til::point target, const std::wstring_view wordDelimiters, bool accessibilityMode = false, std::optional<til::point> limitOptional = std::nullopt) const;
-    til::point GetLineEnd(const til::point target) const;
-    std::pair<til::point, bool> GetWordEnd2(const til::point target, const std::wstring_view wordDelimiters) const;
     bool MoveToNextWord(til::point& pos, const std::wstring_view wordDelimiters, std::optional<til::point> limitOptional = std::nullopt) const;
     bool MoveToPreviousWord(til::point& pos, const std::wstring_view wordDelimiters) const;
 
@@ -343,12 +341,6 @@ public:
     void SetCurrentOutputEnd(const til::point pos, ::MarkCategory category) noexcept;
     std::wstring_view CurrentCommand() const;
 
-    std::pair<til::point, bool> GetLineFirstNonBlankChar(const til::point target) const;
-    std::pair<til::point, bool> GetStartOfWord(const til::point target, std::wstring_view delimiters) const;
-    std::pair<til::point, bool> GetEndOfWord(const til::point target, std::wstring_view delimiters) const;
-    std::pair<til::point, bool> GetStartOfNextWord(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> GetEndOfPreviousWord(const til::point target, const std::wstring_view wordDelimiters) const;
-
 private:
     void _reserve(til::size screenBufferSize, const TextAttribute& defaultAttributes);
     void _commit(const std::byte* row);
@@ -369,10 +361,8 @@ private:
     DelimiterClass _GetDelimiterClassAt(const til::point pos, const std::wstring_view wordDelimiters) const;
     til::point _GetWordStartForAccessibility(const til::point target, const std::wstring_view wordDelimiters) const;
     til::point _GetWordStartForSelection(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> _GetWordStartForSelection2(const til::point target, const std::wstring_view wordDelimiters) const;
     til::point _GetWordEndForAccessibility(const til::point target, const std::wstring_view wordDelimiters, const til::point limit) const;
     til::point _GetWordEndForSelection(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> _GetWordEndForSelection2(const til::point target, const std::wstring_view wordDelimiters) const;
     void _PruneHyperlinks();
     void _trimMarksOutsideBuffer();
     std::tuple<til::CoordType, til::CoordType, bool> _RowCopyHelper(const CopyRequest& req, const til::CoordType iRow, const ROW& row) const;

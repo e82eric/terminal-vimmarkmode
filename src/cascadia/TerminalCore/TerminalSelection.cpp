@@ -829,12 +829,12 @@ void Terminal::SelectLineUp()
     {
         if (_selection->end.y > _selection->pivot.y)
         {
-            auto end = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y - 1 });
+            auto end = _GetLineEnd(til::point{ 0, _selection->end.y - 1 });
             _selection->end = end;
         }
         else if (_selection->end.y == _selection->pivot.y)
         {
-            auto currentEnd = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y });
+            auto currentEnd = _GetLineEnd(til::point{ 0, _selection->end.y });
             _selection->end = currentEnd;
             _selection->start = til::point{ 0, _selection->start.y - 1 };
             _selection->pivot = currentEnd;
@@ -856,7 +856,7 @@ void Terminal::SelectLineDown()
     else if (_selection->start.y == _selection->pivot.y)
     {
         auto currentStart = til::point{ 0, _selection->start.y };
-        auto currentEnd = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y + 1 });
+        auto currentEnd = _GetLineEnd(til::point{ 0, _selection->end.y + 1 });
 
         _selection->end = currentEnd;
         _selection->start = currentStart;
@@ -864,7 +864,7 @@ void Terminal::SelectLineDown()
     }
     else
     {
-        auto end = _activeBuffer().GetLineEnd(til::point{ 0, _selection->end.y + 1 });
+        auto end = _GetLineEnd(til::point{ 0, _selection->end.y + 1 });
         _selection->end = end;
     }
 }
@@ -879,6 +879,32 @@ void Terminal::SelectLineLeft(bool isVisual)
     _UpdateSelection(isVisual, til::point{ 0, startLine });
 }
 
+std::pair<til::point, bool> Terminal::_GetLineFirstNonBlankChar(const til::point target) const
+{
+    const auto bufferSize = _activeBuffer().GetSize();
+
+    auto result = target;
+    bool found = false;
+
+    while (result.x < bufferSize.RightInclusive())
+    {
+        auto classAt = _activeBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, L"");
+        if (classAt != DelimiterClass::ControlChar)
+        {
+            found = true;
+            break;
+        }
+        bufferSize.IncrementInBounds(result);
+    }
+
+    if (!found)
+    {
+        return { {}, false };
+    }
+
+    return { result, true };
+}
+
 void Terminal::SelectLineFirstNonBlankChar(bool isVisual)
 {
     auto startLine = _getStartLineOfRow(_activeBuffer(), _selection->start.y);
@@ -887,7 +913,7 @@ void Terminal::SelectLineFirstNonBlankChar(bool isVisual)
         startLine = _selection->start.y == _selection->pivot.y ? _selection->end.y : _selection->start.y;
     }
     auto startOfLine = til::point{ 0, startLine };
-    auto firstNonBlankChar = _activeBuffer().GetLineFirstNonBlankChar(startOfLine);
+    auto firstNonBlankChar = _GetLineFirstNonBlankChar(startOfLine);
 
     if (firstNonBlankChar.second == true)
     {
@@ -905,6 +931,49 @@ void Terminal::SelectWordLeft(bool isVisual)
     UpdateSelection(SelectionDirection::Left, SelectionExpansion::Word, ControlKeyStates{ mods });
 }
 
+std::pair<til::point, bool> Terminal::_GetStartOfNextWord(const til::point target, const std::wstring_view wordDelimiters) const
+{
+    auto wordEnd = _GetEndOfWord(target, wordDelimiters);
+
+    if (!wordEnd.second)
+    {
+        return wordEnd;
+    }
+
+    const auto bufferSize = _activeBuffer().GetSize();
+
+    // can't expand right
+    if (target.x == bufferSize.RightInclusive())
+    {
+        return { {}, false };
+    }
+
+    auto result = wordEnd.first;
+    bool found = false;
+
+    bufferSize.IncrementInBounds(result);
+
+    // expand right until we hit the right boundary or a different delimiter class
+    while (result.x < bufferSize.RightInclusive())
+    {
+        auto classAt = _activeBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, wordDelimiters);
+        if (classAt != DelimiterClass::ControlChar || classAt == DelimiterClass::DelimiterChar)
+        {
+            found = true;
+            break;
+        }
+
+        bufferSize.IncrementInBounds(result);
+    }
+
+    if (!found)
+    {
+        return { {}, false };
+    }
+
+    return { result, true };
+}
+
 void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
 {
     auto delimiters = _wordDelimiters;
@@ -915,7 +984,7 @@ void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
 
     auto startPoint = _selection->start < _selection->pivot ? _selection->start : _selection->end;
 
-    auto start = _activeBuffer().GetStartOfNextWord(startPoint, delimiters);
+    auto start = _GetStartOfNextWord(startPoint, delimiters);
 
     if (start.second)
     {
@@ -929,6 +998,69 @@ void Terminal::SelectWordStartRight(bool isVisual, bool isLargeWord)
     }
 }
 
+std::pair<til::point, bool> Terminal::_GetEndOfPreviousWord(const til::point target, const std::wstring_view wordDelimiters) const
+{
+    auto wordStart = _GetStartOfWord(target, wordDelimiters);
+
+    if (!wordStart.second)
+    {
+        return wordStart;
+    }
+
+    const auto bufferSize = _activeBuffer().GetSize();
+
+    auto result = wordStart.first;
+    bool found = false;
+
+    bufferSize.DecrementInBounds(result);
+
+    while (result.x >= 0)
+    {
+        auto classAt = _activeBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, wordDelimiters);
+        if (classAt != DelimiterClass::ControlChar || classAt == DelimiterClass::DelimiterChar || result.x == 0)
+        {
+            found = true;
+            break;
+        }
+
+        bufferSize.DecrementInBounds(result);
+    }
+
+    if (!found)
+    {
+        return { {}, false };
+    }
+
+    return { result, true };
+}
+
+til::point Terminal::_GetLineEnd(const til::point target) const
+{
+    const auto bufferSize{ _activeBuffer().GetSize() };
+
+    // can't expand right
+    if (target.x == bufferSize.RightInclusive())
+    {
+        return {};
+    }
+
+    auto result = target;
+    til::CoordType lastNonControlChar = 0;
+
+    // expand right until we hit the right boundary or a different delimiter class
+    while (result.x < bufferSize.RightInclusive())
+    {
+        auto classAt = _activeBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, L"");
+        if (classAt != DelimiterClass::ControlChar)
+        {
+            lastNonControlChar = result.x;
+        }
+        bufferSize.IncrementInBounds(result);
+    }
+
+    return til::point{ lastNonControlChar, target.y };
+}
+
 void Terminal::SelectWordLeft(bool isVisual, bool isLargeWord)
 {
     auto delimiters = _wordDelimiters;
@@ -939,15 +1071,15 @@ void Terminal::SelectWordLeft(bool isVisual, bool isLargeWord)
 
     auto startPoint = _selection->end > _selection->pivot ? _selection->end : _selection->start;
 
-    auto startPair = _activeBuffer().GetStartOfWord(startPoint, delimiters);
+    auto startPair = _GetStartOfWord(startPoint, delimiters);
     if (startPair.second)
     {
         if (startPair.first == startPoint)
         {
-            startPair = _activeBuffer().GetEndOfPreviousWord(startPair.first, delimiters);
+            startPair = _GetEndOfPreviousWord(startPair.first, delimiters);
             if (startPair.second)
             {
-                startPair = _activeBuffer().GetStartOfWord(startPair.first, delimiters);
+                startPair = _GetStartOfWord(startPair.first, delimiters);
             }
         }
 
@@ -958,8 +1090,8 @@ void Terminal::SelectWordLeft(bool isVisual, bool isLargeWord)
         else
         {
             auto startOfPreviousLine = til::point{ 0, _selection->end.y - 1 };
-            auto endOfLine = _activeBuffer().GetLineEnd(startOfPreviousLine);
-            startPair = _activeBuffer().GetStartOfWord(endOfLine, delimiters);
+            auto endOfLine = _GetLineEnd(startOfPreviousLine);
+            startPair = _GetStartOfWord(endOfLine, delimiters);
             if (startPair.second)
             {
                 _UpdateSelection(isVisual, startPair.first);
@@ -978,15 +1110,15 @@ void Terminal::SelectWordRight(bool isVisual, bool isLargeWord)
 
     auto startPoint = _selection->start < _selection->pivot ? _selection->start : _selection->end;
 
-    auto endPair = _activeBuffer().GetEndOfWord(startPoint, delimiters);
+    auto endPair = _GetEndOfWord(startPoint, delimiters);
     if (endPair.second)
     {
         if (endPair.first == startPoint)
         {
-            endPair = _activeBuffer().GetStartOfNextWord(endPair.first, delimiters);
+            endPair = _GetStartOfNextWord(endPair.first, delimiters);
             if (endPair.second)
             {
-                endPair = _activeBuffer().GetEndOfWord(endPair.first, delimiters);
+                endPair = _GetEndOfWord(endPair.first, delimiters);
             }
         }
 
@@ -998,7 +1130,7 @@ void Terminal::SelectWordRight(bool isVisual, bool isLargeWord)
         {
             auto yToMove = _selection->start < _selection->pivot ? _selection->start.y : _selection->end.y;
             auto startOfNextLine = til::point{ 0, yToMove + 1 };
-            endPair = _activeBuffer().GetEndOfWord(startOfNextLine, delimiters);
+            endPair = _GetEndOfWord(startOfNextLine, delimiters);
             if (endPair.second)
             {
                 _UpdateSelection(isVisual, endPair.first);
@@ -1382,13 +1514,80 @@ void Terminal::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, s
 
 void Terminal::_InWord(til::point& pos, std::wstring_view delimiters)
 {
-    auto endPair = _activeBuffer().GetWordEnd2(pos, delimiters);
-    if (endPair.second)
+    auto endPair = _GetEndOfWord(pos, delimiters);
+    auto startPair = _GetStartOfWord(pos, delimiters);
+    if (endPair.second && endPair.second)
     {
         _selection->end = endPair.first;
         _selection->pivot = endPair.first;
-        _selection->start = _activeBuffer().GetWordStart(pos, delimiters);
+        _selection->start = startPair.first;
     }
+}
+
+std::pair<til::point, bool> Terminal::_GetStartOfWord(const til::point target, const std::wstring_view wordDelimiters) const
+{
+    const auto bufferSize = _activeBuffer().GetSize();
+
+    auto result = target;
+    bool found = false;
+
+    while (result.x >= 0)
+    {
+        bufferSize.DecrementInBounds(result);
+        auto classAt = _activeBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, wordDelimiters);
+        if (classAt == DelimiterClass::ControlChar || classAt == DelimiterClass::DelimiterChar || result.x == 0)
+        {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        return { {}, false };
+    }
+
+    if (result.x != 0)
+    {
+        bufferSize.IncrementInBounds(result);
+    }
+
+    return { result, true };
+}
+
+std::pair<til::point, bool> Terminal::_GetEndOfWord(const til::point target, const std::wstring_view wordDelimiters) const
+{
+    const auto bufferSize = _activeBuffer().GetSize();
+
+    // can't expand right
+    if (target.x == bufferSize.RightInclusive())
+    {
+        return { {}, false };
+    }
+
+    auto result = target;
+    bool found = false;
+
+    // expand right until we hit the right boundary or a different delimiter class
+    while (result.x < bufferSize.RightInclusive())
+    {
+        bufferSize.IncrementInBounds(result);
+        auto classAt = _activeBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, wordDelimiters);
+        if (classAt == DelimiterClass::ControlChar || classAt == DelimiterClass::DelimiterChar)
+        {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        return { {}, false };
+    }
+
+    bufferSize.DecrementInBounds(result);
+
+    return { result, true };
 }
 
 void Terminal::_MoveByViewport(SelectionDirection direction, til::point& pos) noexcept

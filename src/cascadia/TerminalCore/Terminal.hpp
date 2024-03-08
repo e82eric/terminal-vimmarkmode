@@ -343,6 +343,10 @@ public:
     void FindChar(std::wstring_view vkey, bool isVisual);
     void FindCharBack(std::wstring_view vkey, bool isVisual);
     void TilCharBack(std::wstring_view vkey, bool isVisual);
+    std::pair<til::point, bool> _GetStartOfNextWord(const til::point target, const std::wstring_view wordDelimiters) const;
+    std::pair<til::point, bool> _GetEndOfPreviousWord(const til::point target, const std::wstring_view wordDelimiters) const;
+    til::point _GetLineEnd(const til::point target) const;
+    std::pair<til::point, bool> _GetLineFirstNonBlankChar(const til::point target) const;
     void UpdateSelection(SelectionDirection direction, SelectionExpansion mode, ControlKeyStates mods);
     void SelectAll();
     SelectionInteractionMode SelectionMode() const noexcept;
@@ -532,7 +536,11 @@ private:
     void _MoveByHalfViewport(SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByBuffer(SelectionDirection direction, til::point& pos) noexcept;
     void _InWord(til::point& pos, std::wstring_view delimiters);
+    std::pair<til::point, bool> _GetStartOfWord(const til::point target, const std::wstring_view wordDelimiters) const;
+    std::pair<til::point, bool> _GetEndOfWord(const til::point target, const std::wstring_view wordDelimiters) const;
     void _InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
+    bool _FindChar(std::wstring_view vkey, bool isTil, til::point& target);
+    bool _FindCharBack(std::wstring_view vkey, bool itTil, til::point &target);
     void _UpdateSelection(bool isVisual, til::point adjusted);
 #pragma endregion
 
