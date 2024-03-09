@@ -52,6 +52,17 @@ namespace TerminalCoreUnitTests
 };
 #endif
 
+// a selection is represented as a range between two COORDs (start and end)
+// the pivot is the til::point that remains selected when you extend a selection in any direction
+//   this is particularly useful when a word selection is extended over its starting point
+//   see TerminalSelection.cpp for more information
+struct SelectionAnchors
+{
+    til::point start;
+    til::point end;
+    til::point pivot;
+};
+
 class Microsoft::Terminal::Core::Terminal final :
     public Microsoft::Console::VirtualTerminal::ITerminalApi,
     public Microsoft::Terminal::Core::ITerminalInput,
@@ -166,6 +177,8 @@ public:
     void NotifyBufferRotation(const int delta) override;
 
     void InvokeCompletions(std::wstring_view menuJson, unsigned int replaceLength) override;
+    std::optional<SelectionAnchors> GetSelectionAnchors();
+    void SetSelectionAnchors(std::optional<SelectionAnchors> val);
 
 #pragma endregion
 
@@ -419,16 +432,6 @@ private:
     // Otherwise, the font is changed to a real value with the renderer via TriggerFontChange.
     FontInfo _fontInfo{ DEFAULT_FONT_FACE, TMPF_TRUETYPE, 10, { 0, DEFAULT_FONT_SIZE }, CP_UTF8, false };
 #pragma region Text Selection
-    // a selection is represented as a range between two COORDs (start and end)
-    // the pivot is the til::point that remains selected when you extend a selection in any direction
-    //   this is particularly useful when a word selection is extended over its starting point
-    //   see TerminalSelection.cpp for more information
-    struct SelectionAnchors
-    {
-        til::point start;
-        til::point end;
-        til::point pivot;
-    };
     std::optional<SelectionAnchors> _selection;
     std::optional<SelectionAnchors> _yankSelection;
     std::vector<til::inclusive_rect> _searchSelections;

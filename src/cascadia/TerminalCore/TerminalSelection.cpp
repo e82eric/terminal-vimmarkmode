@@ -637,6 +637,15 @@ Terminal::UpdateSelectionParams Terminal::ConvertKeyEventToUpdateSelectionParams
     return std::nullopt;
 }
 
+std::optional<SelectionAnchors> Terminal::GetSelectionAnchors()
+{
+    return _selection;
+}
+void Terminal::SetSelectionAnchors(std::optional<SelectionAnchors> val)
+{
+    _selection = val;
+}
+
 void Terminal::InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
 {
     auto targetPos{ _selection->start };

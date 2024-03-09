@@ -92,6 +92,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto lock = _terminal->LockForWriting();
 
         _fzf_slab = fzf_make_default_slab();
+        _vimProxy = new VimModeProxy(_terminal.get());
         _setupDispatcherAndCallbacks();
 
         Connection(connection);
@@ -688,137 +689,137 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             switch (textObject)
             {
             case VimTextObjectType::inSquareBracePair:
-                _terminal->InDelimiter(L"[", L"]", false);
+                _vimProxy->InDelimiter(L"[", L"]", false);
                 break;
             case VimTextObjectType::inRoundBracePair:
-                _terminal->InDelimiter(L"(", L")", false);
+                _vimProxy->InDelimiter(L"(", L")", false);
                 break;
             case VimTextObjectType::inSingleQuotePair:
-                _terminal->InDelimiter(L"'", L"'", false);
+                _vimProxy->InDelimiter(L"'", L"'", false);
                 break;
             case VimTextObjectType::inDoubleQuotePair:
-                _terminal->InDelimiter(L"\"", L"\"", false);
+                _vimProxy->InDelimiter(L"\"", L"\"", false);
                 break;
             case VimTextObjectType::inAngleBracketPair:
-                _terminal->InDelimiter(L"<", L">", false);
+                _vimProxy->InDelimiter(L"<", L">", false);
                 break;
             case VimTextObjectType::aroundSquareBracePair:
-                _terminal->InDelimiter(L"[", L"]", true);
+                _vimProxy->InDelimiter(L"[", L"]", true);
                 break;
             case VimTextObjectType::aroundRoundBracePair:
-                _terminal->InDelimiter(L"(", L")", true);
+                _vimProxy->InDelimiter(L"(", L")", true);
                 break;
             case VimTextObjectType::aroundSingleQuotePair:
-                _terminal->InDelimiter(L"'", L"'", true);
+                _vimProxy->InDelimiter(L"'", L"'", true);
                 break;
             case VimTextObjectType::aroundDoubleQuotePair:
-                _terminal->InDelimiter(L"\"", L"\"", true);
+                _vimProxy->InDelimiter(L"\"", L"\"", true);
                 break;
             case VimTextObjectType::aroundAngleBracketPair:
-                _terminal->InDelimiter(L"<", L">", true);
+                _vimProxy->InDelimiter(L"<", L">", true);
                 break;
             case VimTextObjectType::findChar:
                 if (motion == VimMotionType::forward)
                 {
-                    _terminal->FindChar(vkey, selectFromStart);
+                    _vimProxy->FindChar(vkey, selectFromStart);
                 }
                 else
                 {
-                    _terminal->FindCharBack(vkey, selectFromStart);
+                    _vimProxy->FindCharBack(vkey, selectFromStart);
                 }
                 break;
             case VimTextObjectType::tilChar:
                 if (motion == VimMotionType::forward)
                 {
-                    _terminal->TilChar(vkey, selectFromStart);
+                    _vimProxy->TilChar(vkey, selectFromStart);
                 }
                 else
                 {
-                    _terminal->TilCharBack(vkey, selectFromStart);
+                    _vimProxy->TilCharBack(vkey, selectFromStart);
                 }
                 break;
             case VimTextObjectType::findCharReverse:
                 if (motion == VimMotionType::forward)
                 {
-                    _terminal->FindCharBack(vkey, selectFromStart);
+                    _vimProxy->FindCharBack(vkey, selectFromStart);
                 }
                 else
                 {
-                    _terminal->FindChar(vkey, selectFromStart);
+                    _vimProxy->FindChar(vkey, selectFromStart);
                 }
                 break;
             case VimTextObjectType::tilCharReverse:
                 if (motion == VimMotionType::forward)
                 {
-                    _terminal->TilCharBack(vkey, selectFromStart);
+                    _vimProxy->TilCharBack(vkey, selectFromStart);
                 }
                 else
                 {
-                    _terminal->TilChar(vkey, selectFromStart);
+                    _vimProxy->TilChar(vkey, selectFromStart);
                 }
                 break;
             case VimTextObjectType::largeWord:
             case VimTextObjectType::word:
                 if (motion == VimMotionType::moveForwardToEnd)
                 {
-                    _terminal->SelectWordRight(selectFromStart, textObject == VimTextObjectType::largeWord);
+                    _vimProxy->SelectWordRight(selectFromStart, textObject == VimTextObjectType::largeWord);
                 }
                 else if (motion == VimMotionType::moveBackToBegining)
                 {
-                    _terminal->SelectWordLeft(selectFromStart, textObject == VimTextObjectType::largeWord);
+                    _vimProxy->SelectWordLeft(selectFromStart, textObject == VimTextObjectType::largeWord);
                 }
                 else if (motion == VimMotionType::moveForwardToStart)
                 {
-                    _terminal->SelectWordStartRight(selectFromStart, textObject == VimTextObjectType::largeWord);
+                    _vimProxy->SelectWordStartRight(selectFromStart, textObject == VimTextObjectType::largeWord);
                 }
                 break;
             case VimTextObjectType::inLargeWord:
             case VimTextObjectType::inWord:
-                _terminal->SelectInWord(textObject == VimTextObjectType::inLargeWord);
+                _vimProxy->SelectInWord(textObject == VimTextObjectType::inLargeWord);
                 break;
             case VimTextObjectType::line:
                 if (motion == VimMotionType::moveForwardToEnd)
                 {
-                    _terminal->SelectLineRight(selectFromStart);
+                    _vimProxy->SelectLineRight(selectFromStart);
                 }
                 else if (motion == VimMotionType::moveBackToBegining)
                 {
-                    _terminal->SelectLineLeft(selectFromStart);
+                    _vimProxy->SelectLineLeft(selectFromStart);
                 }
                 else if (motion == VimMotionType::backToFirstNonSpaceChar)
                 {
-                    _terminal->SelectLineFirstNonBlankChar(selectFromStart);
+                    _vimProxy->SelectLineFirstNonBlankChar(selectFromStart);
                 }
                 break;
             case VimTextObjectType::entireLine:
                 switch (motion)
                 {
                 case VimMotionType::moveUp:
-                    _terminal->SelectLineUp();
+                    _vimProxy->SelectLineUp();
                     break;
                 case VimMotionType::moveDown:
-                    _terminal->SelectLineDown();
+                    _vimProxy->SelectLineDown();
                     break;
                 case VimMotionType::moveToTopOfBuffer:
-                    _terminal->SelectTop(true);
+                    _vimProxy->SelectTop(true);
                     break;
                 case VimMotionType::moveToBottomOfBuffer:
-                    _terminal->SelectBottom(true);
+                    _vimProxy->SelectBottom(true);
                     break;
                 case VimMotionType::halfPageUp:
-                    _terminal->SelectHalfPageUp(true);
+                    _vimProxy->SelectHalfPageUp(true);
                     break;
                 case VimMotionType::halfPageDown:
-                    _terminal->SelectHalfPageDown(true);
+                    _vimProxy->SelectHalfPageDown(true);
                     break;
                 case VimMotionType::pageUp:
-                    _terminal->SelectPageUp(true);
+                    _vimProxy->SelectPageUp(true);
                     break;
                 case VimMotionType::pageDown:
-                    _terminal->SelectPageDown(true);
+                    _vimProxy->SelectPageDown(true);
                 default:
-                    _terminal->SelectLineLeft(false);
-                    _terminal->SelectLineRight(true);
+                    _vimProxy->SelectLineLeft(false);
+                    _vimProxy->SelectLineRight(true);
                     break;
                 }
                 break;
@@ -826,20 +827,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 switch (motion)
                 {
                 case VimMotionType::none:
-                    _terminal->SelectCharRight(false);
-                    _terminal->SelectCharLeft(false);
+                    _vimProxy->SelectCharRight(false);
+                    _vimProxy->SelectCharLeft(false);
                     break;
                 case VimMotionType::moveLeft:
-                    _terminal->SelectCharLeft(selectFromStart);
+                    _vimProxy->SelectCharLeft(selectFromStart);
                     break;
                 case VimMotionType::moveDown:
-                    _terminal->SelectDown(selectFromStart);
+                    _vimProxy->SelectDown(selectFromStart);
                     break;
                 case VimMotionType::moveUp:
-                    _terminal->SelectUp(selectFromStart);
+                    _vimProxy->SelectUp(selectFromStart);
                     break;
                 case VimMotionType::moveRight:
-                    _terminal->SelectCharRight(selectFromStart);
+                    _vimProxy->SelectCharRight(selectFromStart);
                     break;
                 }
                 break;
@@ -847,22 +848,22 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 switch (motion)
                 {
                 case VimMotionType::moveToTopOfBuffer:
-                    _terminal->SelectTop(selectFromStart);
+                    _vimProxy->SelectTop(selectFromStart);
                     break;
                 case VimMotionType::moveToBottomOfBuffer:
-                    _terminal->SelectBottom(selectFromStart);
+                    _vimProxy->SelectBottom(selectFromStart);
                     break;
                 case VimMotionType::halfPageUp:
-                    _terminal->SelectHalfPageUp(selectFromStart);
+                    _vimProxy->SelectHalfPageUp(selectFromStart);
                     break;
                 case VimMotionType::halfPageDown:
-                    _terminal->SelectHalfPageDown(selectFromStart);
+                    _vimProxy->SelectHalfPageDown(selectFromStart);
                     break;
                 case VimMotionType::pageUp:
-                    _terminal->SelectPageUp(selectFromStart);
+                    _vimProxy->SelectPageUp(selectFromStart);
                     break;
                 case VimMotionType::pageDown:
-                    _terminal->SelectPageDown(selectFromStart);
+                    _vimProxy->SelectPageDown(selectFromStart);
                     break;
                 }
                 break;

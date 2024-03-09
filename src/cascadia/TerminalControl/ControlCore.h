@@ -25,6 +25,7 @@
 #include "../../cascadia/TerminalCore/FuzzySearchRenderData.hpp"
 #include "../buffer/out/search.h"
 #include "../buffer/out/TextColor.h"
+#include "VimModeProxy.h"
 
 namespace ControlUnitTests
 {
@@ -562,6 +563,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         bool _clickedOnMark(const til::point& pos, bool (*filter)(const ::ScrollMark&));
         fzf_slab_t* _fzf_slab;
+        VimModeProxy* _vimProxy;
 
         inline bool _IsClosing() const noexcept
         {

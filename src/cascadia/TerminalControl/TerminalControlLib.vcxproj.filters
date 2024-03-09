@@ -14,12 +14,14 @@
     <ClCompile Include="XamlUiaTextRange.cpp" />
     <ClCompile Include="HwndTerminal.cpp" />
     <ClCompile Include="HwndTerminalAutomationPeer.cpp" />
+    <ClCompile Include="VimModeProxy.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="XamlUiaTextRange.h" />
     <ClInclude Include="HwndTerminal.hpp" />
     <ClInclude Include="HwndTerminalAutomationPeer.hpp" />
+    <ClInclude Include="VimModeProxy.h" />
   </ItemGroup>
   <ItemGroup>
     <Midl Include="ControlCore.idl" />

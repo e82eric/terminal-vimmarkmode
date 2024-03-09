@@ -57,6 +57,7 @@
     <ClInclude Include="FuzzySearchBoxControl.h">
       <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClInclude>
+    <ClInclude Include="VimModeProxy.h" />
     <ClInclude Include="XamlLights.h">
       <DependentUpon>XamlLights.idl</DependentUpon>
     </ClInclude>
@@ -109,6 +110,7 @@
     <ClCompile Include="FuzzySearchBoxControl.cpp">
       <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClCompile>
+    <ClCompile Include="VimModeProxy.cpp" />
     <ClCompile Include="XamlLights.cpp">
       <DependentUpon>XamlLights.idl</DependentUpon>
     </ClCompile>
