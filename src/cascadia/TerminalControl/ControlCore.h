@@ -33,6 +33,8 @@ namespace ControlUnitTests
     class ControlInteractivityTests;
 };
 
+class VimModeProxy;
+
 #define RUNTIME_SETTING(type, name, setting)                 \
 private:                                                     \
     std::optional<type> _runtime##name{ std::nullopt };      \
@@ -69,88 +71,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     struct ControlCore : ControlCoreT<ControlCore>
     {
-        enum class VimMode : int32_t
-        {
-            none = 0,
-            normal = 1,
-            visual = 2,
-            search = 3,
-            visualLine = 4,
-        };
-
-        enum class VimTextAmount : int32_t
-        {
-            none = 0,
-            in = 1,
-            around = 2,
-        };
-
-        enum class VimActionType : int32_t
-        {
-            none = 0,
-            yank = 1,
-            search = 2,
-            toggleVisualOn = 3,
-            fuzzyFind = 4,
-            exit = 5,
-            scroll = 6,
-            toggleRowNumbersOn,
-            toggleRowNumbersOff,
-            enterQuickSelectMode,
-            enterQuickCopyMode,
-            enterBlockSelectionMode
-        };
-
-        enum class VimTextObjectType : int32_t
-        {
-            none = 0,
-            charTextObject = 1,
-            word = 2,
-            largeWord = 3,
-            line = 4,
-            inSquareBracePair = 8,
-            inRoundBracePair = 9,
-            inDoubleQuotePair = 10,
-            inSingleQuotePair = 11,
-            inAngleBracketPair = 12,
-            aroundSquareBracePair = 13,
-            aroundRoundBracePair = 14,
-            aroundDoubleQuotePair = 15,
-            aroundSingleQuotePair = 16,
-            aroundAngleBracketPair = 17,
-            tilChar = 18,
-            findChar = 19,
-            tilCharReverse = 20,
-            findCharReverse = 21,
-            inWord = 22,
-            inLargeWord = 23,
-            entireLine = 24,
-            centerOfScreen = 25,
-            topOfScreen = 26,
-            bottomOfScreen = 27
-        };
-
-        enum class VimMotionType : int32_t
-        {
-            none = 0,
-            moveRight = 1,
-            moveLeft = 2,
-            moveUp = 3,
-            moveDown = 4,
-            moveBackToBegining = 5,
-            moveForwardToStart = 6,
-            moveForwardToEnd = 7,
-            g = 8,
-            forward = 9,
-            back = 10,
-            moveToTopOfBuffer = 11,
-            moveToBottomOfBuffer = 12,
-            halfPageUp = 13,
-            halfPageDown = 14,
-            pageUp = 15,
-            pageDown = 16,
-            backToFirstNonSpaceChar = 17
-        };
     public:
         ControlCore(Control::IControlSettings settings,
                     Control::IControlAppearance unfocusedAppearance,
@@ -193,8 +113,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void ResetVimModeForSizeChange();
         void EnterMarkMode();
         void EnterFuzzySearchMode();
+        void UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence);
         void CloseFuzzySearchNoSelection();
         int32_t ViewportRowNumberToHighlight();
+        void ExitVim();
+        void StartFuzzySearch(std::wstring_view needle);
 
         void AdjustFontSize(float fontSizeDelta);
         void ResetFontSize();
@@ -221,15 +144,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Control::SelectionInteractionMode SelectionMode() const;
         bool SwitchSelectionEndpoint();
         bool ExpandSelectionToWord();
-        bool TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates modifiers);
-        bool ExecuteVimSelection(
-            const VimActionType action,
-            const VimTextObjectType textObject,
-            const int times,
-            const VimMotionType motion,
-            const bool isVisual,
-            const std::wstring searchString,
-            std::wstring_view vkey);
+        void ToggleRowNumbers(bool on);
+        void UpdateSelectionFromVim();
         bool TryMarkModeKeybinding(const WORD vkey,
                                    const ::Microsoft::Terminal::Core::ControlKeyStates modifiers);
 
@@ -471,25 +387,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _fuzzySearchActive = false;
         bool _showRowNumbers = false;
 
-        void _enterVimMode();
-        VimTextObjectType _textObject = VimTextObjectType::none;
-        VimMotionType _motion = VimMotionType::none;
-        VimMode _vimMode = VimMode::none;
-        VimMotionType _lastMotion = VimMotionType::none;
-        VimActionType _action = VimActionType::none;
-        VimTextAmount _amount = VimTextAmount::none;
-        bool _leaderSequence = false;
-        std::wstring _timesString = L"";
-        int _times = 0;
-        bool _reverseSearch = false;
-        std::wstring _searchString = L"";
-        std::wstring _sequenceText = L"";
         bool _quickSelectCopy = false;
-
-        wchar_t _lastVkey[2] = { L'\0' };
-        int _lastTimes = 0;
-        VimActionType _lastAction = VimActionType::none;
-        VimTextObjectType _lastTextObject = VimTextObjectType::none;
 
         uint64_t _owningHwnd{ 0 };
 
@@ -510,9 +408,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void _handleControlC();
         void _sendInputToConnection(std::wstring_view wstr);
-        void _resetVimState();
-        void _vimScrollScreenPosition(VimTextObjectType textObjectType);
-        void _resetVimModeForSizeChange(bool selectLastChar);
 
 #pragma region TerminalCoreCallbacks
         void _terminalCopyToClipboard(std::wstring_view wstr);

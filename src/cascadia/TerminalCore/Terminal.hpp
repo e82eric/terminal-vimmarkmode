@@ -52,17 +52,6 @@ namespace TerminalCoreUnitTests
 };
 #endif
 
-// a selection is represented as a range between two COORDs (start and end)
-// the pivot is the til::point that remains selected when you extend a selection in any direction
-//   this is particularly useful when a word selection is extended over its starting point
-//   see TerminalSelection.cpp for more information
-struct SelectionAnchors
-{
-    til::point start;
-    til::point end;
-    til::point pivot;
-};
-
 class Microsoft::Terminal::Core::Terminal final :
     public Microsoft::Console::VirtualTerminal::ITerminalApi,
     public Microsoft::Terminal::Core::ITerminalInput,
@@ -177,8 +166,6 @@ public:
     void NotifyBufferRotation(const int delta) override;
 
     void InvokeCompletions(std::wstring_view menuJson, unsigned int replaceLength) override;
-    std::optional<SelectionAnchors> GetSelectionAnchors();
-    void SetSelectionAnchors(std::optional<SelectionAnchors> val);
 
 #pragma endregion
 
@@ -330,36 +317,7 @@ public:
     void SetBlockSelection(const bool isEnabled) noexcept;
     void ToggleMarkers(const bool isEnabled) noexcept;
     void SetPivot();
-    void SelectTop(bool isVisual);
-    void SelectBottom(bool isVisual);
-    void SelectHalfPageUp(bool isVisual);
-    void SelectPageUp(bool isVisual);
-    void SelectPageDown(bool isVisual);
-    void SelectHalfPageDown(bool isVisual);
     void SelectChar(til::point point);
-    void SelectCharLeft(bool isVisual);
-    void SelectCharRight(bool isVisual);
-    void SelectDown(bool isVisual);
-    void SelectUp(bool isVisual);
-    void SelectLineUp();
-    void SelectLineDown();
-    void SelectLineLeft(bool isVisual);
-    void SelectLineFirstNonBlankChar(bool isVisual);
-    void SelectLineRight(bool isVisual);
-    void SelectWordRight(bool isVisual, bool isLargeWord);
-    void SelectWordLeft(bool isVisual, bool isLargeWord);
-    void SelectWordStartRight(bool isVisual, bool isLargeWord);
-    void SelectWordLeft(bool isVisual);
-    void SelectInWord(bool largeWord);
-    void InDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
-    void TilChar(std::wstring_view vkey, bool isVisual);
-    void FindChar(std::wstring_view vkey, bool isVisual);
-    void FindCharBack(std::wstring_view vkey, bool isVisual);
-    void TilCharBack(std::wstring_view vkey, bool isVisual);
-    std::pair<til::point, bool> _GetStartOfNextWord(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> _GetEndOfPreviousWord(const til::point target, const std::wstring_view wordDelimiters) const;
-    til::point _GetLineEnd(const til::point target) const;
-    std::pair<til::point, bool> _GetLineFirstNonBlankChar(const til::point target) const;
     void UpdateSelection(SelectionDirection direction, SelectionExpansion mode, ControlKeyStates mods);
     void SelectAll();
     SelectionInteractionMode SelectionMode() const noexcept;
@@ -432,6 +390,16 @@ private:
     // Otherwise, the font is changed to a real value with the renderer via TriggerFontChange.
     FontInfo _fontInfo{ DEFAULT_FONT_FACE, TMPF_TRUETYPE, 10, { 0, DEFAULT_FONT_SIZE }, CP_UTF8, false };
 #pragma region Text Selection
+    // a selection is represented as a range between two COORDs (start and end)
+    // the pivot is the til::point that remains selected when you extend a selection in any direction
+    //   this is particularly useful when a word selection is extended over its starting point
+    //   see TerminalSelection.cpp for more information
+    struct SelectionAnchors
+    {
+        til::point start;
+        til::point end;
+        til::point pivot;
+    };
     std::optional<SelectionAnchors> _selection;
     std::optional<SelectionAnchors> _yankSelection;
     std::vector<til::inclusive_rect> _searchSelections;
@@ -538,13 +506,6 @@ private:
     void _MoveByViewport(SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByHalfViewport(SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByBuffer(SelectionDirection direction, til::point& pos) noexcept;
-    void _InWord(til::point& pos, std::wstring_view delimiters);
-    std::pair<til::point, bool> _GetStartOfWord(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> _GetEndOfWord(const til::point target, const std::wstring_view wordDelimiters) const;
-    void _InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
-    bool _FindChar(std::wstring_view vkey, bool isTil, til::point& target);
-    bool _FindCharBack(std::wstring_view vkey, bool itTil, til::point &target);
-    void _UpdateSelection(bool isVisual, til::point adjusted);
 #pragma endregion
 
 #ifdef UNIT_TESTING
@@ -553,4 +514,8 @@ private:
     friend class TerminalCoreUnitTests::ConptyRoundtripTests;
     friend class TerminalCoreUnitTests::ScrollTest;
 #endif
+
+public:
+    std::optional<Microsoft::Terminal::Core::Terminal::SelectionAnchors> GetSelectionAnchors();
+    void SetSelectionAnchors(std::optional<SelectionAnchors> val);
 };
