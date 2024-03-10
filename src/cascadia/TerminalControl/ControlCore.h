@@ -81,16 +81,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         const float actualHeight,
                         const float compositionScale);
 
-        bool InitializeFuzzySearch(const float actualWidth,
-                        const float actualHeight,
-                        const float compositionScale);
-
         void EnablePainting();
 
         void Detach();
-
-        void SelectRow(int32_t row, int32_t col);
-        void FuzzySearchSelectionChanged(int32_t row);
 
         void UpdateSettings(const Control::IControlSettings& settings, const IControlAppearance& newAppearance);
         void ApplyAppearance(const bool& focused);
@@ -103,21 +96,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void ColorScheme(const winrt::Microsoft::Terminal::Core::Scheme& scheme);
 
         uint64_t SwapChainHandle() const;
-        uint64_t FuzzySearchSwapChainHandle() const;
         void AttachToNewControl(const Microsoft::Terminal::Control::IKeyBindings& keyBindings);
 
         void SizeChanged(const float width, const float height);
-        void FuzzySearchPreviewSizeChanged(const float width, const float height);
         void ScaleChanged(const float scale);
         void SizeOrScaleChanged(const float width, const float height, const float scale);
-        void ResetVimModeForSizeChange();
         void EnterMarkMode();
-        void EnterFuzzySearchMode();
-        void UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence);
-        void CloseFuzzySearchNoSelection();
-        int32_t ViewportRowNumberToHighlight();
-        void ExitVim();
-        void StartFuzzySearch(std::wstring_view needle);
 
         void AdjustFontSize(float fontSizeDelta);
         void ResetFontSize();
@@ -137,15 +121,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SelectAll();
         void ClearSelection();
         bool ToggleBlockSelection();
-        void EnterVimModeWithSearch();
-        void EnterVimMode();
-        bool IsInVimMode();
         void ToggleMarkMode();
         Control::SelectionInteractionMode SelectionMode() const;
         bool SwitchSelectionEndpoint();
         bool ExpandSelectionToWord();
-        void ToggleRowNumbers(bool on);
-        void UpdateSelectionFromVim();
         bool TryMarkModeKeybinding(const WORD vkey,
                                    const ::Microsoft::Terminal::Core::ControlKeyStates modifiers);
 
@@ -235,12 +214,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SetEndSelectionPoint(const til::point position);
 
         void Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
-        void RegexSearch(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
-        void EnterQuickSelectMode(const winrt::hstring& text, bool copy);
-        Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
         void ClearSearch();
-
-        bool ShowRowNumbers();
 
         Windows::Foundation::Collections::IVector<int32_t> SearchResultRows();
 
@@ -298,7 +272,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         TYPED_EVENT(HoveredHyperlinkChanged,   IInspectable, IInspectable);
         TYPED_EVENT(RendererEnteredErrorState, IInspectable, IInspectable);
         TYPED_EVENT(SwapChainChanged,          IInspectable, IInspectable);
-        TYPED_EVENT(FuzzySearchSwapChainChanged,          IInspectable, IInspectable);
         TYPED_EVENT(RendererWarning,           IInspectable, Control::RendererWarningArgs);
         TYPED_EVENT(RaiseNotice,               IInspectable, Control::NoticeEventArgs);
         TYPED_EVENT(TransparencyChanged,       IInspectable, Control::TransparencyChangedEventArgs);
@@ -314,10 +287,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         TYPED_EVENT(Attached,                  IInspectable, IInspectable);
         // clang-format on
-        TYPED_EVENT(ExitVimMode, IInspectable, Control::ExitVimModeEventArgs);
-        TYPED_EVENT(VimTextChanged, IInspectable, Control::VimTextChangedEventArgs);
-        TYPED_EVENT(ShowFuzzySearch, IInspectable, Control::ShowFuzzySearchEventArgs);
-        TYPED_EVENT(ToggleRowNumbers, IInspectable, Control::ToggleRowNumbersEventArgs);
 
     private:
         struct SharedState
@@ -346,15 +315,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         std::unique_ptr<::Microsoft::Console::Render::IRenderEngine> _renderEngine{ nullptr };
         std::unique_ptr<::Microsoft::Console::Render::Renderer> _renderer{ nullptr };
 
-        std::unique_ptr<::Microsoft::Console::Render::IRenderEngine> _fuzzySearchRenderEngine{ nullptr };
-        std::unique_ptr<::Microsoft::Console::Render::Renderer> _fuzzySearchRenderer{ nullptr };
-        std::shared_ptr<FuzzySearchRenderData> _fuzzySearchRenderData{ nullptr };
-        
-
         ::Search _searcher;
 
         winrt::handle _lastSwapChainHandle{ nullptr };
-        winrt::handle _fuzzySearchLastSwapChainHandle{ nullptr };
 
         FontInfoDesired _desiredFont;
         FontInfo _actualFont;
@@ -379,15 +342,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _panelWidth{ 0 };
         float _panelHeight{ 0 };
         float _compositionScale{ 0 };
-
-        float _fuzzySearchPanelWidth{ 0 };
-        float _fuzzySearchPanelHeight{ 0 };
-        float _fuzzySearchCompositionScale{ 0 };
-
-        bool _fuzzySearchActive = false;
-        bool _showRowNumbers = false;
-
-        bool _quickSelectCopy = false;
 
         uint64_t _owningHwnd{ 0 };
 
@@ -424,7 +378,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                    const std::chrono::microseconds duration);
 
         winrt::fire_and_forget _terminalCompletionsChanged(std::wstring_view menuJson, unsigned int replaceLength);
-        bool _selectionClearedFromErase();
 
 #pragma endregion
 
@@ -434,8 +387,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 #pragma region RendererCallbacks
         void _rendererWarning(const HRESULT hr);
         winrt::fire_and_forget _renderEngineSwapChainChanged(const HANDLE handle);
-        winrt::fire_and_forget _fuzzySearchRenderEngineSwapChainChanged(const HANDLE handle);
-        void _sizeFuzzySearchPreview();
         void _rendererBackgroundColorChanged();
         void _rendererTabColorChanged();
 #pragma endregion
@@ -457,8 +408,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             til::point_span (*getSpan)(const ::ScrollMark&));
 
         bool _clickedOnMark(const til::point& pos, bool (*filter)(const ::ScrollMark&));
-        fzf_slab_t* _fzf_slab;
-        VimModeProxy* _vimProxy;
 
         inline bool _IsClosing() const noexcept
         {
@@ -478,6 +427,54 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         friend class ControlUnitTests::ControlCoreTests;
         friend class ControlUnitTests::ControlInteractivityTests;
         bool _inUnitTests{ false };
+
+        //my stuff
+    public:
+        void SelectRow(int32_t row, int32_t col);
+        void FuzzySearchSelectionChanged(int32_t row);
+        bool InitializeFuzzySearch(const float actualWidth,
+                                   const float actualHeight,
+                                   const float compositionScale);
+        uint64_t FuzzySearchSwapChainHandle() const;
+        void FuzzySearchPreviewSizeChanged(const float width, const float height);
+        void EnterFuzzySearchMode();
+        void CloseFuzzySearchNoSelection();
+        void StartFuzzySearch(std::wstring_view needle);
+        Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
+        void ResetVimModeForSizeChange();
+        void UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence);
+        void ExitVim();
+        void EnterVimModeWithSearch();
+        void EnterVimMode();
+        bool IsInVimMode();
+        void EnterQuickSelectMode(const winrt::hstring& text, bool copy);
+        void ToggleRowNumbers(bool on);
+        bool ShowRowNumbers();
+        int32_t ViewportRowNumberToHighlight();
+        void UpdateSelectionFromVim();
+
+        TYPED_EVENT(ShowFuzzySearch, IInspectable, Control::ShowFuzzySearchEventArgs);
+        TYPED_EVENT(FuzzySearchSwapChainChanged, IInspectable, IInspectable);
+        TYPED_EVENT(ExitVimMode, IInspectable, Control::ExitVimModeEventArgs);
+        TYPED_EVENT(VimTextChanged, IInspectable, Control::VimTextChangedEventArgs);
+        TYPED_EVENT(ToggleRowNumbers, IInspectable, Control::ToggleRowNumbersEventArgs);
+
+    private:
+        void _sizeFuzzySearchPreview();
+        bool _selectionClearedFromErase();
+        std::unique_ptr<::Microsoft::Console::Render::IRenderEngine> _fuzzySearchRenderEngine{ nullptr };
+        std::unique_ptr<::Microsoft::Console::Render::Renderer> _fuzzySearchRenderer{ nullptr };
+        std::shared_ptr<FuzzySearchRenderData> _fuzzySearchRenderData{ nullptr };
+        winrt::handle _fuzzySearchLastSwapChainHandle{ nullptr };
+        winrt::fire_and_forget _fuzzySearchRenderEngineSwapChainChanged(const HANDLE handle);
+
+        float _fuzzySearchPanelWidth{ 0 };
+        float _fuzzySearchPanelHeight{ 0 };
+        float _fuzzySearchCompositionScale{ 0 };
+        bool _fuzzySearchActive = false;
+        bool _quickSelectCopy = false;
+        fzf_slab_t* _fzf_slab;
+        VimModeProxy* _vimProxy;
     };
 }
 

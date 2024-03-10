@@ -105,6 +105,8 @@ public:
     VimMode GetVimMode();
     void ResetVimModeForSizeChange(bool selectLastChar);
     void SelectRow(int32_t row, int32_t col);
+    bool ShowRowNumbers();
+    int32_t ViewportRowToHighlight();
 
 private:
     void _findChar(std::wstring_view vkey, bool isVisual);
@@ -160,7 +162,6 @@ private:
     std::wstring _wordDelimiters = L"/\\()\"'-.,:;<>~!@#$%^&*|+=[]{}~?│";
 
     bool _showRowNumbers = false;
-
     void _enterVimMode();
     VimTextObjectType _textObject = VimTextObjectType::none;
     VimMotionType _motion = VimMotionType::none;
@@ -175,7 +176,6 @@ private:
     std::wstring _searchString = L"";
     std::wstring _sequenceText = L"";
     bool _quickSelectCopy = false;
-
     wchar_t _lastVkey[2] = { L'\0' };
     int _lastTimes = 0;
     VimActionType _lastAction = VimActionType::none;

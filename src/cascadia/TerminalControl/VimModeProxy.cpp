@@ -1294,6 +1294,17 @@ bool VimModeProxy::TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Term
     return true;
 }
 
+bool VimModeProxy::ShowRowNumbers()
+{
+    return _showRowNumbers;
+}
+
+int32_t VimModeProxy::ViewportRowToHighlight()
+{
+    const auto offset = _terminal->GetScrollOffset();
+    return _terminal->GetSelectionEnd().y - offset;
+}
+
 bool VimModeProxy::_FindChar(std::wstring_view vkey, bool isTil, til::point& target)
 {
     const auto selection = _terminal->GetSelectionAnchors();
@@ -1747,6 +1758,7 @@ void VimModeProxy::ResetVimState()
     _lastVkey[0] = L'\0';
     _terminal->ClearYankRegion();
     _terminal->ClearSelection();
+    _controlCore->UpdateSelectionFromVim();
     _controlCore->ExitVim();
 }
 
@@ -1758,12 +1770,18 @@ VimModeProxy::VimMode VimModeProxy::GetVimMode()
 void VimModeProxy::ExitVimMode()
 {
     _vimMode = VimMode::none;
+    if (_showRowNumbers)
+    {
+        _showRowNumbers = false;
+        _controlCore->ToggleRowNumbers(false);
+    }
 }
 
 void VimModeProxy::EnterVimMode()
 {
     _vimMode = VimMode::normal;
     ResetVimModeForSizeChange(true);
+    _controlCore->UpdateVimText(L"Normal", _searchString, _sequenceText);
 }
 
 void VimModeProxy::ResetVimModeForSizeChange(bool selectLastChar)

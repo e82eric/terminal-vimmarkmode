@@ -434,93 +434,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return true;
     }
 
-    bool ControlCore::InitializeFuzzySearch(const float actualWidth,
-                                 const float actualHeight,
-                                 const float compositionScale)
-    {
-        assert(_settings);
-
-        _fuzzySearchPanelWidth = actualWidth;
-        _fuzzySearchPanelHeight = actualHeight;
-        _fuzzySearchCompositionScale = compositionScale;
-
-        { // scope for terminalLock
-            const auto lock = _terminal->LockForWriting();
-
-            const auto windowWidth = actualWidth * compositionScale;
-            const auto windowHeight = actualHeight * compositionScale;
-
-            if (windowWidth == 0 || windowHeight == 0)
-            {
-                return false;
-            }
-
-            _fuzzySearchRenderEngine = std::make_unique<::Microsoft::Console::Render::AtlasEngine>();
-            _fuzzySearchRenderer->AddRenderEngine(_fuzzySearchRenderEngine.get());
-
-            const til::size windowSize{ til::math::rounding, windowWidth, windowHeight };
-
-            // First set up the dx engine with the window size in pixels.
-            // Then, using the font, get the number of characters that can fit.
-            // Resize our terminal connection to match that size, and initialize the terminal with that size.
-            const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, windowSize);
-            LOG_IF_FAILED(_fuzzySearchRenderEngine->SetWindowSize({ viewInPixels.Width(), viewInPixels.Height() }));
-
-            // Update DxEngine's SelectionBackground
-            _fuzzySearchRenderEngine->SetSelectionBackground(til::color{ _settings->SelectionBackground() });
-
-            _fuzzySearchRenderEngine->SetWarningCallback(std::bind(&ControlCore::_rendererWarning, this, std::placeholders::_1));
-
-            // Tell the render engine to notify us when the swap chain changes.
-            // We do this after we initially set the swapchain so as to avoid
-            // unnecessary callbacks (and locking problems)
-            _fuzzySearchRenderEngine->SetCallback([this](HANDLE handle) {
-                _fuzzySearchRenderEngineSwapChainChanged(handle);
-            });
-
-            _fuzzySearchRenderEngine->SetRetroTerminalEffect(_settings->RetroTerminalEffect());
-            _fuzzySearchRenderEngine->SetPixelShaderPath(_settings->PixelShaderPath());
-            _fuzzySearchRenderEngine->SetForceFullRepaintRendering(_settings->ForceFullRepaintRendering());
-            _fuzzySearchRenderEngine->SetSoftwareRendering(_settings->SoftwareRendering());
-
-            // GH#5098: Inform the engine of the opacity of the default text background.
-            // GH#11315: Always do this, even if they don't have acrylic on.
-            _fuzzySearchRenderEngine->EnableTransparentBackground(_isBackgroundTransparent());
-
-            THROW_IF_FAILED(_fuzzySearchRenderEngine->Enable());
-
-            const auto newDpi = static_cast<int>(lrint(_compositionScale * USER_DEFAULT_SCREEN_DPI));
-
-            std::unordered_map<std::wstring_view, uint32_t> featureMap;
-            if (const auto fontFeatures = _settings->FontFeatures())
-            {
-                featureMap.reserve(fontFeatures.Size());
-
-                for (const auto& [tag, param] : fontFeatures)
-                {
-                    featureMap.emplace(tag, param);
-                }
-            }
-            std::unordered_map<std::wstring_view, float> axesMap;
-            if (const auto fontAxes = _settings->FontAxes())
-            {
-                axesMap.reserve(fontAxes.Size());
-
-                for (const auto& [axis, value] : fontAxes)
-                {
-                    axesMap.emplace(axis, value);
-                }
-            }
-
-            // TODO: MSFT:20895307 If the font doesn't exist, this doesn't
-            //      actually fail. We need a way to gracefully fallback.
-            LOG_IF_FAILED(_fuzzySearchRenderEngine->UpdateDpi(newDpi));
-            LOG_IF_FAILED(_fuzzySearchRenderEngine->UpdateFont(_desiredFont, _actualFont, featureMap, axesMap));
-        } // scope for TerminalLock
-
-        return true;
-    }
-
     // Method Description:
     // - Tell the renderer to start painting.
     // - !! IMPORTANT !! Make sure that we've attached our swap chain to an
@@ -644,17 +557,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // GH #7395 - don't update selection when taking PrintScreen
         // selection.
         return _terminal->IsSelectionActive() && ::Microsoft::Terminal::Core::Terminal::IsInputKey(vkey);
-    }
-
-    void ControlCore::ToggleRowNumbers(bool on)
-    {
-        auto args = winrt::make<implementation::ToggleRowNumbersEventArgs>(false);
-        if (on)
-        {
-            args = winrt::make<implementation::ToggleRowNumbersEventArgs>(true);
-        }
-        _showRowNumbers = true;
-        _ToggleRowNumbersHandlers(*this, args);
     }
 
     bool ControlCore::TryMarkModeKeybinding(const WORD vkey,
@@ -1393,37 +1295,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _refreshSizeUnderLock();
     }
 
-    void ControlCore::ResetVimModeForSizeChange()
-    {
-        _vimProxy->ResetVimModeForSizeChange(false);
-    }
-
-    int32_t ControlCore::ViewportRowNumberToHighlight()
-    {
-        auto lock = _terminal->LockForReading();
-        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
-        {
-            return CursorPosition().Y;
-        }
-
-        const auto offset = _terminal->GetScrollOffset();
-        return _terminal->GetSelectionEnd().y - offset;
-    }
-
-    void ControlCore::ExitVim()
-    {
-        LOG_IF_FAILED(_renderEngine->InvalidateAll());
-        _updateSelectionUI();
-        _renderer->TriggerSelection();
-        _ExitVimModeHandlers(*this, winrt::make<implementation::ExitVimModeEventArgs>(false));
-        if (_showRowNumbers)
-        {
-            _showRowNumbers = false;
-            _ToggleRowNumbersHandlers(*this, winrt::make<implementation::ToggleRowNumbersEventArgs>(false));
-        }
-        auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
-    }
-
     void ControlCore::EnterMarkMode()
     {
         auto lock = _terminal->LockForWriting();
@@ -1432,68 +1303,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _terminal->ToggleMarkMode();
         }
     }
-
-    void ControlCore::EnterFuzzySearchMode()
-    {
-        if (!IsInVimMode())
-        {
-            auto lock = _terminal->LockForReading();
-            EnterVimMode();
-        }
-        _fuzzySearchActive = true;
-        _sizeFuzzySearchPreview();
-    }
-
-    void ControlCore::StartFuzzySearch(std::wstring_view needle)
-    {
-        _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ needle }));
-    }
-
-    void ControlCore::UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence)
-    {
-        _VimTextChangedHandlers(
-            *this,
-            winrt::make<implementation::VimTextChangedEventArgs>(
-                winrt::hstring{ sequence },
-                winrt::hstring{ search },
-                winrt::hstring{ mode }));
-    }
-
-    void ControlCore::_sizeFuzzySearchPreview()
-    {
-        auto lock = _terminal->LockForWriting();
-        auto lock2 = _fuzzySearchRenderData->LockForWriting();
-
-        auto cx = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelWidth * _compositionScale));
-        auto cy = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelHeight * _compositionScale));
-
-        cx = std::max(cx, _actualFont.GetSize().width);
-        cy = std::max(cy, _actualFont.GetSize().height);
-
-        const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, { cx, cy });
-        const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
-        _fuzzySearchRenderData->SetSize(vp.Dimensions());
-
-        auto size = til::size{ til::math::rounding, static_cast<float>(_terminal->GetViewport().Width()), static_cast<float>(_terminal->GetTextBuffer().TotalRowCount()) };
-
-        auto newTextBuffer = std::make_unique<TextBuffer>(size,
-                                                          TextAttribute{},
-                                                          0,
-                                                          true,
-                                                          *_fuzzySearchRenderer);
-
-        TextBuffer::Reflow(_terminal->GetTextBuffer(), *newTextBuffer.get());
-        _fuzzySearchRenderData->SetTextBuffer(std::move(newTextBuffer));
-        THROW_IF_FAILED(_fuzzySearchRenderEngine->SetWindowSize({ cx, cy }));
-        LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
-        _fuzzySearchRenderer->NotifyPaintFrame();
-    }
-
-    void ControlCore::CloseFuzzySearchNoSelection()
-    {
-        _fuzzySearchActive = false;
-    }
-
+    
     void ControlCore::SetSelectionAnchor(const til::point position)
     {
         const auto lock = _terminal->LockForWriting();
@@ -1619,31 +1429,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return true;
         }
         return false;
-    }
-
-    void ControlCore::EnterVimMode()
-    {
-        _vimProxy->EnterVimMode();
-        _VimTextChangedHandlers(*this, winrt::make<implementation::VimTextChangedEventArgs>(winrt::hstring{ L"" }, winrt::hstring{ L"" }, winrt::hstring{ L"Normal" }));
-    }
-
-    void ControlCore::EnterVimModeWithSearch()
-    {
-        auto lock = _terminal->LockForReading();
-        _vimProxy->EnterVimMode();
-        _vimProxy->TryVimModeKeyBinding(0xBF, ControlKeyStates{VirtualKeyModifiers::Shift});
-    }
-
-    bool ControlCore::IsInVimMode()
-    {
-        return _vimProxy->GetVimMode() != VimModeProxy::VimMode::none;
-    }
-
-    void ControlCore::UpdateSelectionFromVim()
-    {
-        _renderer->TriggerSelection();
-        _renderer->NotifyPaintFrame();
-        _updateSelectionUI();
     }
 
     void ControlCore::ToggleMarkMode()
@@ -2014,58 +1799,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _FoundMatchHandlers(*this, *foundResults);
     }
 
-    void ControlCore::RegexSearch(const winrt::hstring& text, const bool goForward, const bool caseSensitive)
-    {
-        const auto lock = _terminal->LockForWriting();
-
-        if (_searcher.ResetIfStaleRegex(*GetRenderData(), text, !goForward, !caseSensitive))
-        {
-            _searcher.HighlightResults();
-            _searcher.MoveToCurrentSelection();
-            _cachedSearchResultRows = {};
-        }
-        else
-        {
-            _searcher.FindNext();
-        }
-
-        const auto foundMatch = _searcher.SelectCurrent();
-        auto foundResults = winrt::make_self<implementation::FoundResultsArgs>(foundMatch);
-        if (foundMatch)
-        {
-            // this is used for search,
-            // DO NOT call _updateSelectionUI() here.
-            // We don't want to show the markers so manually tell it to clear it.
-            _terminal->SetBlockSelection(false);
-            _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(true));
-
-            foundResults->TotalMatches(gsl::narrow<int32_t>(_searcher.Results().size()));
-            foundResults->CurrentMatch(gsl::narrow<int32_t>(_searcher.CurrentMatch()));
-
-            _terminal->AlwaysNotifyOnBufferRotation(true);
-        }
-        _renderer->TriggerSelection();
-
-        // Raise a FoundMatch event, which the control will use to notify
-        // narrator if there was any results in the buffer
-        _FoundMatchHandlers(*this, *foundResults);
-    }
-
-    void ControlCore::EnterQuickSelectMode(const winrt::hstring& text, bool copy)
-    {
-        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
-        {
-            _vimProxy->ResetVimState();
-        }
-
-        const auto lock = _terminal->LockForWriting();
-        _terminal->EnterQuickSelectMode();
-        _searcher.QuickSelectRegex(*GetRenderData(), text, true);
-        _searcher.HighlightResults();
-        _renderer->TriggerSelection();
-        _quickSelectCopy = copy;
-    }
-
     std::wstring GetRowFullText(FuzzySearchResultRow &fuzzySearchResult2, TextBuffer &textBuffer)
     {
         std::wstring result;
@@ -2079,85 +1812,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         result += textBuffer.GetRowByOffset(i).GetText();
 
         return result;
-    }
-
-    Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
-    {
-        const auto lock = _terminal->LockForWriting();
-
-        const auto fuzzySearchResultRows = _searcher.FuzzySearch(*GetRenderData(), text);
-
-        auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
-
-        for (auto p : fuzzySearchResultRows)
-        {
-            auto rowFullText = GetRowFullText(p, _terminal->GetTextBuffer());
-            
-            //sort the positions descending so that it is easier to create text segments from them
-            std::ranges::sort(p.positions, [](int32_t a, int32_t b) {
-                return a < b;
-            });
-
-            //Covert row text to text runs
-            auto runs = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextSegment>();
-            std::wstring currentRun;
-            bool isCurrentRunHighlighted = false;
-            size_t highlightIndex = 0;
-
-            for (int32_t i = 0; i < rowFullText.length(); ++i)
-            {
-                if (highlightIndex < p.positions.size() && i == p.positions[highlightIndex])
-                {
-                    if (!isCurrentRunHighlighted)
-                    {
-                        if (!currentRun.empty())
-                        {
-                            auto textSegmentHString = winrt::hstring(currentRun);
-                            auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
-                            runs.Append(textSegment);
-                            currentRun.clear();
-                        }
-                        isCurrentRunHighlighted = true;
-                    }
-                    highlightIndex++;
-                }
-                else
-                {
-                    if (isCurrentRunHighlighted)
-                    {
-                        if (!currentRun.empty())
-                        {
-                            winrt::hstring textSegmentHString = winrt::hstring(currentRun);
-                            auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, true);
-                            runs.Append(textSegment);
-                            currentRun.clear();
-                        }
-                        isCurrentRunHighlighted = false;
-                    }
-                }
-                currentRun += rowFullText[i];
-            }
-
-            if (!currentRun.empty())
-            {
-                auto textSegmentHString = winrt::hstring(currentRun);
-                auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, isCurrentRunHighlighted);
-                runs.Append(textSegment);
-            }
-
-            auto firstPosition = p.positions[0];
-            auto line = winrt::make<FuzzySearchTextLine>(runs, p.startRowNumber, firstPosition);
-
-            searchResults.Append(line);
-        }
-
-        auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, static_cast<int32_t>(fuzzySearchResultRows.size()), static_cast<int32_t>(searchResults.Size()));
-        return fuzzySearchResult;
-    }
-
-    bool ControlCore::ShowRowNumbers()
-    {
-        return _showRowNumbers;
     }
 
     Windows::Foundation::Collections::IVector<int32_t> ControlCore::SearchResultRows()
@@ -3025,13 +2679,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _CompletionsChangedHandlers(*this, *args);
     }
 
-    bool ControlCore::_selectionClearedFromErase()
-    {
-        const bool showMarkers{ _terminal->SelectionMode() >= ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Keyboard };
-        _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(!showMarkers));
-        return _vimProxy->GetVimMode() != VimModeProxy::VimMode::none;
-    }
-
     void ControlCore::_selectSpan(til::point_span s)
     {
         const auto bufferSize{ _terminal->GetTextBuffer().GetSize() };
@@ -3082,20 +2729,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto end = *nearest->commandEnd;
             _selectSpan(til::point_span{ start, end });
         }
-    }
-
-    void ControlCore::SelectRow(int32_t row, int32_t col)
-    {
-        const auto lock = _terminal->LockForWriting();
-        _vimProxy->SelectRow(row, col);
-        _fuzzySearchActive = false;
-    }
-
-    void ControlCore::FuzzySearchSelectionChanged(int32_t row)
-    {
-        _fuzzySearchRenderData->SetTopRow(row);
-        LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
-        _fuzzySearchRenderer->NotifyPaintFrame();
     }
 
     void ControlCore::SelectOutput(const bool goUp)
@@ -3281,5 +2914,321 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // Relies on the anchor set in AnchorContextMenu
         return _clickedOnMark(_contextMenuBufferPosition,
                               [](const ::ScrollMark& m) -> bool { return !m.HasOutput(); });
+    }
+
+    void ControlCore::SelectRow(int32_t row, int32_t col)
+    {
+        const auto lock = _terminal->LockForWriting();
+        _vimProxy->SelectRow(row, col);
+        _fuzzySearchActive = false;
+    }
+
+    void ControlCore::FuzzySearchSelectionChanged(int32_t row)
+    {
+        _fuzzySearchRenderData->SetTopRow(row);
+        LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
+        _fuzzySearchRenderer->NotifyPaintFrame();
+    }
+    
+    void ControlCore::EnterFuzzySearchMode()
+    {
+        if (!IsInVimMode())
+        {
+            auto lock = _terminal->LockForReading();
+            EnterVimMode();
+        }
+        _fuzzySearchActive = true;
+        _sizeFuzzySearchPreview();
+    }
+    
+    void ControlCore::CloseFuzzySearchNoSelection()
+    {
+        _fuzzySearchActive = false;
+    }
+    
+    void ControlCore::StartFuzzySearch(std::wstring_view needle)
+    {
+        _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ needle }));
+    }
+
+    Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
+    {
+        const auto lock = _terminal->LockForWriting();
+
+        const auto fuzzySearchResultRows = _searcher.FuzzySearch(*GetRenderData(), text);
+
+        auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
+
+        for (auto p : fuzzySearchResultRows)
+        {
+            auto rowFullText = GetRowFullText(p, _terminal->GetTextBuffer());
+
+            //sort the positions descending so that it is easier to create text segments from them
+            std::ranges::sort(p.positions, [](int32_t a, int32_t b) {
+                return a < b;
+            });
+
+            //Covert row text to text runs
+            auto runs = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextSegment>();
+            std::wstring currentRun;
+            bool isCurrentRunHighlighted = false;
+            size_t highlightIndex = 0;
+
+            for (int32_t i = 0; i < rowFullText.length(); ++i)
+            {
+                if (highlightIndex < p.positions.size() && i == p.positions[highlightIndex])
+                {
+                    if (!isCurrentRunHighlighted)
+                    {
+                        if (!currentRun.empty())
+                        {
+                            auto textSegmentHString = winrt::hstring(currentRun);
+                            auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
+                            runs.Append(textSegment);
+                            currentRun.clear();
+                        }
+                        isCurrentRunHighlighted = true;
+                    }
+                    highlightIndex++;
+                }
+                else
+                {
+                    if (isCurrentRunHighlighted)
+                    {
+                        if (!currentRun.empty())
+                        {
+                            winrt::hstring textSegmentHString = winrt::hstring(currentRun);
+                            auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, true);
+                            runs.Append(textSegment);
+                            currentRun.clear();
+                        }
+                        isCurrentRunHighlighted = false;
+                    }
+                }
+                currentRun += rowFullText[i];
+            }
+
+            if (!currentRun.empty())
+            {
+                auto textSegmentHString = winrt::hstring(currentRun);
+                auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, isCurrentRunHighlighted);
+                runs.Append(textSegment);
+            }
+
+            auto firstPosition = p.positions[0];
+            auto line = winrt::make<FuzzySearchTextLine>(runs, p.startRowNumber, firstPosition);
+
+            searchResults.Append(line);
+        }
+
+        auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, static_cast<int32_t>(fuzzySearchResultRows.size()), static_cast<int32_t>(searchResults.Size()));
+        return fuzzySearchResult;
+    }
+    
+    void ControlCore::ResetVimModeForSizeChange()
+    {
+        _vimProxy->ResetVimModeForSizeChange(false);
+    }
+    
+    void ControlCore::UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence)
+    {
+        _VimTextChangedHandlers(
+            *this,
+            winrt::make<implementation::VimTextChangedEventArgs>(
+                winrt::hstring{ sequence },
+                winrt::hstring{ search },
+                winrt::hstring{ mode }));
+    }
+    
+    void ControlCore::ExitVim()
+    {
+        LOG_IF_FAILED(_renderEngine->InvalidateAll());
+        _ExitVimModeHandlers(*this, winrt::make<implementation::ExitVimModeEventArgs>(false));
+        auto ot = _terminal->SendKeyEvent(VK_ESCAPE, 0, {}, true);
+    }
+    
+    void ControlCore::EnterVimMode()
+    {
+        _vimProxy->EnterVimMode();
+    }
+
+    void ControlCore::EnterVimModeWithSearch()
+    {
+        auto lock = _terminal->LockForReading();
+        _vimProxy->EnterVimMode();
+        _vimProxy->TryVimModeKeyBinding(0xBF, ControlKeyStates{ VirtualKeyModifiers::Shift });
+    }
+
+    bool ControlCore::IsInVimMode()
+    {
+        return _vimProxy->GetVimMode() != VimModeProxy::VimMode::none;
+    }
+    
+    void ControlCore::EnterQuickSelectMode(const winrt::hstring& text, bool copy)
+    {
+        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
+        {
+            _vimProxy->ResetVimState();
+        }
+
+        const auto lock = _terminal->LockForWriting();
+        _terminal->EnterQuickSelectMode();
+        _searcher.QuickSelectRegex(*GetRenderData(), text, true);
+        _searcher.HighlightResults();
+        _renderer->TriggerSelection();
+        _quickSelectCopy = copy;
+    }
+    
+    void ControlCore::ToggleRowNumbers(bool on)
+    {
+        auto args = winrt::make<implementation::ToggleRowNumbersEventArgs>(on);
+        _ToggleRowNumbersHandlers(*this, args);
+    }
+    
+    bool ControlCore::ShowRowNumbers()
+    {
+        return _vimProxy->ShowRowNumbers();
+    }
+    
+    int32_t ControlCore::ViewportRowNumberToHighlight()
+    {
+        auto lock = _terminal->LockForReading();
+        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
+        {
+            return CursorPosition().Y;
+        }
+
+        return _vimProxy->ViewportRowToHighlight();
+    }
+    
+    void ControlCore::UpdateSelectionFromVim()
+    {
+        _renderer->TriggerSelection();
+        _renderer->NotifyPaintFrame();
+        _updateSelectionUI();
+    }
+
+    bool ControlCore::InitializeFuzzySearch(const float actualWidth,
+                                            const float actualHeight,
+                                            const float compositionScale)
+    {
+        assert(_settings);
+
+        _fuzzySearchPanelWidth = actualWidth;
+        _fuzzySearchPanelHeight = actualHeight;
+        _fuzzySearchCompositionScale = compositionScale;
+
+        { // scope for terminalLock
+            const auto lock = _terminal->LockForWriting();
+
+            const auto windowWidth = actualWidth * compositionScale;
+            const auto windowHeight = actualHeight * compositionScale;
+
+            if (windowWidth == 0 || windowHeight == 0)
+            {
+                return false;
+            }
+
+            _fuzzySearchRenderEngine = std::make_unique<::Microsoft::Console::Render::AtlasEngine>();
+            _fuzzySearchRenderer->AddRenderEngine(_fuzzySearchRenderEngine.get());
+
+            const til::size windowSize{ til::math::rounding, windowWidth, windowHeight };
+
+            // First set up the dx engine with the window size in pixels.
+            // Then, using the font, get the number of characters that can fit.
+            // Resize our terminal connection to match that size, and initialize the terminal with that size.
+            const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, windowSize);
+            LOG_IF_FAILED(_fuzzySearchRenderEngine->SetWindowSize({ viewInPixels.Width(), viewInPixels.Height() }));
+
+            // Update DxEngine's SelectionBackground
+            _fuzzySearchRenderEngine->SetSelectionBackground(til::color{ _settings->SelectionBackground() });
+
+            _fuzzySearchRenderEngine->SetWarningCallback(std::bind(&ControlCore::_rendererWarning, this, std::placeholders::_1));
+
+            // Tell the render engine to notify us when the swap chain changes.
+            // We do this after we initially set the swapchain so as to avoid
+            // unnecessary callbacks (and locking problems)
+            _fuzzySearchRenderEngine->SetCallback([this](HANDLE handle) {
+                _fuzzySearchRenderEngineSwapChainChanged(handle);
+            });
+
+            _fuzzySearchRenderEngine->SetRetroTerminalEffect(_settings->RetroTerminalEffect());
+            _fuzzySearchRenderEngine->SetPixelShaderPath(_settings->PixelShaderPath());
+            _fuzzySearchRenderEngine->SetForceFullRepaintRendering(_settings->ForceFullRepaintRendering());
+            _fuzzySearchRenderEngine->SetSoftwareRendering(_settings->SoftwareRendering());
+
+            // GH#5098: Inform the engine of the opacity of the default text background.
+            // GH#11315: Always do this, even if they don't have acrylic on.
+            _fuzzySearchRenderEngine->EnableTransparentBackground(_isBackgroundTransparent());
+
+            THROW_IF_FAILED(_fuzzySearchRenderEngine->Enable());
+
+            const auto newDpi = static_cast<int>(lrint(_compositionScale * USER_DEFAULT_SCREEN_DPI));
+
+            std::unordered_map<std::wstring_view, uint32_t> featureMap;
+            if (const auto fontFeatures = _settings->FontFeatures())
+            {
+                featureMap.reserve(fontFeatures.Size());
+
+                for (const auto& [tag, param] : fontFeatures)
+                {
+                    featureMap.emplace(tag, param);
+                }
+            }
+            std::unordered_map<std::wstring_view, float> axesMap;
+            if (const auto fontAxes = _settings->FontAxes())
+            {
+                axesMap.reserve(fontAxes.Size());
+
+                for (const auto& [axis, value] : fontAxes)
+                {
+                    axesMap.emplace(axis, value);
+                }
+            }
+
+            // TODO: MSFT:20895307 If the font doesn't exist, this doesn't
+            //      actually fail. We need a way to gracefully fallback.
+            LOG_IF_FAILED(_fuzzySearchRenderEngine->UpdateDpi(newDpi));
+            LOG_IF_FAILED(_fuzzySearchRenderEngine->UpdateFont(_desiredFont, _actualFont, featureMap, axesMap));
+        } // scope for TerminalLock
+
+        return true;
+    }
+
+    void ControlCore::_sizeFuzzySearchPreview()
+    {
+        auto lock = _terminal->LockForWriting();
+        auto lock2 = _fuzzySearchRenderData->LockForWriting();
+
+        auto cx = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelWidth * _compositionScale));
+        auto cy = gsl::narrow_cast<til::CoordType>(lrint(_fuzzySearchPanelHeight * _compositionScale));
+
+        cx = std::max(cx, _actualFont.GetSize().width);
+        cy = std::max(cy, _actualFont.GetSize().height);
+
+        const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, { cx, cy });
+        const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
+        _fuzzySearchRenderData->SetSize(vp.Dimensions());
+
+        auto size = til::size{ til::math::rounding, static_cast<float>(_terminal->GetViewport().Width()), static_cast<float>(_terminal->GetTextBuffer().TotalRowCount()) };
+
+        auto newTextBuffer = std::make_unique<TextBuffer>(size,
+                                                          TextAttribute{},
+                                                          0,
+                                                          true,
+                                                          *_fuzzySearchRenderer);
+
+        TextBuffer::Reflow(_terminal->GetTextBuffer(), *newTextBuffer.get());
+        _fuzzySearchRenderData->SetTextBuffer(std::move(newTextBuffer));
+        THROW_IF_FAILED(_fuzzySearchRenderEngine->SetWindowSize({ cx, cy }));
+        LOG_IF_FAILED(_fuzzySearchRenderEngine->InvalidateAll());
+        _fuzzySearchRenderer->NotifyPaintFrame();
+    }
+    
+    bool ControlCore::_selectionClearedFromErase()
+    {
+        const bool showMarkers{ _terminal->SelectionMode() >= ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Keyboard };
+        _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(!showMarkers));
+        return _vimProxy->GetVimMode() != VimModeProxy::VimMode::none;
     }
 }
