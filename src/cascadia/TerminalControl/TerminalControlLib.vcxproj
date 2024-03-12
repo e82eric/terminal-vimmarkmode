@@ -36,6 +36,7 @@
     <ClInclude Include="ControlInteractivity.h">
       <DependentUpon>ControlInteractivity.idl</DependentUpon>
     </ClInclude>
+    <ClInclude Include="QuickSelectHandler.h" />
     <ClInclude Include="ScrollBarVisualStateManager.h">
       <DependentUpon>ScrollBarVisualStateManager.idl</DependentUpon>
     </ClInclude>
@@ -88,6 +89,7 @@
     <ClCompile Include="ControlInteractivity.cpp">
       <DependentUpon>ControlInteractivity.idl</DependentUpon>
     </ClCompile>
+    <ClCompile Include="QuickSelectHandler.cpp" />
     <ClCompile Include="ScrollBarVisualStateManager.cpp">
       <DependentUpon>ScrollBarVisualStateManager.idl</DependentUpon>
     </ClCompile>

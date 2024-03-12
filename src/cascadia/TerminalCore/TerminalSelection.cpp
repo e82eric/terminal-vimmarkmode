@@ -646,6 +646,25 @@ void Terminal::SetSelectionAnchors(std::optional<Terminal::SelectionAnchors> val
     _selection = val;
 }
 
+void Terminal::SetQuickSelectHandler(QuickSelectAlphabet* val)
+{
+    _quickSelectHandler = val;
+}
+
+int32_t Terminal::NumberOfVisibleSearchSelections()
+{
+    auto lowerIt = std::lower_bound(_searchSelections.begin(), _searchSelections.end(), _GetVisibleViewport().Top(), [](const til::inclusive_rect& rect, til::CoordType value) {
+        return rect.top < value;
+    });
+
+    auto upperIt = std::upper_bound(_searchSelections.begin(), _searchSelections.end(), _GetVisibleViewport().BottomExclusive(), [](til::CoordType value, const til::inclusive_rect& rect) {
+        return value < rect.top;
+    });
+
+    auto num = static_cast<int32_t>(std::distance(lowerIt, upperIt));
+    return num;
+}
+
 void Terminal::SelectChar(til::point point)
 {
     if (!_selection.has_value())

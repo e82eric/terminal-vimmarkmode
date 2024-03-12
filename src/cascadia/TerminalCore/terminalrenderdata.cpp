@@ -203,107 +203,46 @@ try
         return value < rect.top;
     });
 
-    int columns = 1;
-    while (std::pow(_quickSelectAlphabet.size(), columns) < std::distance(lowerIt, upperIt))
-    {
-        columns++;
-    }
-
-    std::vector<int> indices(columns, 0);
+    auto num = static_cast<int32_t>(std::distance(lowerIt, upperIt));
+    auto chars = _quickSelectHandler->GetQuickSelectChars(num);
 
     til::CoordType lastY = -1;
-    std::vector<til::rect> dirtySearchRectanglesToPaint;
-
-    for (auto selection = lowerIt; selection != upperIt; ++selection)
+    for (int i = 0; i < num; i++)
     {
-        const auto start = til::point{ selection->left, selection->top };
-        const auto end = til::point{ selection->right, selection->bottom };
-        const auto adj = _activeBuffer().GetTextRects(start, end, _blockSelection, false);
+        auto ch = chars[i];
+        if(ch.isCurrentMatch)
+        {
+            const til::inclusive_rect selection = lowerIt[i];
+            const auto start = til::point{ selection.left, selection.top };
+            const auto end = til::point{ selection.right, selection.bottom };
+            const auto adj = _activeBuffer().GetTextRects(start, end, _blockSelection, false);
 
-        auto charsInFirstRow = 0;
-        if (start.y == end.y)
-        {
-            charsInFirstRow = end.x + 1 - start.x;
-        }
-        else
-        {
-            charsInFirstRow = _GetVisibleViewport().RightInclusive() - start.x + 1; 
-        }
-
-        bool allMatching = true;
-        std::vector<QuickSelectChar> chs;
-        for (int i = 0; i < indices.size(); i++)
-        {
-            auto idx = indices[i];
-            auto ch = QuickSelectChar{};
-            ch.val = _quickSelectAlphabet[idx];
-            if (i < _quickSelectChars.size())
+            if (adj[0].right - adj[0].left + 1 >= ch.chars.size())
             {
-                if (_quickSelectAlphabet[idx] != _quickSelectChars[i])
+                for (auto j = 0; j < adj.size(); j++)
                 {
-                    allMatching = false;
-                    //We are going to throw this away anyways
-                    break;
-                }
-
-                ch.isMatch = true;
-            }
-            else
-            {
-                ch.isMatch = false;
-            }
-            chs.emplace_back(ch);
-        }
-
-        auto isCurrentMatch = false;
-        if ((_quickSelectChars.size() == 0 || chs.size() >= _quickSelectChars.size()) &&
-            (charsInFirstRow >= columns) &&
-            allMatching)
-        {
-            isCurrentMatch = true;
-        }
-
-        for (auto j = 0; j < adj.size(); j++)
-        {
-            auto toAdd = QuickSelectSelection{};
-            toAdd.selection = Viewport::FromInclusive(adj[j]);
-            toAdd.isCurrentMatch = isCurrentMatch;
-
-            if (j == 0)
-            {
-                for (auto ch : chs)
-                {
-                    toAdd.chars.emplace_back(ch);
-                }
-
-                for (int j = columns - 1; j >= 0; --j)
-                {
-                    indices[j]++;
-                    if (indices[j] < _quickSelectAlphabet.size())
+                    QuickSelectSelection toAdd;
+                    if (j > 0)
                     {
-                        break; // No carry over, break the loop
+                        toAdd = QuickSelectSelection{};
                     }
-                    indices[j] = 0; // Carry over to the previous column
-                    //if (j == 0)
-                    //{
-                    //    // If it's the first column, reset to all zeros (optional based on your use case)
-                    //    std::fill(indices.begin(), indices.end(), 0);
-                    //}
-                }
-            }
-
-            if (toAdd.isCurrentMatch)
-            {
-                if (lastY == toAdd.selection.Top())
-                {
-                    result.selectionMap.at(toAdd.selection.Top()).emplace_back(toAdd);
-                }
-                else
-                {
-                    auto rowSelections = std::vector<QuickSelectSelection>{};
-                    rowSelections.emplace_back(toAdd);
-                    result.selectionMap.emplace(toAdd.selection.Top(), rowSelections);
-                    lastY = toAdd.selection.Top();
+                    else
+                    {
+                        toAdd = ch;
+                    }
+                    toAdd.selection = Viewport::FromInclusive(adj[j]);
+                    toAdd.isCurrentMatch = ch.isCurrentMatch;
+                    if (lastY == toAdd.selection.Top())
+                    {
+                        result.selectionMap.at(toAdd.selection.Top()).emplace_back(toAdd);
+                    }
+                    else
+                    {
+                        auto rowSelections = std::vector<QuickSelectSelection>{};
+                        rowSelections.emplace_back(toAdd);
+                        result.selectionMap.emplace(toAdd.selection.Top(), rowSelections);
+                        lastY = toAdd.selection.Top();
+                    }
                 }
             }
         }
@@ -315,6 +254,11 @@ catch (...)
 {
     LOG_CAUGHT_EXCEPTION();
     return {};
+}
+
+bool Terminal::InQuickSelectMode()
+{
+    return _quickSelectHandler->Enabled();
 }
 
 void Terminal::SelectNewRegion(const til::point coordStart, const til::point coordEnd)

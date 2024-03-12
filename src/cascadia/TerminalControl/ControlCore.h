@@ -19,6 +19,7 @@
 #include "SelectionColor.g.h"
 #include "CommandHistoryContext.g.h"
 #include "ControlSettings.h"
+#include "QuickSelectHandler.h"
 #include "../../audio/midi/MidiAudio.hpp"
 #include "../../renderer/base/Renderer.hpp"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
@@ -33,6 +34,7 @@ namespace ControlUnitTests
     class ControlInteractivityTests;
 };
 
+class QuickSelectHandler;
 class VimModeProxy;
 
 #define RUNTIME_SETTING(type, name, setting)                 \
@@ -475,6 +477,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _quickSelectCopy = false;
         fzf_slab_t* _fzf_slab;
         VimModeProxy* _vimProxy;
+        QuickSelectHandler* _quickSelectHandler;
     };
 }
 

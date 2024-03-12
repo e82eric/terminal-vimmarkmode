@@ -29,11 +29,6 @@ Terminal::Terminal()
 {
     _renderSettings.SetColorAlias(ColorAlias::DefaultForeground, TextColor::DEFAULT_FOREGROUND, RGB(255, 255, 255));
     _renderSettings.SetColorAlias(ColorAlias::DefaultBackground, TextColor::DEFAULT_BACKGROUND, RGB(0, 0, 0));
-
-    for (int16_t i = 0; i < _quickSelectAlphabet.size(); ++i)
-    {
-        _quickSelectAlphabetMap[_quickSelectAlphabet[i]] = i;
-    }
 }
 
 #pragma warning(suppress : 26455) // default constructor is throwing, too much effort to rearrange at this time.
@@ -1574,16 +1569,13 @@ std::wstring_view Terminal::CurrentCommand() const
     return _activeBuffer().CurrentCommand();
 }
 
-void Terminal::QuickSelectBackspace()
+std::optional<std::tuple<til::point, til::point>> Terminal::GetViewportSelectionAtIndex(int32_t index)
 {
-    if (!_quickSelectChars.empty())
+    if (_searchSelections.empty())
     {
-        _quickSelectChars.pop_back();
+        return std::nullopt;
     }
-}
 
-std::tuple<bool, til::point, til::point> Terminal::QuickSelectHandleChar(wchar_t ch)
-{
     auto lowerIt = std::lower_bound(_searchSelections.begin(), _searchSelections.end(), _GetVisibleViewport().Top(), [](const til::inclusive_rect& rect, til::CoordType value) {
         return rect.top < value;
     });
@@ -1592,55 +1584,14 @@ std::tuple<bool, til::point, til::point> Terminal::QuickSelectHandleChar(wchar_t
         return value < rect.top;
     });
 
-    int columns = 1;
-    while (std::pow(_quickSelectAlphabet.size(), columns) < std::distance(lowerIt, upperIt))
+    auto distance = std::distance(lowerIt, upperIt);
+    if (index < 0 || index >= distance)
     {
-        columns++;
+        return std::nullopt;
     }
 
-    _quickSelectChars += ch;
-
-    if (_quickSelectChars.size() == columns)
-    {
-        int16_t selectionIndex = 0;
-        int16_t power = static_cast<int16_t>(_quickSelectChars.size() - 1);
-        for (int16_t i = 0; i < _quickSelectChars.size(); i++)
-        {
-            auto ch = _quickSelectChars[i];
-            auto index = _quickSelectAlphabetMap[ch];
-            selectionIndex += index * static_cast<int16_t>(std::pow(_quickSelectAlphabet.size(), power--));
-        }
-
-        if (selectionIndex < std::distance(lowerIt, upperIt))
-        {
-            auto selectedIt = lowerIt;
-            std::advance(selectedIt, selectionIndex);
-            auto rect = *selectedIt;
-
-            return std::make_tuple(true, til::point{ rect.left, rect.top }, til::point{ rect.right, rect.bottom });
-        }
-        return std::make_tuple(true, til::point{}, til::point{});
-    }
-    return std::make_tuple(false, til::point{}, til::point{});
-}
-
-void Terminal::EnterQuickSelectMode()
-{
-    _inQuickSelectMode = true;
-    _activeBuffer().GetCursor().SetIsVisible(false);
-}
-
-bool Terminal::InQuickSelectMode()
-{
-    return _inQuickSelectMode;
-}
-
-void Terminal::ExitQuickSelectMode()
-{
-    _inQuickSelectMode = false;
-    _quickSelectChars.clear();
-    ClearSelection();
-    _activeBuffer().GetCursor().SetIsVisible(true);
+    auto rect = (lowerIt + index)[0];
+    return std::make_tuple(til::point{ rect.left, rect.top }, til::point{ rect.right, rect.bottom });
 }
 
 void Terminal::ColorSelection(const TextAttribute& attr, winrt::Microsoft::Terminal::Core::MatchMode matchMode)

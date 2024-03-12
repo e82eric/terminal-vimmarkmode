@@ -174,6 +174,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         UpdateSettings(settings, unfocusedAppearance);
+        auto quickSelectAlphabet = new QuickSelectAlphabet();
+        _quickSelectHandler = new QuickSelectHandler(
+            _terminal.get(),
+            _vimProxy,
+            _renderer.get(),
+            quickSelectAlphabet);
+        _terminal->SetQuickSelectHandler(quickSelectAlphabet);
     }
 
     void ControlCore::_setupDispatcherAndCallbacks()
@@ -564,67 +571,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto lock = _terminal->LockForWriting();
 
-        if (_terminal->InQuickSelectMode())
+        if (_quickSelectHandler->Enabled())
         {
-            if (vkey == VK_ESCAPE)
-            {
-                _terminal->ExitQuickSelectMode();
-                LOG_IF_FAILED(_renderEngine->InvalidateAll());
-                return true;
-            }
-
-            if (vkey == VK_BACK)
-            {
-                _terminal->QuickSelectBackspace();
-                _renderer->TriggerSelection();
-                return true;
-            }
-
-            wchar_t vkeyText[2] = { 0 };
-            BYTE keyboardState[256];
-            if (!GetKeyboardState(keyboardState))
-            {
-                return true;
-            }
-
-            keyboardState[VK_SHIFT] = 0x80;
-            ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, vkeyText, 2, 0);
-
-            auto quickSelectResult = _terminal->QuickSelectHandleChar(vkeyText[0]);
-            auto startPoint = std::get<1>(quickSelectResult);
-            auto endPoint = std::get<2>(quickSelectResult);
-            auto shouldExit = std::get<0>(quickSelectResult);
-
-            if (shouldExit)
-            {
-                if (!_quickSelectCopy)
-                {
-                    _terminal->ExitQuickSelectMode();
-                    EnterVimMode();
-                    _terminal->SelectChar(startPoint);
-                    _renderer->TriggerSelection();
-                }
-                else
-                {
-                    const auto req = TextBuffer::CopyRequest::FromConfig(_terminal->GetTextBuffer(), startPoint, endPoint, true, false, false);
-                    auto text = _terminal->GetTextBuffer().GetPlainText(req);
-                    _terminal->CopyToClipboard(text);
-
-                    std::thread hideTimerThread([this]() {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(250));
-                        {
-                            auto lock = _terminal->LockForWriting();
-                            _terminal->ExitQuickSelectMode();
-                            LOG_IF_FAILED(_renderEngine->InvalidateAll());
-                            _renderer->NotifyPaintFrame();
-                        }
-                    });
-                    hideTimerThread.detach();
-                }
-            }
-            _renderer->TriggerRedrawAll();
-            _renderer->NotifyPaintFrame();
-
+            _quickSelectHandler->HandleChar(vkey);
             return true;
         }
 
@@ -3072,7 +3021,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         const auto lock = _terminal->LockForWriting();
-        _terminal->EnterQuickSelectMode();
+        _quickSelectHandler->EnterQuickSelectMode(copy);
         _searcher.QuickSelectRegex(*GetRenderData(), text, true);
         _searcher.HighlightResults();
         _renderer->TriggerSelection();
