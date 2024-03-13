@@ -12,6 +12,7 @@
 #include "../../buffer/out/UTextAdapter.h"
 #include "FuzzySearchRenderData.hpp"
 
+
 #include <til/hash.h>
 #include <winrt/Microsoft.Terminal.Core.h>
 

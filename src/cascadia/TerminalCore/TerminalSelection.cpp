@@ -646,9 +646,9 @@ void Terminal::SetSelectionAnchors(std::optional<Terminal::SelectionAnchors> val
     _selection = val;
 }
 
-void Terminal::SetQuickSelectHandler(QuickSelectAlphabet* val)
+void Terminal::SetQuickSelectHandler(std::shared_ptr<QuickSelectAlphabet> val)
 {
-    _quickSelectHandler = val;
+    _quickSelectAlphabet = val;
 }
 
 int32_t Terminal::NumberOfVisibleSearchSelections()

@@ -4,16 +4,13 @@
 
 class VimModeProxy;
 
-QuickSelectHandler::
-QuickSelectHandler(
-    Microsoft::Terminal::Core::Terminal* terminal,
-    VimModeProxy *vimProxy,
-    Microsoft::Console::Render::Renderer *renderer,
-    QuickSelectAlphabet *quickSelectAlphabet)
+QuickSelectHandler::QuickSelectHandler(
+        std::shared_ptr<Microsoft::Terminal::Core::Terminal> terminal,
+        std::shared_ptr<VimModeProxy> vimProxy,
+        std::shared_ptr<QuickSelectAlphabet> quickSelectAlphabet)
 {
     _terminal = terminal;
     _vimProxy = vimProxy;
-    _renderer = renderer;
     _quickSelectAlphabet = quickSelectAlphabet;
 }
 
@@ -28,21 +25,21 @@ bool QuickSelectHandler::Enabled()
     return _quickSelectAlphabet->Enabled();
 }
 
-void QuickSelectHandler::HandleChar(uint32_t vkey)
+void QuickSelectHandler::HandleChar(uint32_t vkey, Microsoft::Console::Render::Renderer* renderer)
 {
     if (vkey == VK_ESCAPE)
     {
         _quickSelectAlphabet->Enabled(false);
         _quickSelectAlphabet->ClearChars();
         _terminal->ClearSelection();
-        _renderer->TriggerSelection();
+        renderer->TriggerSelection();
         return;
     }
 
     if (vkey == VK_BACK)
     {
         _quickSelectAlphabet->RemoveChar();
-        _renderer->TriggerSelection();
+        renderer->TriggerSelection();
         return;
     }
 
@@ -74,7 +71,7 @@ void QuickSelectHandler::HandleChar(uint32_t vkey)
                 _terminal->ClearSelection();
                 _vimProxy->EnterVimMode();
                 _terminal->SelectChar(startPoint);
-                _renderer->TriggerSelection();
+                renderer->TriggerSelection();
             }
             else
             {
@@ -82,22 +79,24 @@ void QuickSelectHandler::HandleChar(uint32_t vkey)
                 auto text = _terminal->GetTextBuffer().GetPlainText(req);
                 _terminal->CopyToClipboard(text);
 
-                std::thread hideTimerThread([this]() {
+                std::thread hideTimerThread([this, renderer]() {
                     std::this_thread::sleep_for(std::chrono::milliseconds(250));
                     {
                         auto lock = _terminal->LockForWriting();
                         _quickSelectAlphabet->Enabled(false);
                         _quickSelectAlphabet->ClearChars();
                         _terminal->ClearSelection();
-                        _renderer->TriggerSelection();
-                        _renderer->TriggerRedrawAll();
-                        _renderer->NotifyPaintFrame();
+                        //This isn't technically safe.  There is a slight chance that the renderer is deleted
+                        //I think the fix is to make the renderer a shared pointer but I am not ready to mess with change core terminal stuff
+                        renderer->TriggerSelection();
+                        renderer->TriggerRedrawAll();
+                        renderer->NotifyPaintFrame();
                     }
                 });
                 hideTimerThread.detach();
             }
         }
     }
-    _renderer->TriggerRedrawAll();
-    _renderer->NotifyPaintFrame();
+    renderer->TriggerRedrawAll();
+    renderer->NotifyPaintFrame();
 }

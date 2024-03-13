@@ -1,6 +1,7 @@
 #pragma once
 #include "../../renderer/base/Renderer.hpp"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
+#include "../../cascadia/TerminalCore/lib/QuickSelectAlphabet.h"
 
 namespace Microsoft::Console::Render
 {
@@ -12,19 +13,17 @@ class VimModeProxy;
 class QuickSelectHandler
 {
 private:
-    Microsoft::Terminal::Core::Terminal* _terminal;
+    std::shared_ptr<Microsoft::Terminal::Core::Terminal> _terminal;
     bool _copyMode = false;
-    VimModeProxy *_vimProxy;
-    Microsoft::Console::Render::Renderer* _renderer;
-    QuickSelectAlphabet *_quickSelectAlphabet;
+    std::shared_ptr<VimModeProxy> _vimProxy;
+    std::shared_ptr<QuickSelectAlphabet> _quickSelectAlphabet;
 
 public:
     QuickSelectHandler(
-        Microsoft::Terminal::Core::Terminal* terminal,
-        VimModeProxy *vimProxy,
-        Microsoft::Console::Render::Renderer *renderer,
-        QuickSelectAlphabet *quickSelectAlphabet);
+        std::shared_ptr<Microsoft::Terminal::Core::Terminal> terminal,
+        std::shared_ptr<VimModeProxy> vimProxy,
+        std::shared_ptr<QuickSelectAlphabet> quickSelectAlphabet);
     void EnterQuickSelectMode(bool copyMode);
     bool Enabled();
-    void HandleChar(uint32_t vkey);
+    void HandleChar(uint32_t vkey, Microsoft::Console::Render::Renderer* renderer);
 };

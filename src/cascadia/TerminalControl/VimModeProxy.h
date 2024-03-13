@@ -97,8 +97,13 @@ public:
         backToFirstNonSpaceChar = 17
     };
 
-    VimModeProxy(Microsoft::Terminal::Core::Terminal* terminal, winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore, Search *searcher);
-    bool TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods);
+    VimModeProxy(
+        std::shared_ptr<Microsoft::Terminal::Core::Terminal> terminal,
+        winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore,
+        Search *searcher);
+    bool TryVimModeKeyBinding(
+        const WORD vkey,
+        const ::Microsoft::Terminal::Core::ControlKeyStates mods);
     void ResetVimState();
     void ExitVimMode();
     void EnterVimMode();
@@ -156,7 +161,7 @@ private:
     void _MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept;
     void _vimScrollScreenPosition(VimTextObjectType textObjectType);
 
-    Microsoft::Terminal::Core::Terminal* _terminal;
+    std::shared_ptr<Microsoft::Terminal::Core::Terminal> _terminal;
     winrt::Microsoft::Terminal::Control::implementation::ControlCore* _controlCore;
     Search* _searcher;
     std::wstring _wordDelimiters = L"/\\()\"'-.,:;<>~!@#$%^&*|+=[]{}~?│";

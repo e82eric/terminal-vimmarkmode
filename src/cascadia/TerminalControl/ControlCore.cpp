@@ -92,7 +92,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto lock = _terminal->LockForWriting();
 
         _fzf_slab = fzf_make_default_slab();
-        _vimProxy = new VimModeProxy(_terminal.get(), this, &_searcher);
         _setupDispatcherAndCallbacks();
 
         Connection(connection);
@@ -174,12 +173,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         UpdateSettings(settings, unfocusedAppearance);
-        auto quickSelectAlphabet = new QuickSelectAlphabet();
-        _quickSelectHandler = new QuickSelectHandler(
-            _terminal.get(),
+        auto quickSelectAlphabet = std::make_shared<QuickSelectAlphabet>();
+        _vimProxy = std::make_shared<VimModeProxy>(_terminal, this, &_searcher);
+        _quickSelectHandler = std::make_unique<QuickSelectHandler>(
+            _terminal,
             _vimProxy,
-            _renderer.get(),
             quickSelectAlphabet);
+
         _terminal->SetQuickSelectHandler(quickSelectAlphabet);
     }
 
@@ -573,7 +573,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (_quickSelectHandler->Enabled())
         {
-            _quickSelectHandler->HandleChar(vkey);
+            if (_renderer)
+            {
+                _quickSelectHandler->HandleChar(vkey, _renderer.get());
+            }
             return true;
         }
 

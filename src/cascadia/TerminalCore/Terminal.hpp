@@ -219,7 +219,6 @@ public:
     std::vector<Microsoft::Console::Types::Viewport> GetYankSelectionRects() noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetSearchSelectionRects() noexcept override;
-    Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
     const bool IsSelectionActive() const noexcept override;
     const bool IsBlockSelection() const noexcept override;
     void ClearSelection() override;
@@ -507,167 +506,14 @@ private:
     friend class TerminalCoreUnitTests::ScrollTest;
 #endif
 
-    QuickSelectAlphabet* _quickSelectHandler;
+    std::shared_ptr<QuickSelectAlphabet> _quickSelectAlphabet;
 
 public:
     std::optional<Microsoft::Terminal::Core::Terminal::SelectionAnchors> GetSelectionAnchors();
     void SetSelectionAnchors(std::optional<SelectionAnchors> val);
-    void SetQuickSelectHandler(QuickSelectAlphabet* val);
+    void SetQuickSelectHandler(std::shared_ptr<QuickSelectAlphabet> val);
     int32_t NumberOfVisibleSearchSelections();
     std::optional<std::tuple<til::point, til::point>> GetViewportSelectionAtIndex(int32_t index);
     bool InQuickSelectMode() override;
-};
-
-class QuickSelectAlphabet
-{
-    bool _enabled;
-    std::vector<wchar_t> _quickSelectAlphabet;
-    std::unordered_map<wchar_t, int16_t> _quickSelectAlphabetMap;
-    std::wstring _chars;
-
-public:
-    QuickSelectAlphabet()
-    {
-        _quickSelectAlphabet = { L'A', L'S', L'D', L'F', L'Q', L'W', L'E', L'R', L'Z', L'X', L'C', L'V', L'J', L'K', L'L', L'M', L'I', L'U', L'O', L'P', L'G', L'H', L'T', L'Y', L'B', L'N' };
-        for (int16_t i = 0; i < _quickSelectAlphabet.size(); ++i)
-        {
-            _quickSelectAlphabetMap[_quickSelectAlphabet[i]] = i;
-        }
-    }
-
-    bool Enabled()
-    {
-        return _enabled;
-    }
-
-    void Enabled(bool val)
-    {
-        _enabled = val;   
-    }
-
-    void AppendChar(wchar_t *ch)
-    {
-        _chars += ch;
-    }
-
-    void RemoveChar()
-    {
-        if (!_chars.empty())
-        {
-            _chars.pop_back();
-        }
-    }
-
-    void ClearChars()
-    {
-        _chars.clear();
-    }
-
-    std::vector<Microsoft::Console::Render::QuickSelectSelection> GetQuickSelectChars(int32_t number) noexcept
-    try
-    {
-        auto result = std::vector<Microsoft::Console::Render::QuickSelectSelection>();
-        result.reserve(number);
-
-        int columns = 1;
-        while (std::pow(_quickSelectAlphabet.size(), columns) < number)
-        {
-            columns++;
-        }
-
-        std::vector<int> indices(columns, 0);
-
-        for (auto j = 0; j < number; j++)
-        {
-            bool allMatching = true;
-            std::vector<Microsoft::Console::Render::QuickSelectChar> chs;
-            for (int i = 0; i < indices.size(); i++)
-            {
-                auto idx = indices[i];
-                auto ch = Microsoft::Console::Render::QuickSelectChar{};
-                ch.val = _quickSelectAlphabet[idx];
-                if (i < _chars.size())
-                {
-                    if (_quickSelectAlphabet[idx] != _chars[i])
-                    {
-                        allMatching = false;
-                        //We are going to throw this away anyways
-                        break;
-                    }
-
-                    ch.isMatch = true;
-                }
-                else
-                {
-                    ch.isMatch = false;
-                }
-                chs.emplace_back(ch);
-            }
-
-            auto isCurrentMatch = false;
-            if ((_chars.size() == 0 || chs.size() >= _chars.size()) &&
-                allMatching)
-            {
-                isCurrentMatch = true;
-            }
-
-            auto toAdd = Microsoft::Console::Render::QuickSelectSelection{};
-            toAdd.isCurrentMatch = isCurrentMatch;
-
-            for (auto ch : chs)
-            {
-                toAdd.chars.emplace_back(ch);
-            }
-
-            result.emplace_back(toAdd);
-
-            for (int k = columns - 1; k >= 0; --k)
-            {
-                indices[k]++;
-                if (indices[k] < _quickSelectAlphabet.size())
-                {
-                    break; // No carry over, break the loop
-                }
-                indices[k] = 0; // Carry over to the previous column
-                //if (j == 0)
-                //{
-                //    // If it's the first column, reset to all zeros (optional based on your use case)
-                //    std::fill(indices.begin(), indices.end(), 0);
-                //}
-            }
-        }
-
-        return result;
-    }
-    catch (...)
-    {
-        LOG_CAUGHT_EXCEPTION();
-        return {};
-    }
-
-    bool AllCharsSet(int32_t number)
-    {
-        int columns = 1;
-        while (std::pow(_quickSelectAlphabet.size(), columns) < number)
-        {
-            columns++;
-        }
-
-        auto result = _chars.size() == columns;
-        return result;
-    }
-
-    int32_t GetIndexForChars()
-    {
-        int16_t selectionIndex = 0;
-        int16_t power = static_cast<int16_t>(_chars.size() - 1);
-        for (int16_t i = 0; i < _chars.size(); i++)
-        {
-            auto ch = _chars[i];
-            auto index = _quickSelectAlphabetMap[ch];
-            selectionIndex += index * static_cast<int16_t>(std::pow(_quickSelectAlphabet.size(), power--));
-        }
-
-        return selectionIndex;
-    }
+    Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
 };

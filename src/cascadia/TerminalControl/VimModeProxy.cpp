@@ -2,7 +2,7 @@
 #include "VimModeProxy.h"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
 
-VimModeProxy::VimModeProxy(Microsoft::Terminal::Core::Terminal* terminal, winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore, Search* searcher)
+VimModeProxy::VimModeProxy(std::shared_ptr<Microsoft::Terminal::Core::Terminal> terminal, winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore, Search* searcher)
 {
     _terminal = terminal;
     _controlCore = controlCore;
@@ -725,7 +725,9 @@ bool VimModeProxy::_executeVimSelection(
     return exitAfter;
 }
 
-bool VimModeProxy::TryVimModeKeyBinding(const WORD vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods)
+bool VimModeProxy::TryVimModeKeyBinding(
+    const WORD vkey,
+    const ::Microsoft::Terminal::Core::ControlKeyStates mods)
 {
     bool sequenceCompleted = false;
     bool hideMarkers = false;

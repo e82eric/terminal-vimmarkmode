@@ -476,8 +476,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _fuzzySearchActive = false;
         bool _quickSelectCopy = false;
         fzf_slab_t* _fzf_slab;
-        VimModeProxy* _vimProxy;
-        QuickSelectHandler* _quickSelectHandler;
+        std::shared_ptr<VimModeProxy> _vimProxy;
+        std::unique_ptr<QuickSelectHandler> _quickSelectHandler;
     };
 }
 

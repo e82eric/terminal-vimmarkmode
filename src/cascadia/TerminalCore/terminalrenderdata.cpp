@@ -5,6 +5,8 @@
 #include "Terminal.hpp"
 #include <DefaultSettings.h>
 
+#include "QuickSelectAlphabet.h"
+
 using namespace Microsoft::Terminal::Core;
 using namespace Microsoft::Console::Types;
 using namespace Microsoft::Console::Render;
@@ -204,7 +206,7 @@ try
     });
 
     auto num = static_cast<int32_t>(std::distance(lowerIt, upperIt));
-    auto chars = _quickSelectHandler->GetQuickSelectChars(num);
+    auto chars = _quickSelectAlphabet->GetQuickSelectChars(num);
 
     til::CoordType lastY = -1;
     for (int i = 0; i < num; i++)
@@ -258,7 +260,7 @@ catch (...)
 
 bool Terminal::InQuickSelectMode()
 {
-    return _quickSelectHandler->Enabled();
+    return _quickSelectAlphabet->Enabled();
 }
 
 void Terminal::SelectNewRegion(const til::point coordStart, const til::point coordEnd)
