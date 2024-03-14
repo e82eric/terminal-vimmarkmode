@@ -740,7 +740,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             //      itself - it was initiated by the mouse wheel, or the scrollbar.
             const auto lock = _terminal->LockForWriting();
             _terminal->UserScrollViewport(viewTop);
-            if (_terminal->InQuickSelectMode())
+            if (_quickSelectHandler->Enabled())
             {
                 LOG_IF_FAILED(_renderEngine->InvalidateAll());
             }
@@ -3024,11 +3024,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         const auto lock = _terminal->LockForWriting();
-        _quickSelectHandler->EnterQuickSelectMode(copy);
-        _searcher.QuickSelectRegex(*GetRenderData(), text, true);
-        _searcher.HighlightResults();
-        _renderer->TriggerSelection();
-        _quickSelectCopy = copy;
+        _quickSelectHandler->EnterQuickSelectMode(text, copy, _searcher, _renderer.get());
     }
     
     void ControlCore::ToggleRowNumbers(bool on)

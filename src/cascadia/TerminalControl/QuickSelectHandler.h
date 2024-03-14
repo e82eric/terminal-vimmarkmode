@@ -3,6 +3,8 @@
 #include "../../cascadia/TerminalCore/Terminal.hpp"
 #include "../../cascadia/TerminalCore/lib/QuickSelectAlphabet.h"
 
+class Search;
+
 namespace Microsoft::Console::Render
 {
     class Renderer;
@@ -23,7 +25,10 @@ public:
         std::shared_ptr<Microsoft::Terminal::Core::Terminal> terminal,
         std::shared_ptr<VimModeProxy> vimProxy,
         std::shared_ptr<QuickSelectAlphabet> quickSelectAlphabet);
-    void EnterQuickSelectMode(bool copyMode);
+    void EnterQuickSelectMode(std::wstring_view text,
+                              bool copyMode,
+                              Search& searcher,
+                              Microsoft::Console::Render::Renderer* renderer);
     bool Enabled();
     void HandleChar(uint32_t vkey, Microsoft::Console::Render::Renderer* renderer);
 };

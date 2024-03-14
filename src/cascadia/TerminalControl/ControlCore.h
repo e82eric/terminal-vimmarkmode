@@ -474,7 +474,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _fuzzySearchPanelHeight{ 0 };
         float _fuzzySearchCompositionScale{ 0 };
         bool _fuzzySearchActive = false;
-        bool _quickSelectCopy = false;
         fzf_slab_t* _fzf_slab;
         std::shared_ptr<VimModeProxy> _vimProxy;
         std::unique_ptr<QuickSelectHandler> _quickSelectHandler;

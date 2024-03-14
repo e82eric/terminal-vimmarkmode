@@ -14,10 +14,17 @@ QuickSelectHandler::QuickSelectHandler(
     _quickSelectAlphabet = quickSelectAlphabet;
 }
 
-void QuickSelectHandler::EnterQuickSelectMode(bool copyMode)
+void QuickSelectHandler::EnterQuickSelectMode(
+    std::wstring_view text,
+    bool copyMode,
+    Search& searcher,
+    Microsoft::Console::Render::Renderer* renderer)
 {
     _quickSelectAlphabet->Enabled(true);
     _copyMode = copyMode;
+    searcher.QuickSelectRegex(*_terminal, text, true);
+    searcher.HighlightResults();
+    renderer->TriggerSelection();
 }
 
 bool QuickSelectHandler::Enabled()
