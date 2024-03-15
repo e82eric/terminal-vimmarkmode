@@ -13,9 +13,8 @@
 #include <WtExeUtils.h>
 
 #include <shellapi.h>
-#include <shlwapi.h>
 #include <til/latch.h>
-#include <til/string.h>
+#include <til/env.h>
 
 using namespace winrt::Microsoft::Terminal;
 using namespace winrt::Microsoft::Terminal::Settings;
@@ -42,6 +41,16 @@ winrt::com_ptr<Profile> Model::implementation::CreateChild(const winrt::com_ptr<
     profile->Hidden(parent->Hidden());
     profile->AddLeastImportantParent(parent);
     return profile;
+}
+
+std::string_view Model::implementation::LoadStringResource(int resourceID)
+{
+    const HINSTANCE moduleInstanceHandle{ wil::GetModuleInstanceHandle() };
+    const auto resource = FindResourceW(moduleInstanceHandle, MAKEINTRESOURCEW(resourceID), RT_RCDATA);
+    const auto loaded = LoadResource(moduleInstanceHandle, resource);
+    const auto sz = SizeofResource(moduleInstanceHandle, resource);
+    const auto ptr = LockResource(loaded);
+    return { reinterpret_cast<const char*>(ptr), sz };
 }
 
 winrt::hstring CascadiaSettings::Hash() const noexcept
@@ -555,7 +564,7 @@ void CascadiaSettings::_validateProfileEnvironmentVariables()
 {
     for (const auto& profile : _allProfiles)
     {
-        std::set<std::wstring, til::wstring_case_insensitive_compare> envVarNames{};
+        std::set<std::wstring, til::env_key_sorter> envVarNames{};
         if (profile.EnvironmentVariables() == nullptr)
         {
             continue;

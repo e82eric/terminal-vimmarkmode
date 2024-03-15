@@ -361,6 +361,7 @@ namespace Microsoft::Console::Render::Atlas
         u16 dpi = 96;
         AntialiasingMode antialiasingMode = DefaultAntialiasingMode;
         bool builtinGlyphs = false;
+        bool colorGlyphs = true;
 
         std::vector<uint16_t> softFontPattern;
         til::size softFontCellSize;
@@ -381,6 +382,7 @@ namespace Microsoft::Console::Render::Atlas
         u32 selectionColor = 0x7fffffff;
         u32 yankSelectionColor = 0x7ffe8019;
         std::wstring customPixelShaderPath;
+        std::wstring customPixelShaderImagePath;
         bool useRetroTerminalEffect = false;
     };
 
