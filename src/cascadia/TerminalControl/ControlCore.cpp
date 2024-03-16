@@ -181,6 +181,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             quickSelectAlphabet);
 
         _terminal->SetQuickSelectHandler(quickSelectAlphabet);
+        _fuzzySearchHandler = std::make_shared<FuzzySearchHandler>(_terminal, &_searcher, _settings, _desiredFont, _actualFont);
     }
 
     void ControlCore::_setupDispatcherAndCallbacks()
