@@ -19,7 +19,6 @@
 #include "SelectionColor.g.h"
 #include "CommandHistoryContext.g.h"
 #include "ControlSettings.h"
-#include "FuzzySearchHandler.h"
 #include "QuickSelectHandler.h"
 #include "../../audio/midi/MidiAudio.hpp"
 #include "../../renderer/base/Renderer.hpp"
@@ -478,7 +477,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _fuzzySearchActive = false;
         fzf_slab_t* _fzf_slab;
         std::shared_ptr<VimModeProxy> _vimProxy;
-        std::shared_ptr<FuzzySearchHandler> _fuzzySearchHandler;
         std::unique_ptr<QuickSelectHandler> _quickSelectHandler;
     };
 }
