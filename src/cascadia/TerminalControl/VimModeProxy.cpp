@@ -171,18 +171,32 @@ void VimModeProxy::_selectInWord(bool largeWord)
 void VimModeProxy::_selectLineRight(bool isVisual)
 {
     auto selection = _terminal->GetSelectionAnchors();
-    til::CoordType endLine = selection->end.y;
+    til::point s;
     if (_terminal->IsBlockSelection())
     {
-        endLine = selection->start.y == selection->pivot.y ? selection->end.y : selection->start.y;
+        auto maxNonSpaceChar = 0;
+        for (auto i = selection->start.y; i <= selection->end.y; i++)
+        {
+            auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(i).GetLastNonSpaceColumn() - 1);
+            if (lastNonSpaceColumn > maxNonSpaceChar)
+            {
+                maxNonSpaceChar = lastNonSpaceColumn;
+            }
+        }
+        s = til::point{ maxNonSpaceChar, selection->end.y };
     }
-    while (_terminal->GetTextBuffer().GetRowByOffset(endLine).WasWrapForced())
+    else
     {
-        endLine++;
-    }
+        til::CoordType endLine = selection->end.y;
+        while (_terminal->GetTextBuffer().GetRowByOffset(endLine).WasWrapForced())
+        {
+            endLine++;
+        }
 
-    auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() - 1);
-    _UpdateSelection(isVisual, til::point{ lastNonSpaceColumn, endLine });
+        auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() - 1);
+        s = til::point{ lastNonSpaceColumn, endLine };
+    }
+    _UpdateSelection(isVisual, s);
 }
 
 til::CoordType _getStartLineOfRow2(TextBuffer& textBuffer, til::CoordType row)
@@ -1368,9 +1382,14 @@ void VimModeProxy::_vimScrollScreenPosition(VimTextObjectType textObjectType)
 bool VimModeProxy::_FindCharBack(std::wstring_view vkey, bool isTil, til::point& target)
 {
     auto selection = _terminal->GetSelectionAnchors();
-    const auto startPoint = selection->end == selection->pivot ?
-                                til::point{ selection->start.x - 2, selection->start.y } :
-                                til::point{ selection->end.x - 2, selection->end.y };
+    auto startPoint = selection->end == selection->pivot ?
+                                til::point{ selection->start.x - 1, selection->start.y } :
+                                til::point{ selection->end.x - 1, selection->end.y };
+
+    if (isTil && startPoint.x > 0)
+    {
+        startPoint.x--;
+    }
 
     auto newY = startPoint.y;
 
@@ -1641,7 +1660,7 @@ void VimModeProxy::_InWord(til::point& pos, std::wstring_view delimiters)
         selection->pivot = endPair.first;
         selection->start = startPair.first;
     }
-    //_terminal->SetSelectionAnchors(selection);
+    _terminal->SetSelectionAnchors(selection);
 }
 
 void VimModeProxy::_MoveByViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept
