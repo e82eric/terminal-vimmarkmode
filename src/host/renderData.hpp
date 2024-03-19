@@ -59,6 +59,8 @@ public:
     void ClearYankRegion() override;
     void SelectYankRegion() override;
     bool InQuickSelectMode() override;
+    bool ShowRowNumbers() override;
+    Microsoft::Console::Render::RowNumberState GetRowNumberState() override;
     Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
     void SelectSearchRegions(std::vector<til::inclusive_rect> source) override;
     const til::point GetSelectionAnchor() const noexcept override;

@@ -19,7 +19,6 @@
 #include "ExitVimModeEventArgs.g.h"
 #include "VimTextChangedEventArgs.g.h"
 #include "ShowFuzzySearchEventArgs.g.h"
-#include "ToggleRowNumbersEventArgs.g.h"
 #include "CompletionsChangedEventArgs.g.h"
 #include "KeySentEventArgs.g.h"
 #include "CharSentEventArgs.g.h"
@@ -241,17 +240,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         WINRT_PROPERTY(winrt::hstring, SearchString, L"");
-    };
-
-    struct ToggleRowNumbersEventArgs : public ToggleRowNumbersEventArgsT<ToggleRowNumbersEventArgs>
-    {
-    public:
-        ToggleRowNumbersEventArgs(bool enable) :
-            _Enable(enable)
-        {
-        }
-
-        WINRT_PROPERTY(bool, Enable, false);
     };
 
     struct CompletionsChangedEventArgs : public CompletionsChangedEventArgsT<CompletionsChangedEventArgs>

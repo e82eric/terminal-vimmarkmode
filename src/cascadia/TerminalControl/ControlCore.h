@@ -451,8 +451,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void EnterVimMode();
         bool IsInVimMode();
         void EnterQuickSelectMode(const winrt::hstring& text, bool copy);
-        void ToggleRowNumbers(bool on);
-        bool ShowRowNumbers();
         int32_t ViewportRowNumberToHighlight();
         void UpdateSelectionFromVim();
 
@@ -460,7 +458,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         TYPED_EVENT(FuzzySearchSwapChainChanged, IInspectable, IInspectable);
         TYPED_EVENT(ExitVimMode, IInspectable, Control::ExitVimModeEventArgs);
         TYPED_EVENT(VimTextChanged, IInspectable, Control::VimTextChangedEventArgs);
-        TYPED_EVENT(ToggleRowNumbers, IInspectable, Control::ToggleRowNumbersEventArgs);
 
     private:
         void _sizeFuzzySearchPreview();

@@ -108,7 +108,6 @@ namespace Microsoft.Terminal.Control
         UInt16 FontWeight { get; };
         Double Opacity { get; };
         Boolean UseAcrylic { get; };
-        Boolean ShowRowNumbers { get; };
 
         Boolean TryMarkModeKeybinding(Int16 vkey,
                                       Microsoft.Terminal.Core.ControlKeyStates modifiers);
@@ -215,6 +214,5 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, VimTextChangedEventArgs> VimTextChanged;
         event Windows.Foundation.TypedEventHandler<Object, ExitVimModeEventArgs> ExitVimMode;
         event Windows.Foundation.TypedEventHandler<Object, ShowFuzzySearchEventArgs> ShowFuzzySearch;
-        event Windows.Foundation.TypedEventHandler<Object, ToggleRowNumbersEventArgs> ToggleRowNumbers;
     };
 }

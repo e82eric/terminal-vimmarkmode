@@ -641,6 +641,7 @@ std::optional<Terminal::SelectionAnchors> Terminal::GetSelectionAnchors()
 {
     return _selection;
 }
+
 void Terminal::SetSelectionAnchors(std::optional<Terminal::SelectionAnchors> val)
 {
     _selection = val;

@@ -289,6 +289,16 @@ public:
         return false;
     }
 
+    bool ShowRowNumbers() override
+    {
+        return false;
+    }
+
+    RowNumberState GetRowNumberState() override
+    {
+        return {};
+    }
+
     Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept
     {
         return {};

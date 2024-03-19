@@ -263,6 +263,56 @@ bool Terminal::InQuickSelectMode()
     return _quickSelectAlphabet->Enabled();
 }
 
+void Terminal::SetShowRowNumbers(bool val)
+{
+    _showRowNumbers = val;
+}
+
+bool Terminal::ShowRowNumbers()
+{
+    return _showRowNumbers;
+}
+
+RowNumberState Terminal::GetRowNumberState()
+{
+    auto map = std::map <til::CoordType, std::wstring>();
+    if (_showRowNumbers)
+    {
+        auto cursorPos = GetCursorPosition();
+        auto cursorViewportRow = GetViewportRelativeCursorPosition().y;
+        if (_selectionMode != SelectionInteractionMode::None)
+        {
+            cursorViewportRow = _selection->pivot.y;
+        }
+        std::wstring numbers;
+        std::wstring numStr;
+        auto offSet = GetScrollOffset();
+        size_t maxWidth = static_cast<int32_t>(std::to_wstring(GetBufferHeight()).length()) + 1;
+
+        for (int i = _GetVisibleViewport().Top(); i < _GetVisibleViewport().BottomExclusive(); ++i)
+        {
+            bool isCurrentRow = i == cursorViewportRow;
+            if (isCurrentRow)
+            {
+                auto num = i + offSet;
+                numStr = std::to_wstring(num);
+                numStr = numStr + std::wstring(maxWidth - numStr.length(), L' ');
+            }
+            else
+            {
+                auto num = abs(i - cursorViewportRow);
+                numStr = std::to_wstring(num);
+                numStr = std::wstring(maxWidth - numStr.length(), L' ') + numStr;
+            }
+            numStr += ' ';
+            map.insert({ i, numStr });
+        }
+    }
+
+    auto result = RowNumberState{ map };
+    return result;
+}
+
 void Terminal::SelectNewRegion(const til::point coordStart, const til::point coordEnd)
 {
 #pragma warning(push)
