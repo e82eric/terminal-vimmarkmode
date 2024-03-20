@@ -2384,28 +2384,28 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_core.ShowRowNumbers())
         {
             auto viewHeight = _core.ViewHeight();
-            auto bufferSize = _core.BufferHeight();
-            auto offSet = _core.ScrollOffset();
+            //auto bufferSize = _core.BufferHeight();
+            //auto offSet = _core.ScrollOffset();
 
-            size_t maxWidth = static_cast<int32_t>(std::to_wstring(bufferSize).length()) + 1;
+            //size_t maxWidth = static_cast<int32_t>(std::to_wstring(bufferSize).length()) + 1;
             std::wstring numbers;
             std::wstring numStr;
             auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
 
             for (int i = 0; i < viewHeight; ++i)
             {
-                if (i == cursorViewportRow)
+                /*if (i == cursorViewportRow)
                 {
                     auto num = i + offSet;
                     numStr = std::to_wstring(num);
                     numStr = numStr + std::wstring(maxWidth - numStr.length(), L' ');
                 }
                 else
-                {
+                {*/
                     auto num = abs(i - cursorViewportRow);
                     numStr = std::to_wstring(num);
-                    numStr = std::wstring(maxWidth - numStr.length(), L' ') + numStr;
-                }
+                    //numStr = std::wstring(maxWidth - numStr.length(), L' ') + numStr;
+                //}
 
                 numbers += numStr + L"\r\n";
             }
