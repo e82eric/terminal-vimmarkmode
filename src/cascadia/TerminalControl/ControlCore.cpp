@@ -581,7 +581,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return true;
         }
 
-        if (_vimProxy->GetVimMode() != VimModeProxy::VimMode::none)
+        if (_vimProxy->IsInVimMode())
         {
             if (_vimProxy->TryVimModeKeyBinding(vkey, mods))
             {
@@ -1173,7 +1173,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, { cx, cy });
         const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
 
-        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
+        if (!_vimProxy->IsInVimMode())
         {
             _terminal->ClearSelection();
             // Tell the dx engine that our window is now the new size.
@@ -1199,7 +1199,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _sizeFuzzySearchPreview();
         }
-        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
+        if (!_vimProxy->IsInVimMode())
         {
             _vimProxy->ResetVimModeForSizeChange(true);
         }
@@ -1366,6 +1366,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::ClearSelection()
     {
         const auto lock = _terminal->LockForWriting();
+        if (_vimProxy->IsInVimMode())
+        {
+            _vimProxy->ExitVimMode();
+        }
         _terminal->ClearSelection();
         _updateSelectionUI();
     }
@@ -1439,6 +1443,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _sendInputToConnection(filtered);
 
         const auto lock = _terminal->LockForWriting();
+        if (_vimProxy->IsInVimMode())
+        {
+            _vimProxy->ExitVimMode();
+        }
         _terminal->ClearSelection();
         _updateSelectionUI();
         _terminal->TrySnapOnInput();
@@ -1987,6 +1995,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_terminal->IsSelectionActive() && (!shiftEnabled || isOnOriginalPosition))
         {
             // Reset the selection
+            if (_vimProxy->IsInVimMode())
+            {
+                _vimProxy->ExitVimMode();
+            }
             _terminal->ClearSelection();
             selectionNeedsToBeCopied = false; // there's no selection, so there's nothing to update
         }
@@ -2748,6 +2760,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             attr.SetBackground(backgroundAsTextColor);
 
             _terminal->ColorSelection(attr, matchMode);
+            if (_vimProxy->IsInVimMode())
+            {
+                _vimProxy->ExitVimMode();
+            }
             _terminal->ClearSelection();
             if (matchMode != Core::MatchMode::None)
             {
@@ -3015,12 +3031,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     bool ControlCore::IsInVimMode()
     {
-        return _vimProxy->GetVimMode() != VimModeProxy::VimMode::none;
+        return _vimProxy->IsInVimMode();
     }
     
     void ControlCore::EnterQuickSelectMode(const winrt::hstring& text, bool copy)
     {
-        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
+        if (!_vimProxy->IsInVimMode())
         {
             _vimProxy->ResetVimState();
         }
@@ -3043,7 +3059,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     int32_t ControlCore::ViewportRowNumberToHighlight()
     {
         auto lock = _terminal->LockForReading();
-        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
+        if (!_vimProxy->IsInVimMode())
         {
             return CursorPosition().Y;
         }
@@ -3179,6 +3195,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         const bool showMarkers{ _terminal->SelectionMode() >= ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Keyboard };
         _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(!showMarkers));
-        return _vimProxy->GetVimMode() != VimModeProxy::VimMode::none;
+        return _vimProxy->IsInVimMode();
     }
 }

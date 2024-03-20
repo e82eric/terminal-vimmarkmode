@@ -107,13 +107,14 @@ public:
     void ResetVimState();
     void ExitVimMode();
     void EnterVimMode();
-    VimMode GetVimMode();
+    bool IsInVimMode();
     void ResetVimModeForSizeChange(bool selectLastChar);
     void SelectRow(int32_t row, int32_t col);
     bool ShowRowNumbers();
     int32_t ViewportRowToHighlight();
 
 private:
+    VimMode _getVimMode();
     void _findChar(std::wstring_view vkey, bool isVisual);
     void _tilChar(std::wstring_view vkey, bool isVisual);
     void _findCharBack(std::wstring_view vkey, bool isVisual);

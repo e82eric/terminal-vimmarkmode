@@ -1783,7 +1783,7 @@ void VimModeProxy::ResetVimState()
     _controlCore->ExitVim();
 }
 
-VimModeProxy::VimMode VimModeProxy::GetVimMode()
+VimModeProxy::VimMode VimModeProxy::_getVimMode()
 {
     return _vimMode;
 }
@@ -1803,6 +1803,11 @@ void VimModeProxy::EnterVimMode()
     _vimMode = VimMode::normal;
     ResetVimModeForSizeChange(true);
     _controlCore->UpdateVimText(L"Normal", _searchString, _sequenceText);
+}
+
+bool VimModeProxy::IsInVimMode()
+{
+    return _getVimMode() != VimModeProxy::VimMode::none;
 }
 
 void VimModeProxy::ResetVimModeForSizeChange(bool selectLastChar)
