@@ -88,17 +88,7 @@ bool FuzzySearchRenderData::InQuickSelectMode()
     return false;
 }
 
-bool FuzzySearchRenderData::ShowRowNumbers()
-{
-    return false;
-}
-
 Microsoft::Console::Render::QuickSelectState FuzzySearchRenderData::GetQuickSelectState() noexcept
-{
-    return {};
-}
-
-Microsoft::Console::Render::RowNumberState FuzzySearchRenderData::GetRowNumberState() noexcept
 {
     return {};
 }

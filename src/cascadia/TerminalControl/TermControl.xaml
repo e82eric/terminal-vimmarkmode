@@ -1319,6 +1319,10 @@
                                         Search="_Search"
                                         SearchChanged="_SearchChanged"
                                         Visibility="Collapsed" />
+                <Border Background="#282828" x:Name="NumberBorder" Visibility="Collapsed" HorizontalAlignment="Left">
+                    <TextBlock x:Name="NumberTextBox" Visibility="Collapsed" FontWeight="Normal"  Foreground="#bdae93"/>
+                </Border>
+
             </Grid>
 
             <ScrollBar x:Name="ScrollBar"

@@ -115,11 +115,6 @@ try
         _pData->UnlockConsole();
     });
 
-    if (_pData->ShowRowNumbers())
-    {
-        LOG_IF_FAILED(pEngine->InvalidateAll());
-    }
-
     // Last chance check if anything scrolled without an explicit invalidate notification since the last frame.
     _CheckViewportAndScroll();
 
@@ -714,7 +709,6 @@ void Renderer::_PaintBufferOutput(_In_ IRenderEngine* const pEngine)
     });
 
     auto quickSelectState = _pData->GetQuickSelectState();
-    auto rowNumberState = _pData->GetRowNumberState();
 
     for (const auto& dirtyRect : dirtyAreas)
     {
@@ -770,14 +764,12 @@ void Renderer::_PaintBufferOutput(_In_ IRenderEngine* const pEngine)
             LOG_IF_FAILED(pEngine->PrepareLineTransform(lineRendition, screenPosition.y, view.Left()));
 
             auto smIt = quickSelectState.selectionMap.find(row);
-            auto rowNumbers = rowNumberState.rowNumbers.find(row);
             _PaintBufferOutputHelper(
                 pEngine,
                 it,
                 screenPosition,
                 lineWrapped,
-                smIt != quickSelectState.selectionMap.end() ? smIt->second : decltype(smIt->second)(),
-                rowNumbers != rowNumberState.rowNumbers.end() ? rowNumbers->second : L"");
+                smIt != quickSelectState.selectionMap.end() ? smIt->second : decltype(smIt->second)());
         }
     }
 }
@@ -792,8 +784,7 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                                         TextBufferCellIterator it,
                                         const til::point target,
                                         const bool lineWrapped,
-                                        std::vector<QuickSelectSelection> highlights,
-                                        std::wstring_view rowNumbers)
+                                        std::vector<QuickSelectSelection> highlights)
 {
     auto globalInvert{ _renderSettings.GetRenderMode(RenderSettings::Mode::ScreenReversed) };
 
@@ -887,17 +878,6 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                             origAttr.SetForeground(colorref);
                             charOverrides += ch.val;
                         }
-                    }
-                }
-                else if (!rowNumbers.empty())
-                {
-                    if (rowNumbers.size() > screenPoint.x + cols)
-                    {
-                        origAttr.SetForeground(0x93aebd);
-                        origAttr.SetBackground(0xff3c3836);
-                        auto overlayOffset = screenPoint.x + cols;
-                        auto ch = rowNumbers[overlayOffset];
-                        charOverrides += ch;
                     }
                 }
 
@@ -1238,7 +1218,7 @@ void Renderer::_PaintOverlay(IRenderEngine& engine,
 
                     auto it = overlay.buffer.GetCellLineDataAt(source);
 
-                    _PaintBufferOutputHelper(&engine, it, target, false, {}, nullptr);
+                    _PaintBufferOutputHelper(&engine, it, target, false, {});
                 }
             }
         }

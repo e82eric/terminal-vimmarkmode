@@ -22,8 +22,6 @@ public:
     void SelectYankRegion() override;
     void ClearYankRegion() override;
     bool InQuickSelectMode() override;
-    bool ShowRowNumbers() override;
-    Microsoft::Console::Render::RowNumberState GetRowNumberState() noexcept override;
     Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetSearchSelectionRects() noexcept override;

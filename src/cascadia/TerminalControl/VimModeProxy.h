@@ -103,18 +103,17 @@ public:
         Search *searcher);
     bool TryVimModeKeyBinding(
         const WORD vkey,
-        const ::Microsoft::Terminal::Core::ControlKeyStates mods,
-        Microsoft::Console::Render::Renderer* renderer);
+        const ::Microsoft::Terminal::Core::ControlKeyStates mods);
     void ResetVimState();
     void ExitVimMode();
     void EnterVimMode();
-    bool IsInVimMode();
+    VimMode GetVimMode();
     void ResetVimModeForSizeChange(bool selectLastChar);
     void SelectRow(int32_t row, int32_t col);
+    bool ShowRowNumbers();
     int32_t ViewportRowToHighlight();
 
 private:
-    VimMode _getVimMode();
     void _findChar(std::wstring_view vkey, bool isVisual);
     void _tilChar(std::wstring_view vkey, bool isVisual);
     void _findCharBack(std::wstring_view vkey, bool isVisual);
@@ -146,8 +145,7 @@ private:
         const VimMotionType motion,
         const bool isVisual,
         const std::wstring searchString,
-        std::wstring_view vkey,
-        Microsoft::Console::Render::Renderer* renderer);
+        std::wstring_view vkey);
     bool _FindChar(std::wstring_view vkey, bool isTil, til::point& target);
     bool _FindCharBack(std::wstring_view vkey, bool isTil, til::point& target);
     void _UpdateSelection(bool isVisual, til::point adjusted);

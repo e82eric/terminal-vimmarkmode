@@ -55,11 +55,6 @@ namespace Microsoft::Console::Render
         std::map<til::CoordType, std::vector<QuickSelectSelection>> selectionMap;
     };
 
-    struct RowNumberState
-    {
-        std::map<til::CoordType, std::wstring> rowNumbers;
-    };
-
     class IRenderData
     {
     public:
@@ -105,7 +100,5 @@ namespace Microsoft::Console::Render
         virtual const til::point GetSelectionEnd() const noexcept = 0;
         virtual const bool IsUiaDataInitialized() const noexcept = 0;
         virtual bool InQuickSelectMode() = 0;
-        virtual bool ShowRowNumbers() = 0;
-        virtual RowNumberState GetRowNumberState() = 0;
     };
 }

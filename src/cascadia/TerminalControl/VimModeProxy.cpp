@@ -184,8 +184,6 @@ void VimModeProxy::_selectLineRight(bool isVisual)
             }
         }
         s = til::point{ maxNonSpaceChar, selection->end.y };
-        selection->end = s;
-        _terminal->SetSelectionAnchors(selection);
     }
     else
     {
@@ -197,8 +195,8 @@ void VimModeProxy::_selectLineRight(bool isVisual)
 
         auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() - 1);
         s = til::point{ lastNonSpaceColumn, endLine };
-        _UpdateSelection(isVisual, s);
     }
+    _UpdateSelection(isVisual, s);
 }
 
 til::CoordType _getStartLineOfRow2(TextBuffer& textBuffer, til::CoordType row)
@@ -433,8 +431,7 @@ bool VimModeProxy::_executeVimSelection(
     const VimMotionType motion,
     const bool isVisual,
     const std::wstring searchString,
-    std::wstring_view vkey,
-    Microsoft::Console::Render::Renderer* renderer)
+    std::wstring_view vkey)
 {
     bool exitAfter = false;
     bool selectFromStart = isVisual || action == VimActionType::yank;
@@ -635,14 +632,13 @@ bool VimModeProxy::_executeVimSelection(
     case VimActionType::toggleRowNumbersOn:
     {
         _showRowNumbers = true;
-        _terminal->SetShowRowNumbers(true);
+        _controlCore->ToggleRowNumbers(true);
         break;
     }
     case VimActionType::toggleRowNumbersOff:
     {
         _showRowNumbers = false;
-        _terminal->SetShowRowNumbers(false);
-        renderer->TriggerRedrawAll();
+        _controlCore->ToggleRowNumbers(false);
         break;
     }
     case VimActionType::scroll:
@@ -745,8 +741,7 @@ bool VimModeProxy::_executeVimSelection(
 
 bool VimModeProxy::TryVimModeKeyBinding(
     const WORD vkey,
-    const ::Microsoft::Terminal::Core::ControlKeyStates mods,
-    Microsoft::Console::Render::Renderer* renderer)
+    const ::Microsoft::Terminal::Core::ControlKeyStates mods)
 {
     bool sequenceCompleted = false;
     bool hideMarkers = false;
@@ -1257,7 +1252,7 @@ bool VimModeProxy::TryVimModeKeyBinding(
 
     if (sequenceCompleted && !skipExecute)
     {
-        shouldExit = _executeVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, vkeyText, renderer);
+        shouldExit = _executeVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, vkeyText);
     }
 
     std::wstring statusBarSearchString;
@@ -1313,6 +1308,11 @@ bool VimModeProxy::TryVimModeKeyBinding(
     _controlCore->UpdateSelectionFromVim();
 
     return true;
+}
+
+bool VimModeProxy::ShowRowNumbers()
+{
+    return _showRowNumbers;
 }
 
 int32_t VimModeProxy::ViewportRowToHighlight()
@@ -1765,15 +1765,9 @@ void VimModeProxy::_MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::Se
     _terminal->UserScrollViewport(pos.y);
 }
 
-VimModeProxy::VimMode VimModeProxy::_getVimMode()
-{
-    return _vimMode;
-}
-
 void VimModeProxy::ResetVimState()
 {
     const auto lock = _terminal->LockForWriting();
-    ExitVimMode();
     _vimMode = VimMode::none;
     _lastTextObject = VimTextObjectType::none;
     _lastAction = VimActionType::none;
@@ -1789,9 +1783,9 @@ void VimModeProxy::ResetVimState()
     _controlCore->ExitVim();
 }
 
-bool VimModeProxy::IsInVimMode()
+VimModeProxy::VimMode VimModeProxy::GetVimMode()
 {
-    return _getVimMode() != VimModeProxy::VimMode::none;
+    return _vimMode;
 }
 
 void VimModeProxy::ExitVimMode()
@@ -1800,9 +1794,8 @@ void VimModeProxy::ExitVimMode()
     if (_showRowNumbers)
     {
         _showRowNumbers = false;
-        _terminal->SetShowRowNumbers(false);
+        _controlCore->ToggleRowNumbers(false);
     }
-    _controlCore->ExitVim();
 }
 
 void VimModeProxy::EnterVimMode()

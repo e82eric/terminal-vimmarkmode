@@ -346,11 +346,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _ScrollPositionChanged(const IInspectable& sender, const Control::ScrollPositionChangedArgs& args);
         winrt::fire_and_forget _CursorPositionChanged(const IInspectable& sender, const IInspectable& args);
 
-
+        void _showRowNumbers();
         winrt::fire_and_forget _VimTextChanged(const IInspectable& sender, const Control::VimTextChangedEventArgs args);
         winrt::fire_and_forget _ExitVimMode(const IInspectable& sender, const Control::ExitVimModeEventArgs args);
         winrt::fire_and_forget _ShowFuzzySearch(const IInspectable& sender, const Control::ShowFuzzySearchEventArgs args);
-        void _updateVimCurrentRowIndicator();
+        winrt::fire_and_forget _ToggleRowNumbers(const IInspectable& sender, const Control::ToggleRowNumbersEventArgs args);
+        void _updateRowNumbers();
 
         bool _CapturePointer(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
         bool _ReleasePointerCapture(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
@@ -378,6 +379,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
 
         void _setVimBarFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
+        void _setRowNumberFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
 
         // TSFInputControl Handlers
         void _CompositionCompleted(winrt::hstring text);
@@ -446,6 +448,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Control::ControlCore::VimTextChanged_revoker VimTextChanged;
             Control::ControlCore::ExitVimMode_revoker ExitVimMode;
             Control::ControlCore::ShowFuzzySearch_revoker ShowFuzzySearch;
+            Control::ControlCore::ToggleRowNumbers_revoker ToggleRowNumbers;
         } _revokers{};
     };
 }

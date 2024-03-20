@@ -581,9 +581,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return true;
         }
 
-        if (_vimProxy->IsInVimMode())
+        if (_vimProxy->GetVimMode() != VimModeProxy::VimMode::none)
         {
-            if (_vimProxy->TryVimModeKeyBinding(vkey, mods, _renderer.get()))
+            if (_vimProxy->TryVimModeKeyBinding(vkey, mods))
             {
                 return true;
             }
@@ -689,10 +689,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 // GH#8791 - don't dismiss selection if Windows key was also pressed as a key-combination.
                 if (!modifiers.IsWinPressed())
                 {
-                    if (_vimProxy->IsInVimMode())
-                    {
-                        _vimProxy->ExitVimMode();
-                    }
                     _terminal->ClearSelection();
                     _updateSelectionUI();
                 }
@@ -1177,11 +1173,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto viewInPixels = Viewport::FromDimensions({ 0, 0 }, { cx, cy });
         const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
 
-        if (_vimProxy->IsInVimMode())
+        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
         {
-            _vimProxy->ExitVimMode();
+            _terminal->ClearSelection();
         }
-        _terminal->ClearSelection();
 
         // Tell the dx engine that our window is now the new size.
         THROW_IF_FAILED(_renderEngine->SetWindowSize({ cx, cy }));
@@ -1206,10 +1201,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _sizeFuzzySearchPreview();
         }
-        if (!_vimProxy->IsInVimMode())
+        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
         {
             _vimProxy->ResetVimModeForSizeChange(true);
         }
+    }
+
+    void ControlCore::FuzzySearchPreviewSizeChanged(const float width,
+                                  const float height)
+    {
+        _fuzzySearchPanelWidth = width;
+        _fuzzySearchPanelHeight = height;
+
+        _fuzzySearchRenderer->EnablePainting();
+        _sizeFuzzySearchPreview();
     }
 
     void ControlCore::ScaleChanged(const float scale)
@@ -1363,10 +1368,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::ClearSelection()
     {
         const auto lock = _terminal->LockForWriting();
-        if (_vimProxy->IsInVimMode())
-        {
-            _vimProxy->ExitVimMode();
-        }
         _terminal->ClearSelection();
         _updateSelectionUI();
     }
@@ -1440,10 +1441,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _sendInputToConnection(filtered);
 
         const auto lock = _terminal->LockForWriting();
-        if (_vimProxy->IsInVimMode())
-        {
-            _vimProxy->ExitVimMode();
-        }
         _terminal->ClearSelection();
         _updateSelectionUI();
         _terminal->TrySnapOnInput();
@@ -1758,6 +1755,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _FoundMatchHandlers(*this, *foundResults);
     }
 
+    std::wstring GetRowFullText(FuzzySearchResultRow &fuzzySearchResult2, TextBuffer &textBuffer)
+    {
+        std::wstring result;
+
+        auto i = fuzzySearchResult2.startRowNumber;
+        while (textBuffer.GetRowByOffset(i).WasWrapForced())
+        {
+            result += textBuffer.GetRowByOffset(i).GetText();
+            i++;
+        }
+        result += textBuffer.GetRowByOffset(i).GetText();
+
+        return result;
+    }
+
     Windows::Foundation::Collections::IVector<int32_t> ControlCore::SearchResultRows()
     {
         const auto lock = _terminal->LockForReading();
@@ -1839,6 +1851,37 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _SwapChainChangedHandlers(*this, winrt::box_value<uint64_t>(reinterpret_cast<uint64_t>(_lastSwapChainHandle.get())));
         }
     }
+
+    winrt::fire_and_forget ControlCore::_fuzzySearchRenderEngineSwapChainChanged(const HANDLE sourceHandle)
+    {
+        // `sourceHandle` is a weak ref to a HANDLE that's ultimately owned by the
+        // render engine's own unique_handle. We'll add another ref to it here.
+        // This will make sure that we always have a valid HANDLE to give to
+        // callers of our own SwapChainHandle method, even if the renderer is
+        // currently in the process of discarding this value and creating a new
+        // one. Callers should have already set up the SwapChainChanged
+        // callback, so this all works out.
+
+        winrt::handle duplicatedHandle;
+        const auto processHandle = GetCurrentProcess();
+        THROW_IF_WIN32_BOOL_FALSE(DuplicateHandle(processHandle, sourceHandle, processHandle, duplicatedHandle.put(), 0, FALSE, DUPLICATE_SAME_ACCESS));
+
+        const auto weakThis{ get_weak() };
+
+        // Concurrent read of _dispatcher is safe, because Detach() calls WaitForPaintCompletionAndDisable()
+        // which blocks until this call returns. _dispatcher will only be changed afterwards.
+        co_await wil::resume_foreground(_dispatcher);
+
+        if (auto core{ weakThis.get() })
+        {
+            // `this` is safe to use now
+
+            _fuzzySearchLastSwapChainHandle = std::move(duplicatedHandle);
+            // Now bubble the event up to the control.
+            _FuzzySearchSwapChainChangedHandlers(*this, winrt::box_value<uint64_t>(reinterpret_cast<uint64_t>(_fuzzySearchLastSwapChainHandle.get())));
+        }
+    }
+
 
     void ControlCore::_rendererBackgroundColorChanged()
     {
@@ -1946,10 +1989,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_terminal->IsSelectionActive() && (!shiftEnabled || isOnOriginalPosition))
         {
             // Reset the selection
-            if (_vimProxy->IsInVimMode())
-            {
-                _vimProxy->ExitVimMode();
-            }
             _terminal->ClearSelection();
             selectionNeedsToBeCopied = false; // there's no selection, so there's nothing to update
         }
@@ -2121,6 +2160,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // Otherwise, we only ever use the value from the SwapChainChanged
         // event.
         return reinterpret_cast<uint64_t>(_lastSwapChainHandle.get());
+    }
+
+    uint64_t ControlCore::FuzzySearchSwapChainHandle() const
+    {
+        // This is only ever called by TermControl::AttachContent, which occurs
+        // when we're taking an existing core and moving it to a new control.
+        // Otherwise, we only ever use the value from the SwapChainChanged
+        // event.
+        return reinterpret_cast<uint64_t>(_fuzzySearchLastSwapChainHandle.get());
     }
 
     // Method Description:
@@ -2702,10 +2750,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             attr.SetBackground(backgroundAsTextColor);
 
             _terminal->ColorSelection(attr, matchMode);
-            if (_vimProxy->IsInVimMode())
-            {
-                _vimProxy->ExitVimMode();
-            }
             _terminal->ClearSelection();
             if (matchMode != Core::MatchMode::None)
             {
@@ -2844,7 +2888,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     
     void ControlCore::EnterFuzzySearchMode()
     {
-        if (!_vimProxy->IsInVimMode())
+        if (!IsInVimMode())
         {
             auto lock = _terminal->LockForReading();
             EnterVimMode();
@@ -2861,21 +2905,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void ControlCore::StartFuzzySearch(std::wstring_view needle)
     {
         _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ needle }));
-    }
-
-    std::wstring GetRowFullText(FuzzySearchResultRow& fuzzySearchResult2, TextBuffer& textBuffer)
-    {
-        std::wstring result;
-
-        auto i = fuzzySearchResult2.startRowNumber;
-        while (textBuffer.GetRowByOffset(i).WasWrapForced())
-        {
-            result += textBuffer.GetRowByOffset(i).GetText();
-            i++;
-        }
-        result += textBuffer.GetRowByOffset(i).GetText();
-
-        return result;
     }
 
     Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
@@ -2983,17 +3012,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto lock = _terminal->LockForReading();
         _vimProxy->EnterVimMode();
-        _vimProxy->TryVimModeKeyBinding(0xBF, ControlKeyStates{ VirtualKeyModifiers::Shift }, _renderer.get());
+        _vimProxy->TryVimModeKeyBinding(0xBF, ControlKeyStates{ VirtualKeyModifiers::Shift });
     }
 
     bool ControlCore::IsInVimMode()
     {
-        return _vimProxy->IsInVimMode();
+        return _vimProxy->GetVimMode() != VimModeProxy::VimMode::none;
     }
     
     void ControlCore::EnterQuickSelectMode(const winrt::hstring& text, bool copy)
     {
-        if (!_vimProxy->IsInVimMode())
+        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
         {
             _vimProxy->ResetVimState();
         }
@@ -3002,10 +3031,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _quickSelectHandler->EnterQuickSelectMode(text, copy, _searcher, _renderer.get());
     }
     
+    void ControlCore::ToggleRowNumbers(bool on)
+    {
+        auto args = winrt::make<implementation::ToggleRowNumbersEventArgs>(on);
+        _ToggleRowNumbersHandlers(*this, args);
+    }
+    
+    bool ControlCore::ShowRowNumbers()
+    {
+        return _vimProxy->ShowRowNumbers();
+    }
+    
     int32_t ControlCore::ViewportRowNumberToHighlight()
     {
         auto lock = _terminal->LockForReading();
-        if (!_vimProxy->IsInVimMode() || !_terminal->GetSelectionAnchors().has_value())
+        if (_vimProxy->GetVimMode() == VimModeProxy::VimMode::none)
         {
             return CursorPosition().Y;
         }
@@ -3141,56 +3181,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         const bool showMarkers{ _terminal->SelectionMode() >= ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Keyboard };
         _UpdateSelectionMarkersHandlers(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(!showMarkers));
-        return _vimProxy->IsInVimMode();
-    }
-
-    void ControlCore::FuzzySearchPreviewSizeChanged(const float width,
-                                                    const float height)
-    {
-        _fuzzySearchPanelWidth = width;
-        _fuzzySearchPanelHeight = height;
-
-        _fuzzySearchRenderer->EnablePainting();
-        _sizeFuzzySearchPreview();
-    }
-
-    winrt::fire_and_forget ControlCore::_fuzzySearchRenderEngineSwapChainChanged(const HANDLE sourceHandle)
-    {
-        // `sourceHandle` is a weak ref to a HANDLE that's ultimately owned by the
-        // render engine's own unique_handle. We'll add another ref to it here.
-        // This will make sure that we always have a valid HANDLE to give to
-        // callers of our own SwapChainHandle method, even if the renderer is
-        // currently in the process of discarding this value and creating a new
-        // one. Callers should have already set up the SwapChainChanged
-        // callback, so this all works out.
-
-        winrt::handle duplicatedHandle;
-        const auto processHandle = GetCurrentProcess();
-        THROW_IF_WIN32_BOOL_FALSE(DuplicateHandle(processHandle, sourceHandle, processHandle, duplicatedHandle.put(), 0, FALSE, DUPLICATE_SAME_ACCESS));
-
-        const auto weakThis{ get_weak() };
-
-        // Concurrent read of _dispatcher is safe, because Detach() calls WaitForPaintCompletionAndDisable()
-        // which blocks until this call returns. _dispatcher will only be changed afterwards.
-        co_await wil::resume_foreground(_dispatcher);
-
-        if (auto core{ weakThis.get() })
-        {
-            // `this` is safe to use now
-
-            _fuzzySearchLastSwapChainHandle = std::move(duplicatedHandle);
-            // Now bubble the event up to the control.
-            _FuzzySearchSwapChainChangedHandlers(*this, winrt::box_value<uint64_t>(reinterpret_cast<uint64_t>(_fuzzySearchLastSwapChainHandle.get())));
-        }
-    }
-
-    
-    uint64_t ControlCore::FuzzySearchSwapChainHandle() const
-    {
-        // This is only ever called by TermControl::AttachContent, which occurs
-        // when we're taking an existing core and moving it to a new control.
-        // Otherwise, we only ever use the value from the SwapChainChanged
-        // event.
-        return reinterpret_cast<uint64_t>(_fuzzySearchLastSwapChainHandle.get());
+        return _vimProxy->GetVimMode() != VimModeProxy::VimMode::none;
     }
 }

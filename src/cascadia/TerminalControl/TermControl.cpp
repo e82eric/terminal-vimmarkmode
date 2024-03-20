@@ -97,6 +97,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _revokers.VimTextChanged = _core.VimTextChanged(winrt::auto_revoke, { get_weak(), &TermControl::_VimTextChanged });
         _revokers.ExitVimMode = _core.ExitVimMode(winrt::auto_revoke, { get_weak(), &TermControl::_ExitVimMode });
         _revokers.ShowFuzzySearch = _core.ShowFuzzySearch(winrt::auto_revoke, { get_weak(), &TermControl::_ShowFuzzySearch });
+        _revokers.ToggleRowNumbers= _core.ToggleRowNumbers(winrt::auto_revoke, { get_weak(), &TermControl::_ToggleRowNumbers });
 
         // "Bubbled" events - ones we want to handle, by raising our own event.
         _revokers.CopyToClipboard = _core.CopyToClipboard(winrt::auto_revoke, { get_weak(), &TermControl::_bubbleCopyToClipboard });
@@ -2156,7 +2157,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_core.IsInVimMode())
         {
             _core.ResetVimModeForSizeChange();
-            _updateVimCurrentRowIndicator();
+            _updateRowNumbers();
         }
     }
 
@@ -2266,7 +2267,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _updateSelectionMarkers(nullptr, winrt::make<UpdateSelectionMarkersEventArgs>(false));
         }
 
-        _updateVimCurrentRowIndicator();
+        _updateRowNumbers();
     }
 
     // Method Description:
@@ -2331,6 +2332,30 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         FuzzySearchBox().SearchString(args.SearchString());
     }
 
+    winrt::fire_and_forget TermControl::_ToggleRowNumbers(const IInspectable& /*sender*/,
+                                                         const Control::ToggleRowNumbersEventArgs args)
+    {
+        co_await wil::resume_foreground(Dispatcher());
+
+        if (args.Enable())
+        {
+            _showRowNumbers();
+        }
+        else
+        {
+            NumberTextBox().Visibility(Visibility::Collapsed);
+            NumberBorder().Visibility(Visibility::Collapsed);
+            CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
+        }
+    }
+
+    void TermControl::_showRowNumbers()
+    {
+        NumberTextBox().Visibility(Visibility::Visible);
+        NumberBorder().Visibility(Visibility::Visible);
+        _updateRowNumbers();
+    }
+
     winrt::fire_and_forget TermControl::_ExitVimMode(const IInspectable& /*sender*/,
                                                         const Control::ExitVimModeEventArgs args)
     {
@@ -2352,14 +2377,41 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         hideTimer.Start();
         CursorVisibility(CursorDisplayState::Shown);
-        CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
     }
 
-    void TermControl::_updateVimCurrentRowIndicator()
+    void TermControl::_updateRowNumbers()
     {
-        if (_core.IsInVimMode())
+        if (_core.ShowRowNumbers())
         {
+            auto viewHeight = _core.ViewHeight();
+            auto bufferSize = _core.BufferHeight();
+            auto offSet = _core.ScrollOffset();
+
+            size_t maxWidth = static_cast<int32_t>(std::to_wstring(bufferSize).length()) + 1;
+            std::wstring numbers;
+            std::wstring numStr;
             auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
+
+            for (int i = 0; i < viewHeight; ++i)
+            {
+                if (i == cursorViewportRow)
+                {
+                    auto num = i + offSet;
+                    numStr = std::to_wstring(num);
+                    numStr = numStr + std::wstring(maxWidth - numStr.length(), L' ');
+                }
+                else
+                {
+                    auto num = abs(i - cursorViewportRow);
+                    numStr = std::to_wstring(num);
+                    numStr = std::wstring(maxWidth - numStr.length(), L' ') + numStr;
+                }
+
+                numbers += numStr + L"\r\n";
+            }
+
+            NumberTextBox().Text(numbers);
+
             Core::Point terminalPos{ 0, cursorViewportRow };
             const til::point locationInDIPs{ _toPosInDips(terminalPos) };
             SelectionCanvas().SetLeft(CurrentSearchRowHighlight(),
@@ -2369,7 +2421,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             CurrentSearchRowHighlight().Visibility(Visibility::Visible);
             CurrentSearchRowHighlight().Width(SwapChainPanel().ActualWidth());
             auto orangeBrush = Windows::UI::Xaml::Media::SolidColorBrush();
-            orangeBrush.Color(Windows::UI::ColorHelper::FromArgb(15, 0xbd,0xae, 0x93));
+            orangeBrush.Color(Windows::UI::ColorHelper::FromArgb(76, 255, 165, 0));
             CurrentSearchRowHighlight().Fill(orangeBrush);
         }
     }
@@ -2445,13 +2497,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::EnterVimModeWithSearch()
     {
         _core.EnterVimModeWithSearch();
-        CurrentSearchRowHighlight().Visibility(Visibility::Visible);
     }
 
     void TermControl::EnterVimMode()
     {
         _core.EnterVimMode();
-        CurrentSearchRowHighlight().Visibility(Visibility::Visible);
     }
 
     bool TermControl::SwitchSelectionEndpoint()
@@ -2953,7 +3003,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const auto cursorPos = _core.CursorPosition();
         eventArgs.CurrentPosition({ static_cast<float>(cursorPos.X), static_cast<float>(cursorPos.Y) });
-        _updateVimCurrentRowIndicator();
+        _updateRowNumbers();
     }
 
     // Method Description:
@@ -3552,7 +3602,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     otherMarker.Visibility(Visibility::Collapsed);
                 }
 
-                _updateVimCurrentRowIndicator();
+                _updateRowNumbers();
             }
             else
             {
@@ -3611,6 +3661,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _fuzzySearchBox->SetFontSize(til::size{ args.Width(), args.Height() });
         _setVimBarFontSize(directXHeight, fontSize, fontFamily);
+        _setRowNumberFontSize(directXHeight, fontSize, fontFamily);
         CurrentSearchRowHighlight().Height(directXHeight);
     }
 
@@ -3626,6 +3677,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         VimTextBox().FontSize(fontSize);
         VimTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
         VimTextBox().LineHeight(lineHeight);
+    }
+
+    void TermControl::_setRowNumberFontSize(double lineHeight, double fontSize, Windows::UI::Xaml::Media::FontFamily fontFamily)
+    {
+        NumberTextBox().FontFamily(fontFamily);
+        NumberTextBox().FontSize(fontSize);
+        NumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
+        NumberTextBox().LineHeight(lineHeight);
+        auto cellHeight = _core.Settings().CellHeight();
+        auto margins = Thickness{};
+        margins.Top = SwapChainPanel().Margin().Top;
+        margins.Left = SwapChainPanel().Margin().Left;
+        margins.Right = 5;
+        margins.Bottom = SwapChainPanel().Margin().Bottom;
+        NumberTextBox().Margin(margins);
     }
 
     void TermControl::_coreRaisedNotice(const IInspectable& /*sender*/,

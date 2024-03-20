@@ -415,16 +415,6 @@ bool RenderData::InQuickSelectMode()
     return false;
 }
 
-bool RenderData::ShowRowNumbers()
-{
-    return false;
-}
-
-Microsoft::Console::Render::RowNumberState RenderData::GetRowNumberState()
-{
-    return {};
-}
-
 Microsoft::Console::Render::QuickSelectState RenderData::GetQuickSelectState() noexcept
 {
     return {};

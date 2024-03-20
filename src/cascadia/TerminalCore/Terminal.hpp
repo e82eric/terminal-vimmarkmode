@@ -507,7 +507,6 @@ private:
 #endif
 
     std::shared_ptr<QuickSelectAlphabet> _quickSelectAlphabet;
-    bool _showRowNumbers = false;
 
 public:
     std::optional<Microsoft::Terminal::Core::Terminal::SelectionAnchors> GetSelectionAnchors();
@@ -516,8 +515,5 @@ public:
     int32_t NumberOfVisibleSearchSelections();
     std::optional<std::tuple<til::point, til::point>> GetViewportSelectionAtIndex(int32_t index);
     bool InQuickSelectMode() override;
-    bool ShowRowNumbers() override;
-    Microsoft::Console::Render::RowNumberState GetRowNumberState() override;
     Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
-    void SetShowRowNumbers(bool val);
 };
