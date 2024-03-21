@@ -352,6 +352,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::fire_and_forget _ShowFuzzySearch(const IInspectable& sender, const Control::ShowFuzzySearchEventArgs args);
         winrt::fire_and_forget _ToggleRowNumbers(const IInspectable& sender, const Control::ToggleRowNumbersEventArgs args);
         void _updateRowNumbers();
+        void _updateVimCurrentRowIndicator();
 
         bool _CapturePointer(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
         bool _ReleasePointerCapture(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);

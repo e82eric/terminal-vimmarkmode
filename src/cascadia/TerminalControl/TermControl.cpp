@@ -2158,6 +2158,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _core.ResetVimModeForSizeChange();
             _updateRowNumbers();
+            _updateVimCurrentRowIndicator();
         }
     }
 
@@ -2268,6 +2269,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         _updateRowNumbers();
+        _updateVimCurrentRowIndicator();
     }
 
     // Method Description:
@@ -2345,7 +2347,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             NumberTextBox().Visibility(Visibility::Collapsed);
             NumberBorder().Visibility(Visibility::Collapsed);
-            CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
         }
     }
 
@@ -2377,6 +2378,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         hideTimer.Start();
         CursorVisibility(CursorDisplayState::Shown);
+        CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
+    }
+
+    void TermControl::_updateVimCurrentRowIndicator()
+    {
+        if (_core.IsInVimMode())
+        {
+            auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
+            Core::Point terminalPos{ 0, cursorViewportRow };
+            const til::point locationInDIPs{ _toPosInDips(terminalPos) };
+            SelectionCanvas().SetLeft(CurrentSearchRowHighlight(),
+                                      (locationInDIPs.x - SwapChainPanel().ActualOffset().x));
+            SelectionCanvas().SetTop(CurrentSearchRowHighlight(),
+                                     (locationInDIPs.y - SwapChainPanel().ActualOffset().y));
+            CurrentSearchRowHighlight().Visibility(Visibility::Visible);
+            CurrentSearchRowHighlight().Width(SwapChainPanel().ActualWidth());
+            auto currentSearchRowBrush = Windows::UI::Xaml::Media::SolidColorBrush();
+            currentSearchRowBrush.Color(Windows::UI::ColorHelper::FromArgb(15, 0xbd, 0xae, 0x93));
+            CurrentSearchRowHighlight().Fill(currentSearchRowBrush);
+        }
     }
 
     void TermControl::_updateRowNumbers()
@@ -2411,18 +2432,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
 
             NumberTextBox().Text(numbers);
-
-            Core::Point terminalPos{ 0, cursorViewportRow };
-            const til::point locationInDIPs{ _toPosInDips(terminalPos) };
-            SelectionCanvas().SetLeft(CurrentSearchRowHighlight(),
-                                      (locationInDIPs.x - SwapChainPanel().ActualOffset().x));
-            SelectionCanvas().SetTop(CurrentSearchRowHighlight(),
-                                     (locationInDIPs.y - SwapChainPanel().ActualOffset().y));
-            CurrentSearchRowHighlight().Visibility(Visibility::Visible);
-            CurrentSearchRowHighlight().Width(SwapChainPanel().ActualWidth());
-            auto orangeBrush = Windows::UI::Xaml::Media::SolidColorBrush();
-            orangeBrush.Color(Windows::UI::ColorHelper::FromArgb(76, 255, 165, 0));
-            CurrentSearchRowHighlight().Fill(orangeBrush);
         }
     }
 
@@ -2497,11 +2506,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::EnterVimModeWithSearch()
     {
         _core.EnterVimModeWithSearch();
+        CurrentSearchRowHighlight().Visibility(Visibility::Visible);
     }
 
     void TermControl::EnterVimMode()
     {
         _core.EnterVimMode();
+        CurrentSearchRowHighlight().Visibility(Visibility::Visible);
     }
 
     bool TermControl::SwitchSelectionEndpoint()
@@ -3004,6 +3015,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto cursorPos = _core.CursorPosition();
         eventArgs.CurrentPosition({ static_cast<float>(cursorPos.X), static_cast<float>(cursorPos.Y) });
         _updateRowNumbers();
+        _updateVimCurrentRowIndicator();
     }
 
     // Method Description:
@@ -3603,6 +3615,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
 
                 _updateRowNumbers();
+                _updateVimCurrentRowIndicator();
             }
             else
             {
