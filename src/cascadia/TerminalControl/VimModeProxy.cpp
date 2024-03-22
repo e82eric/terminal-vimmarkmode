@@ -171,7 +171,6 @@ void VimModeProxy::_selectInWord(bool largeWord)
 void VimModeProxy::_selectLineRight(bool isVisual)
 {
     auto selection = _terminal->GetSelectionAnchors();
-    til::point s;
     if (_terminal->IsBlockSelection())
     {
         auto maxNonSpaceChar = 0;
@@ -183,7 +182,9 @@ void VimModeProxy::_selectLineRight(bool isVisual)
                 maxNonSpaceChar = lastNonSpaceColumn;
             }
         }
-        s = til::point{ maxNonSpaceChar, selection->end.y };
+        auto s = til::point{ maxNonSpaceChar, selection->end.y };
+        selection->end = s;
+        _terminal->SetSelectionAnchors(selection);
     }
     else
     {
@@ -194,9 +195,9 @@ void VimModeProxy::_selectLineRight(bool isVisual)
         }
 
         auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() - 1);
-        s = til::point{ lastNonSpaceColumn, endLine };
+        auto s = til::point{ lastNonSpaceColumn, endLine };
+        _UpdateSelection(isVisual, s);
     }
-    _UpdateSelection(isVisual, s);
 }
 
 til::CoordType _getStartLineOfRow2(TextBuffer& textBuffer, til::CoordType row)
@@ -1768,7 +1769,7 @@ void VimModeProxy::_MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::Se
 void VimModeProxy::ResetVimState()
 {
     const auto lock = _terminal->LockForWriting();
-    _vimMode = VimMode::none;
+    ExitVimMode();
     _lastTextObject = VimTextObjectType::none;
     _lastAction = VimActionType::none;
     _lastMotion = VimMotionType::none;
