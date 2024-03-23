@@ -1176,18 +1176,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (!_vimProxy->IsInVimMode())
         {
             _terminal->ClearSelection();
-            // Tell the dx engine that our window is now the new size.
-            THROW_IF_FAILED(_renderEngine->SetWindowSize({ cx, cy }));
-            // Invalidate everything
-            _renderer->TriggerRedrawAll();
+        }
+        // Tell the dx engine that our window is now the new size.
+        THROW_IF_FAILED(_renderEngine->SetWindowSize({ cx, cy }));
+        // Invalidate everything
+        _renderer->TriggerRedrawAll();
 
-            // If this function succeeds with S_FALSE, then the terminal didn't
-            // actually change size. No need to notify the connection of this no-op.
-            const auto hr = _terminal->UserResize({ vp.Width(), vp.Height() });
-            if (SUCCEEDED(hr) && hr != S_FALSE)
-            {
-                _connection.Resize(vp.Height(), vp.Width());
-            }
+        // If this function succeeds with S_FALSE, then the terminal didn't
+        // actually change size. No need to notify the connection of this no-op.
+        const auto hr = _terminal->UserResize({ vp.Width(), vp.Height() });
+        if (SUCCEEDED(hr) && hr != S_FALSE)
+        {
+            _connection.Resize(vp.Height(), vp.Width());
         }
     }
 

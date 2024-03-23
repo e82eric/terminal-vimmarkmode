@@ -2379,6 +2379,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         hideTimer.Start();
         CursorVisibility(CursorDisplayState::Shown);
         CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
+        _updateRowNumbers();
     }
 
     void TermControl::_updateVimCurrentRowIndicator()
@@ -2402,36 +2403,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::_updateRowNumbers()
     {
+        static int32_t lastViewportRow = 0;
         if (_core.ShowRowNumbers())
         {
-            auto viewHeight = _core.ViewHeight();
-            //auto bufferSize = _core.BufferHeight();
-            //auto offSet = _core.ScrollOffset();
-
-            //size_t maxWidth = static_cast<int32_t>(std::to_wstring(bufferSize).length()) + 1;
-            std::wstring numbers;
-            std::wstring numStr;
             auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
 
-            for (int i = 0; i < viewHeight; ++i)
+            if (lastViewportRow != cursorViewportRow)
             {
-                /*if (i == cursorViewportRow)
+                auto viewHeight = _core.ViewHeight();
+                std::wstring numbers;
+                std::wstring numStr;
+                for (int i = 0; i < viewHeight; ++i)
                 {
-                    auto num = i + offSet;
-                    numStr = std::to_wstring(num);
-                    numStr = numStr + std::wstring(maxWidth - numStr.length(), L' ');
-                }
-                else
-                {*/
                     auto num = abs(i - cursorViewportRow);
                     numStr = std::to_wstring(num);
-                    //numStr = std::wstring(maxWidth - numStr.length(), L' ') + numStr;
-                //}
+                    numbers += numStr + L"\r\n";
+                }
 
-                numbers += numStr + L"\r\n";
+                NumberTextBox().Text(numbers);
             }
-
-            NumberTextBox().Text(numbers);
+            lastViewportRow = cursorViewportRow;
         }
     }
 

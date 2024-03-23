@@ -39,8 +39,7 @@ public:
         fuzzyFind = 4,
         exit = 5,
         scroll = 6,
-        toggleRowNumbersOn,
-        toggleRowNumbersOff,
+        toggleRowNumbers,
         enterQuickSelectMode,
         enterQuickCopyMode,
         enterBlockSelectionMode

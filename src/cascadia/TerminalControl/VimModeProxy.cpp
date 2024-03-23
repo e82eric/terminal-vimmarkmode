@@ -630,16 +630,10 @@ bool VimModeProxy::_executeVimSelection(
         ResetVimState();
         _controlCore->EnterQuickSelectMode(L"[\\w\\d\\S]+", action == VimActionType::enterQuickCopyMode);
         break;
-    case VimActionType::toggleRowNumbersOn:
+    case VimActionType::toggleRowNumbers:
     {
-        _showRowNumbers = true;
-        _controlCore->ToggleRowNumbers(true);
-        break;
-    }
-    case VimActionType::toggleRowNumbersOff:
-    {
-        _showRowNumbers = false;
-        _controlCore->ToggleRowNumbers(false);
+        _showRowNumbers = !_showRowNumbers;
+        _controlCore->ToggleRowNumbers(_showRowNumbers);
         break;
     }
     case VimActionType::scroll:
@@ -794,11 +788,6 @@ bool VimModeProxy::TryVimModeKeyBinding(
         _action = VimActionType::enterBlockSelectionMode;
         sequenceCompleted = true;
     }
-    else if (vkey == VK_ESCAPE && _showRowNumbers)
-    {
-        _action = VimActionType::toggleRowNumbersOff;
-        sequenceCompleted = true;
-    }
     else if (_vimMode == VimMode::visualLine)
     {
         _textObject = VimTextObjectType::entireLine;
@@ -885,7 +874,7 @@ bool VimModeProxy::TryVimModeKeyBinding(
     {
         if (_leaderSequence)
         {
-            _action = VimActionType::toggleRowNumbersOn;
+            _action = VimActionType::toggleRowNumbers;
             sequenceCompleted = true;
         }
         else
@@ -1792,11 +1781,6 @@ VimModeProxy::VimMode VimModeProxy::_getVimMode()
 void VimModeProxy::ExitVimMode()
 {
     _vimMode = VimMode::none;
-    if (_showRowNumbers)
-    {
-        _showRowNumbers = false;
-        _controlCore->ToggleRowNumbers(false);
-    }
 }
 
 void VimModeProxy::EnterVimMode()
