@@ -1285,6 +1285,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto bufferSize{ _terminal->GetTextBuffer().GetSize() };
         info.StartAtLeftBoundary = _terminal->GetSelectionAnchor().x == bufferSize.Left();
         info.EndAtRightBoundary = _terminal->GetSelectionEnd().x == bufferSize.RightInclusive();
+
+        auto text = _terminal->RetrieveSelectedTextFromBuffer(info.StartPos.Y == info.EndPos.Y, false, false);
+        info.CharsSelected = static_cast<int32_t>(text.plainText.size());
+
         return info;
     }
 

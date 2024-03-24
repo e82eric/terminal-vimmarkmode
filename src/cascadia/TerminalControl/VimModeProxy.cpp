@@ -1308,7 +1308,10 @@ bool VimModeProxy::ShowRowNumbers()
 int32_t VimModeProxy::ViewportRowToHighlight()
 {
     const auto offset = _terminal->GetScrollOffset();
-    return _terminal->GetSelectionEnd().y - offset;
+    const auto selection = _terminal->GetSelectionAnchors();
+    const auto pivotIsStart = selection->start == selection->pivot;
+    const til::point point = pivotIsStart ? selection->end : selection->start;
+    return point.y - offset;
 }
 
 bool VimModeProxy::_FindChar(std::wstring_view vkey, bool isTil, til::point& target)

@@ -2422,6 +2422,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             lastViewportRow = cursorViewportRow;
         }
+        std::wstring numStr;
+        const auto y = _core.ViewportRowNumberToHighlight();
+        if (_core.IsInVimMode())
+        {
+            const auto selectionInfo = _core.SelectionInfo();
+            const std::wstring widthStr = std::to_wstring(selectionInfo.CharsSelected);
+            const Core::Point point = y == selectionInfo.EndPos.Y ? selectionInfo.EndPos : selectionInfo.StartPos;
+            numStr = L"Y:" + std::to_wstring(y) + L" X:" + std::to_wstring(point.X) + L" " + widthStr;
+        }
+        else
+        {
+            const auto cursorPos = _core.CursorPosition();
+            numStr = L"Y:" + std::to_wstring(y + _core.ScrollOffset()) + L" X:" + std::to_wstring(cursorPos.X);
+        }
+        VimRowNumberTextBox().Text(numStr);
     }
 
     hstring TermControl::Title()

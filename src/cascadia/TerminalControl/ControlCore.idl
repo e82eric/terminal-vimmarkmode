@@ -48,6 +48,7 @@ namespace Microsoft.Terminal.Control
         SelectionEndpointTarget Endpoint;
         Boolean StartAtLeftBoundary;
         Boolean EndAtRightBoundary;
+        Int32 CharsSelected;
     };
 
     [default_interface] runtimeclass SelectionColor
