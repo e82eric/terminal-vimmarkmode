@@ -224,31 +224,34 @@ void VimModeProxy::_selectLineLeft(bool isVisual)
 void VimModeProxy::_selectLineUp()
 {
     auto selection = _terminal->GetSelectionAnchors();
-    if (selection->start.y > 0 || selection->end.y > 0)
+    auto endIsMoving = false;
+    if (selection->end.y > selection->pivot.y)
     {
-        if (selection->end.y > selection->pivot.y)
-        {
-            auto end = _GetLineEnd(til::point{ 0, selection->end.y - 1 });
-            selection->end = end;
-        }
-        else if (selection->end.y == selection->pivot.y)
-        {
-            auto currentEnd = _GetLineEnd(til::point{ 0, selection->end.y });
-            selection->end = currentEnd;
-            selection->start = til::point{ 0, selection->start.y - 1 };
-            selection->pivot = currentEnd;
-        }
-        else
-        {
-            selection->start = til::point{ 0, selection->start.y - 1 };
-        }
+        endIsMoving = true;
+        auto end = _GetLineEnd(til::point{ 0, selection->end.y - 1 });
+        selection->end = end;
     }
-    _terminal->SetSelectionAnchors(selection);
+    else if (selection->end.y == selection->pivot.y)
+    {
+        auto currentEnd = _GetLineEnd(til::point{ 0, selection->end.y });
+        selection->end = currentEnd;
+        selection->start = til::point{ 0, selection->start.y - 1 };
+        selection->pivot = currentEnd;
+    }
+    else
+    {
+        selection->start = til::point{ 0, selection->start.y - 1 };
+    }
+    if (selection->start.y >= 0 && selection->end.y > 0)
+    {
+        _terminal->SetSelectionAnchors(selection);
+    }
 }
 
 void VimModeProxy::_selectLineDown()
 {
     auto selection = _terminal->GetSelectionAnchors();
+    auto endIsMoving = false;
     if (selection->start.y < selection->pivot.y)
     {
         auto start = til::point{ 0, selection->start.y + 1 };
@@ -256,6 +259,7 @@ void VimModeProxy::_selectLineDown()
     }
     else if (selection->start.y == selection->pivot.y)
     {
+        endIsMoving = true;
         auto currentStart = til::point{ 0, selection->start.y };
         auto currentEnd = _GetLineEnd(til::point{ 0, selection->end.y + 1 });
 
@@ -356,26 +360,46 @@ void VimModeProxy::_selectPageDown(bool isVisual)
 
 void VimModeProxy::_selectCharRight(bool isVisual)
 {
-    DWORD mods = isVisual ? 280 : 0;
-    _terminal->UpdateSelection(::Microsoft::Terminal::Core::Terminal::SelectionDirection ::Right, ::Microsoft::Terminal::Core::Terminal::SelectionExpansion::Char, Microsoft::Terminal::Core::ControlKeyStates{ mods });
+    const auto selection = _terminal->GetSelectionAnchors();
+    auto point = selection->end > selection->pivot ? selection->end : selection->start;
+    point.x++;
+    if (point.x < _terminal->GetTextBuffer().GetLineWidth(point.y))
+    {
+        _UpdateSelection(isVisual, point);
+    }
 }
 
 void VimModeProxy::_selectCharLeft(bool isVisual)
 {
-    DWORD mods = isVisual ? 280 : 0;
-    _terminal->UpdateSelection(::Microsoft::Terminal::Core::Terminal::SelectionDirection::Left, ::Microsoft::Terminal::Core::Terminal::SelectionExpansion::Char, ::Microsoft::Terminal::Core::ControlKeyStates{ mods });
+    const auto selection = _terminal->GetSelectionAnchors();
+    auto point = selection->end > selection->pivot ? selection->end : selection->start;
+    point.x--;
+    if (point.x >= 0)
+    {
+        _UpdateSelection(isVisual, point);
+    }
 }
 
 void VimModeProxy::_selectDown(bool isVisual)
 {
-    DWORD mods = isVisual ? 280 : 0;
-    _terminal->UpdateSelection(::Microsoft::Terminal::Core::Terminal::SelectionDirection::Down, ::Microsoft::Terminal::Core::Terminal::SelectionExpansion::Char, ::Microsoft::Terminal::Core::ControlKeyStates{ mods });
+    const auto selection = _terminal->GetSelectionAnchors();
+    auto point = selection->end > selection->pivot ? selection->end : selection->start;
+    point.y++;
+    if (point.y <= _terminal->GetTextBuffer().GetLastNonSpaceCharacter().y)
+    {
+        _UpdateSelection(isVisual, point);
+    }
 }
 
 void VimModeProxy::_selectUp(bool isVisual)
 {
-    DWORD mods = isVisual ? 280 : 0;
-    _terminal->UpdateSelection(::Microsoft::Terminal::Core::Terminal::SelectionDirection::Up, ::Microsoft::Terminal::Core::Terminal::SelectionExpansion::Char, ::Microsoft::Terminal::Core::ControlKeyStates{ mods });
+    const auto selection = _terminal->GetSelectionAnchors();
+    auto point = selection->end > selection->pivot ? selection->end : selection->start;
+    point.y--;
+    if (point.y >= 0)
+    {
+        _UpdateSelection(isVisual, point);
+    }
 }
 
 std::pair<til::point, bool> VimModeProxy::_GetLineFirstNonBlankChar(const til::point target) const
@@ -1414,12 +1438,14 @@ bool VimModeProxy::_FindCharBack(std::wstring_view vkey, bool isTil, til::point&
 void VimModeProxy::_UpdateSelection(bool isVisual, til::point adjusted)
 {
     auto selection = _terminal->GetSelectionAnchors();
+    bool endIsMoving = false;
     if (isVisual)
     {
         auto pivotIsStart = selection->start == selection->pivot;
         //This means that the end is moving
         if (pivotIsStart)
         {
+            endIsMoving = true;
             if (adjusted < selection->pivot)
             {
                 selection->start = adjusted;

@@ -643,7 +643,14 @@ std::optional<Terminal::SelectionAnchors> Terminal::GetSelectionAnchors()
 }
 void Terminal::SetSelectionAnchors(std::optional<Terminal::SelectionAnchors> val)
 {
+    auto useEnd = val->end.y > _selection->end.y;
+
     _selection = val;
+    const auto point = useEnd ? til::point{
+        _selection->end.x, std::min(_selection->end.y + 5, GetTextBuffer().GetLastNonSpaceCharacter().y)
+    } : til::point{ _selection->start.x, std::max(0,_selection->start.y - 5) };
+
+    _ScrollToPoint(point);
 }
 
 void Terminal::SetQuickSelectHandler(std::shared_ptr<QuickSelectAlphabet> val)
