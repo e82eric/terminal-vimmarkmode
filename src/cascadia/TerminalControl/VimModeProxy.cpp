@@ -280,14 +280,14 @@ void VimModeProxy::_selectTop(bool isVisual)
     auto selection = _terminal->GetSelectionAnchors();
     if (isVisual)
     {
-        selection->start = til::point{ 0, 0 };
+        selection->start = til::point{ selection->start.x, 0 };
         _terminal->UserScrollViewport(0);
     }
     else
     {
-        selection->start = til::point{ 0, 0 };
-        selection->pivot = til::point{ 0, 0 };
-        selection->end = til::point{ 0, 0 };
+        selection->start = til::point{ selection->start.x, 0 };
+        selection->pivot = til::point{ selection->start.x, 0 };
+        selection->end = til::point{ selection->start.x, 0 };
         _terminal->UserScrollViewport(0);
     }
     _terminal->SetSelectionAnchors(selection);
@@ -308,10 +308,9 @@ void VimModeProxy::_selectHalfPageUp(bool isVisual)
 
     const auto viewportHeight{ _terminal->GetViewport().Height() };
     const auto newY{ targetPos.y - (viewportHeight / 2) };
-    const auto newPos = newY < bufferSize.Top() ? bufferSize.Origin() : til::point{ targetPos.x, newY };
+    const auto newPos = newY < bufferSize.Top() ? til::point{ targetPos.x, 0 } : til::point{ targetPos.x, newY };
 
     _UpdateSelection(isVisual, newPos);
-    _terminal->UserScrollViewport(newPos.y);
 }
 
 void VimModeProxy::_selectHalfPageDown(bool isVisual)
@@ -321,12 +320,11 @@ void VimModeProxy::_selectHalfPageDown(bool isVisual)
     auto targetPos{ selection->end.y > selection->pivot.y ? selection->end : selection->start };
 
     const auto viewportHeight{ _terminal->GetViewport().Height() };
-    const auto mutableBottom{ _terminal->GetViewport().BottomInclusive() };
+    const auto mutableBottom{ _terminal->GetTextBuffer().GetLastNonSpaceCharacter().y };
     const auto newY{ targetPos.y + (viewportHeight / 2) };
-    const auto newPos = newY > mutableBottom ? til::point{ bufferSize.RightInclusive(), mutableBottom } : til::point{ targetPos.x, newY };
+    const auto newPos = newY > mutableBottom ? til::point{ targetPos.x, mutableBottom } : til::point{ targetPos.x, newY };
 
     _UpdateSelection(isVisual, newPos);
-    _terminal->UserScrollViewport(newPos.y);
 }
 
 void VimModeProxy::_selectPageUp(bool isVisual)
@@ -833,6 +831,11 @@ bool VimModeProxy::TryVimModeKeyBinding(
             if (_motion == VimMotionType::g)
             {
                 _motion = VimMotionType::moveToTopOfBuffer;
+            }
+            else
+            {
+                _motion = VimMotionType::g;
+                sequenceCompleted = false;
             }
         }
         else if ((vkey == L'K' || vkey == VK_UP) && _motion == VimMotionType::none)

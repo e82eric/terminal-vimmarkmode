@@ -2426,10 +2426,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto y = _core.ViewportRowNumberToHighlight();
         if (_core.IsInVimMode())
         {
+            const auto offset = _core.ScrollOffset();
             const auto selectionInfo = _core.SelectionInfo();
             const std::wstring widthStr = std::to_wstring(selectionInfo.CharsSelected);
             const Core::Point point = y == selectionInfo.EndPos.Y ? selectionInfo.EndPos : selectionInfo.StartPos;
-            numStr = L"Y:" + std::to_wstring(y) + L" X:" + std::to_wstring(point.X) + L" " + widthStr;
+            numStr = L"Y:" + std::to_wstring(y + offset) + L" X:" + std::to_wstring(point.X) + L" " + widthStr;
         }
         else
         {
@@ -3694,6 +3695,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         VimTextBox().FontSize(fontSize);
         VimTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
         VimTextBox().LineHeight(lineHeight);
+        VimRowNumberTextBox().FontSize(fontSize);
+        VimRowNumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
+        VimRowNumberTextBox().LineHeight(lineHeight);
     }
 
     void TermControl::_setRowNumberFontSize(double lineHeight, double fontSize, Windows::UI::Xaml::Media::FontFamily fontFamily)

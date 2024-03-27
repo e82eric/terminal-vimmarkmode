@@ -641,16 +641,36 @@ std::optional<Terminal::SelectionAnchors> Terminal::GetSelectionAnchors()
 {
     return _selection;
 }
+
 void Terminal::SetSelectionAnchors(std::optional<Terminal::SelectionAnchors> val)
 {
-    auto useEnd = val->end.y > _selection->end.y;
-
+    const auto endMovingDown = val->end.y > _selection->end.y;
+    const auto startMovingDown = val->start.y > _selection->start.y;
+    const auto startMovingUp = val->start.y < _selection->start.y;
+    const auto endMovingUp = val->end.y < _selection->end.y;
     _selection = val;
-    const auto point = useEnd ? til::point{
-        _selection->end.x, std::min(_selection->end.y + 5, GetTextBuffer().GetLastNonSpaceCharacter().y)
-    } : til::point{ _selection->start.x, std::max(0,_selection->start.y - 5) };
 
-    _ScrollToPoint(point);
+    til::point point;
+    if (endMovingDown)
+    {
+        point = til::point{ _selection->end.x, _selection->end.y + 5};
+        _ScrollToPoint(point);
+    }
+    else if (startMovingDown)
+    {
+        point = til::point{ _selection->start.x, _selection->start.y + 5};
+        _ScrollToPoint(point);
+    }
+    else if (startMovingUp)
+    {
+        point = til::point{ _selection->start.x, _selection->start.y - 5};
+        _ScrollToPoint(point);
+    }
+    else if (endMovingUp)
+    {
+        point = til::point{ _selection->end.x, _selection->end.y - 5};
+        _ScrollToPoint(point);
+    }
 }
 
 void Terminal::SetQuickSelectHandler(std::shared_ptr<QuickSelectAlphabet> val)
