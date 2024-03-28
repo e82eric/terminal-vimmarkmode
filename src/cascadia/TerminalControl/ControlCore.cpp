@@ -1177,6 +1177,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _terminal->ClearSelection();
         }
+        else
+        {
+            _vimProxy->SetRowNumberFowResize();
+        }
         // Tell the dx engine that our window is now the new size.
         THROW_IF_FAILED(_renderEngine->SetWindowSize({ cx, cy }));
         // Invalidate everything
@@ -1188,6 +1192,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (SUCCEEDED(hr) && hr != S_FALSE)
         {
             _connection.Resize(vp.Height(), vp.Width());
+        }
+        if (_vimProxy->IsInVimMode())
+        {
+            _vimProxy->UpdateSelectionFromResize();
         }
     }
 
@@ -2997,11 +3005,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, static_cast<int32_t>(fuzzySearchResultRows.size()), static_cast<int32_t>(searchResults.Size()));
         return fuzzySearchResult;
-    }
-    
-    void ControlCore::ResetVimModeForSizeChange()
-    {
-        _vimProxy->ResetVimModeForSizeChange(false);
     }
     
     void ControlCore::UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence)

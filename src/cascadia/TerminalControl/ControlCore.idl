@@ -84,7 +84,6 @@ namespace Microsoft.Terminal.Control
         void UpdateSettings(IControlSettings settings, IControlAppearance appearance);
         void ApplyAppearance(Boolean focused);
 
-        void ResetVimModeForSizeChange();
         void EnterVimModeWithSearch();
         void EnterVimMode();
         Boolean IsInVimMode();

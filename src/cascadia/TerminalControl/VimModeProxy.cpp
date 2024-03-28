@@ -1341,7 +1341,59 @@ int32_t VimModeProxy::ViewportRowToHighlight()
     return point.y - offset;
 }
 
-bool VimModeProxy::_FindChar(std::wstring_view vkey, bool isTil, til::point& target)
+void VimModeProxy::SetRowNumberFowResize()
+{
+    const auto selection = _terminal->GetSelectionAnchors();
+    const auto pos = selection->start;
+    auto lineNumber = 0;
+    for (auto i = 0; i < pos.y; i++)
+    {
+        if (!_terminal->GetTextBuffer().GetRowByOffset(i).WasWrapForced())
+        {
+            lineNumber++;
+        }
+    }
+    _tempWrappedX = pos.x;
+    auto y = pos.y - 1;
+    const auto width = _terminal->GetTextBuffer().GetRowByOffset(y).size();
+    while (_terminal->GetTextBuffer().GetRowByOffset(y).WasWrapForced())
+    {
+        _tempWrappedX += width;
+        y--;
+    }
+
+    _tempY = lineNumber;
+    const auto offSet = _terminal->GetScrollOffset();
+    _tempTop = pos.y - offSet;
+}
+
+void VimModeProxy::UpdateSelectionFromResize() const
+{
+    auto selection = _terminal->GetSelectionAnchors();
+    auto lineNumber = 0;
+    auto i = 0;
+    while (lineNumber < _tempY)
+    {
+        if (!_terminal->GetTextBuffer().GetRowByOffset(i).WasWrapForced())
+        {
+            lineNumber++;
+        }
+        i++;
+    }
+
+    const auto width = _terminal->GetTextBuffer().GetRowByOffset(i).size();
+    til::CoordType extraI = _tempWrappedX / width;
+    til::CoordType x = _tempWrappedX % width;
+
+    const auto point = til::point{ x, i + extraI };
+    selection->start = point;
+    selection->end = point;
+    selection->pivot = point;
+    _terminal->SetSelectionAnchors(selection);
+    _terminal->UserScrollViewport(i + extraI - _tempTop);
+}
+
+bool VimModeProxy::_FindChar(std::wstring_view vkey, bool isTil, til::point& target) const
 {
     const auto selection = _terminal->GetSelectionAnchors();
     auto startPoint = selection->end == selection->pivot ?

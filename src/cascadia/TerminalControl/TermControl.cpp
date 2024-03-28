@@ -2154,7 +2154,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (_core.IsInVimMode())
         {
-            _core.ResetVimModeForSizeChange();
             _updateRowNumbers();
             _updateVimCurrentRowIndicator();
         }

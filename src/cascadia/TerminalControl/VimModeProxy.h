@@ -111,6 +111,8 @@ public:
     void SelectRow(int32_t row, int32_t col);
     bool ShowRowNumbers();
     int32_t ViewportRowToHighlight();
+    void SetRowNumberFowResize();
+    void UpdateSelectionFromResize() const;
 
 private:
     VimMode _getVimMode();
@@ -166,6 +168,11 @@ private:
     Search* _searcher;
     std::wstring _wordDelimiters = L"/\\()\"'-.,:;<>~!@#$%^&*|+=[]{}~?│";
 
+    til::CoordType _tempY = 0;
+    til::CoordType _tempEndY = 0;
+    til::CoordType _tempWrappedX = 0;
+    til::CoordType _tempWrappedEndX = 0;
+    til::CoordType _tempTop = 0;
     bool _showRowNumbers = false;
     void _enterVimMode();
     VimTextObjectType _textObject = VimTextObjectType::none;
