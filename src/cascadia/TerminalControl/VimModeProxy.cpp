@@ -251,7 +251,6 @@ void VimModeProxy::_selectLineUp()
 void VimModeProxy::_selectLineDown()
 {
     auto selection = _terminal->GetSelectionAnchors();
-    auto endIsMoving = false;
     if (selection->start.y < selection->pivot.y)
     {
         auto start = til::point{ 0, selection->start.y + 1 };
@@ -259,7 +258,6 @@ void VimModeProxy::_selectLineDown()
     }
     else if (selection->start.y == selection->pivot.y)
     {
-        endIsMoving = true;
         auto currentStart = til::point{ 0, selection->start.y };
         auto currentEnd = _GetLineEnd(til::point{ 0, selection->end.y + 1 });
 
@@ -300,29 +298,87 @@ void VimModeProxy::_selectBottom(bool isVisual)
     _terminal->UserScrollViewport(lastChar.y);
 }
 
-void VimModeProxy::_selectHalfPageUp(bool isVisual)
+void VimModeProxy::_selectHalfPageUp(bool isVisual, bool entireLine)
 {
     auto selection = _terminal->GetSelectionAnchors();
     const auto bufferSize{ _terminal->GetTextBuffer().GetSize() };
-    auto targetPos{ selection->start.y < selection->pivot.y ? selection->start : selection->end };
+    const auto startIsPivot = selection->start.y == selection->pivot.y && selection->start.x == selection->pivot.x;
+    const auto targetPos= startIsPivot ? selection->end : selection->start;
 
-    const auto viewportHeight{ _terminal->GetViewport().Height() };
-    const auto newY{ targetPos.y - (viewportHeight / 2) };
-    const auto newPos = newY < bufferSize.Top() ? til::point{ targetPos.x, 0 } : til::point{ targetPos.x, newY };
+    const auto viewportHeight = _terminal->GetViewport().Height();
+    const auto newY= targetPos.y - viewportHeight / 2;
+    const auto y = newY < bufferSize.Top() ? 0: newY;
+    const til::CoordType x = targetPos.x;
+    if (entireLine)
+    {
+        if (startIsPivot)
+        {
+            if (y > selection->start.y)
+            {
+                selection->end.y = y;
+                selection->end.x = _terminal->GetTextBuffer().GetRowByOffset(y).GetLastNonSpaceColumn() - 1;
+            }
+            else
+            {
+                selection->end.y = selection->start.y;
+                selection->end.x = _terminal->GetTextBuffer().GetRowByOffset(selection->start.y).GetLastNonSpaceColumn() - 1;
+                selection->pivot = selection->end;
+                selection->start.y = y;
+                selection->start.x = 0;
+            }
+        }
+        else
+        {
+            selection->start.y = y;
+            selection->start.x = 0;
+        }
+        _terminal->SetSelectionAnchors(selection);
+        return;
+    }
+    const auto newPos = til::point{ x, y };
 
     _UpdateSelection(isVisual, newPos);
 }
 
-void VimModeProxy::_selectHalfPageDown(bool isVisual)
+void VimModeProxy::_selectHalfPageDown(bool isVisual, bool entireLine)
 {
     auto selection = _terminal->GetSelectionAnchors();
-    const auto bufferSize{ _terminal->GetTextBuffer().GetSize() };
-    auto targetPos{ selection->end.y > selection->pivot.y ? selection->end : selection->start };
+    const auto startIsPivot = selection->start.y == selection->pivot.y && selection->start.x == selection->pivot.x;
+    const auto pos = startIsPivot ? selection->end : selection->start;
 
     const auto viewportHeight{ _terminal->GetViewport().Height() };
-    const auto mutableBottom{ _terminal->GetTextBuffer().GetLastNonSpaceCharacter().y };
-    const auto newY{ targetPos.y + (viewportHeight / 2) };
-    const auto newPos = newY > mutableBottom ? til::point{ targetPos.x, mutableBottom } : til::point{ targetPos.x, newY };
+    const auto lastRow = _terminal->GetTextBuffer().GetLastNonSpaceCharacter().y;
+    const auto newY= pos.y + viewportHeight / 2 ;
+    const auto y = newY > lastRow ? lastRow : newY;
+    const til::CoordType x = pos.x;
+    if (entireLine)
+    {
+        if (!startIsPivot)
+        {
+            if (y < selection->end.y)
+            {
+                selection->start.y = y;
+                selection->start.x = 0;
+            }
+            else
+            {
+                selection->start.y = selection->end.y;
+                selection->start.x = 0;
+                selection->pivot = selection->start;
+                selection->end.y = newY;
+                selection->end.x = _terminal->GetTextBuffer().GetRowByOffset(selection->start.y).GetLastNonSpaceColumn() - 1;
+            }
+        }
+        else
+        {
+            selection->end.y = y;
+            selection->end.x = _terminal->GetTextBuffer().GetRowByOffset(y).GetLastNonSpaceColumn() - 1;;
+        }
+        _terminal->SetSelectionAnchors(selection);
+        return;
+    }
+
+    const auto newPos = til::point{ x, y };
 
     _UpdateSelection(isVisual, newPos);
 }
@@ -582,10 +638,10 @@ bool VimModeProxy::_executeVimSelection(
                 _selectBottom(true);
                 break;
             case VimMotionType::halfPageUp:
-                _selectHalfPageUp(true);
+                _selectHalfPageUp(true, true);
                 break;
             case VimMotionType::halfPageDown:
-                _selectHalfPageDown(true);
+                _selectHalfPageDown(true, true);
                 break;
             case VimMotionType::pageUp:
                 _selectPageUp(true);
@@ -629,10 +685,10 @@ bool VimModeProxy::_executeVimSelection(
                 _selectBottom(selectFromStart);
                 break;
             case VimMotionType::halfPageUp:
-                _selectHalfPageUp(selectFromStart);
+                _selectHalfPageUp(selectFromStart, false);
                 break;
             case VimMotionType::halfPageDown:
-                _selectHalfPageDown(selectFromStart);
+                _selectHalfPageDown(selectFromStart, false);
                 break;
             case VimMotionType::pageUp:
                 _selectPageUp(selectFromStart);
@@ -1493,14 +1549,12 @@ bool VimModeProxy::_FindCharBack(std::wstring_view vkey, bool isTil, til::point&
 void VimModeProxy::_UpdateSelection(bool isVisual, til::point adjusted)
 {
     auto selection = _terminal->GetSelectionAnchors();
-    bool endIsMoving = false;
     if (isVisual)
     {
         auto pivotIsStart = selection->start == selection->pivot;
         //This means that the end is moving
         if (pivotIsStart)
         {
-            endIsMoving = true;
             if (adjusted < selection->pivot)
             {
                 selection->start = adjusted;

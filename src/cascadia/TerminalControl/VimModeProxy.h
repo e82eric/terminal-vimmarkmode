@@ -132,8 +132,8 @@ private:
     void _selectLineDown();
     void _selectTop(bool isVisual);
     void _selectBottom(bool isVisual);
-    void _selectHalfPageUp(bool isVisual);
-    void _selectHalfPageDown(bool isVisual);
+    void _selectHalfPageUp(bool isVisual, bool entireLine);
+    void _selectHalfPageDown(bool isVisual, bool entireLine);
     void _selectPageUp(bool isVisual);
     void _selectPageDown(bool isVisual);
     void _selectCharRight(bool isVisual);
@@ -148,7 +148,7 @@ private:
         const bool isVisual,
         const std::wstring searchString,
         std::wstring_view vkey);
-    bool _FindChar(std::wstring_view vkey, bool isTil, til::point& target);
+    bool _FindChar(std::wstring_view vkey, bool isTil, til::point& target) const;
     bool _FindCharBack(std::wstring_view vkey, bool isTil, til::point& target);
     void _UpdateSelection(bool isVisual, til::point adjusted);
     void _InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);

@@ -653,12 +653,14 @@ void Terminal::SetSelectionAnchors(std::optional<Terminal::SelectionAnchors> val
     til::point point;
     if (endMovingDown)
     {
-        point = til::point{ _selection->end.x, _selection->end.y + 5};
+        const auto bottom{ GetTextBuffer().GetLastNonSpaceCharacter().y };
+        point = til::point{ _selection->end.x, std::min(_selection->end.y + 5, bottom)};
         _ScrollToPoint(point);
     }
     else if (startMovingDown)
     {
-        point = til::point{ _selection->start.x, _selection->start.y + 5};
+        const auto bottom{ GetTextBuffer().GetLastNonSpaceCharacter().y };
+        point = til::point{ _selection->start.x, std::min(_selection->start.y + 5, bottom)};
         _ScrollToPoint(point);
     }
     else if (startMovingUp)
