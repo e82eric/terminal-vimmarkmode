@@ -110,6 +110,7 @@ public:
     void ResetVimModeForSizeChange(bool selectLastChar);
     void SelectRow(int32_t row, int32_t col);
     bool ShowRowNumbers();
+    void ShowRowNumbers(bool val);
     int32_t ViewportRowToHighlight();
     void SetRowNumberFowResize();
     void UpdateSelectionFromResize() const;

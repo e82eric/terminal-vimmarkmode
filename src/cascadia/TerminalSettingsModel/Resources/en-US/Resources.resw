@@ -600,6 +600,10 @@
     <value>Toggle vim mode</value>
     <comment>A command that will toggle "vim mode".</comment>
   </data>
+  <data name="ToggleRowNumbersCommandKey" xml:space="preserve">
+    <value>Toggle Row Numbers</value>
+    <comment>A command that will toggle "relative row numbers".</comment>
+  </data>
   <data name="VimSearchKey" xml:space="preserve">
     <value>Toggle vim search mode</value>
     <comment>A command that will toggle "vim search".</comment>

@@ -514,6 +514,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.EnterQuickSelectMode(text, copy);
     }
 
+    void TermControl::ToggleRowNumberMode()
+    {
+        _core.ToggleRowNumberMode();
+    }
+
     void TermControl::_FuzzySearch(const winrt::hstring& text, const bool /*goForward*/, const bool /*caseSensitive*/)
     {
         auto fuzzySearchResult = _core.FuzzySearch(text);
@@ -2400,26 +2405,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::_updateRowNumbers()
     {
-        static int32_t lastViewportRow = 0;
         if (_core.ShowRowNumbers())
         {
             auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
 
-            if (lastViewportRow != cursorViewportRow)
+            auto viewHeight = _core.ViewHeight();
+            std::wstring numbers;
+            std::wstring numStr;
+            for (int i = 0; i < viewHeight; ++i)
             {
-                auto viewHeight = _core.ViewHeight();
-                std::wstring numbers;
-                std::wstring numStr;
-                for (int i = 0; i < viewHeight; ++i)
-                {
-                    auto num = abs(i - cursorViewportRow);
-                    numStr = std::to_wstring(num);
-                    numbers += numStr + L"\r\n";
-                }
-
-                NumberTextBox().Text(numbers);
+                auto num = abs(i - cursorViewportRow);
+                numStr = std::to_wstring(num);
+                numbers += numStr + L"\r\n";
             }
-            lastViewportRow = cursorViewportRow;
+
+            NumberTextBox().Text(numbers);
         }
         std::wstring numStr;
         const auto y = _core.ViewportRowNumberToHighlight();

@@ -175,6 +175,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void CursorVisibility(Control::CursorDisplayState cursorVisibility);
 
         void RegexSearch(const winrt::hstring& text, bool copy);
+        void ToggleRowNumberMode();
 
         // -------------------------------- WinRT Events ---------------------------------
         // clang-format off

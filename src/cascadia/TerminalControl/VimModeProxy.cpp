@@ -711,7 +711,7 @@ bool VimModeProxy::_executeVimSelection(
     case VimActionType::toggleRowNumbers:
     {
         _showRowNumbers = !_showRowNumbers;
-        _controlCore->ToggleRowNumbers(_showRowNumbers);
+        _controlCore->ToggleRowNumberMode(_showRowNumbers);
         break;
     }
     case VimActionType::scroll:
@@ -964,6 +964,11 @@ bool VimModeProxy::TryVimModeKeyBinding(
         {
             _leaderSequence = true;
         }
+    }
+    else if (vkey == L'R' && mods.IsCtrlPressed())
+    {
+        _action = VimActionType::toggleRowNumbers;
+        sequenceCompleted = true;
     }
     // * #
     else if ((vkey == 0x38 && mods.IsShiftPressed()) || (vkey == 0x33 && mods.IsShiftPressed()))
@@ -1386,6 +1391,11 @@ bool VimModeProxy::TryVimModeKeyBinding(
 bool VimModeProxy::ShowRowNumbers()
 {
     return _showRowNumbers;
+}
+
+void VimModeProxy::ShowRowNumbers(bool val)
+{
+    _showRowNumbers = val;
 }
 
 int32_t VimModeProxy::ViewportRowToHighlight()

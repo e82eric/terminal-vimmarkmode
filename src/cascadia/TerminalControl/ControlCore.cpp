@@ -3051,9 +3051,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto lock = _terminal->LockForWriting();
         _quickSelectHandler->EnterQuickSelectMode(text, copy, _searcher, _renderer.get());
     }
-    
-    void ControlCore::ToggleRowNumbers(bool on)
+
+    void ControlCore::ToggleRowNumberMode()
     {
+        const auto shouldShow = !_vimProxy->ShowRowNumbers();
+        ToggleRowNumberMode(shouldShow);
+    }
+    
+    void ControlCore::ToggleRowNumberMode(bool on)
+    {
+        _vimProxy->ShowRowNumbers(on);
         auto args = winrt::make<implementation::ToggleRowNumbersEventArgs>(on);
         _ToggleRowNumbersHandlers(*this, args);
     }

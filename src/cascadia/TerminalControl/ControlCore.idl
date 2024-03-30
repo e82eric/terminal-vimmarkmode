@@ -92,6 +92,7 @@ namespace Microsoft.Terminal.Control
         void CloseFuzzySearchNoSelection();
         void FuzzySearchSelectionChanged(Int32 row);
         Int32 ViewportRowNumberToHighlight();
+        void ToggleRowNumberMode();
 
         Microsoft.Terminal.TerminalConnection.ITerminalConnection Connection;
 

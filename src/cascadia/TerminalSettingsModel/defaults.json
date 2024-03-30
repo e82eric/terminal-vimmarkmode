@@ -379,6 +379,7 @@
         { "command": "restoreLastClosed" },
         { "command": "openAbout" },
         { "command": "vimMode" },
+        { "command": "toggleRowNumbers" },
         { "command": "vimSearch" },
         { "command": "fuzzyFind" },
 

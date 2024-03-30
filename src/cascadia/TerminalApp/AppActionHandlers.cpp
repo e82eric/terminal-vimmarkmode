@@ -1306,6 +1306,16 @@ namespace winrt::TerminalApp::implementation
         }
     }
 
+    void TerminalPage::_HandleToggleRowNumbers(const IInspectable& sender,
+                                       const ActionEventArgs& args)
+    {
+        if (const auto& control{ _senderOrActiveControl(sender) })
+        {
+            control.ToggleRowNumberMode();
+            args.Handled(true);
+        }
+    }
+
     void TerminalPage::_HandleVimSearch(const IInspectable& sender,
                                       const ActionEventArgs& args)
     {

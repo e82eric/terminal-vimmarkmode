@@ -18,6 +18,10 @@
       "keys": "ctrl+shift+m"
     },
     {
+      "command": "toggleRowNumbers",
+      "keys": "ctrl+shift+r"
+    },
+    {
       "command": {
         "action": "splitPane",
         "split": "auto",
