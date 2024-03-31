@@ -1179,7 +1179,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else
         {
-            _vimProxy->SetRowNumberFowResize();
+            _vimProxy->StoreSelectionForResize();
         }
         // Tell the dx engine that our window is now the new size.
         THROW_IF_FAILED(_renderEngine->SetWindowSize({ cx, cy }));
@@ -3064,6 +3064,22 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto args = winrt::make<implementation::ToggleRowNumbersEventArgs>(on);
         _ToggleRowNumbersHandlers(*this, args);
     }
+
+    Windows::Foundation::Collections::IVector<int32_t> ControlCore::GetRowNumbers()
+    {
+        std::vector<int32_t> rowNumbers;
+        const auto cursorViewportRow = ViewportRowNumberToHighlight();
+
+        const auto viewHeight = ViewHeight();
+        std::wstring numbers;
+        std::wstring numStr;
+        for (int i = 0; i < viewHeight; ++i)
+        {
+            auto num = abs(i - cursorViewportRow);
+            rowNumbers.emplace_back(num);
+        }
+        return winrt::single_threaded_vector<int32_t>(std::move(rowNumbers));
+    }
     
     bool ControlCore::ShowRowNumbers()
     {
@@ -3072,7 +3088,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     
     int32_t ControlCore::ViewportRowNumberToHighlight()
     {
-        auto lock = _terminal->LockForReading();
         if (!_vimProxy->IsInVimMode())
         {
             return CursorPosition().Y;

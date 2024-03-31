@@ -434,12 +434,12 @@ void VimModeProxy::_selectCharLeft(bool isVisual)
     }
 }
 
-void VimModeProxy::_selectDown(bool isVisual)
+void VimModeProxy::_selectDown(bool isVisual, til::CoordType lastY)
 {
     const auto selection = _terminal->GetSelectionAnchors();
     auto point = selection->end > selection->pivot ? selection->end : selection->start;
     point.y++;
-    if (point.y <= _terminal->GetTextBuffer().GetLastNonSpaceCharacter().y)
+    if (point.y <= lastY)
     {
         _UpdateSelection(isVisual, point);
     }
@@ -514,6 +514,7 @@ bool VimModeProxy::_executeVimSelection(
 {
     bool exitAfter = false;
     bool selectFromStart = isVisual || action == VimActionType::yank;
+    const auto lastNonSpaceChar = _terminal->GetTextBuffer().GetLastNonSpaceCharacter();
 
     for (int i = 0; i < times; i++)
     {
@@ -665,7 +666,7 @@ bool VimModeProxy::_executeVimSelection(
                 _selectCharLeft(selectFromStart);
                 break;
             case VimMotionType::moveDown:
-                _selectDown(selectFromStart);
+                _selectDown(selectFromStart, lastNonSpaceChar.y);
                 break;
             case VimMotionType::moveUp:
                 _selectUp(selectFromStart);
@@ -854,7 +855,13 @@ bool VimModeProxy::TryVimModeKeyBinding(
         _times = 1;
     }
 
-    if (vkey >= 0x30 && vkey <= 0x39 && !mods.IsShiftPressed() && _vimMode != VimMode::search && _textObject != VimTextObjectType::findChar && _textObject != VimTextObjectType::findCharReverse && _textObject != VimTextObjectType::tilChar && _textObject != VimTextObjectType::tilCharReverse)
+    if (vkey == L'R' && mods.IsCtrlPressed())
+    {
+        _action = VimActionType::toggleRowNumbers;
+        _textObject = VimTextObjectType::none;
+        sequenceCompleted = true;
+    }
+    else if (vkey >= 0x30 && vkey <= 0x39 && !mods.IsShiftPressed() && _vimMode != VimMode::search && _textObject != VimTextObjectType::findChar && _textObject != VimTextObjectType::findCharReverse && _textObject != VimTextObjectType::tilChar && _textObject != VimTextObjectType::tilCharReverse)
     {
         _timesString += vkeyText;
         std::wstringstream timesStringStream(_timesString);
@@ -964,11 +971,6 @@ bool VimModeProxy::TryVimModeKeyBinding(
         {
             _leaderSequence = true;
         }
-    }
-    else if (vkey == L'R' && mods.IsCtrlPressed())
-    {
-        _action = VimActionType::toggleRowNumbers;
-        sequenceCompleted = true;
     }
     // * #
     else if ((vkey == 0x38 && mods.IsShiftPressed()) || (vkey == 0x33 && mods.IsShiftPressed()))
@@ -1400,6 +1402,7 @@ void VimModeProxy::ShowRowNumbers(bool val)
 
 int32_t VimModeProxy::ViewportRowToHighlight()
 {
+    auto lock = _terminal->LockForReading();
     const auto offset = _terminal->GetScrollOffset();
     const auto selection = _terminal->GetSelectionAnchors();
     const auto pivotIsStart = selection->start == selection->pivot;
@@ -1407,10 +1410,9 @@ int32_t VimModeProxy::ViewportRowToHighlight()
     return point.y - offset;
 }
 
-void VimModeProxy::SetRowNumberFowResize()
+void VimModeProxy::_setPosForResize(til::point pos, til::point& target) const
 {
     const auto selection = _terminal->GetSelectionAnchors();
-    const auto pos = selection->start;
     auto lineNumber = 0;
     for (auto i = 0; i < pos.y; i++)
     {
@@ -1419,26 +1421,34 @@ void VimModeProxy::SetRowNumberFowResize()
             lineNumber++;
         }
     }
-    _tempWrappedX = pos.x;
+    target.x = pos.x;
     auto y = pos.y - 1;
     const auto width = _terminal->GetTextBuffer().GetRowByOffset(y).size();
     while (_terminal->GetTextBuffer().GetRowByOffset(y).WasWrapForced())
     {
-        _tempWrappedX += width;
+        target.x += width;
         y--;
     }
 
-    _tempY = lineNumber;
-    const auto offSet = _terminal->GetScrollOffset();
-    _tempTop = pos.y - offSet;
+    target.y = lineNumber;
 }
 
-void VimModeProxy::UpdateSelectionFromResize() const
+void VimModeProxy::StoreSelectionForResize()
+{
+    const auto selection = _terminal->GetSelectionAnchors();
+    _setPosForResize(selection->start, _tempStart);
+    _setPosForResize(selection->end, _tempEnd);
+    _setPosForResize(selection->pivot, _tempPivot);
+    const auto offSet = _terminal->GetScrollOffset();
+    _tempTop = selection->start.y - offSet;
+}
+
+til::point VimModeProxy::_updateFromResize(til::point from) const
 {
     auto selection = _terminal->GetSelectionAnchors();
     auto lineNumber = 0;
     auto i = 0;
-    while (lineNumber < _tempY)
+    while (lineNumber < from.y)
     {
         if (!_terminal->GetTextBuffer().GetRowByOffset(i).WasWrapForced())
         {
@@ -1448,15 +1458,21 @@ void VimModeProxy::UpdateSelectionFromResize() const
     }
 
     const auto width = _terminal->GetTextBuffer().GetRowByOffset(i).size();
-    til::CoordType extraI = _tempWrappedX / width;
-    til::CoordType x = _tempWrappedX % width;
+    til::CoordType extraI = from.x / width;
+    til::CoordType x = from.x % width;
 
     const auto point = til::point{ x, i + extraI };
-    selection->start = point;
-    selection->end = point;
-    selection->pivot = point;
+    return point;
+}
+
+void VimModeProxy::UpdateSelectionFromResize() const
+{
+    auto selection = _terminal->GetSelectionAnchors();
+    selection->start = _updateFromResize(_tempStart);
+    selection->pivot = _updateFromResize(_tempPivot);
+    selection->end = _updateFromResize(_tempEnd);
     _terminal->SetSelectionAnchors(selection);
-    _terminal->UserScrollViewport(i + extraI - _tempTop);
+    _terminal->UserScrollViewport(selection->start.y - _tempTop);
 }
 
 bool VimModeProxy::_FindChar(std::wstring_view vkey, bool isTil, til::point& target) const

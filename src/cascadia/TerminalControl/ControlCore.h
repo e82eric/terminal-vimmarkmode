@@ -451,6 +451,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool IsInVimMode();
         void EnterQuickSelectMode(const winrt::hstring& text, bool copy);
         void ToggleRowNumberMode(bool on);
+        Windows::Foundation::Collections::IVector<int32_t> GetRowNumbers();
         void ToggleRowNumberMode();
         bool ShowRowNumbers();
         int32_t ViewportRowNumberToHighlight();

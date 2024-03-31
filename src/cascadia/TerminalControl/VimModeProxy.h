@@ -112,10 +112,12 @@ public:
     bool ShowRowNumbers();
     void ShowRowNumbers(bool val);
     int32_t ViewportRowToHighlight();
-    void SetRowNumberFowResize();
+    void StoreSelectionForResize();
     void UpdateSelectionFromResize() const;
 
 private:
+    til::point _updateFromResize(til::point from) const;
+    void _setPosForResize(til::point pos, til::point& target) const;
     VimMode _getVimMode();
     void _findChar(std::wstring_view vkey, bool isVisual);
     void _tilChar(std::wstring_view vkey, bool isVisual);
@@ -139,7 +141,7 @@ private:
     void _selectPageDown(bool isVisual);
     void _selectCharRight(bool isVisual);
     void _selectCharLeft(bool isVisual);
-    void _selectDown(bool isVisual);
+    void _selectDown(bool isVisual, til::CoordType lastY);
     void _selectUp(bool isVisual);
     bool _executeVimSelection(
         const VimActionType action,
@@ -169,11 +171,10 @@ private:
     Search* _searcher;
     std::wstring _wordDelimiters = L"/\\()\"'-.,:;<>~!@#$%^&*|+=[]{}~?│";
 
-    til::CoordType _tempY = 0;
-    til::CoordType _tempEndY = 0;
-    til::CoordType _tempWrappedX = 0;
-    til::CoordType _tempWrappedEndX = 0;
     til::CoordType _tempTop = 0;
+    til::point _tempStart;
+    til::point _tempEnd;
+    til::point _tempPivot;
     bool _showRowNumbers = false;
     void _enterVimMode();
     VimTextObjectType _textObject = VimTextObjectType::none;

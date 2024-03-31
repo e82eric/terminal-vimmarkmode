@@ -2407,15 +2407,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         if (_core.ShowRowNumbers())
         {
-            auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
-
-            auto viewHeight = _core.ViewHeight();
             std::wstring numbers;
             std::wstring numStr;
-            for (int i = 0; i < viewHeight; ++i)
+            auto rowNumbers = _core.GetRowNumbers();
+            for (auto i : rowNumbers)
             {
-                auto num = abs(i - cursorViewportRow);
-                numStr = std::to_wstring(num);
+                numStr = std::to_wstring(i);
                 numbers += numStr + L"\r\n";
             }
 
