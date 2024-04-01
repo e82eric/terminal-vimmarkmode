@@ -52,26 +52,40 @@ public:
         word = 2,
         largeWord = 3,
         line = 4,
-        inSquareBracePair = 8,
-        inRoundBracePair = 9,
-        inDoubleQuotePair = 10,
-        inSingleQuotePair = 11,
-        inAngleBracketPair = 12,
-        aroundSquareBracePair = 13,
-        aroundRoundBracePair = 14,
-        aroundDoubleQuotePair = 15,
-        aroundSingleQuotePair = 16,
-        aroundAngleBracketPair = 17,
-        tilChar = 18,
-        findChar = 19,
-        tilCharReverse = 20,
-        findCharReverse = 21,
-        inWord = 22,
-        inLargeWord = 23,
-        entireLine = 24,
-        centerOfScreen = 25,
-        topOfScreen = 26,
-        bottomOfScreen = 27
+        startSquareBracePair = 5,
+        startRoundBracePair = 6,
+        startDoubleQuotePair = 7,
+        startSingleQuotePair = 8,
+        startAngleBracketPair = 9,
+        startCurlyBracePair = 10,
+        endSquareBracePair = 11,
+        endRoundBracePair = 12,
+        endDoubleQuotePair = 13,
+        endSingleQuotePair = 14,
+        endAngleBracketPair = 15,
+        endCurlyBracePair = 16,
+        inSquareBracePair = 17,
+        inRoundBracePair = 18,
+        inDoubleQuotePair = 19,
+        inSingleQuotePair = 20,
+        inAngleBracketPair = 21,
+        inCurlyBracePair = 22,
+        aroundSquareBracePair = 23,
+        aroundRoundBracePair = 24,
+        aroundDoubleQuotePair = 25,
+        aroundSingleQuotePair = 26,
+        aroundAngleBracketPair = 27,
+        aroundCurlyBracePair = 28,
+        tilChar = 29,
+        findChar = 30,
+        tilCharReverse = 31,
+        findCharReverse = 32,
+        inWord = 33,
+        inLargeWord = 34,
+        entireLine = 35,
+        centerOfScreen = 36,
+        topOfScreen = 37,
+        bottomOfScreen = 38
     };
 
     enum class VimMotionType : int32_t
@@ -123,6 +137,7 @@ private:
     void _tilChar(std::wstring_view vkey, bool isVisual);
     void _findCharBack(std::wstring_view vkey, bool isVisual);
     void _tilCharBack(std::wstring_view vkey, bool isVisual);
+    void _matchingChar(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual);
     void _inDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
     void _selectWordRight(bool isVisual, bool isLargeWord);
     void _selectWordLeft(bool isVisual, bool isLargeWord);
@@ -154,6 +169,7 @@ private:
     bool _FindChar(std::wstring_view vkey, bool isTil, til::point& target) const;
     bool _FindCharBack(std::wstring_view vkey, bool isTil, til::point& target);
     void _UpdateSelection(bool isVisual, til::point adjusted);
+    std::tuple<bool, til::point, til::point> _findBlock(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter);
     void _InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
     void _InWord(til::point& pos, std::wstring_view delimiters);
     std::pair<til::point, bool> _GetStartOfNextWord(const til::point target, const std::wstring_view wordDelimiters) const;
