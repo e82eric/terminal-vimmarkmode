@@ -42,7 +42,8 @@ public:
         toggleRowNumbers,
         enterQuickSelectMode,
         enterQuickCopyMode,
-        enterBlockSelectionMode
+        enterBlockSelectionMode,
+        swapPivot
     };
 
     enum class VimTextObjectType : int32_t
@@ -138,6 +139,9 @@ private:
     void _findCharBack(std::wstring_view vkey, bool isVisual);
     void _tilCharBack(std::wstring_view vkey, bool isVisual);
     void _matchingChar(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual);
+    void _matchingChar(til::point pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock);
+    void _matchingCharFromStart(til::point pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual);
+    void _matchingCharFromEnd(til::point pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual);
     void _inDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
     void _selectWordRight(bool isVisual, bool isLargeWord);
     void _selectWordLeft(bool isVisual, bool isLargeWord);
@@ -169,8 +173,8 @@ private:
     bool _FindChar(std::wstring_view vkey, bool isTil, til::point& target) const;
     bool _FindCharBack(std::wstring_view vkey, bool isTil, til::point& target);
     void _UpdateSelection(bool isVisual, til::point adjusted);
-    std::tuple<bool, til::point, til::point> _findBlock(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter);
-    void _InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
+    std::tuple<bool, til::point, til::point> _findBlockEndFromStart(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter) const;
+    std::tuple<bool, til::point, til::point> _findBlockStartFromEnd(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter) const;
     void _InWord(til::point& pos, std::wstring_view delimiters);
     std::pair<til::point, bool> _GetStartOfNextWord(const til::point target, const std::wstring_view wordDelimiters) const;
     std::pair<til::point, bool> _GetEndOfWord(const til::point target, const std::wstring_view wordDelimiters) const;

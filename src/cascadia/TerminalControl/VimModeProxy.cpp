@@ -47,39 +47,150 @@ void VimModeProxy::_tilCharBack(std::wstring_view vkey, bool isVisual)
 
 void VimModeProxy::_matchingChar(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual)
 {
-    auto selection = _terminal->GetSelectionAnchors();
-    const auto findBlockResult = _findBlock(selection->start, startDelimiter, endDelimiter);
-    if (std::get<0>(findBlockResult))
+    const auto selection = _terminal->GetSelectionAnchors();
+    const auto pos = selection->start == selection->pivot ? selection->end : selection->start;
+    if (onStartDelimiter)
     {
+        _matchingCharFromStart(pos, startDelimiter, endDelimiter, isVisual);
+    }
+    else
+    {
+        _matchingCharFromEnd(pos, startDelimiter, endDelimiter, isVisual);
+    }
+}
+
+void VimModeProxy::_matchingCharFromStart(til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual)
+{
+    auto selection = _terminal->GetSelectionAnchors();
+    const std::tuple<bool, til::point, til::point> findResult = _findBlockEndFromStart(startPos, startDelimiter, endDelimiter);
+    if (std::get<0>(findResult))
+    {
+        const auto pairEnd = std::get<2>(findResult);
         if (isVisual)
         {
-            selection->start = std::get<1>(findBlockResult);
-            selection->pivot = std::get<1>(findBlockResult);
-            selection->end = std::get<2>(findBlockResult);
-        }
-        else
-        {
-            til::point pos;
-            if (onStartDelimiter)
+            if (selection->end >= pairEnd)
             {
-                pos = std::get<2>(findBlockResult);
+                selection->start = pairEnd;
+                selection->pivot = selection->end;
             }
             else
             {
-                pos = std::get<1>(findBlockResult);
+                selection->end = pairEnd;
+                selection->pivot = selection->start;
             }
-            selection->start = pos;
-            selection->pivot = pos;
-            selection->end = pos;
         }
+        else
+        {
+            selection->start = pairEnd;
+            selection->end = pairEnd;
+            selection->pivot = selection->start;
+        }
+        _terminal->SetSelectionAnchors(selection);
+    }
+}
+
+void VimModeProxy::_matchingCharFromEnd(til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual)
+{
+    auto selection = _terminal->GetSelectionAnchors();
+    const std::tuple<bool, til::point, til::point> findResult = _findBlockStartFromEnd(startPos, startDelimiter, endDelimiter);
+    if (std::get<0>(findResult))
+    {
+        const auto pairStart = std::get<1>(findResult);
+        if (isVisual)
+        {
+            if (selection->start < pairStart)
+            {
+                selection->end = pairStart;
+                selection->pivot = selection->start;
+            }
+            else
+            {
+                selection->start = pairStart;
+                selection->pivot = selection->end;
+            }
+        }
+        else
+        {
+            selection->start = pairStart;
+            selection->end = pairStart;
+            selection->pivot = pairStart;
+        }
+        _terminal->SetSelectionAnchors(selection);
+    }
+}
+
+void VimModeProxy::_matchingChar(til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock)
+{
+    auto selection = _terminal->GetSelectionAnchors();
+    std::tuple<bool, til::point, til::point> findResult;
+    if (onStartDelimiter)
+    {
+        findResult = _findBlockEndFromStart(startPos, startDelimiter, endDelimiter);
+    }
+    else
+    {
+        findResult = _findBlockStartFromEnd(startPos, startDelimiter, endDelimiter);
+    }
+    if (std::get<0>(findResult))
+    {
+        selection->start = std::get<1>(findResult);
+        selection->end = std::get<2>(findResult);
+        if (inBlock)
+        {
+            if (selection->end.x == 0)
+            {
+                selection->end.y--;
+                selection->end.x = _terminal->GetTextBuffer().GetRowByOffset(selection->end.y).GetLastNonSpaceColumn() - 1;
+            }
+            else
+            {
+                selection->end.x--;
+            }
+            if (selection->start.x >= _terminal->GetTextBuffer().GetRowByOffset(selection->end.y).GetLastNonSpaceColumn() - 1)
+            {
+                selection->start.y++;
+                selection->start.x = 0;
+            }
+            else
+            {
+                selection->start.x++;
+            }
+        }
+        selection->pivot = selection->end;
         _terminal->SetSelectionAnchors(selection);
     }
 }
 
 void VimModeProxy::_inDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
 {
-    auto selection = _terminal->GetSelectionAnchors();
-    _InDelimiter(selection->start, startDelimiter, endDelimiter, includeDelimiter);
+    const auto selection = _terminal->GetSelectionAnchors();
+    const auto pos = selection->start == selection->pivot ? selection->end : selection->start;
+
+    auto numberOfInnerPairs = 0;
+    for (auto j = pos.y; j >= 0; j--)
+    {
+        auto x = j == pos.y ? pos.x : _terminal->GetTextBuffer().GetRowByOffset(j).size();
+        for (auto i = x; i >= 0; i--)
+        {
+            auto g = _terminal->GetTextBuffer().GetRowByOffset(j).GlyphAt(i);
+            if (g ==endDelimiter)
+            {
+                numberOfInnerPairs++;
+            }
+            else if (g == startDelimiter)
+            {
+                if (numberOfInnerPairs > 0)
+                {
+                    numberOfInnerPairs--;
+                }
+                else
+                {
+                    _matchingChar(til::point{ i, j }, startDelimiter, endDelimiter, true, !includeDelimiter);
+                    return;
+                }
+            }
+        }
+    }
 }
 
 void VimModeProxy::_selectWordRight(bool isVisual, bool isLargeWord)
@@ -207,7 +318,7 @@ void VimModeProxy::_selectLineRight(bool isVisual)
         auto maxNonSpaceChar = 0;
         for (auto i = selection->start.y; i <= selection->end.y; i++)
         {
-            auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(i).GetLastNonSpaceColumn() - 1);
+            const auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(i).GetLastNonSpaceColumn() - 1);
             if (lastNonSpaceColumn > maxNonSpaceChar)
             {
                 maxNonSpaceChar = lastNonSpaceColumn;
@@ -219,13 +330,14 @@ void VimModeProxy::_selectLineRight(bool isVisual)
     }
     else
     {
-        til::CoordType endLine = selection->end.y;
+        const auto pos = selection->pivot == selection->start ? selection->end : selection->start;
+        til::CoordType endLine = pos.y;
         while (_terminal->GetTextBuffer().GetRowByOffset(endLine).WasWrapForced())
         {
             endLine++;
         }
 
-        auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() - 1);
+        const auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() - 1);
         auto s = til::point{ lastNonSpaceColumn, endLine };
         _UpdateSelection(isVisual, s);
     }
@@ -244,7 +356,8 @@ til::CoordType _getStartLineOfRow2(TextBuffer& textBuffer, til::CoordType row)
 void VimModeProxy::_selectLineLeft(bool isVisual)
 {
     auto selection = _terminal->GetSelectionAnchors();
-    til::CoordType startLine = _getStartLineOfRow2(_terminal->GetTextBuffer(), selection->end.y);
+    const auto pos = selection->pivot == selection->start ? selection->end : selection->start;
+    til::CoordType startLine = _getStartLineOfRow2(_terminal->GetTextBuffer(), pos.y);
     if (_terminal->IsBlockSelection())
     {
         startLine = selection->start.y == selection->pivot.y ? selection->end.y : selection->start.y;
@@ -549,25 +662,26 @@ bool VimModeProxy::_executeVimSelection(
 
     for (int i = 0; i < times; i++)
     {
+        auto pairIsVisual = isVisual || _vimMode == VimMode::visualLine;
         switch (textObject)
         {
         case VimTextObjectType::startCurlyBracePair:
-            _matchingChar(L"{", L"}", true, isVisual);
+            _matchingChar(L"{", L"}", true, pairIsVisual);
             break;
         case VimTextObjectType::startRoundBracePair:
-            _matchingChar(L"(", L")", true, isVisual);
+            _matchingChar(L"(", L")", true, pairIsVisual);
             break;
         case VimTextObjectType::startSquareBracePair:
-            _matchingChar(L"[", L"]", true, isVisual);
+            _matchingChar(L"[", L"]", true, pairIsVisual);
             break;
         case VimTextObjectType::endCurlyBracePair:
-            _matchingChar(L"{", L"}", false, isVisual);
+            _matchingChar(L"{", L"}", false, pairIsVisual);
             break;
         case VimTextObjectType::endRoundBracePair:
-            _matchingChar(L"(", L")", false, isVisual);
+            _matchingChar(L"(", L")", false, pairIsVisual);
             break;
         case VimTextObjectType::endSquareBracePair:
-            _matchingChar(L"[", L"]", false, isVisual);
+            _matchingChar(L"[", L"]", false, pairIsVisual);
             break;
         case VimTextObjectType::inCurlyBracePair:
             _inDelimiter(L"{", L"}", false);
@@ -759,6 +873,13 @@ bool VimModeProxy::_executeVimSelection(
 
     switch (action)
     {
+    case VimActionType::swapPivot:
+    {
+        auto selection = _terminal->GetSelectionAnchors();
+        selection->pivot = selection->pivot == selection->start ? selection->end : selection->start;
+        _terminal->SetSelectionAnchors(selection);
+        break;
+    }
     case VimActionType::enterQuickCopyMode:
     case VimActionType::enterQuickSelectMode:
         ResetVimState();
@@ -928,6 +1049,47 @@ bool VimModeProxy::TryVimModeKeyBinding(
         _action = VimActionType::enterBlockSelectionMode;
         sequenceCompleted = true;
     }
+    // '%'
+    else if (vkey == 0x35)
+    {
+        const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
+        if (bufferData.plainText.size() > 0)
+        {
+            auto selection = _terminal->GetSelectionAnchors();
+            auto pos = selection->start == selection->pivot ? selection->end : selection->start;
+            auto firstChar = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(pos.x)[0];
+            if (firstChar == L'(')
+            {
+                _textObject = VimTextObjectType::startRoundBracePair;
+                sequenceCompleted = true;
+            }
+            else if (firstChar == L')')
+            {
+                _textObject = VimTextObjectType::endRoundBracePair;
+                sequenceCompleted = true;
+            }
+            else if (firstChar == L'{')
+            {
+                _textObject = VimTextObjectType::startCurlyBracePair;
+                sequenceCompleted = true;
+            }
+            else if (firstChar == L'}')
+            {
+                _textObject = VimTextObjectType::endCurlyBracePair;
+                sequenceCompleted = true;
+            }
+            else if (firstChar == L'[')
+            {
+                _textObject = VimTextObjectType::startSquareBracePair;
+                sequenceCompleted = true;
+            }
+            else if (firstChar == L']')
+            {
+                _textObject = VimTextObjectType::endSquareBracePair;
+                sequenceCompleted = true;
+            }
+        }
+    }
     else if (_vimMode == VimMode::visualLine)
     {
         _textObject = VimTextObjectType::entireLine;
@@ -1015,45 +1177,6 @@ bool VimModeProxy::TryVimModeKeyBinding(
             }
         }
     }
-    // '%'
-    else if (vkey == 0x35)
-    {
-        const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
-        if (bufferData.plainText.size() > 0)
-        {
-            auto firstChar = bufferData.plainText[0];
-            if (firstChar == L'(')
-            {
-                _textObject = VimTextObjectType::startRoundBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L')')
-            {
-                _textObject = VimTextObjectType::endRoundBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L'{')
-            {
-                _textObject = VimTextObjectType::startCurlyBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L'}')
-            {
-                _textObject = VimTextObjectType::endCurlyBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L'[')
-            {
-                _textObject = VimTextObjectType::startSquareBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L']')
-            {
-                _textObject = VimTextObjectType::endSquareBracePair;
-                sequenceCompleted = true;
-            }
-        }
-    }
     else if (vkey == L' ')
     {
         if (_leaderSequence)
@@ -1096,6 +1219,12 @@ bool VimModeProxy::TryVimModeKeyBinding(
         hideMarkers = true;
 
         _action = VimActionType::search;
+    }
+    else if (vkey == L'O' && _vimMode == VimMode::visual)
+    {
+        _action = VimActionType::swapPivot;
+        _textObject = VimTextObjectType::none;
+        sequenceCompleted = true;
     }
     else if (vkey == L'Q' && mods.IsCtrlPressed())
     {
@@ -1715,70 +1844,97 @@ void VimModeProxy::_UpdateSelection(bool isVisual, til::point adjusted)
     _terminal->SetSelectionAnchors(selection);
 }
 
-std::tuple<bool, til::point, til::point> VimModeProxy::_findBlock(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter)
+std::tuple<bool, til::point, til::point> VimModeProxy::_findBlockEndFromStart(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter) const
 {
-    til::CoordType startX = -1;
     til::CoordType endX = -1;
+    til::CoordType endY = -1;
 
-    for (auto i = 0; i < _terminal->GetTextBuffer().GetRowByOffset(pos.y).size(); i++)
+    auto innerPairs = 0;
+    auto lastNonSpaceChar = _terminal->GetTextBuffer().GetLastNonSpaceCharacter();
+    auto found = false;
+    for (auto j = pos.y; j <= lastNonSpaceChar.y; j++)
     {
-        auto g = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(i);
-        if (g == startDelimiter && startX == -1)
+        const auto startX = pos.y == j ? pos.x + 1 : 0;
+        for (auto i = startX; i < _terminal->GetTextBuffer().GetRowByOffset(j).size(); i++)
         {
-            if (startX > i)
+            auto g = _terminal->GetTextBuffer().GetRowByOffset(j).GlyphAt(i);
+            if (g == startDelimiter)
             {
-                return std::make_tuple<bool, til::point, til::point>(false, {}, {});
+                innerPairs++;
             }
-            else
+            else if (g == endDelimiter)
             {
-                startX = i;
-                endX = -1;
+                if (innerPairs > 0)
+                {
+                    innerPairs--;
+                }
+                else
+                {
+                    found = true;
+                    endX = i;
+                    endY = j;
+                    break;
+                }
             }
         }
-        else if (g == endDelimiter && startX != -1)
+        if (found)
         {
-            if (i >= pos.x)
-            {
-                endX = i;
-                break;
-            }
-            startX = -1;
-            endX = -1;
+            break;
         }
     }
 
-    if (startX == -1 || endX == -1)
+    if (!found)
     {
         return std::make_tuple<bool, til::point, til::point>(false, {}, {});
     }
 
-    return std::make_tuple<bool, til::point, til::point>(true, til::point{ startX, pos.y }, til::point{ endX, pos.y });
+    return std::make_tuple<bool, til::point, til::point>(true, til::point{ pos.x, pos.y }, til::point{ endX, endY });
 }
 
-void VimModeProxy::_InDelimiter(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
+std::tuple<bool, til::point, til::point> VimModeProxy::_findBlockStartFromEnd(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter) const
 {
-    const auto foundBlockResult = _findBlock(pos, startDelimiter, endDelimiter);
-    if (!std::get<0>(foundBlockResult))
+    til::CoordType startX = -1;
+    til::CoordType startY = -1;
+    auto found = false;
+
+    auto innerPairs = 0;
+    for (auto j = pos.y; j >= 0; j--)
     {
-        return;
+        const auto x = pos.y == j ? pos.x - 1 : _terminal->GetTextBuffer().GetRowByOffset(j).size();
+        for (auto i = x; i >= 0; i--)
+        {
+            auto g = _terminal->GetTextBuffer().GetRowByOffset(j).GlyphAt(i);
+            if (g == endDelimiter)
+            {
+                innerPairs++;
+            }
+            else if (g == startDelimiter)
+            {
+                if (innerPairs > 0)
+                {
+                    innerPairs--;
+                }
+                else
+                {
+                    startX = i;
+                    startY = j;
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (found)
+        {
+            break;
+        }
     }
 
-    const auto start = std::get<1>(foundBlockResult);
-    const auto end = std::get<2>(foundBlockResult);
+    if (startX == -1)
+    {
+        return std::make_tuple<bool, til::point, til::point>(false, {}, {});
+    }
 
-    auto selection = _terminal->GetSelectionAnchors();
-    if (includeDelimiter)
-    {
-        selection->start = til::point{ start.x, pos.y };
-        selection->end = til::point{ end.x, pos.y };
-    }
-    else
-    {
-        selection->start = til::point{ start.x + 1, pos.y };
-        selection->end = til::point{ end.x - 1, pos.y };
-    }
-    selection->pivot = selection->start;
-    _terminal->SetSelectionAnchors(selection);
+    return std::make_tuple<bool, til::point, til::point>(true, til::point{ startX, startY }, til::point{ pos.x, pos.y });
 }
 
 std::pair<til::point, bool> VimModeProxy::_GetEndOfWord(const til::point target, const std::wstring_view wordDelimiters) const
