@@ -1595,6 +1595,11 @@ std::optional<std::tuple<til::point, til::point>> Terminal::GetViewportSelection
     return std::make_tuple(til::point{ rect.left, rect.top }, til::point{ rect.right, rect.bottom });
 }
 
+void Terminal::SerializeMainBuffer(const wchar_t* destination) const
+{
+    _mainBuffer->Serialize(destination);
+}
+
 void Terminal::ColorSelection(const TextAttribute& attr, winrt::Microsoft::Terminal::Core::MatchMode matchMode)
 {
     const auto colorSelection = [this](const til::point coordStart, const til::point coordEnd, const TextAttribute& attr) {
