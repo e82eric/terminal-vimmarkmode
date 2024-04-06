@@ -32,7 +32,7 @@ bool QuickSelectHandler::Enabled()
     return _quickSelectAlphabet->Enabled();
 }
 
-void QuickSelectHandler::HandleChar(uint32_t vkey, Microsoft::Console::Render::Renderer* renderer)
+void QuickSelectHandler::HandleChar(uint32_t vkey, bool isShiftPressed, Microsoft::Console::Render::Renderer* renderer, winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection& connection)
 {
     if (vkey == VK_ESCAPE)
     {
@@ -71,7 +71,19 @@ void QuickSelectHandler::HandleChar(uint32_t vkey, Microsoft::Console::Render::R
             auto startPoint = std::get<0>(quickSelectResult.value());
             auto endPoint = std::get<1>(quickSelectResult.value());
 
-            if (!_copyMode)
+            if (isShiftPressed)
+            {
+                _quickSelectAlphabet->Enabled(false);
+                _quickSelectAlphabet->ClearChars();
+                const auto req = TextBuffer::CopyRequest::FromConfig(_terminal->GetTextBuffer(), startPoint, endPoint, true, false, false);
+                const auto text = _terminal->GetTextBuffer().GetPlainText(req);
+                connection.WriteInput(text);
+                _terminal->ClearSelection();
+                renderer->TriggerSelection();
+                renderer->TriggerRedrawAll();
+                renderer->NotifyPaintFrame();
+            }
+            else if (!_copyMode)
             {
                 _quickSelectAlphabet->Enabled(false);
                 _quickSelectAlphabet->ClearChars();

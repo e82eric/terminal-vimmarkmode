@@ -30,5 +30,5 @@ public:
                               Search& searcher,
                               Microsoft::Console::Render::Renderer* renderer);
     bool Enabled();
-    void HandleChar(uint32_t vkey, Microsoft::Console::Render::Renderer* renderer);
+    void HandleChar(uint32_t vkey, bool isShiftPressed, Microsoft::Console::Render::Renderer* renderer, winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection &connection);
 };
