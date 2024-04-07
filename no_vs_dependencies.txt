@@ -1,0 +1,6 @@
+Windows SDK
+Visual Studio Build Tools
+- Desktop Development with c++
+- dotnet desktop build tools
+- UWP build tools
+Install Powershell 7
