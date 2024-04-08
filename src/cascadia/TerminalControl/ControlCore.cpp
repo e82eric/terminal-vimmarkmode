@@ -571,7 +571,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (_renderer)
             {
-                _quickSelectHandler->HandleChar(vkey, mods.IsShiftPressed(), _renderer.get(), _connection);
+                _quickSelectHandler->HandleChar(vkey, mods, _renderer.get(), _connection);
             }
             return true;
         }

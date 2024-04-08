@@ -19,6 +19,7 @@ private:
     bool _copyMode = false;
     std::shared_ptr<VimModeProxy> _vimProxy;
     std::shared_ptr<QuickSelectAlphabet> _quickSelectAlphabet;
+    void _exitQuickSelectMode(Microsoft::Console::Render::Renderer* renderer) const;
 
 public:
     QuickSelectHandler(
@@ -30,5 +31,5 @@ public:
                               Search& searcher,
                               Microsoft::Console::Render::Renderer* renderer);
     bool Enabled();
-    void HandleChar(uint32_t vkey, bool isShiftPressed, Microsoft::Console::Render::Renderer* renderer, winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection &connection);
+    void HandleChar(uint32_t vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods, Microsoft::Console::Render::Renderer* renderer, winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection &connection);
 };

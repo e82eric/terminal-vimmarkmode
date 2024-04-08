@@ -32,7 +32,7 @@ bool QuickSelectHandler::Enabled()
     return _quickSelectAlphabet->Enabled();
 }
 
-void QuickSelectHandler::HandleChar(uint32_t vkey, bool isShiftPressed, Microsoft::Console::Render::Renderer* renderer, winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection& connection)
+void QuickSelectHandler::HandleChar(uint32_t vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods, Microsoft::Console::Render::Renderer* renderer, winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection& connection)
 {
     if (vkey == VK_ESCAPE)
     {
@@ -58,36 +58,30 @@ void QuickSelectHandler::HandleChar(uint32_t vkey, bool isShiftPressed, Microsof
     }
 
     keyboardState[VK_SHIFT] = 0x80;
+    keyboardState[VK_CONTROL] = 0x00;
     ToUnicode(vkey, MapVirtualKey(vkey, MAPVK_VK_TO_VSC), keyboardState, vkeyText, 2, 0);
 
     _quickSelectAlphabet->AppendChar(vkeyText);
 
     if (_quickSelectAlphabet->AllCharsSet(_terminal->NumberOfVisibleSearchSelections()))
     {
-        auto index = _quickSelectAlphabet->GetIndexForChars();
-        auto quickSelectResult = _terminal->GetViewportSelectionAtIndex(index);
+        const auto index = _quickSelectAlphabet->GetIndexForChars();
+        const auto quickSelectResult = _terminal->GetViewportSelectionAtIndex(index);
         if (quickSelectResult.has_value())
         {
-            auto startPoint = std::get<0>(quickSelectResult.value());
-            auto endPoint = std::get<1>(quickSelectResult.value());
+            const auto startPoint = std::get<0>(quickSelectResult.value());
+            const auto endPoint = std::get<1>(quickSelectResult.value());
 
-            if (isShiftPressed)
+            if (mods.IsShiftPressed())
             {
-                _quickSelectAlphabet->Enabled(false);
-                _quickSelectAlphabet->ClearChars();
                 const auto req = TextBuffer::CopyRequest::FromConfig(_terminal->GetTextBuffer(), startPoint, endPoint, true, false, false);
                 const auto text = _terminal->GetTextBuffer().GetPlainText(req);
                 connection.WriteInput(text);
-                _terminal->ClearSelection();
-                renderer->TriggerSelection();
-                renderer->TriggerRedrawAll();
-                renderer->NotifyPaintFrame();
+                _exitQuickSelectMode(renderer);
             }
-            else if (!_copyMode)
+            else if (!_copyMode && !mods.IsCtrlPressed())
             {
-                _quickSelectAlphabet->Enabled(false);
-                _quickSelectAlphabet->ClearChars();
-                _terminal->ClearSelection();
+                _exitQuickSelectMode(renderer);
                 _vimProxy->EnterVimMode();
                 _terminal->SelectChar(startPoint);
                 renderer->TriggerSelection();
@@ -102,20 +96,29 @@ void QuickSelectHandler::HandleChar(uint32_t vkey, bool isShiftPressed, Microsof
                     std::this_thread::sleep_for(std::chrono::milliseconds(250));
                     {
                         auto lock = _terminal->LockForWriting();
-                        _quickSelectAlphabet->Enabled(false);
-                        _quickSelectAlphabet->ClearChars();
-                        _terminal->ClearSelection();
                         //This isn't technically safe.  There is a slight chance that the renderer is deleted
                         //I think the fix is to make the renderer a shared pointer but I am not ready to mess with change core terminal stuff
-                        renderer->TriggerSelection();
-                        renderer->TriggerRedrawAll();
-                        renderer->NotifyPaintFrame();
+                        _exitQuickSelectMode(renderer);
                     }
                 });
                 hideTimerThread.detach();
             }
         }
+        else
+        {
+            _exitQuickSelectMode(renderer);
+        }
     }
+    renderer->TriggerRedrawAll();
+    renderer->NotifyPaintFrame();
+}
+
+void QuickSelectHandler::_exitQuickSelectMode(Microsoft::Console::Render::Renderer* renderer) const
+{
+    _quickSelectAlphabet->Enabled(false);
+    _quickSelectAlphabet->ClearChars();
+    _terminal->ClearSelection();
+    renderer->TriggerSelection();
     renderer->TriggerRedrawAll();
     renderer->NotifyPaintFrame();
 }
