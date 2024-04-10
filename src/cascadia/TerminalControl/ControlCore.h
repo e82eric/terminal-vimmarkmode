@@ -458,6 +458,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void CloseFuzzySearchNoSelection();
         void StartFuzzySearch(std::wstring_view needle);
         Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
+        void UpdateBar();
         void UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence);
         void ExitVim();
         void EnterVimModeWithSearch();

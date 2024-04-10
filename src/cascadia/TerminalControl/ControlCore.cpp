@@ -571,7 +571,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (_renderer)
             {
-                _quickSelectHandler->HandleChar(vkey, mods, _renderer.get(), _connection);
+                _quickSelectHandler->HandleChar(vkey, mods, _renderer.get(), _connection, this);
             }
             return true;
         }
@@ -3060,6 +3060,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, static_cast<int32_t>(fuzzySearchResultRows.size()), static_cast<int32_t>(searchResults.Size()));
         return fuzzySearchResult;
     }
+
+    void ControlCore::UpdateBar()
+    {
+        const auto mode = _vimProxy->IsInVimMode() ? L"Normal" : _quickSelectHandler->Enabled() ? L"QuickSelect" : L"Shell";
+
+        _VimTextChangedHandlers(
+            *this,
+            winrt::make<implementation::VimTextChangedEventArgs>(
+                winrt::hstring{ L"" },
+                winrt::hstring{ L"" },
+                winrt::hstring{ mode }));
+    }
     
     void ControlCore::UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence)
     {
@@ -3103,7 +3115,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         const auto lock = _terminal->LockForWriting();
-        _quickSelectHandler->EnterQuickSelectMode(text, copy, _searcher, _renderer.get());
+        _quickSelectHandler->EnterQuickSelectMode(text, copy, _searcher, _renderer.get(), this);
     }
 
     void ControlCore::ToggleRowNumberMode()

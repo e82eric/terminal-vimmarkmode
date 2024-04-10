@@ -865,11 +865,11 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                     }
 
                     //Override all formating to make it easier to see whats selectable and not
-                    origAttr.SetDefaultForeground();
+                    origAttr.SetForeground(0xFF545C66);
                     origAttr.SetDefaultBackground();
                     if (isHighlight)
                     {
-                        origAttr.SetBackground(0xff3c3836);
+                        origAttr.SetForeground(0xff8499a8);
                         auto overlayOffset = screenPoint.x + cols - overlay.selection.Left();
                         if (overlayOffset < overlay.chars.size())
                         {

@@ -18,13 +18,15 @@ void QuickSelectHandler::EnterQuickSelectMode(
     std::wstring_view text,
     bool copyMode,
     Search& searcher,
-    Microsoft::Console::Render::Renderer* renderer)
+    Microsoft::Console::Render::Renderer* renderer,
+    winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore)
 {
     _quickSelectAlphabet->Enabled(true);
     _copyMode = copyMode;
     searcher.QuickSelectRegex(*_terminal, text, true);
     searcher.HighlightResults();
     renderer->TriggerSelection();
+    controlCore->UpdateBar();
 }
 
 bool QuickSelectHandler::Enabled()
@@ -32,7 +34,12 @@ bool QuickSelectHandler::Enabled()
     return _quickSelectAlphabet->Enabled();
 }
 
-void QuickSelectHandler::HandleChar(uint32_t vkey, const ::Microsoft::Terminal::Core::ControlKeyStates mods, Microsoft::Console::Render::Renderer* renderer, winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection& connection)
+void QuickSelectHandler::HandleChar(
+    uint32_t vkey,
+    const ::Microsoft::Terminal::Core::ControlKeyStates mods,
+    Microsoft::Console::Render::Renderer* renderer,
+    winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection& connection,
+    winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore)
 {
     if (vkey == VK_ESCAPE)
     {
@@ -40,6 +47,7 @@ void QuickSelectHandler::HandleChar(uint32_t vkey, const ::Microsoft::Terminal::
         _quickSelectAlphabet->ClearChars();
         _terminal->ClearSelection();
         renderer->TriggerSelection();
+        controlCore->UpdateBar();
         return;
     }
 
@@ -47,6 +55,7 @@ void QuickSelectHandler::HandleChar(uint32_t vkey, const ::Microsoft::Terminal::
     {
         _quickSelectAlphabet->RemoveChar();
         renderer->TriggerSelection();
+        controlCore->UpdateBar();
         return;
     }
 
@@ -111,6 +120,7 @@ void QuickSelectHandler::HandleChar(uint32_t vkey, const ::Microsoft::Terminal::
     }
     renderer->TriggerRedrawAll();
     renderer->NotifyPaintFrame();
+    controlCore->UpdateBar();
 }
 
 void QuickSelectHandler::_exitQuickSelectMode(Microsoft::Console::Render::Renderer* renderer) const
