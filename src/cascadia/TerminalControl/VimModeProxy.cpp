@@ -818,7 +818,7 @@ bool VimModeProxy::_executeVimSelection(
                 break;
             case VimMotionType::pageDown:
                 _selectPageDown(true);
-            default:
+            case VimMotionType::selectCurrentLine:
                 _selectLineLeft(false);
                 _selectLineRight(true);
                 break;
@@ -1506,6 +1506,7 @@ bool VimModeProxy::TryVimModeKeyBinding(
         if (mods.IsShiftPressed())
         {
             _vimMode = VimMode::visualLine;
+            _motion = VimMotionType::selectCurrentLine;
             _textObject = VimTextObjectType::entireLine;
             sequenceCompleted = true;
         }

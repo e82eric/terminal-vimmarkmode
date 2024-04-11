@@ -108,7 +108,8 @@ public:
         halfPageDown = 14,
         pageUp = 15,
         pageDown = 16,
-        backToFirstNonSpaceChar = 17
+        backToFirstNonSpaceChar = 17,
+        selectCurrentLine
     };
 
     VimModeProxy(
