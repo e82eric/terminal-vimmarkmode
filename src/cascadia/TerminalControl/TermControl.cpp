@@ -1504,18 +1504,38 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // - modifiers: The ControlKeyStates representing the modifier key states.
     bool TermControl::_TryHandleKeyBinding(const WORD vkey, const WORD scanCode, ::Microsoft::Terminal::Core::ControlKeyStates modifiers) const
     {
+        auto bindings = _core.Settings().KeyBindings();
+        if (!bindings)
+        {
+            return false;
+        }
+
+        if (_core.IsInVimMode())
+        {
+            if (auto success = bindings.TryVimModeKeyChord({
+                modifiers.IsCtrlPressed(),
+                modifiers.IsAltPressed(),
+                modifiers.IsShiftPressed(),
+                modifiers.IsWinPressed(),
+                vkey,
+                scanCode,
+            }))
+            {
+                return true;
+            }
+
+            if (_core.TryMarkModeKeybinding(vkey, modifiers))
+            {
+                return true;
+            }
+        }
+
         // Mark mode has a specific set of pre-defined key bindings.
         // If we're in mark mode, we should be prioritizing those over
         // the custom defined key bindings.
         if (_core.TryMarkModeKeybinding(vkey, modifiers))
         {
             return true;
-        }
-
-        auto bindings = _core.Settings().KeyBindings();
-        if (!bindings)
-        {
-            return false;
         }
 
         auto success = bindings.TryKeyChord({

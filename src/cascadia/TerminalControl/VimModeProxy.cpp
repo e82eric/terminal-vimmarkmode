@@ -1003,12 +1003,6 @@ bool VimModeProxy::TryVimModeKeyBinding(
         return true;
     }
 
-    if (vkey == L'F' && mods.IsShiftPressed() && mods.IsCtrlPressed())
-    {
-        _controlCore->StartFuzzySearch(L"");
-        return true;
-    }
-
     wchar_t vkeyText[2] = { 0 };
     BYTE keyboardState[256];
     if (!GetKeyboardState(keyboardState))
@@ -1050,7 +1044,7 @@ bool VimModeProxy::TryVimModeKeyBinding(
         sequenceCompleted = true;
     }
     // '%'
-    else if (vkey == 0x35)
+    else if (vkeyText[0] == L'%')
     {
         const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
         if (bufferData.plainText.size() > 0)
@@ -1342,6 +1336,7 @@ bool VimModeProxy::TryVimModeKeyBinding(
         }
         else if (_lastVkey[0] == L'y')
         {
+            _motion = VimMotionType::selectCurrentLine;
             _textObject = VimTextObjectType::entireLine;
             sequenceCompleted = true;
         }

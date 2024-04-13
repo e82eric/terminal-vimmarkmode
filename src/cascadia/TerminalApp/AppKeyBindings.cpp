@@ -21,6 +21,19 @@ namespace winrt::TerminalApp::implementation
         return false;
     }
 
+    bool AppKeyBindings::TryVimModeKeyChord(const KeyChord& kc)
+    {
+        if (const auto cmd{ _actionMap.GetActionByKeyChord(kc) })
+        {
+            if (cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::QuickSelect ||
+                cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::FuzzyFind)
+            {
+                return _dispatch.DoAction(cmd.ActionAndArgs());
+            }
+        }
+        return false;
+    }
+
     bool AppKeyBindings::IsKeyChordExplicitlyUnbound(const KeyChord& kc)
     {
         return _actionMap.IsKeyChordExplicitlyUnbound(kc);
