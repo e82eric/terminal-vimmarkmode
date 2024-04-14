@@ -2446,11 +2446,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_core.ShowRowNumbers())
         {
             std::wstring numbers;
-            std::wstring numStr;
-            auto rowNumbers = _core.GetRowNumbers();
-            for (auto i : rowNumbers)
+            const auto rowNumbers = _core.GetRowNumbers();
+            const auto numberOfDigits = std::to_wstring(rowNumbers.Size()).size();
+            for (const auto i : rowNumbers)
             {
-                numStr = std::to_wstring(i);
+                std::wstring numStr = std::to_wstring(i);
+                numStr = std::wstring(numberOfDigits - numStr.length(), L' ') + numStr;
                 numbers += numStr + L"\r\n";
             }
 
