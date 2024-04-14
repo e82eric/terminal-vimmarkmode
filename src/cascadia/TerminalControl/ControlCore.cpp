@@ -2993,7 +2993,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const auto fuzzySearchResultRows = _searcher.FuzzySearch(*GetRenderData(), text);
 
-        auto searchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
+        auto searchResults = winrt::single_threaded_observable_vector<Control::FuzzySearchTextLine>();
 
         for (auto p : fuzzySearchResultRows)
         {
@@ -3005,7 +3005,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             });
 
             //Covert row text to text runs
-            auto runs = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextSegment>();
+            auto runs = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
             std::wstring currentRun;
             bool isCurrentRunHighlighted = false;
             size_t highlightIndex = 0;
@@ -3018,7 +3018,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     {
                         if (!currentRun.empty())
                         {
-                            auto textSegmentHString = winrt::hstring(currentRun);
+                            auto textSegmentHString = hstring(currentRun);
                             auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
                             runs.Append(textSegment);
                             currentRun.clear();
@@ -3033,7 +3033,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     {
                         if (!currentRun.empty())
                         {
-                            winrt::hstring textSegmentHString = winrt::hstring(currentRun);
+                            hstring textSegmentHString = hstring(currentRun);
                             auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, true);
                             runs.Append(textSegment);
                             currentRun.clear();
@@ -3046,12 +3046,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             if (!currentRun.empty())
             {
-                auto textSegmentHString = winrt::hstring(currentRun);
+                auto textSegmentHString = hstring(currentRun);
                 auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, isCurrentRunHighlighted);
                 runs.Append(textSegment);
             }
 
-            auto firstPosition = p.positions[0];
+            auto firstPosition = 0;
+            if (p.positions.size() > 0)
+            {
+                firstPosition = p.positions[0];
+            }
             auto line = winrt::make<FuzzySearchTextLine>(runs, p.startRowNumber, firstPosition);
 
             searchResults.Append(line);
