@@ -38,7 +38,6 @@ void QuickSelectHandler::HandleChar(
     uint32_t vkey,
     const ::Microsoft::Terminal::Core::ControlKeyStates mods,
     Microsoft::Console::Render::Renderer* renderer,
-    winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection& connection,
     winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore)
 {
     if (vkey == VK_ESCAPE)
@@ -85,8 +84,9 @@ void QuickSelectHandler::HandleChar(
             {
                 const auto req = TextBuffer::CopyRequest::FromConfig(_terminal->GetTextBuffer(), startPoint, endPoint, true, false, false);
                 const auto text = _terminal->GetTextBuffer().GetPlainText(req);
-                connection.WriteInput(text);
                 _exitQuickSelectMode(renderer);
+                const auto suspension = _terminal->SuspendLock();
+                controlCore->SendInput(winrt::hstring{text});
             }
             else if (!_copyMode && !mods.IsCtrlPressed())
             {

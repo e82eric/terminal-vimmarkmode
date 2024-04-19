@@ -571,7 +571,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (_renderer)
             {
-                _quickSelectHandler->HandleChar(vkey, mods, _renderer.get(), _connection, this);
+                _quickSelectHandler->HandleChar(vkey, mods, _renderer.get(), this);
             }
             return true;
         }
@@ -3109,6 +3109,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     bool ControlCore::IsInVimMode()
     {
         return _vimProxy->IsInVimMode();
+    }
+
+    bool ControlCore::IsInQuickSelectMode()
+    {
+        return _quickSelectHandler->Enabled();
     }
     
     void ControlCore::EnterQuickSelectMode(const winrt::hstring& text, bool copy)

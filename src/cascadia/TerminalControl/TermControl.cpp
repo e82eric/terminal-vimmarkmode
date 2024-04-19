@@ -1510,6 +1510,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return false;
         }
 
+        if (_core.IsInQuickSelectMode())
+        {
+            if (auto success = bindings.TryQuickSelectKeyChord({
+                modifiers.IsCtrlPressed(),
+                modifiers.IsAltPressed(),
+                modifiers.IsShiftPressed(),
+                modifiers.IsWinPressed(),
+                vkey,
+                scanCode,
+            }))
+            {
+                return true;
+            }
+
+            if (_core.TryMarkModeKeybinding(vkey, modifiers))
+            {
+                return true;
+            }
+        }
+
         if (_core.IsInVimMode())
         {
             if (auto success = bindings.TryVimModeKeyChord({

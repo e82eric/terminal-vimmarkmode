@@ -20,6 +20,7 @@ namespace winrt::TerminalApp::implementation
 
         bool TryKeyChord(const winrt::Microsoft::Terminal::Control::KeyChord& kc);
         bool TryVimModeKeyChord(const winrt::Microsoft::Terminal::Control::KeyChord& kc);
+        bool TryQuickSelectKeyChord(const winrt::Microsoft::Terminal::Control::KeyChord& kc);
         bool IsKeyChordExplicitlyUnbound(const winrt::Microsoft::Terminal::Control::KeyChord& kc);
 
         void SetDispatch(const winrt::TerminalApp::ShortcutActionDispatch& dispatch);

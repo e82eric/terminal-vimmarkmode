@@ -10,6 +10,7 @@ namespace Microsoft.Terminal.Control
     {
         Boolean TryKeyChord(KeyChord kc);
         Boolean TryVimModeKeyChord(KeyChord kc);
+        Boolean TryQuickSelectKeyChord(KeyChord kc);
         Boolean IsKeyChordExplicitlyUnbound(KeyChord kc);
     }
 }

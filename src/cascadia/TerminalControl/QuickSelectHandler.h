@@ -42,6 +42,5 @@ public:
         uint32_t vkey,
         const ::Microsoft::Terminal::Core::ControlKeyStates mods,
         Microsoft::Console::Render::Renderer* renderer,
-        winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection &connection,
         winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore);
 };

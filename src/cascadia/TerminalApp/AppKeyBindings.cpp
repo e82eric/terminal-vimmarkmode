@@ -34,6 +34,23 @@ namespace winrt::TerminalApp::implementation
         return false;
     }
 
+    bool AppKeyBindings::TryQuickSelectKeyChord(const KeyChord& kc)
+    {
+        if (const auto cmd{ _actionMap.GetActionByKeyChord(kc) })
+        {
+            if (
+                cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::ScrollDownPage ||
+                cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::ScrollDown ||
+                cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::ScrollUpPage ||
+                cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::ScrollUp
+                )
+            {
+                return _dispatch.DoAction(cmd.ActionAndArgs());
+            }
+        }
+        return false;
+    }
+
     bool AppKeyBindings::IsKeyChordExplicitlyUnbound(const KeyChord& kc)
     {
         return _actionMap.IsKeyChordExplicitlyUnbound(kc);

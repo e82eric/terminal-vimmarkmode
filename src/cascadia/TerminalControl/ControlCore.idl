@@ -87,6 +87,7 @@ namespace Microsoft.Terminal.Control
         void EnterVimModeWithSearch();
         void EnterVimMode();
         Boolean IsInVimMode();
+        Boolean IsInQuickSelectMode();
         void EnterMarkMode();
         void EnterFuzzySearchMode();
         void CloseFuzzySearchNoSelection();

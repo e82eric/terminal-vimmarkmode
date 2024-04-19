@@ -464,6 +464,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void EnterVimModeWithSearch();
         void EnterVimMode();
         bool IsInVimMode();
+        bool IsInQuickSelectMode();
         void EnterQuickSelectMode(const winrt::hstring& text, bool copy);
         void ToggleRowNumberMode(bool on);
         Windows::Foundation::Collections::IVector<int32_t> GetRowNumbers();
