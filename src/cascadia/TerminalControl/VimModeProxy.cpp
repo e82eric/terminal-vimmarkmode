@@ -948,13 +948,66 @@ bool VimModeProxy::_executeVimSelection(
             }
             else
             {
-                _searcher->MoveToCurrentSelection();
-                _searcher->FindNext();
-                auto current = _searcher->GetCurrent();
-                if (current)
+                if (_searcher->Results().size() > 0)
                 {
-                    _terminal->SelectNewRegion(current->start, current->start);
-                    _terminal->ToggleMarkMode();
+                    auto point = _terminal->GetSelectionAnchors()->start;
+                    const auto& results = _searcher->Results();
+                    std::vector<til::point_span>::const_iterator it;
+
+                    til::point toSelect;
+                    if (!moveForward)
+                    {
+                        it = std::lower_bound(results.begin(), results.end(), point, [](const til::point_span& span, const til::point& pt) {
+                            if (span.start.y == pt.y)
+                            {
+                                if (span.start.x <= pt.x)
+                                {
+                                    return true;
+                                }
+                            }
+                            else if (span.start.y <= pt.y)
+                            {
+                                return true;
+                            }
+                            return false;
+                        });
+                        if (it != results.end())
+                        {
+                            toSelect = it->start;
+                        }
+                        else
+                        {
+                            toSelect = _searcher->Results()[0].start;
+                        }
+                    }
+                    else
+                    {
+                        it = std::lower_bound(results.begin(), results.end(), point, [](const til::point_span& span, const til::point& pt) {
+                            if (span.start.y == pt.y)
+                            {
+                                if (span.start.x < pt.x)
+                                {
+                                    return true;
+                                }
+                            }
+                            else if (span.start.y < pt.y)
+                            {
+                                return true;
+                            }
+                            return false;
+                        });
+                        if (it != results.begin())
+                        {
+                            it = std::prev(it);
+                            toSelect = it->start;
+                        }
+                        else
+                        {
+                            toSelect = _searcher->Results().back().start;
+                        }
+                    }
+
+                    _UpdateSelection(isVisual, toSelect);
                 }
             }
         }
