@@ -161,19 +161,93 @@ void VimModeProxy::_matchingChar(til::point startPos, std::wstring_view startDel
     }
 }
 
+void VimModeProxy::_inDelimiterSameLine(std::wstring_view delimiter, bool includeDelimiter)
+{
+    auto selection = _terminal->GetSelectionAnchors();
+    const auto pos = selection->start == selection->pivot ? selection->end : selection->start;
+
+    const auto posIsDelimiter = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(pos.x) == delimiter;
+
+    auto foundMatchGoingBack = false;
+    til::CoordType matchGoingBack;
+    for (auto i = pos.x - 1; i >= 0; i--)
+    {
+        auto g = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(i);
+        if (g == delimiter)
+        {
+            foundMatchGoingBack = true;
+            matchGoingBack = i;
+            break;
+        }
+    }
+
+    auto foundMatchGoingForward = false;
+    til::CoordType matchGoingForward;
+    for (auto i = pos.x + 1; i <= _terminal->GetTextBuffer().GetRowByOffset(pos.y).size(); i++)
+    {
+        auto g = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(i);
+        if (g == delimiter)
+        {
+            foundMatchGoingForward = true;
+            matchGoingForward = i;
+            break;
+        }
+    }
+
+    if (posIsDelimiter)
+    {
+        if (foundMatchGoingBack)
+        {
+            selection->end = til::point{ pos.x, pos.y };
+            selection->start = til::point{ matchGoingBack, pos.y };
+            if (!includeDelimiter)
+            {
+                selection->start.x++;
+                selection->end.x--;
+            }
+            _terminal->SetSelectionAnchors(selection);
+        }
+        else if (foundMatchGoingForward)
+        {
+            selection->start = til::point{ pos.x, pos.y };
+            selection->end = til::point{ matchGoingForward, pos.y };
+            if (!includeDelimiter)
+            {
+                selection->start.x++;
+                selection->end.x--;
+            }
+            _terminal->SetSelectionAnchors(selection);
+        }
+    }
+    else if (foundMatchGoingBack && foundMatchGoingForward)
+    {
+        selection->start = til::point{ matchGoingBack, pos.y };
+        selection->end = til::point{ matchGoingForward, pos.y };
+        if (!includeDelimiter)
+        {
+            selection->start.x++;
+            selection->end.x--;
+        }
+        _terminal->SetSelectionAnchors(selection);
+    }
+}
+
 void VimModeProxy::_inDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
 {
+    auto delimitersAreSame = startDelimiter == endDelimiter;
+
     const auto selection = _terminal->GetSelectionAnchors();
     const auto pos = selection->start == selection->pivot ? selection->end : selection->start;
 
     auto numberOfInnerPairs = 0;
     for (auto j = pos.y; j >= 0; j--)
     {
-        auto x = j == pos.y ? pos.x : _terminal->GetTextBuffer().GetRowByOffset(j).size();
+        auto x = j == pos.y ? pos.x - 1 : _terminal->GetTextBuffer().GetRowByOffset(j).size();
         for (auto i = x; i >= 0; i--)
         {
             auto g = _terminal->GetTextBuffer().GetRowByOffset(j).GlyphAt(i);
-            if (g ==endDelimiter)
+            //If delimiters are same there is no way to understand inner pairs
+            if (g == endDelimiter && !delimitersAreSame)
             {
                 numberOfInnerPairs++;
             }
@@ -693,10 +767,10 @@ bool VimModeProxy::_executeVimSelection(
             _inDelimiter(L"(", L")", false);
             break;
         case VimTextObjectType::inSingleQuotePair:
-            _inDelimiter(L"'", L"'", false);
+            _inDelimiterSameLine(L"'", false);
             break;
         case VimTextObjectType::inDoubleQuotePair:
-            _inDelimiter(L"\"", L"\"", false);
+            _inDelimiterSameLine(L"\"", false);
             break;
         case VimTextObjectType::inAngleBracketPair:
             _inDelimiter(L"<", L">", false);
@@ -711,10 +785,10 @@ bool VimModeProxy::_executeVimSelection(
             _inDelimiter(L"(", L")", true);
             break;
         case VimTextObjectType::aroundSingleQuotePair:
-            _inDelimiter(L"'", L"'", true);
+            _inDelimiterSameLine(L"'", true);
             break;
         case VimTextObjectType::aroundDoubleQuotePair:
-            _inDelimiter(L"\"", L"\"", true);
+            _inDelimiterSameLine(L"\"", true);
             break;
         case VimTextObjectType::aroundAngleBracketPair:
             _inDelimiter(L"<", L">", true);
@@ -1907,7 +1981,7 @@ std::tuple<bool, til::point, til::point> VimModeProxy::_findBlockEndFromStart(ti
         for (auto i = startX; i < _terminal->GetTextBuffer().GetRowByOffset(j).size(); i++)
         {
             auto g = _terminal->GetTextBuffer().GetRowByOffset(j).GlyphAt(i);
-            if (g == startDelimiter)
+            if (g == startDelimiter && startDelimiter != endDelimiter)
             {
                 innerPairs++;
             }

@@ -144,6 +144,7 @@ private:
     void _matchingCharFromStart(til::point pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual);
     void _matchingCharFromEnd(til::point pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual);
     void _inDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
+    void _inDelimiterSameLine(std::wstring_view delimiter, bool includeDelimiter);
     void _selectWordRight(bool isVisual, bool isLargeWord);
     void _selectWordLeft(bool isVisual, bool isLargeWord);
     void _selectWordStartRight(bool isVisual, bool isLargeWord);
