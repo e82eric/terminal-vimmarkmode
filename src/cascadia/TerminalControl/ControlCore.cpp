@@ -3096,13 +3096,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     
     void ControlCore::EnterVimMode()
     {
-        _vimProxy->EnterVimMode();
+        _vimProxy->EnterVimMode(true);
     }
 
     void ControlCore::EnterVimModeWithSearch()
     {
         auto lock = _terminal->LockForReading();
-        _vimProxy->EnterVimMode();
+        _vimProxy->EnterVimMode(true);
         _vimProxy->TryVimModeKeyBinding(0xBF, ControlKeyStates{ VirtualKeyModifiers::Shift });
     }
 

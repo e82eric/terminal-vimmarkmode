@@ -21,6 +21,7 @@ void QuickSelectHandler::EnterQuickSelectMode(
     Microsoft::Console::Render::Renderer* renderer,
     winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore)
 {
+    _vimProxy->ExitVimMode();
     _quickSelectAlphabet->Enabled(true);
     _copyMode = copyMode;
     searcher.QuickSelectRegex(*_terminal, text, true);
@@ -85,14 +86,15 @@ void QuickSelectHandler::HandleChar(
                 const auto req = TextBuffer::CopyRequest::FromConfig(_terminal->GetTextBuffer(), startPoint, endPoint, true, false, false);
                 const auto text = _terminal->GetTextBuffer().GetPlainText(req);
                 _exitQuickSelectMode(renderer);
+                controlCore->UserScrollViewport(_terminal->GetTextBuffer().GetLastNonSpaceCharacter().y);
                 const auto suspension = _terminal->SuspendLock();
                 controlCore->SendInput(winrt::hstring{text});
             }
             else if (!_copyMode && !mods.IsCtrlPressed())
             {
                 _exitQuickSelectMode(renderer);
-                _vimProxy->EnterVimMode();
                 _terminal->SelectChar(startPoint);
+                _vimProxy->EnterVimMode(false);
                 renderer->TriggerSelection();
             }
             else

@@ -1758,6 +1758,11 @@ int32_t VimModeProxy::ViewportRowToHighlight()
     auto lock = _terminal->LockForReading();
     const auto offset = _terminal->GetScrollOffset();
     const auto selection = _terminal->GetSelectionAnchors();
+    if (!selection.has_value())
+    {
+        return _terminal->GetCursorPosition().y;
+        
+    }
     const auto pivotIsStart = selection->start == selection->pivot;
     const til::point point = pivotIsStart ? selection->end : selection->start;
     return point.y - offset;
@@ -2341,16 +2346,16 @@ void VimModeProxy::ExitVimMode()
     _vimMode = VimMode::none;
 }
 
-void VimModeProxy::EnterVimMode()
+void VimModeProxy::EnterVimMode(bool selectLastChar)
 {
     _vimMode = VimMode::normal;
-    ResetVimModeForSizeChange(true);
+    ResetVimModeForSizeChange(selectLastChar);
     _controlCore->UpdateVimText(L"Normal", _searchString, _sequenceText);
 }
 
 bool VimModeProxy::IsInVimMode()
 {
-    return _getVimMode() != VimModeProxy::VimMode::none;
+    return _getVimMode() != VimMode::none;
 }
 
 void VimModeProxy::ResetVimModeForSizeChange(bool selectLastChar)
@@ -2372,7 +2377,6 @@ void VimModeProxy::ResetVimModeForSizeChange(bool selectLastChar)
         if (_terminal->SelectionMode() != ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Mark)
         {
             _terminal->ToggleMarkMode();
-            selectLastChar = true;
         }
 
         if (selectLastChar)
@@ -2380,7 +2384,10 @@ void VimModeProxy::ResetVimModeForSizeChange(bool selectLastChar)
             _terminal->SelectLastChar();
         }
 
-        _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
+        if (selectLastChar)
+        {
+            _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
+        }
         _controlCore->UpdateSelectionFromVim();
     }
 }

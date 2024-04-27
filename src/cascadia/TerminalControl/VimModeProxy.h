@@ -121,7 +121,7 @@ public:
         const ::Microsoft::Terminal::Core::ControlKeyStates mods);
     void ResetVimState();
     void ExitVimMode();
-    void EnterVimMode();
+    void EnterVimMode(bool selectLastChar);
     bool IsInVimMode();
     void ResetVimModeForSizeChange(bool selectLastChar);
     void SelectRow(int32_t row, int32_t col);
