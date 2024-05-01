@@ -60,11 +60,6 @@ const void FuzzySearchRenderData::SetTextBuffer(std::unique_ptr<TextBuffer> valu
     _textBuffer.swap(value);
 }
 
-const TextBuffer& FuzzySearchRenderData::GetTextBuffer() const noexcept
-{
-    return *_textBuffer;
-}
-
 const FontInfo& FuzzySearchRenderData::GetFontInfo() const noexcept
 {
     return _pData->GetFontInfo();
@@ -113,11 +108,6 @@ std::vector<Microsoft::Console::Types::Viewport> FuzzySearchRenderData::GetSelec
     }
 
     return result;
-}
-
-std::vector<Microsoft::Console::Types::Viewport> FuzzySearchRenderData::GetSearchSelectionRects() noexcept
-{
-    return std::vector<Microsoft::Console::Types::Viewport>{};
 }
 
 [[nodiscard]] std::unique_lock<til::recursive_ticket_lock> FuzzySearchRenderData::LockForReading() const noexcept
@@ -183,11 +173,6 @@ bool FuzzySearchRenderData::IsCursorDoubleWidth() const
     return false;
 }
 
-const std::vector<Microsoft::Console::Render::RenderOverlay> FuzzySearchRenderData::GetOverlays() const noexcept
-{
-    return std::vector<Microsoft::Console::Render::RenderOverlay>{};
-}
-
 const bool FuzzySearchRenderData::IsGridLineDrawingAllowed() noexcept
 {
     return false;
@@ -213,10 +198,6 @@ void FuzzySearchRenderData::ClearSelection()
 }
 
 void FuzzySearchRenderData::SelectNewRegion(const til::point /*coordStart*/, const til::point /*coordEnd*/)
-{
-}
-
-void FuzzySearchRenderData::SelectSearchRegions(std::vector<til::inclusive_rect> /*source*/)
 {
 }
 
@@ -246,6 +227,21 @@ const std::wstring FuzzySearchRenderData::GetHyperlinkCustomId(uint16_t /*id*/) 
 }
 
 const std::vector<size_t> FuzzySearchRenderData::GetPatternId(const til::point /*location*/) const
+{
+    return {};
+}
+
+TextBuffer& FuzzySearchRenderData::GetTextBuffer(void) const noexcept
+{
+    return *_textBuffer;
+}
+
+std::span<const til::point_span> FuzzySearchRenderData::GetSearchHighlights() const noexcept
+{
+    return {};
+}
+
+const til::point_span* FuzzySearchRenderData::GetSearchHighlightFocused(void) const noexcept
 {
     return {};
 }

@@ -9,6 +9,102 @@ VimModeProxy::VimModeProxy(std::shared_ptr<Microsoft::Terminal::Core::Terminal> 
     _searcher = searcher;
 }
 
+void VimModeProxy::_nextSearchResult(bool moveForward, bool isVisual)
+{
+    std::vector<til::point_span> oldResults;
+    if (_searcher->Results().size() > 0)
+    {
+        auto point = _terminal->GetSelectionAnchors()->start;
+        const auto& results = _searcher->Results();
+        std::vector<til::point_span>::const_iterator it;
+
+        til::point toSelect;
+        int64_t idx = 0;
+        if (!moveForward)
+        {
+            it = std::lower_bound(results.begin(), results.end(), point, [](const til::point_span& span, const til::point& pt) {
+                if (span.start.y == pt.y)
+                {
+                    if (span.start.x <= pt.x)
+                    {
+                        return true;
+                    }
+                }
+                else if (span.start.y <= pt.y)
+                {
+                    return true;
+                }
+                return false;
+            });
+            if (it != results.end())
+            {
+                toSelect = it->start;
+                idx = std::distance(results.begin(), it);
+            }
+            else
+            {
+                toSelect = _searcher->Results()[0].start;
+                idx = 0;
+            }
+        }
+        else
+        {
+            it = std::lower_bound(results.begin(), results.end(), point, [](const til::point_span& span, const til::point& pt) {
+                if (span.start.y == pt.y)
+                {
+                    if (span.start.x < pt.x)
+                    {
+                        return true;
+                    }
+                }
+                else if (span.start.y < pt.y)
+                {
+                    return true;
+                }
+                return false;
+            });
+            if (it != results.begin())
+            {
+                it = std::prev(it);
+                toSelect = it->start;
+            }
+            else
+            {
+                toSelect = _searcher->Results().back().start;
+            }
+        }
+
+        _ScrollIfNeeded(toSelect);
+        _UpdateSelection(isVisual, toSelect);
+    }
+}
+
+void VimModeProxy::_handleSearch(bool moveForward, bool /*isVisual*/)
+{
+    std::vector<til::point_span> oldResults;
+    if (_searcher->ResetIfStaleRegex(*_terminal, _searchString, moveForward, true, &oldResults))
+    {
+        _terminal->SetSearchHighlights(_searcher->Results());
+        const auto results = _searcher->Results();
+        auto scrollPos = _terminal->GetSelectionAnchors()->start;
+        if (!results.empty())
+        {
+            if (moveForward)
+            {
+                _terminal->SetSearchHighlightFocused(results.size() - 1);
+                scrollPos = _searcher->Results()[_searcher->Results().size() - 1].start;
+            }
+            else
+            {
+                _terminal->SetSearchHighlightFocused(0);
+                scrollPos = _searcher->Results()[0].start;
+            }
+        }
+        _ScrollIfNeeded(scrollPos);
+    }
+    _controlCore->UpdateSelectionFromVim(oldResults);
+}
+
 void VimModeProxy::_tilChar(std::wstring_view vkey, bool isVisual)
 {
     til::point target;
@@ -975,6 +1071,23 @@ bool VimModeProxy::_executeVimSelection(
         _controlCore->StartFuzzySearch(searchString);
         break;
     }
+    case VimActionType::commitSearch:
+    {
+        auto results = _searcher->Results();
+        if (results.size() > 0)
+        {
+            auto focused = _terminal->GetSearchHighlightFocused();
+            _terminal->SelectChar(focused->start);
+            _terminal->SetSearchHighlightFocused(-1);
+            _controlCore->UpdateSelectionFromVim(results);
+        }
+        break;
+    }
+    case VimActionType::nextSearchResult:
+    {
+        auto moveForward = motion != VimMotionType::forward;
+        _nextSearchResult(moveForward, isVisual);
+    }
     case VimActionType::search:
     {
         auto moveForward = motion != VimMotionType::forward;
@@ -982,108 +1095,14 @@ bool VimModeProxy::_executeVimSelection(
         {
             _selectInWord(false);
             const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(moveForward);
-            auto searchString = bufferData.plainText;
-            _searchString = searchString;
-            if (_searcher->ResetIfStale(*_terminal, searchString, moveForward, true))
-            {
-                _searcher->HighlightResults();
-                _searcher->MoveToCurrentSelection();
-            }
-
-            auto current = _searcher->GetCurrent();
-            if (current)
-            {
-                _terminal->SelectNewRegion(current->start, current->start);
-                _terminal->ToggleMarkMode();
-            }
+            _searchString = L"\\b" + bufferData.plainText + L"\\b";
+            _handleSearch(moveForward, isVisual);
+            _nextSearchResult(moveForward, isVisual);
+            _terminal->SetSearchHighlightFocused(-1);
         }
         else
         {
-            if (_searcher->ResetIfStaleRegex(*_terminal, searchString, moveForward, true))
-            {
-                _searcher->HighlightResults();
-                _searcher->MoveToCurrentSelection();
-                auto results = _searcher->Results();
-                if (!results.empty())
-                {
-                    if (moveForward)
-                    {
-                        auto current = results[results.size() - 1];
-                        _terminal->SelectNewRegion(current.start, current.start);
-                        _terminal->ToggleMarkMode();
-                    }
-                    else
-                    {
-                        auto current = results[0];
-                        _terminal->SelectNewRegion(current.start, current.start);
-                        _terminal->ToggleMarkMode();
-                    }
-                }
-            }
-            else
-            {
-                if (_searcher->Results().size() > 0)
-                {
-                    auto point = _terminal->GetSelectionAnchors()->start;
-                    const auto& results = _searcher->Results();
-                    std::vector<til::point_span>::const_iterator it;
-
-                    til::point toSelect;
-                    if (!moveForward)
-                    {
-                        it = std::lower_bound(results.begin(), results.end(), point, [](const til::point_span& span, const til::point& pt) {
-                            if (span.start.y == pt.y)
-                            {
-                                if (span.start.x <= pt.x)
-                                {
-                                    return true;
-                                }
-                            }
-                            else if (span.start.y <= pt.y)
-                            {
-                                return true;
-                            }
-                            return false;
-                        });
-                        if (it != results.end())
-                        {
-                            toSelect = it->start;
-                        }
-                        else
-                        {
-                            toSelect = _searcher->Results()[0].start;
-                        }
-                    }
-                    else
-                    {
-                        it = std::lower_bound(results.begin(), results.end(), point, [](const til::point_span& span, const til::point& pt) {
-                            if (span.start.y == pt.y)
-                            {
-                                if (span.start.x < pt.x)
-                                {
-                                    return true;
-                                }
-                            }
-                            else if (span.start.y < pt.y)
-                            {
-                                return true;
-                            }
-                            return false;
-                        });
-                        if (it != results.begin())
-                        {
-                            it = std::prev(it);
-                            toSelect = it->start;
-                        }
-                        else
-                        {
-                            toSelect = _searcher->Results().back().start;
-                        }
-                    }
-
-                    _UpdateSelection(isVisual, toSelect);
-                }
-            }
+            _handleSearch(moveForward, isVisual);
         }
         break;
     }
@@ -1276,6 +1295,16 @@ bool VimModeProxy::TryVimModeKeyBinding(
         {
             _motion = VimMotionType::none;
             _vimMode = VimMode::normal;
+            if (vkey == VK_RETURN)
+            {
+                _action = VimActionType::commitSearch;
+                sequenceCompleted = true;
+            }
+            else
+            {
+                _terminal->SetSearchHighlights({});
+                _controlCore->UpdateSelectionFromVim(_searcher->Results());
+            }
         }
         else
         {
@@ -1318,6 +1347,7 @@ bool VimModeProxy::TryVimModeKeyBinding(
         _textObject = VimTextObjectType::word;
 
         _reverseSearch = vkey == 0x33;
+        _motion = vkey == 0x38 ? VimMotionType::forward : VimMotionType::back;
 
         sequenceCompleted = true;
     }
@@ -1385,7 +1415,7 @@ bool VimModeProxy::TryVimModeKeyBinding(
     }
     else if (vkey == L'N')
     {
-        _action = VimActionType::search;
+        _action = VimActionType::nextSearchResult;
         if (_reverseSearch)
         {
             _motion = mods.IsShiftPressed() ? VimMotionType::forward : VimMotionType::back;
@@ -1761,7 +1791,6 @@ int32_t VimModeProxy::ViewportRowToHighlight()
     if (!selection.has_value())
     {
         return _terminal->GetCursorPosition().y;
-        
     }
     const auto pivotIsStart = selection->start == selection->pivot;
     const til::point point = pivotIsStart ? selection->end : selection->start;
@@ -2281,6 +2310,22 @@ std::pair<til::point, bool> VimModeProxy::_GetEndOfPreviousWord(const til::point
     return { result, true };
 }
 
+void VimModeProxy::_ScrollIfNeeded(til::point& pos) noexcept
+{
+    const auto viewport = _terminal->GetViewport();
+    const auto scrollOffset = _terminal->GetScrollOffset();
+
+    if (pos.y >= scrollOffset && pos.y < scrollOffset + viewport.Height())
+    {
+        
+    }
+    else
+    {
+        auto newY = std::max(0, pos.y - 5);
+        _terminal->UserScrollViewport(newY);
+    }
+}
+
 void VimModeProxy::_MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept
 {
     const auto bufferSize{ _terminal->GetTextBuffer().GetSize() };
@@ -2332,7 +2377,8 @@ void VimModeProxy::ResetVimState()
     _lastVkey[0] = L'\0';
     _terminal->ClearYankRegion();
     _terminal->ClearSelection();
-    _controlCore->UpdateSelectionFromVim();
+    _terminal->SetSearchHighlights({});
+    _controlCore->UpdateSelectionFromVim(_searcher->Results());
     _controlCore->ExitVim();
 }
 

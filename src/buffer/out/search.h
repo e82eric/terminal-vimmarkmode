@@ -32,11 +32,14 @@ class Search final
 public:
     Search() = default;
 
-    bool ResetIfStale(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive);
-    bool ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive);
-    bool get_value1(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive, std::vector<til::point_span>& results);
+    bool ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive, std::vector<til::point_span>* prevResults = nullptr);
     void QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive);
     std::vector<FuzzySearchResultRow> FuzzySearch(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle) const;
+    bool ResetIfStale(Microsoft::Console::Render::IRenderData& renderData,
+                      const std::wstring_view& needle,
+                      bool reverse,
+                      bool caseInsensitive,
+                      std::vector<til::point_span>* prevResults = nullptr);
 
     void MoveToCurrentSelection();
     void MoveToPoint(til::point anchor) noexcept;
@@ -44,7 +47,6 @@ public:
     void FindNext() noexcept;
 
     const til::point_span* GetCurrent() const noexcept;
-    void HighlightResults() const;
     bool SelectCurrent() const;
 
     const std::vector<til::point_span>& Results() const noexcept;

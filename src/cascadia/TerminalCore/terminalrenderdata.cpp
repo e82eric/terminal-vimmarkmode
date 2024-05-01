@@ -24,7 +24,7 @@ til::point Terminal::GetTextBufferEndPosition() const noexcept
     return { _GetMutableViewport().Width() - 1, ViewEndIndex() };
 }
 
-const TextBuffer& Terminal::GetTextBuffer() const noexcept
+TextBuffer& Terminal::GetTextBuffer() const noexcept
 {
     return _activeBuffer();
 }
@@ -79,11 +79,6 @@ bool Terminal::IsCursorDoubleWidth() const
     const auto& buffer = _activeBuffer();
     const auto position = buffer.GetCursor().GetPosition();
     return buffer.GetRowByOffset(position.y).DbcsAttrAt(position.x) != DbcsAttribute::Single;
-}
-
-const std::vector<RenderOverlay> Terminal::GetOverlays() const noexcept
-{
-    return {};
 }
 
 const bool Terminal::IsGridLineDrawingAllowed() noexcept
@@ -170,22 +165,24 @@ catch (...)
     return {};
 }
 
-std::vector<Microsoft::Console::Types::Viewport> Terminal::GetSearchSelectionRects() noexcept
-try
+// Method Description:
+// - Helper to determine the search highlights in the buffer. Used for rendering.
+// Return Value:
+// - A vector of rectangles representing the regions to select, line by line. They are absolute coordinates relative to the buffer origin.
+std::span<const til::point_span> Terminal::GetSearchHighlights() const noexcept
 {
-    std::vector<Viewport> result;
-
-    for (const auto& lineRect : _GetSearchSelectionRects(_GetVisibleViewport()))
-    {
-        result.emplace_back(Viewport::FromInclusive(lineRect));
-    }
-
-    return result;
+    _assertLocked();
+    return _searchHighlights;
 }
-catch (...)
+
+const til::point_span* Terminal::GetSearchHighlightFocused() const noexcept
 {
-    LOG_CAUGHT_EXCEPTION();
-    return {};
+    _assertLocked();
+    if (_searchHighlightFocused < _searchHighlights.size())
+    {
+        return &til::at(_searchHighlights, _searchHighlightFocused);
+    }
+    return nullptr;
 }
 
 Microsoft::Console::Render::QuickSelectState Terminal::GetQuickSelectState() noexcept
@@ -197,12 +194,12 @@ try
         return result;
     }
 
-    auto lowerIt = std::lower_bound(_searchSelections.begin(), _searchSelections.end(), _GetVisibleViewport().Top(), [](const til::inclusive_rect& rect, til::CoordType value) {
-        return rect.top < value;
+    auto lowerIt = std::lower_bound(_quickSelectHighlights.begin(), _quickSelectHighlights.end(), _GetVisibleViewport().Top(), [](const til::point_span& rect, til::CoordType value) {
+        return rect.start.y < value;
     });
 
-    auto upperIt = std::upper_bound(_searchSelections.begin(), _searchSelections.end(), _GetVisibleViewport().BottomExclusive(), [](til::CoordType value, const til::inclusive_rect& rect) {
-        return value < rect.top;
+    auto upperIt = std::upper_bound(_quickSelectHighlights.begin(), _quickSelectHighlights.end(), _GetVisibleViewport().BottomExclusive(), [](til::CoordType value, const til::point_span& rect) {
+        return value < rect.start.y;
     });
 
     auto num = static_cast<int32_t>(std::distance(lowerIt, upperIt));
@@ -214,9 +211,9 @@ try
         auto ch = chars[i];
         if(ch.isCurrentMatch)
         {
-            const til::inclusive_rect selection = lowerIt[i];
-            const auto start = til::point{ selection.left, selection.top };
-            const auto end = til::point{ selection.right, selection.bottom };
+            const til::point_span selection = lowerIt[i];
+            const auto start = selection.start;
+            const auto end = selection.end;
             const auto adj = _activeBuffer().GetTextRects(start, end, _blockSelection, false);
 
             if (adj[0].right - adj[0].left + 1 >= ch.chars.size())
@@ -263,14 +260,17 @@ bool Terminal::InQuickSelectMode()
     return _quickSelectAlphabet->Enabled();
 }
 
-void Terminal::SelectNewRegion(const til::point coordStart, const til::point coordEnd)
+// Method Description:
+// - If necessary, scrolls the viewport such that the start point is in the
+//   viewport, and if that's already the case, also brings the end point inside
+//   the viewport
+// Arguments:
+// - coordStart - The start point
+// - coordEnd - The end point
+// Return Value:
+// - The updated scroll offset
+til::CoordType Terminal::_ScrollToPoints(const til::point coordStart, const til::point coordEnd)
 {
-#pragma warning(push)
-#pragma warning(disable : 26496) // cpp core checks wants these const, but they're decremented below.
-    auto realCoordStart = coordStart;
-    auto realCoordEnd = coordEnd;
-#pragma warning(pop)
-
     auto notifyScrollChange = false;
     if (coordStart.y < _VisibleStartIndex())
     {
@@ -294,11 +294,7 @@ void Terminal::SelectNewRegion(const til::point coordStart, const til::point coo
         _NotifyScrollEvent();
     }
 
-    realCoordStart.y -= _VisibleStartIndex();
-    realCoordEnd.y -= _VisibleStartIndex();
-
-    SetSelectionAnchor(realCoordStart);
-    SetSelectionEnd(realCoordEnd, SelectionExpansion::Char);
+    return _scrollOffset;
 }
 
 void Terminal::SelectYankRegion()
@@ -315,21 +311,15 @@ void Terminal::ClearYankRegion()
     _yankSelection.reset();
 }
 
-void Terminal::SelectSearchRegions(std::vector<til::inclusive_rect> rects)
+void Terminal::SelectNewRegion(const til::point coordStart, const til::point coordEnd)
 {
-    _searchSelections.clear();
-    for (auto& rect : rects)
-    {
-        rect.top -= _VisibleStartIndex();
-        rect.bottom -= _VisibleStartIndex();
+    const auto newScrollOffset = _ScrollToPoints(coordStart, coordEnd);
 
-        const auto realStart = _ConvertToBufferCell(til::point{ rect.left, rect.top });
-        const auto realEnd = _ConvertToBufferCell(til::point{ rect.right, rect.bottom });
-
-        auto rr = til::inclusive_rect{ realStart.x, realStart.y, realEnd.x, realEnd.y };
-
-        _searchSelections.emplace_back(rr);
-    }
+    // update the selection coordinates so they're relative to the new scroll-offset
+    const auto newCoordStart = til::point{ coordStart.x, coordStart.y - newScrollOffset };
+    const auto newCoordEnd = til::point{ coordEnd.x, coordEnd.y - newScrollOffset };
+    SetSelectionAnchor(newCoordStart);
+    SetSelectionEnd(newCoordEnd, SelectionExpansion::Char);
 }
 
 const std::wstring_view Terminal::GetConsoleTitle() const noexcept

@@ -43,7 +43,9 @@ public:
         enterQuickSelectMode,
         enterQuickCopyMode,
         enterBlockSelectionMode,
-        swapPivot
+        swapPivot,
+        commitSearch,
+        nextSearchResult
     };
 
     enum class VimTextObjectType : int32_t
@@ -135,6 +137,8 @@ private:
     til::point _updateFromResize(til::point from) const;
     void _setPosForResize(til::point pos, til::point& target) const;
     VimMode _getVimMode();
+    void _handleSearch(bool moveForward, bool isVisual);
+    void _nextSearchResult(bool moveForward, bool isVisual);
     void _findChar(std::wstring_view vkey, bool isVisual);
     void _tilChar(std::wstring_view vkey, bool isVisual);
     void _findCharBack(std::wstring_view vkey, bool isVisual);
@@ -186,6 +190,7 @@ private:
     std::pair<til::point, bool> _GetLineFirstNonBlankChar(const til::point target) const;
     void _MoveByViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept;
+    void _ScrollIfNeeded(til::point& pos) noexcept;
     void _vimScrollScreenPosition(VimTextObjectType textObjectType);
 
     std::shared_ptr<Microsoft::Terminal::Core::Terminal> _terminal;

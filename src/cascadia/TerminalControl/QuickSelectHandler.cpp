@@ -25,9 +25,13 @@ void QuickSelectHandler::EnterQuickSelectMode(
     _quickSelectAlphabet->Enabled(true);
     _copyMode = copyMode;
     searcher.QuickSelectRegex(*_terminal, text, true);
-    searcher.HighlightResults();
-    renderer->TriggerSelection();
+
+    _terminal->SetSearchHighlights({});
+    _terminal->SetQuickSelectHighlights(searcher.Results());
+    renderer->TriggerRedrawAll();
     controlCore->UpdateBar();
+    _terminal->GetTextBuffer().GetCursor().SetIsVisible(false);
+    //controlCore->UpdateSelectionFromVim();
 }
 
 bool QuickSelectHandler::Enabled()
@@ -45,16 +49,17 @@ void QuickSelectHandler::HandleChar(
     {
         _quickSelectAlphabet->Enabled(false);
         _quickSelectAlphabet->ClearChars();
-        _terminal->ClearSelection();
-        renderer->TriggerSelection();
+        _terminal->SetQuickSelectHighlights({});
+        renderer->TriggerRedrawAll();
         controlCore->UpdateBar();
+        _terminal->GetTextBuffer().GetCursor().SetIsVisible(true);
         return;
     }
 
     if (vkey == VK_BACK)
     {
         _quickSelectAlphabet->RemoveChar();
-        renderer->TriggerSelection();
+        renderer->TriggerRedrawAll();
         controlCore->UpdateBar();
         return;
     }
@@ -85,17 +90,17 @@ void QuickSelectHandler::HandleChar(
             {
                 const auto req = TextBuffer::CopyRequest::FromConfig(_terminal->GetTextBuffer(), startPoint, endPoint, true, false, false);
                 const auto text = _terminal->GetTextBuffer().GetPlainText(req);
-                _exitQuickSelectMode(renderer);
                 controlCore->UserScrollViewport(_terminal->GetTextBuffer().GetLastNonSpaceCharacter().y);
+                _exitQuickSelectMode(renderer);
                 const auto suspension = _terminal->SuspendLock();
-                controlCore->SendInput(winrt::hstring{text});
+                controlCore->SendInput(winrt::hstring{ text });
             }
             else if (!_copyMode && !mods.IsCtrlPressed())
             {
                 _exitQuickSelectMode(renderer);
                 _terminal->SelectChar(startPoint);
                 _vimProxy->EnterVimMode(false);
-                renderer->TriggerSelection();
+                renderer->TriggerRedrawAll();
             }
             else
             {
@@ -129,8 +134,8 @@ void QuickSelectHandler::_exitQuickSelectMode(Microsoft::Console::Render::Render
 {
     _quickSelectAlphabet->Enabled(false);
     _quickSelectAlphabet->ClearChars();
-    _terminal->ClearSelection();
-    renderer->TriggerSelection();
+    _terminal->SetQuickSelectHighlights({});
     renderer->TriggerRedrawAll();
     renderer->NotifyPaintFrame();
+    _terminal->GetTextBuffer().GetCursor().SetIsVisible(true);
 }

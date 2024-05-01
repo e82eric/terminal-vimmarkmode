@@ -16,7 +16,6 @@ public:
     Microsoft::Console::Types::Viewport GetViewport() noexcept override;
     til::point GetTextBufferEndPosition() const noexcept override;
     const void SetTextBuffer(std::unique_ptr<TextBuffer> value);
-    const TextBuffer& GetTextBuffer() const noexcept override;
     const FontInfo& GetFontInfo() const noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetYankSelectionRects() noexcept override;
     void SelectYankRegion() override;
@@ -24,7 +23,6 @@ public:
     bool InQuickSelectMode() override;
     Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept override;
-    std::vector<Microsoft::Console::Types::Viewport> GetSearchSelectionRects() noexcept override;
     [[nodiscard]] std::unique_lock<til::recursive_ticket_lock> LockForReading() const noexcept;
     [[nodiscard]] std::unique_lock<til::recursive_ticket_lock> LockForWriting() noexcept;
     void LockConsole() noexcept override;
@@ -37,20 +35,21 @@ public:
     CursorType GetCursorStyle() const noexcept override;
     ULONG GetCursorPixelWidth() const noexcept override;
     bool IsCursorDoubleWidth() const override;
-    const std::vector<Microsoft::Console::Render::RenderOverlay> GetOverlays() const noexcept override;
     const bool IsGridLineDrawingAllowed() noexcept override;
     const std::wstring_view GetConsoleTitle() const noexcept override;
     const bool IsSelectionActive() const override;
     const bool IsBlockSelection() const noexcept override;
     void ClearSelection() override;
     void SelectNewRegion(const til::point /*coordStart*/, const til::point /*coordEnd*/) override;
-    void SelectSearchRegions(std::vector<til::inclusive_rect> /*source*/) override;
     const til::point GetSelectionAnchor() const noexcept;
     const til::point GetSelectionEnd() const noexcept;
     const bool IsUiaDataInitialized() const noexcept;
     const std::wstring GetHyperlinkUri(uint16_t /*id*/) const;
     const std::wstring GetHyperlinkCustomId(uint16_t /*id*/) const;
     const std::vector<size_t> GetPatternId(const til::point /*location*/) const;
+    TextBuffer& GetTextBuffer(void) const noexcept override;
+    std::span<const til::point_span> GetSearchHighlights() const noexcept override;
+    const til::point_span* GetSearchHighlightFocused(void) const noexcept override;
 
 private:
     IRenderData* _pData;

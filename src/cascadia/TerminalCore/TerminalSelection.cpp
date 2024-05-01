@@ -64,40 +64,6 @@ std::vector<til::inclusive_rect> Terminal::_GetSelectionRects() const noexcept
 }
 
 // Method Description:
-// - Helper to determine the selected region of the buffer. Used for rendering.
-// Return Value:
-// - A vector of rectangles representing the regions to select, line by line. They are absolute coordinates relative to the buffer origin.
-std::vector<til::inclusive_rect> Terminal::_GetSearchSelectionRects(Microsoft::Console::Types::Viewport viewport) const noexcept
-{
-    std::vector<til::inclusive_rect> result;
-    try
-    {
-        auto lowerIt = std::lower_bound(_searchSelections.begin(), _searchSelections.end(), viewport.Top(), [](const til::inclusive_rect& rect, til::CoordType value) {
-            return rect.top < value;
-        });
-
-        auto upperIt = std::upper_bound(_searchSelections.begin(), _searchSelections.end(), viewport.BottomExclusive(), [](til::CoordType value, const til::inclusive_rect& rect) {
-            return value < rect.top;
-        });
-
-        for (auto selection = lowerIt; selection != upperIt; ++selection)
-        {
-            const auto start = til::point{ selection->left, selection->top };
-            const auto end = til::point{ selection->right, selection->bottom };
-            const auto adj = _activeBuffer().GetTextRects(start, end, _blockSelection, false);
-            for (auto a : adj)
-            {
-                result.emplace_back(a);
-            }
-        }
-
-        return result;
-    }
-    CATCH_LOG();
-    return result;
-}
-
-// Method Description:
 // - Identical to GetTextRects if it's a block selection, else returns a single span for the whole selection.
 // Return Value:
 // - A vector of one or more spans representing the selection. They are absolute coordinates relative to the buffer origin.
@@ -682,12 +648,12 @@ void Terminal::SetQuickSelectHandler(std::shared_ptr<QuickSelectAlphabet> val)
 
 int32_t Terminal::NumberOfVisibleSearchSelections()
 {
-    auto lowerIt = std::lower_bound(_searchSelections.begin(), _searchSelections.end(), _GetVisibleViewport().Top(), [](const til::inclusive_rect& rect, til::CoordType value) {
-        return rect.top < value;
+    auto lowerIt = std::lower_bound(_quickSelectHighlights.begin(), _quickSelectHighlights.end(), _GetVisibleViewport().Top(), [](const til::point_span& rect, til::CoordType value) {
+        return rect.start.y < value;
     });
 
-    auto upperIt = std::upper_bound(_searchSelections.begin(), _searchSelections.end(), _GetVisibleViewport().BottomExclusive(), [](til::CoordType value, const til::inclusive_rect& rect) {
-        return value < rect.top;
+    auto upperIt = std::upper_bound(_quickSelectHighlights.begin(), _quickSelectHighlights.end(), _GetVisibleViewport().BottomExclusive(), [](til::CoordType value, const til::point_span& rect) {
+        return value < rect.start.y;
     });
 
     auto num = static_cast<int32_t>(std::distance(lowerIt, upperIt));
@@ -996,7 +962,6 @@ void Terminal::_MoveByBuffer(SelectionDirection direction, til::point& pos) noex
 void Terminal::ClearSelection()
 {
     _assertLocked();
-    _searchSelections.clear();
     _selection = std::nullopt;
     _selectionMode = SelectionInteractionMode::None;
     _selectionIsTargetingUrl = false;

@@ -51,6 +51,13 @@ namespace Microsoft.Terminal.Control
         Int32 CharsSelected;
     };
 
+    struct SearchResults
+    {
+        Int32 TotalMatches;
+        Int32 CurrentMatch;
+        Boolean SearchInvalidated;
+    };
+
     [default_interface] runtimeclass SelectionColor
     {
         SelectionColor();
@@ -107,9 +114,8 @@ namespace Microsoft.Terminal.Control
         UInt64 FuzzySearchSwapChainHandle { get; };
 
         Windows.Foundation.Size FontSize { get; };
-        String FontFaceName { get; };
         UInt16 FontWeight { get; };
-        Double Opacity { get; };
+        Single Opacity { get; };
         Boolean UseAcrylic { get; };
         Boolean ShowRowNumbers { get; };
 
@@ -150,11 +156,12 @@ namespace Microsoft.Terminal.Control
         void ResumeRendering();
         void BlinkAttributeTick();
 
-        void Search(String text, Boolean goForward, Boolean caseSensitive);
         void EnterQuickSelectMode(String text, Boolean copy);
         FuzzySearchResult FuzzySearch(String text);
+        SearchResults Search(String text, Boolean goForward, Boolean caseSensitive, Boolean reset);
         void ClearSearch();
         IVector<Int32> SearchResultRows { get; };
+        Boolean SnapSearchResultToSelection;
 
         Microsoft.Terminal.Core.Color ForegroundColor { get; };
         Microsoft.Terminal.Core.Color BackgroundColor { get; };
@@ -173,7 +180,7 @@ namespace Microsoft.Terminal.Control
         String ReadEntireBuffer();
         CommandHistoryContext CommandHistory();
 
-        void AdjustOpacity(Double Opacity, Boolean relative);
+        void AdjustOpacity(Single Opacity, Boolean relative);
         void WindowVisibilityChanged(Boolean showOrHide);
 
         void ColorSelection(SelectionColor fg, SelectionColor bg, Microsoft.Terminal.Core.MatchMode matchMode);
@@ -184,7 +191,6 @@ namespace Microsoft.Terminal.Control
         Boolean ShouldShowSelectOutput();
 
         // These events are called from some background thread
-        event Windows.Foundation.TypedEventHandler<Object, CopyToClipboardEventArgs> CopyToClipboard;
         event Windows.Foundation.TypedEventHandler<Object, TitleChangedEventArgs> TitleChanged;
         event Windows.Foundation.TypedEventHandler<Object, Object> WarningBell;
         event Windows.Foundation.TypedEventHandler<Object, Object> TabColorChanged;
@@ -196,7 +202,6 @@ namespace Microsoft.Terminal.Control
         // These events are always called from the UI thread (bugs aside)
         event Windows.Foundation.TypedEventHandler<Object, FontSizeChangedArgs> FontSizeChanged;
         event Windows.Foundation.TypedEventHandler<Object, ScrollPositionChangedArgs> ScrollPositionChanged;
-        event Windows.Foundation.TypedEventHandler<Object, Object> CursorPositionChanged;
         event Windows.Foundation.TypedEventHandler<Object, Object> ConnectionStateChanged;
         event Windows.Foundation.TypedEventHandler<Object, Object> HoveredHyperlinkChanged;
         event Windows.Foundation.TypedEventHandler<Object, Object> SwapChainChanged;
@@ -204,8 +209,7 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, RendererWarningArgs> RendererWarning;
         event Windows.Foundation.TypedEventHandler<Object, NoticeEventArgs> RaiseNotice;
         event Windows.Foundation.TypedEventHandler<Object, TransparencyChangedEventArgs> TransparencyChanged;
-        event Windows.Foundation.TypedEventHandler<Object, Object> ReceivedOutput;
-        event Windows.Foundation.TypedEventHandler<Object, FoundResultsArgs> FoundMatch;
+        event Windows.Foundation.TypedEventHandler<Object, Object> OutputIdle;
         event Windows.Foundation.TypedEventHandler<Object, UpdateSelectionMarkersEventArgs> UpdateSelectionMarkers;
         event Windows.Foundation.TypedEventHandler<Object, OpenHyperlinkEventArgs> OpenHyperlink;
         event Windows.Foundation.TypedEventHandler<Object, Object> CloseTerminalRequested;
