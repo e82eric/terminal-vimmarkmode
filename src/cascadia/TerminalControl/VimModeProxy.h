@@ -192,6 +192,8 @@ private:
     void _MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept;
     void _ScrollIfNeeded(til::point& pos) noexcept;
     void _vimScrollScreenPosition(VimTextObjectType textObjectType);
+    wil::unique_close_clipboard_call _openClipboard();
+    std::wstring _getClipboardText();
 
     std::shared_ptr<Microsoft::Terminal::Core::Terminal> _terminal;
     winrt::Microsoft::Terminal::Control::implementation::ControlCore* _controlCore;

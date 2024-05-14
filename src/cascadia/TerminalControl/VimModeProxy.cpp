@@ -1323,7 +1323,15 @@ bool VimModeProxy::TryVimModeKeyBinding(
             }
             else
             {
-                _searchString += vkeyText;
+                if (vkey == L'V' && mods.IsCtrlPressed())
+                {
+                    auto pasteString = _getClipboardText();
+                    _searchString += pasteString;
+                }
+                else
+                {
+                    _searchString += vkeyText;
+                }
             }
         }
     }
@@ -2456,4 +2464,63 @@ void VimModeProxy::SelectRow(int32_t row, int32_t col)
     _terminal->SelectChar(til::point{ col, row });
     _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
     _controlCore->UpdateSelectionFromVim();
+}
+
+std::wstring VimModeProxy::_getClipboardText()
+{
+    const auto clipboard = _openClipboard();
+    if (!clipboard)
+    {
+        LOG_LAST_ERROR();
+        return L"";
+    }
+
+    // This handles most cases of pasting text as the OS converts most formats to CF_UNICODETEXT automatically.
+    if (const auto handle = GetClipboardData(CF_UNICODETEXT))
+    {
+        const wil::unique_hglobal_locked lock{ handle };
+        const auto str = static_cast<const wchar_t*>(lock.get());
+        if (!str)
+        {
+            return L"";
+        }
+
+        // As per: https://learn.microsoft.com/en-us/windows/win32/dataxchg/standard-clipboard-formats
+        //   CF_UNICODETEXT: [...] A null character signals the end of the data.
+        // --> Use wcsnlen() to determine the actual length.
+        // NOTE: Some applications don't add a trailing null character. This includes past conhost versions.
+        const auto maxLen = GlobalSize(handle) / sizeof(wchar_t);
+        auto result = std::wstring(str, maxLen);
+        if (!result.empty() && result.back() == '\0')
+        {
+            result.pop_back(); // Removes the last character if it's a null character
+        }
+        return result;
+    }
+    return L"";
+}
+
+wil::unique_close_clipboard_call VimModeProxy::_openClipboard()
+{
+    auto hwnd = GetConsoleWindow();
+
+    bool success = false;
+
+    // OpenClipboard may fail to acquire the internal lock --> retry.
+    for (DWORD sleep = 10;; sleep *= 2)
+    {
+        if (OpenClipboard(hwnd))
+        {
+            success = true;
+            break;
+        }
+        // 10 iterations
+        if (sleep > 10000)
+        {
+            break;
+        }
+        Sleep(sleep);
+    }
+
+    return wil::unique_close_clipboard_call{ success };
 }
