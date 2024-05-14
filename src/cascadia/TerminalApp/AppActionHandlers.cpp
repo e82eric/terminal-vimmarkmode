@@ -67,6 +67,15 @@ namespace winrt::TerminalApp::implementation
         args.Handled(true);
     }
 
+    void TerminalPage::_HandleDuplicatePaneAsFloat(const IInspectable& /*sender*/,
+                                           const ActionEventArgs& args)
+    {
+        const auto termPane = _MakePane(nullptr, nullptr, nullptr);
+        AddFloatPane(termPane);
+        termPane->FocusPane(termPane);
+        args.Handled(true);
+    }
+
     void TerminalPage::_HandleCloseTab(const IInspectable& /*sender*/,
                                        const ActionEventArgs& args)
     {

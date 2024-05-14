@@ -230,6 +230,13 @@ namespace winrt::TerminalApp::implementation
         return nullptr;
     }
 
+    void TerminalPage::AddFloatPane(std::shared_ptr<Pane> pane)
+    {
+        FloatContent().Child(pane->GetRootElement());
+        FloatContent().Visibility(::Visibility::Visible);
+        _GetFocusedTab().try_as<TerminalTab>()->AttachPaneAsFloat(pane);
+    }
+
     // Method Description:
     // - Get the icon of the currently focused terminal control, and set its
     //   tab's icon to that icon.
@@ -789,7 +796,14 @@ namespace winrt::TerminalApp::implementation
         {
             _UnZoomIfNeeded();
 
-            if (const auto pane{ terminalTab->GetActivePane() })
+            if (const auto pane {terminalTab->GetFloatPane()})
+            {
+                FloatContent().Child(nullptr);
+                FloatContent().Visibility(::Visibility::Collapsed);
+                terminalTab->ClearFloatPane();
+                _GetActiveControl().Focus(FocusState::Programmatic);
+            }
+            else if (const auto pane{ terminalTab->GetActivePane() })
             {
                 if (co_await _PaneConfirmCloseReadOnly(pane))
                 {

@@ -55,6 +55,7 @@
             </mux:InfoBar>
         </StackPanel>
 
+
         <Grid x:Name="TabContent"
               Grid.Row="2"
               HorizontalAlignment="Stretch"
@@ -63,6 +64,15 @@
                 <ImageBrush />
             </Grid.Background>
         </Grid>
+        <Border x:Name="FloatContent"
+                Visibility="Collapsed"
+                Grid.Row="2"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
+                Margin="100"
+                BorderBrush="#8ec07c"
+                BorderThickness="3">
+        </Border>
 
         <!--
             GH#12775 et. al: After switching to ControlsV2, it seems that

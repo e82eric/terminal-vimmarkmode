@@ -27,6 +27,7 @@
     ON_ALL_ACTIONS(CopyText)                \
     ON_ALL_ACTIONS(PasteText)               \
     ON_ALL_ACTIONS(OpenNewTabDropdown)      \
+    ON_ALL_ACTIONS(DuplicatePaneAsFloat)    \
     ON_ALL_ACTIONS(DuplicateTab)            \
     ON_ALL_ACTIONS(NewTab)                  \
     ON_ALL_ACTIONS(CloseWindow)             \

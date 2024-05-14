@@ -17,6 +17,7 @@ static constexpr std::string_view CloseTabKey{ "closeTab" };
 static constexpr std::string_view CloseTabsAfterKey{ "closeTabsAfter" };
 static constexpr std::string_view CloseWindowKey{ "closeWindow" };
 static constexpr std::string_view CopyTextKey{ "copy" };
+static constexpr std::string_view DuplicatePaneAsFloatKey{ "duplicatePaneAsFloat" };
 static constexpr std::string_view DuplicateTabKey{ "duplicateTab" };
 static constexpr std::string_view ExecuteCommandlineKey{ "wt" };
 static constexpr std::string_view FindKey{ "find" };
@@ -360,6 +361,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 { ShortcutAction::CloseWindow, RS_(L"CloseWindowCommandKey") },
                 { ShortcutAction::CopyText, RS_(L"CopyTextCommandKey") },
                 { ShortcutAction::DuplicateTab, RS_(L"DuplicateTabCommandKey") },
+                { ShortcutAction::DuplicatePaneAsFloat, RS_(L"DuplicatePaneAsFloatCommandKey") },
                 { ShortcutAction::ExecuteCommandline, RS_(L"ExecuteCommandlineCommandKey") },
                 { ShortcutAction::Find, RS_(L"FindCommandKey") },
                 { ShortcutAction::FuzzyFind, RS_(L"FuzzyFindCommandKey") },

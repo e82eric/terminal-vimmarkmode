@@ -180,7 +180,11 @@ namespace winrt::TerminalApp::implementation
     {
         ASSERT_UI_THREAD();
 
-        if (_activePane)
+        if (_floatPane)
+        {
+            return _floatPane->GetTerminalControl();
+        }
+        else if (_activePane)
         {
             return _activePane->GetLastFocusedTerminalControl();
         }
@@ -623,6 +627,26 @@ namespace winrt::TerminalApp::implementation
         return p;
     }
 
+    std::shared_ptr<Pane> TerminalTab::GetFloatPane() const
+    {
+        ASSERT_UI_THREAD();
+
+        return _floatPane;
+    }
+
+    void TerminalTab::ClearFloatPane()
+    {
+        ASSERT_UI_THREAD();
+        _floatPane.reset();
+    }
+
+    void TerminalTab::AttachPaneAsFloat(std::shared_ptr<Pane> pane)
+    {
+        ASSERT_UI_THREAD();
+        _floatPane = pane;
+        //_AttachEventHandlersToPane(_floatPane);
+    }
+
     // Method Description:
     // - Add an arbitrary pane to this tab. This will be added as a split on the
     //   currently active pane.
@@ -947,7 +971,11 @@ namespace winrt::TerminalApp::implementation
                 // Check if Tab's lifetime has expired
                 if (auto tab{ weakThisCopy.get() })
                 {
-                    if (const auto content{ sender.try_as<TerminalApp::IPaneContent>() })
+                    if (tab->_floatPane)
+                    {
+                        tab->_floatPane->Close();
+                    }
+                    else if (const auto content{ sender.try_as<TerminalApp::IPaneContent>() })
                     {
                         tab->_rootPane->WalkTree([content](std::shared_ptr<Pane> pane) {
                             if (pane->GetContent() == content)

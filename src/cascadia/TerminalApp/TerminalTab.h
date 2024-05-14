@@ -34,6 +34,9 @@ namespace winrt::TerminalApp::implementation
         std::shared_ptr<Pane> DetachRoot();
         std::shared_ptr<Pane> DetachPane();
         void AttachPane(std::shared_ptr<Pane> pane);
+        std::shared_ptr<Pane> GetFloatPane() const;
+        void ClearFloatPane();
+        void AttachPaneAsFloat(std::shared_ptr<Pane> pane);
 
         void AttachColorPicker(winrt::TerminalApp::ColorPickupFlyout& colorPicker);
 
@@ -107,6 +110,7 @@ namespace winrt::TerminalApp::implementation
         static constexpr double HeaderRenameBoxWidthDefault{ 165 };
         static constexpr double HeaderRenameBoxWidthTitleLength{ std::numeric_limits<double>::infinity() };
 
+        std::shared_ptr<Pane> _floatPane{ nullptr };
         std::shared_ptr<Pane> _rootPane{ nullptr };
         std::shared_ptr<Pane> _activePane{ nullptr };
         std::shared_ptr<Pane> _zoomedPane{ nullptr };

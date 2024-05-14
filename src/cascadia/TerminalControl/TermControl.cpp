@@ -661,6 +661,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _fuzzySearchResults.Clear();
         _fuzzySearchBox->Visibility(Visibility::Collapsed);
+        this->Focus(FocusState::Programmatic);
         _core.SelectRow(args.Row(), args.FirstPosition());
     }
 
