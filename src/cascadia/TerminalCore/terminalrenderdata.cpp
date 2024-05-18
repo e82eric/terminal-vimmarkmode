@@ -294,7 +294,7 @@ til::CoordType Terminal::_ScrollToPoints(const til::point coordStart, const til:
         _NotifyScrollEvent();
     }
 
-    return _scrollOffset;
+    return _VisibleStartIndex();
 }
 
 void Terminal::SelectYankRegion()
