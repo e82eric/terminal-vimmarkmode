@@ -87,7 +87,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _terminal = terminal;
         const auto lock = _terminal->LockForWriting();
 
-        _fzf_slab = fzf_make_default_slab();
         _setupDispatcherAndCallbacks();
 
         Connection(connection);
@@ -214,7 +213,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         Close();
 
-        fzf_free_slab(_fzf_slab);
         _renderer.reset();
         _renderEngine.reset();
     }

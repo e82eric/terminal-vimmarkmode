@@ -470,7 +470,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     private:
         bool _selectionClearedFromErase();
-        fzf_slab_t* _fzf_slab;
         std::shared_ptr<VimModeProxy> _vimProxy;
         std::unique_ptr<QuickSelectHandler> _quickSelectHandler;
     };
