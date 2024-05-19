@@ -3510,7 +3510,7 @@ namespace winrt::TerminalApp::implementation
     {
         if (const auto& control{ tab.GetActiveTerminalControl() })
         {
-            control.CreateFuzzySearchBoxControl();
+            control.CreateFuzzySearchBoxControl(L"");
         }
     }
 

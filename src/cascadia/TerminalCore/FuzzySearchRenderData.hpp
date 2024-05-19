@@ -9,13 +9,11 @@ class FuzzySearchRenderData : public Microsoft::Console::Render::IRenderData
 {
 public:
     FuzzySearchRenderData(IRenderData* pData);
-    void Show();
     void SetSize(til::size size);
-    void SetRenderer(::Microsoft::Console::Render::Renderer* renderer);
     void SetTopRow(til::CoordType row);
+    void ResetTopRow();
     Microsoft::Console::Types::Viewport GetViewport() noexcept override;
     til::point GetTextBufferEndPosition() const noexcept override;
-    const void SetTextBuffer(std::unique_ptr<TextBuffer> value);
     const FontInfo& GetFontInfo() const noexcept override;
     std::vector<Microsoft::Console::Types::Viewport> GetYankSelectionRects() noexcept override;
     void SelectYankRegion() override;
@@ -53,8 +51,6 @@ public:
 
 private:
     IRenderData* _pData;
-    ::Microsoft::Console::Render::Renderer* _renderer = nullptr;
-    std::unique_ptr<TextBuffer> _textBuffer;
     Microsoft::Console::Types::Viewport _viewPort;
     til::size _size;
     til::CoordType _row;

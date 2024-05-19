@@ -87,6 +87,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
     public:
         ControlCore(Control::IControlSettings settings,
+                             Control::IControlAppearance unfocusedAppearance,
+                             TerminalConnection::ITerminalConnection connection,
+                             std::shared_ptr<::Microsoft::Terminal::Core::Terminal> terminal);
+        ControlCore(Control::IControlSettings settings,
                     Control::IControlAppearance unfocusedAppearance,
                     TerminalConnection::ITerminalConnection connection);
         ~ControlCore();
@@ -441,14 +445,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         //my stuff
     public:
         void SelectRow(int32_t row, int32_t col);
-        void FuzzySearchSelectionChanged(int32_t row);
-        bool InitializeFuzzySearch(const float actualWidth,
-                                   const float actualHeight,
-                                   const float compositionScale);
-        uint64_t FuzzySearchSwapChainHandle() const;
-        void FuzzySearchPreviewSizeChanged(const float width, const float height);
-        void EnterFuzzySearchMode();
-        void CloseFuzzySearchNoSelection();
         void StartFuzzySearch(std::wstring_view needle);
         Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
         void UpdateBar();
@@ -468,24 +464,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void UpdateSelectionFromVim(const std::vector<til::point_span>& oldHighlights);
 
         TYPED_EVENT(ShowFuzzySearch, IInspectable, Control::ShowFuzzySearchEventArgs);
-        TYPED_EVENT(FuzzySearchSwapChainChanged, IInspectable, IInspectable);
         TYPED_EVENT(ExitVimMode, IInspectable, Control::ExitVimModeEventArgs);
         TYPED_EVENT(VimTextChanged, IInspectable, Control::VimTextChangedEventArgs);
         TYPED_EVENT(ToggleRowNumbers, IInspectable, Control::ToggleRowNumbersEventArgs);
 
     private:
-        void _sizeFuzzySearchPreview();
         bool _selectionClearedFromErase();
-        std::unique_ptr<::Microsoft::Console::Render::Atlas::AtlasEngine> _fuzzySearchRenderEngine{ nullptr };
-        std::unique_ptr<::Microsoft::Console::Render::Renderer> _fuzzySearchRenderer{ nullptr };
-        std::shared_ptr<FuzzySearchRenderData> _fuzzySearchRenderData{ nullptr };
-        winrt::handle _fuzzySearchLastSwapChainHandle{ nullptr };
-        winrt::fire_and_forget _fuzzySearchRenderEngineSwapChainChanged(const HANDLE handle);
-
-        float _fuzzySearchPanelWidth{ 0 };
-        float _fuzzySearchPanelHeight{ 0 };
-        float _fuzzySearchCompositionScale{ 0 };
-        bool _fuzzySearchActive = false;
         fzf_slab_t* _fzf_slab;
         std::shared_ptr<VimModeProxy> _vimProxy;
         std::unique_ptr<QuickSelectHandler> _quickSelectHandler;

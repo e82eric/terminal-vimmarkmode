@@ -1375,7 +1375,7 @@
 
         </StackPanel>
 
-        <local:FuzzySearchBoxControl x:Name="FuzzySearchBox"
+        <!--<local:FuzzySearchBoxControl x:Name="FuzzySearchBox"
                                      Grid.Row="0"
                                      Margin="25,25,25,25"
                                      Search="_FuzzySearch"
@@ -1383,10 +1383,8 @@
                                      HorizontalAlignment="Stretch"
                                      Closed="_CloseFuzzySearchBoxControl"
                                      Visibility="Collapsed"
-                                     SelectionChanged="FuzzySearch_SelectionChanged"
                                      OnReturn="FuzzySearch_OnSelection"
-                                     PreviewSwapChainPanelSizeChanged="_FuzzySearchPreviewSwapChainSizeChanged"
-                                     ItemsSource="{x:Bind FuzzySearchResults}"/>
+                                     ItemsSource="{x:Bind FuzzySearchResults}"/>-->
 
         <StackPanel Grid.Row="2" Grid.Column="1">
             <Border Background="#3c3836" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">

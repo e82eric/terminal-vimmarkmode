@@ -2448,6 +2448,7 @@ void VimModeProxy::ResetVimModeForSizeChange(bool selectLastChar)
 
 void VimModeProxy::SelectRow(int32_t row, int32_t col)
 {
+    EnterVimMode(false);
     if (_terminal->SelectionMode() != ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Mark)
     {
         _terminal->ToggleMarkMode();

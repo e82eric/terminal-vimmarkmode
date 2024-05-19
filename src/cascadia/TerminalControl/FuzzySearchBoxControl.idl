@@ -1,31 +1,23 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
+import "ICoreState.idl";
+import "IControlSettings.idl";
 import "FuzzySearchTextSegment.idl";
 
 namespace Microsoft.Terminal.Control
 {
-    delegate void SearchHandler2(String query, Boolean goForward, Boolean isCaseSensitive);
+    delegate void FuzzySearchHandler(String query);
 
     [default_interface] runtimeclass FuzzySearchBoxControl : Windows.UI.Xaml.Controls.UserControl
     {
-        FuzzySearchBoxControl();
-        void SetFocusOnTextbox();
-        void SelectFirstItem();
+        FuzzySearchBoxControl(IControlSettings settings, IControlAppearance unfocusedAppearance);
+        void Show(String searchString);
         void SearchString(String searchString);
-        event SearchHandler2 Search;
-        Boolean ContainsFocus();
-        Double PreviewActualHeight();
-        Double PreviewActualWidth();
-        Single PreviewCompositionScaleX();
-        IObservableVector<FuzzySearchTextLine> ItemsSource
-        {
-            get;
-            set;
-        };
+        event FuzzySearchHandler Search;
+        void SetFontSize(Int32 width, Int32 height);
+        void SetSearchResult(FuzzySearchResult val);
         event Windows.Foundation.TypedEventHandler<FuzzySearchBoxControl, Windows.UI.Xaml.RoutedEventArgs> Closed;
-        event Windows.Foundation.TypedEventHandler<FuzzySearchBoxControl, FuzzySearchTextLine> SelectionChanged;
         event Windows.Foundation.TypedEventHandler<FuzzySearchBoxControl, FuzzySearchTextLine> OnReturn;
-        event Windows.Foundation.TypedEventHandler<FuzzySearchBoxControl, Windows.UI.Xaml.SizeChangedEventArgs> PreviewSwapChainPanelSizeChanged;
     }
 }

@@ -9,30 +9,18 @@ FuzzySearchRenderData::FuzzySearchRenderData(IRenderData* pData) :
     _viewPort = vp.FromDimensions(til::point{ 0, 5 }, _size);
 }
 
-void FuzzySearchRenderData::Show()
-{
-    TextAttribute ta{};
-    auto tb = std::make_unique<TextBuffer>(_size, ta, 0, true, *_renderer);
-    _textBuffer.swap(tb);
-}
-
 void FuzzySearchRenderData::SetSize(til::size size)
 {
     _size = size;
     _viewPort = _viewPort.FromDimensions(til::point{ 0, 0 }, til::size{ _size.width, _size.height });
 }
 
-void FuzzySearchRenderData::SetRenderer(::Microsoft::Console::Render::Renderer* renderer)
-{
-    _renderer = renderer;
-}
-
 void FuzzySearchRenderData::SetTopRow(til::CoordType row)
 {
     _row = row;
     til::CoordType newY;
-    auto textBufferHeight = _textBuffer->GetSize().Height();
-    auto viewPortHeight = _viewPort.Height();
+    const auto textBufferHeight = _pData->GetTextBuffer().GetSize().Height();
+    const auto viewPortHeight = _viewPort.Height();
     if (row + viewPortHeight > textBufferHeight)
     {
         newY = textBufferHeight - viewPortHeight;
@@ -45,6 +33,11 @@ void FuzzySearchRenderData::SetTopRow(til::CoordType row)
     _viewPort = _viewPort.FromDimensions(til::point{ 0, std::max(0, newY) }, til::size{ _size.width, _size.height });
 }
 
+void FuzzySearchRenderData::ResetTopRow()
+{
+    _viewPort = _viewPort.FromDimensions(til::point{ 0, 0 }, til::size{ _size.width, _size.height });
+}
+
 Microsoft::Console::Types::Viewport FuzzySearchRenderData::GetViewport() noexcept
 {
     return _viewPort;
@@ -53,11 +46,6 @@ Microsoft::Console::Types::Viewport FuzzySearchRenderData::GetViewport() noexcep
 til::point FuzzySearchRenderData::GetTextBufferEndPosition() const noexcept
 {
     return {};
-}
-
-const void FuzzySearchRenderData::SetTextBuffer(std::unique_ptr<TextBuffer> value)
-{
-    _textBuffer.swap(value);
 }
 
 const FontInfo& FuzzySearchRenderData::GetFontInfo() const noexcept
@@ -93,11 +81,11 @@ std::vector<Microsoft::Console::Types::Viewport> FuzzySearchRenderData::GetSelec
     auto startPoint = til::point{ 0, _row };
     til::CoordType endRow = _row;
 
-    while (_textBuffer->GetRowByOffset(endRow).WasWrapForced())
+    while (_pData->GetTextBuffer().GetRowByOffset(endRow).WasWrapForced())
     {
         endRow++;
     }
-    auto rects = _textBuffer->GetTextRects(til::point{ 0, _row }, til::point{ _viewPort.Width() - 1, endRow }, false, false);
+    const auto rects = _pData->GetTextBuffer().GetTextRects(til::point{ 0, _row }, til::point{ _viewPort.Width() - 1, endRow }, false, false);
 
     std::vector<Microsoft::Console::Types::Viewport> result;
     result.reserve(rects.size());
@@ -125,12 +113,12 @@ std::vector<Microsoft::Console::Types::Viewport> FuzzySearchRenderData::GetSelec
 
 void FuzzySearchRenderData::LockConsole() noexcept
 {
-    _readWriteLock.lock();
+    _pData->LockConsole();
 }
 
 void FuzzySearchRenderData::UnlockConsole() noexcept
 {
-    _readWriteLock.unlock();
+    _pData->UnlockConsole();
 }
 
 std::pair<COLORREF, COLORREF> FuzzySearchRenderData::GetAttributeColors(const TextAttribute& attr) const noexcept
@@ -233,7 +221,7 @@ const std::vector<size_t> FuzzySearchRenderData::GetPatternId(const til::point /
 
 TextBuffer& FuzzySearchRenderData::GetTextBuffer(void) const noexcept
 {
-    return *_textBuffer;
+    return _pData->GetTextBuffer();
 }
 
 std::span<const til::point_span> FuzzySearchRenderData::GetSearchHighlights() const noexcept

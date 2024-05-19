@@ -47,7 +47,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _id = _nextId.fetch_add(1, std::memory_order_relaxed);
 
-        _core = winrt::make_self<ControlCore>(settings, unfocusedAppearance, connection);
+        auto terminal = std::make_shared<::Microsoft::Terminal::Core::Terminal>();
+        _core = winrt::make_self<ControlCore>(settings, unfocusedAppearance, connection, terminal);
+        _fuzzySearchBoxControl = winrt::make_self<implementation::FuzzySearchBoxControl>(settings, unfocusedAppearance, terminal);
 
         _core->Attached([weakThis = get_weak()](auto&&, auto&&) {
             if (auto self{ weakThis.get() })
@@ -113,6 +115,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     Control::ControlCore ControlInteractivity::Core()
     {
         return *_core;
+    }
+
+    Control::FuzzySearchBoxControl ControlInteractivity::FuzzySearchBoxControl()
+    {
+        return *_fuzzySearchBoxControl;
     }
 
     void ControlInteractivity::Close()

@@ -4,6 +4,7 @@
 import "ICoreState.idl";
 import "IControlSettings.idl";
 import "ControlCore.idl";
+import "FuzzySearchBoxControl.idl";
 import "EventArgs.idl";
 import "InteractivityAutomationPeer.idl";
 
@@ -18,6 +19,7 @@ namespace Microsoft.Terminal.Control
                              Microsoft.Terminal.TerminalConnection.ITerminalConnection connection);
 
         ControlCore Core { get; };
+        FuzzySearchBoxControl FuzzySearchBoxControl { get; };
         void UpdateSettings();
         void Initialize();
         void GotFocus();

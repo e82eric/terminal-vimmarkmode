@@ -182,9 +182,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         InitializeComponent();
 
-        _fuzzySearchResults = winrt::single_threaded_observable_vector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
-
         _core = _interactivity.Core();
+        _fuzzySearchBox = _interactivity.FuzzySearchBoxControl();
+
+        RootGrid().Children().Append(_fuzzySearchBox);
+        Controls::Grid::SetRow(_fuzzySearchBox, 0);
+        _fuzzySearchBox.Margin(Thickness{ 25, 25, 25, 25 });
+        _fuzzySearchBox.Visibility(::Visibility::Collapsed);
+        _fuzzySearchBox.VerticalAlignment(::VerticalAlignment::Stretch);
+        _fuzzySearchBox.HorizontalAlignment(::HorizontalAlignment::Stretch);
+        _fuzzySearchBox.Search({ this, &TermControl::_FuzzySearch });
+        _fuzzySearchBox.Closed({ this, &TermControl::_CloseFuzzySearchBoxControl });
+        _fuzzySearchBox.OnReturn({ this, &TermControl::FuzzySearch_OnSelection });
 
         // This event is specifically triggered by the renderer thread, a BG thread. Use a weak ref here.
         _revokers.RendererEnteredErrorState = _core.RendererEnteredErrorState(winrt::auto_revoke, { get_weak(), &TermControl::_RendererEnteredErrorState });
@@ -197,7 +206,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // ALSO IMPORTANT: Make sure to set this callback up in the ctor, so
         // that we won't miss any swap chain changes.
         _revokers.SwapChainChanged = _core.SwapChainChanged(winrt::auto_revoke, { get_weak(), &TermControl::RenderEngineSwapChainChanged });
-        _revokers.FuzzySearchSwapChainChanged = _core.FuzzySearchSwapChainChanged(winrt::auto_revoke, { get_weak(), &TermControl::FuzzySearchRenderEngineSwapChainChanged });
 
         // These callbacks can only really be triggered by UI interactions. So
         // they don't need weak refs - they can't be triggered unless we're
@@ -342,11 +350,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         });
     }
 
-    Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> TermControl::FuzzySearchResults()
-    {
-        return _fuzzySearchResults;
-    }
-
     // Function Description:
     // - Static helper for building a new TermControl from an already existing
     //   content. We'll attach the existing swapchain to this new control's
@@ -383,11 +386,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
         });
         _layoutUpdatedRevoker.swap(r);
-    }
-
-    void TermControl::_fuzzySearchInitializeForAttach(const Microsoft::Terminal::Control::IKeyBindings& /*keyBindings*/)
-    {
-        _AttachDxgiFuzzySearchSwapChainToXaml(reinterpret_cast<HANDLE>(_core.FuzzySearchSwapChainHandle()));
     }
 
     uint64_t TermControl::ContentId() const
@@ -572,22 +570,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void TermControl::CreateFuzzySearchBoxControl()
+    void TermControl::CreateFuzzySearchBoxControl(std::wstring_view searchString) const
     {
-        // Lazy load the search box control.
-        if (auto loadedSearchBox{ FindName(L"FuzzySearchBox") })
+        _fuzzySearchBox.Visibility(Visibility::Visible);
+        _fuzzySearchBox.Show(searchString);
+        _core.CursorOn(false);
+
+        if (_blinkTimer)
         {
-            if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>() })
-            {
-                // get at its private implementation
-                _fuzzySearchBox.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::FuzzySearchBoxControl>(searchBox));
-                _fuzzySearchBox->FuzzySearchTextBox().Text(L"");
-                _fuzzySearchBox->Visibility(Visibility::Visible);
-                _fuzzySearchBox->SetStatus(0, 0);
-                _fuzzySearchBox->SetFocusOnTextbox();
-                _core.CursorOn(false);
-                _core.EnterFuzzySearchMode();
-            }
+            _cursorTimer.Stop();
+            _blinkTimer.Stop();
+            _core.CursorOn(false);
         }
     }
 
@@ -647,32 +640,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.ToggleRowNumberMode();
     }
 
-    void TermControl::_FuzzySearch(const winrt::hstring& text, const bool /*goForward*/, const bool /*caseSensitive*/)
+    void TermControl::_FuzzySearch(const winrt::hstring& text)
     {
-        auto fuzzySearchResult = _core.FuzzySearch(text);
-
-        _fuzzySearchResults.Clear();
-        for (auto result : fuzzySearchResult.Results())
-        {
-            _fuzzySearchResults.Append(result);
-        }
-
-        _fuzzySearchBox->SetStatus(fuzzySearchResult.TotalRowsSearched(), fuzzySearchResult.NumberOfResults());
-        FuzzySearchBox().SelectFirstItem();
+        const auto fuzzySearchResult = _core.FuzzySearch(text);
+        _fuzzySearchBox.SetSearchResult(std::move(fuzzySearchResult));
     }
 
     void TermControl::FuzzySearch_OnSelection(Control::FuzzySearchBoxControl const& /*sender*/, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args)
     {
-        _fuzzySearchResults.Clear();
-        _fuzzySearchBox->Visibility(Visibility::Collapsed);
-        this->Focus(FocusState::Programmatic);
         _core.SelectRow(args.Row(), args.FirstPosition());
-    }
-
-    void TermControl::FuzzySearch_SelectionChanged(Control::FuzzySearchBoxControl const& /*sender*/, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args)
-    {
-        auto row = args.Row();
-        _core.FuzzySearchSelectionChanged(row);
     }
 
     // Method Description:
@@ -714,10 +690,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::_CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& /*sender*/,
                                                   const RoutedEventArgs& /*args*/)
     {
-        _fuzzySearchResults.Clear();
-        _fuzzySearchBox->Visibility(Visibility::Collapsed);
+        _fuzzySearchBox.Visibility(Visibility::Collapsed);
         this->Focus(FocusState::Programmatic);
-        _core.CloseFuzzySearchNoSelection();
     }
 
     winrt::fire_and_forget TermControl::UpdateControlSettings(IControlSettings settings)
@@ -1186,13 +1160,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _AttachDxgiSwapChainToXaml(h);
     }
 
-    void TermControl::FuzzySearchRenderEngineSwapChainChanged(IInspectable /*sender*/, IInspectable args)
-    {
-        // This event comes in on the UI thread
-        HANDLE h = reinterpret_cast<HANDLE>(winrt::unbox_value<uint64_t>(args));
-        _AttachDxgiFuzzySearchSwapChainToXaml(h);
-    }
-
     // Method Description:
     // - Called when the renderer triggers a warning. It might do this when it
     //   fails to find a shader file, or fails to compile a shader. We'll take
@@ -1252,11 +1219,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         nativePanel->SetSwapChainHandle(swapChainHandle);
     }
 
-    void TermControl::_AttachDxgiFuzzySearchSwapChainToXaml(HANDLE swapChainHandle)
-    {
-        _fuzzySearchBox->SetSwapChainHandle(swapChainHandle);
-    }
-
     bool TermControl::_InitializeTerminal(const InitializeReason reason)
     {
         if (_initializedTerminal)
@@ -1285,12 +1247,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                                           panelScaleX);
 
             if (!coreInitialized)
-            {
-                return false;
-            }
-
-            const auto fuzzyPreviewInitalized = _core.InitializeFuzzySearch(panelWidth, panelHeight, panelScaleX);
-            if (!fuzzyPreviewInitalized)
             {
                 return false;
             }
@@ -1559,7 +1515,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return;
         }
 
-        if (_fuzzySearchBox && _fuzzySearchBox->ContainsFocus())
+        if (_fuzzySearchBox && _fuzzySearchBox.Visibility() == ::Visibility::Visible)
         {
             return;
         }
@@ -2367,11 +2323,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void TermControl::_FuzzySearchPreviewSwapChainSizeChanged(const Windows::Foundation::IInspectable& /*sender*/, const Windows::UI::Xaml::SizeChangedEventArgs& e)
-    {
-        _core.FuzzySearchPreviewSizeChanged(e.NewSize().Width, e.NewSize().Height);
-    }
-
     // Method Description:
     // - Triggered when the swapchain changes DPI. When this happens, we're
     //   going to receive 3 events:
@@ -2496,26 +2447,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         co_await wil::resume_foreground(Dispatcher());
 
-        CreateFuzzySearchBoxControl();
-
-        if (_blinkTimer)
-        {
-            _cursorTimer.Stop();
-            _blinkTimer.Stop();
-            _core.CursorOn(false);
-        }
-
-        if (args.SearchString().size() > 0)
-        {
-            auto b = _core.FuzzySearch(args.SearchString());
-            _fuzzySearchResults.Clear();
-            for (auto a : b.Results())
-            {
-                _fuzzySearchResults.Append(a);
-            }
-        }
-
-        FuzzySearchBox().SearchString(args.SearchString());
+        CreateFuzzySearchBoxControl(args.SearchString());
     }
 
     winrt::fire_and_forget TermControl::_ToggleRowNumbers(const IInspectable& /*sender*/,
@@ -3808,21 +3740,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         scaleMarker(SelectionStartMarker());
         scaleMarker(SelectionEndMarker());
 
-        if (auto loadedSearchBox{ FindName(L"FuzzySearchBox") })
-        {
-            if (auto searchBox{ loadedSearchBox.try_as<::winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>() })
-            {
-                // get at its private implementation
-                _fuzzySearchBox.copy_from(winrt::get_self<::winrt::Microsoft::Terminal::Control::implementation::FuzzySearchBoxControl>(searchBox));
-            }
-        }
-
         auto displayInfo = Windows::Graphics::Display::DisplayInformation::GetForCurrentView();
         auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
         auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.Settings().FontFace());
         auto fontSize = _core.Settings().FontSize() * 1.2;
 
-        _fuzzySearchBox->SetFontSize(til::size{ args.Width(), args.Height() });
+        _fuzzySearchBox.SetFontSize(args.Width(), args.Height());
         _setVimBarFontSize(directXHeight, fontSize, fontFamily);
         _setRowNumberFontSize(directXHeight, fontSize, fontFamily);
         CurrentSearchRowHighlight().Height(directXHeight);

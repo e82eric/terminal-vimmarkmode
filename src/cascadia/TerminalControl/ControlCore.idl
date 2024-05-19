@@ -83,10 +83,6 @@ namespace Microsoft.Terminal.Control
                            Single actualHeight,
                            Single compositionScale);
 
-        Boolean InitializeFuzzySearch(Single actualWidth,
-                           Single actualHeight,
-                           Single compositionScale);
-
         void SelectRow(Int32 row, Int32 col);
         void UpdateSettings(IControlSettings settings, IControlAppearance appearance);
         void ApplyAppearance(Boolean focused);
@@ -96,9 +92,6 @@ namespace Microsoft.Terminal.Control
         Boolean IsInVimMode();
         Boolean IsInQuickSelectMode();
         void EnterMarkMode();
-        void EnterFuzzySearchMode();
-        void CloseFuzzySearchNoSelection();
-        void FuzzySearchSelectionChanged(Int32 row);
         Int32 ViewportRowNumberToHighlight();
         void ToggleRowNumberMode();
         IVector<Int32> GetRowNumbers();
@@ -111,7 +104,6 @@ namespace Microsoft.Terminal.Control
         Boolean HasUnfocusedAppearance();
 
         UInt64 SwapChainHandle { get; };
-        UInt64 FuzzySearchSwapChainHandle { get; };
 
         Windows.Foundation.Size FontSize { get; };
         UInt16 FontWeight { get; };
@@ -144,7 +136,6 @@ namespace Microsoft.Terminal.Control
         void ResetFontSize();
         void AdjustFontSize(Single fontSizeDelta);
         void SizeChanged(Single width, Single height);
-        void FuzzySearchPreviewSizeChanged(Single width, Single height);
         void ScaleChanged(Single scale);
         void SizeOrScaleChanged(Single width, Single height, Single scale);
 
@@ -204,7 +195,6 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, Object> ConnectionStateChanged;
         event Windows.Foundation.TypedEventHandler<Object, Object> HoveredHyperlinkChanged;
         event Windows.Foundation.TypedEventHandler<Object, Object> SwapChainChanged;
-        event Windows.Foundation.TypedEventHandler<Object, Object> FuzzySearchSwapChainChanged;
         event Windows.Foundation.TypedEventHandler<Object, RendererWarningArgs> RendererWarning;
         event Windows.Foundation.TypedEventHandler<Object, NoticeEventArgs> RaiseNotice;
         event Windows.Foundation.TypedEventHandler<Object, TransparencyChangedEventArgs> TransparencyChanged;

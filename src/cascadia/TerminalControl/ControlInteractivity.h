@@ -22,6 +22,7 @@
 
 #include "ControlCore.h"
 #include "../../renderer/uia/UiaRenderer.hpp"
+#include "FuzzySearchBoxControl.h"
 
 namespace ControlUnitTests
 {
@@ -43,6 +44,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void UpdateSettings();
         void Initialize();
         Control::ControlCore Core();
+        Control::FuzzySearchBoxControl FuzzySearchBoxControl();
 
         void Close();
         void Detach();
@@ -110,6 +112,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         std::unique_ptr<::Microsoft::Console::Render::UiaEngine> _uiaEngine;
 
         winrt::com_ptr<ControlCore> _core{ nullptr };
+        winrt::com_ptr<implementation::FuzzySearchBoxControl> _fuzzySearchBoxControl{ nullptr };
         UINT _rowsToScroll = 3;
         float _internalScrollbarPosition = 0;
 

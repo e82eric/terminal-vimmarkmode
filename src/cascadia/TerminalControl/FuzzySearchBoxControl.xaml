@@ -28,15 +28,18 @@
         </Grid.RowDefinitions>
 
         <Border BorderBrush="Gray" BorderThickness="2" CornerRadius="4" Margin="0,0,0,8" Grid.Row="0">
-            <SwapChainPanel x:Name="FuzzySearchSwapChainPanel"  HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <SwapChainPanel
+                x:Name="FuzzySearchSwapChainPanel"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                CompositionScaleChanged="_SwapChainScaleChanged"
+                SizeChanged="_SwapChainSizeChanged">
             </SwapChainPanel>
         </Border>
 
         <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8" Grid.Row="1">
             <ListBox
-            ItemsSource="{x:Bind ItemsSource, Mode=OneWay}"
             x:Name="ListBox"       
-            SelectionChanged="OnListBoxSelectionChanged"
+            SelectionChanged="_OnListBoxSelectionChanged"
                 Background="#FF282828"
                 BorderBrush="#32302F"
                 BorderThickness="3"
@@ -58,9 +61,9 @@
                 <TextBox x:Name="FuzzySearchTextBox"
                          Style="{StaticResource ClearTextBoxStyle}"
                         IsSpellCheckEnabled="False"
-                        KeyDown="TextBoxKeyDown"
+                        KeyDown="_TextBoxKeyDown"
                         HorizontalAlignment="Stretch"
-                        TextChanged="TextBoxTextChanged"
+                        TextChanged="_TextBoxTextChanged"
                         Grid.Column="0"/>
                 <TextBlock x:Name="StatusBox"
                            MinWidth="70"

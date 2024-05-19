@@ -84,8 +84,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void ColorSelection(Control::SelectionColor fg, Control::SelectionColor bg, Core::MatchMode matchMode);
 
-        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> FuzzySearchResults();
-        void FuzzySearch_SelectionChanged(Control::FuzzySearchBoxControl const& sender, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args);
         void FuzzySearch_OnSelection(Control::FuzzySearchBoxControl const& sender, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args);
 
 #pragma region ICoreState
@@ -135,9 +133,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void ToggleShaderEffects();
 
         void RenderEngineSwapChainChanged(IInspectable sender, IInspectable args);
-        void FuzzySearchRenderEngineSwapChainChanged(IInspectable sender, IInspectable args);
         void _AttachDxgiSwapChainToXaml(HANDLE swapChainHandle);
-        void _AttachDxgiFuzzySearchSwapChainToXaml(HANDLE swapChainHandle);
         winrt::fire_and_forget _RendererEnteredErrorState(IInspectable sender, IInspectable args);
 
         void _RenderRetryButton_Click(const IInspectable& button, const IInspectable& args);
@@ -145,7 +141,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                                 Control::RendererWarningArgs args);
 
         void CreateSearchBoxControl();
-        void CreateFuzzySearchBoxControl();
+        void CreateFuzzySearchBoxControl(std::wstring_view searchString) const;
 
         void SearchMatch(const bool goForward);
 
@@ -252,7 +248,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Control::ControlCore _core{ nullptr };
         TsfDataProvider _tsfDataProvider{ this };
         winrt::com_ptr<SearchBoxControl> _searchBox;
-        winrt::com_ptr<FuzzySearchBoxControl> _fuzzySearchBox;
+        Control::FuzzySearchBoxControl _fuzzySearchBox{nullptr};
 
         bool _closing{ false };
         bool _focused{ false };
@@ -301,8 +297,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         Control::CursorDisplayState _cursorVisibility{ Control::CursorDisplayState::Default };
 
-        Windows::Foundation::Collections::IObservableVector<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine> _fuzzySearchResults;
-
         inline bool _IsClosing() const noexcept
         {
 #ifndef NDEBUG
@@ -316,7 +310,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         void _initializeForAttach(const Microsoft::Terminal::Control::IKeyBindings& keyBindings);
-        void _fuzzySearchInitializeForAttach(const Microsoft::Terminal::Control::IKeyBindings& keyBindings);
 
         void _UpdateSettingsFromUIThread();
         void _UpdateAppearanceFromUIThread(Control::IControlAppearance newAppearance);
@@ -367,8 +360,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _SwapChainSizeChanged(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::SizeChangedEventArgs& e);
         void _SwapChainScaleChanged(const Windows::UI::Xaml::Controls::SwapChainPanel& sender, const Windows::Foundation::IInspectable& args);
 
-        void _FuzzySearchPreviewSwapChainSizeChanged(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::SizeChangedEventArgs& e);
-
         void _TerminalTabColorChanged(const std::optional<til::color> color);
 
         void _ScrollPositionChanged(const IInspectable& sender, const Control::ScrollPositionChangedArgs& args);
@@ -400,7 +391,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         double _GetAutoScrollSpeed(double cursorDistanceFromBorder) const;
 
         void _Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
-        void _FuzzySearch(const winrt::hstring& text, const bool /*goForward*/, const bool /*caseSensitive*/);
+        void _FuzzySearch(const winrt::hstring& text);
         void _CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _setVimBarFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
         void _setRowNumberFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
@@ -459,7 +450,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             // These are set up in _InitializeTerminal
             Control::ControlCore::RendererWarning_revoker RendererWarning;
             Control::ControlCore::SwapChainChanged_revoker SwapChainChanged;
-            Control::ControlCore::FuzzySearchSwapChainChanged_revoker FuzzySearchSwapChainChanged;
 
             Control::ControlInteractivity::OpenHyperlink_revoker interactivityOpenHyperlink;
             Control::ControlInteractivity::ScrollPositionChanged_revoker interactivityScrollPositionChanged;
