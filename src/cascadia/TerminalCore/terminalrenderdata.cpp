@@ -194,16 +194,18 @@ try
         return result;
     }
 
-    auto lowerIt = std::lower_bound(_quickSelectHighlights.begin(), _quickSelectHighlights.end(), _GetVisibleViewport().Top(), [](const til::point_span& rect, til::CoordType value) {
+    const auto top = _GetVisibleViewport().Top();
+    const auto lowerIt = std::lower_bound(_quickSelectHighlights.begin(), _quickSelectHighlights.end(), top, [](const til::point_span& rect, til::CoordType value) {
         return rect.start.y < value;
     });
 
-    auto upperIt = std::upper_bound(_quickSelectHighlights.begin(), _quickSelectHighlights.end(), _GetVisibleViewport().BottomExclusive(), [](til::CoordType value, const til::point_span& rect) {
+    const auto bottom = _GetVisibleViewport().BottomExclusive();
+    const auto upperIt = std::upper_bound(_quickSelectHighlights.begin(), _quickSelectHighlights.end(), bottom, [](til::CoordType value, const til::point_span& rect) {
         return value < rect.start.y;
     });
 
-    auto num = static_cast<int32_t>(std::distance(lowerIt, upperIt));
-    auto chars = _quickSelectAlphabet->GetQuickSelectChars(num);
+    const auto num = static_cast<int32_t>(std::distance(lowerIt, upperIt));
+    const auto chars = _quickSelectAlphabet->GetQuickSelectChars(num);
 
     til::CoordType lastY = -1;
     for (int i = 0; i < num; i++)

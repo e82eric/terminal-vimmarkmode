@@ -486,7 +486,11 @@ try
     auto length = ut->c;
     auto numberOfRows = endRow - startRow + 1;
     auto charsInRow = length / numberOfRows;
-    til::CoordType rowNumber = static_cast<til::CoordType>(nativeIndex / charsInRow);
+    auto rowNumber = 0;
+    if (nativeIndex > 0)
+    {
+        rowNumber = static_cast<til::CoordType>((numberOfRows) - (charsInRow / nativeIndex));
+    }
     auto rowIndex = nativeIndex - (rowNumber * charsInRow);
 
     auto text = textBuffer.GetRowByOffset(startRow + rowNumber).GetText();
