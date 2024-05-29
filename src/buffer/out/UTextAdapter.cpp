@@ -489,7 +489,7 @@ try
     auto rowNumber = 0;
     if (nativeIndex > 0)
     {
-        rowNumber = static_cast<til::CoordType>((numberOfRows) - (charsInRow / nativeIndex));
+        rowNumber = std::max(0, static_cast<til::CoordType>((numberOfRows) - (charsInRow / nativeIndex)));
     }
     auto rowIndex = nativeIndex - (rowNumber * charsInRow);
 
