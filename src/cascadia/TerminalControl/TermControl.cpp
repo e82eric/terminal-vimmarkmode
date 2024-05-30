@@ -3099,9 +3099,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // - the corresponding viewport terminal position (in pixels) for the given Point parameter
     const til::point TermControl::_toTerminalOrigin(winrt::Windows::Foundation::Point cursorPosition)
     {
+        auto rowNumberWidth = 0.0;
+        if (NumberBorder().Visibility() == Visibility::Visible)
+        {
+            rowNumberWidth = NumberBorder().ActualWidth();
+        }
+
         // cursorPosition is DIPs, relative to SwapChainPanel origin
         const til::point cursorPosInDIPs{ til::math::rounding, cursorPosition };
-        const til::size marginsInDips{ til::math::rounding, GetPadding().Left, GetPadding().Top };
+        const til::size marginsInDips{ til::math::rounding, GetPadding().Left + rowNumberWidth, GetPadding().Top };
 
         // This point is the location of the cursor within the actual grid of characters, in DIPs
         const auto relativeToMarginInDIPs = cursorPosInDIPs - marginsInDips;
