@@ -14,14 +14,21 @@ Portable.cmd
 ```
 
 Fuzzy Find
+
+|Key(s)|Action|Mode|
+| --- | --- | --- |
+|ctrl+shift+f|Open Fuzzy Search|Terminal|
+
 ![FuzzyFind](https://github.com/e82eric/terminal-vimmarkmode/assets/811029/628660e9-72b4-4cad-95b3-eb3b13fe7062)
 
 Floating Terminal
+|Key(s)|Action|Mode|
+| --- | --- | --- |
+|ctrl+shift+e|Open Float Terminal|Terminal|
+
 ![FloatTerm](https://github.com/e82eric/terminal-vimmarkmode/assets/811029/fe3175b3-0a5f-4667-9259-4544f13b23b3)
 
 Quick Select
-
-Terminal Mode
 |Key(s)|Action|Mode|
 | --- | --- | --- |
 |alt+space|Enter Quick Select Mode|Terminal|
@@ -71,6 +78,11 @@ Other
 |/|Search down|
 
 Relative Line Numbers
+
+|Key(s)|Action|Mode|
+| --- | --- | --- |
+|ctrl+shift+r|Toggle on/off|Terminal|
+
 ![RelativeLineNumbers](https://github.com/e82eric/terminal-vimmarkmode/assets/811029/d4716bce-f4e1-4b3a-84da-feb70fe1854a)
 
 
