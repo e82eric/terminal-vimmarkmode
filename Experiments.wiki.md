@@ -20,6 +20,15 @@ Floating Terminal
 ![FloatTerm](https://github.com/e82eric/terminal-vimmarkmode/assets/811029/fe3175b3-0a5f-4667-9259-4544f13b23b3)
 
 Quick Select
+
+Terminal Mode
+|Key(s)|Action|Mode|
+| --- | --- | --- |
+|alt+space|Enter Quick Select Mode|Terminal|
+|{a-z}| Select start of pattern |Quick Select|
+|Shift + {a-z}| Send text of matching pattern to terminal |Quick Select|
+|Ctrl + {a-z}| Send text of matching pattern to terminal |Quick Select|
+
 ![QuickSelect](https://github.com/e82eric/terminal-vimmarkmode/assets/811029/63f03798-d041-4a6b-b79b-2bbfd76621f2)
 
 Vim Mode (Only for Mark mode)
