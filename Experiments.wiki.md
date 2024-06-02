@@ -56,6 +56,6 @@ Other
 |/|Search down|
 
 Relative Line Numbers
-
+![RelativeLineNumbers](https://github.com/e82eric/terminal-vimmarkmode/assets/811029/d4716bce-f4e1-4b3a-84da-feb70fe1854a)
 
 
