@@ -23,6 +23,12 @@ Quick Select
 ![QuickSelect](https://github.com/e82eric/terminal-vimmarkmode/assets/811029/63f03798-d041-4a6b-b79b-2bbfd76621f2)
 
 Vim Mode (Only for Mark mode)
+Terminal Mode
+|Default|Action|
+| --- | --- |
+|ctrl+shift+m|Enter Vim Mode|
+|ctrl+shift+/|Enter Vim Mode Forward Search|
+|ctrl+shift+?|Enter Vim Mode Backward Search|
 
 Motions
 |Key|Motion|
