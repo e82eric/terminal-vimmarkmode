@@ -515,6 +515,7 @@ dsound
 DSSCL
 DSwap
 DTest
+DTo
 DTTERM
 dup'ed
 dvi
@@ -609,6 +610,7 @@ FILTERONPASTE
 FINDCASE
 FINDDLG
 FINDDOWN
+FINDREGEX
 FINDSTRINGEXACT
 FINDUP
 FIter
@@ -736,6 +738,7 @@ HABCDEF
 Hackathon
 HALTCOND
 HANGEUL
+hardlinks
 hashalg
 HASSTRINGS
 hbitmap
@@ -821,6 +824,7 @@ idllib
 IDOK
 IDR
 idth
+IDTo
 IDXGI
 IEnd
 IEnum
@@ -1077,6 +1081,7 @@ MOUSEFIRST
 MOUSEHWHEEL
 MOVESTART
 msb
+msbuildcache
 msctf
 msctls
 msdata
@@ -1486,6 +1491,7 @@ reparented
 reparenting
 replatformed
 Replymessage
+reportfileaccesses
 repositorypath
 Requiresx
 rerasterize
@@ -1869,7 +1875,7 @@ unk
 unknwn
 UNORM
 unparseable
-unregistering
+Unregistering
 untextured
 UPDATEDISPLAY
 UPDOWN
@@ -2002,6 +2008,7 @@ wincontypes
 WINCORE
 windbg
 WINDEF
+windir
 windll
 WINDOWALPHA
 windowdpiapi

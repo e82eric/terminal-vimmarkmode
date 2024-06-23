@@ -77,6 +77,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Windows::Foundation::Size CharacterDimensions() const;
         Windows::Foundation::Size MinimumSize();
         float SnapDimensionToGrid(const bool widthOrHeight, const float dimension);
+        void PreviewInput(const winrt::hstring& text);
 
         Windows::Foundation::Point CursorPositionInDips();
 
@@ -390,12 +391,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         double _GetAutoScrollSpeed(double cursorDistanceFromBorder) const;
 
-        void _Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
         void _FuzzySearch(const winrt::hstring& text);
         void _CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _setVimBarFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
         void _setRowNumberFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
-        void _SearchChanged(const winrt::hstring& text, const bool goForward, const bool caseSensitive);
+        void _Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive, const bool regularExpression);
+        void _SearchChanged(const winrt::hstring& text, const bool goForward, const bool caseSensitive, const bool regularExpression);
         void _CloseSearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _refreshSearch();
         void _handleSearchResults(SearchResults results);

@@ -41,7 +41,7 @@ namespace winrt::TerminalApp::implementation
 
         auto firstId = _nextPaneId;
 
-        _rootPane->WalkTree([&](std::shared_ptr<Pane> pane) {
+        _rootPane->WalkTree([&](const auto& pane) {
             // update the IDs on each pane
             if (pane->_IsLeaf())
             {
@@ -207,7 +207,7 @@ namespace winrt::TerminalApp::implementation
     {
         ASSERT_UI_THREAD();
 
-        _rootPane->WalkTree([&](std::shared_ptr<Pane> pane) {
+        _rootPane->WalkTree([&](const auto& pane) {
             // Attach event handlers to each new pane
             _AttachEventHandlersToPane(pane);
             if (auto content = pane->GetContent())
@@ -279,7 +279,7 @@ namespace winrt::TerminalApp::implementation
         _UpdateHeaderControlMaxWidth();
 
         // Update the settings on all our panes.
-        _rootPane->WalkTree([&](auto pane) {
+        _rootPane->WalkTree([&](const auto& pane) {
             pane->UpdateSettings(settings);
             return false;
         });
@@ -538,7 +538,7 @@ namespace winrt::TerminalApp::implementation
 
         // Add the new event handlers to the new pane(s)
         // and update their ids.
-        pane->WalkTree([&](auto p) {
+        pane->WalkTree([&](const auto& p) {
             _AttachEventHandlersToPane(p);
             if (p->_IsLeaf())
             {
@@ -628,7 +628,7 @@ namespace winrt::TerminalApp::implementation
         // manually.
         _rootPane->Closed(_rootClosedToken);
         auto p = _rootPane;
-        p->WalkTree([](auto pane) {
+        p->WalkTree([](const auto& pane) {
             pane->Detached.raise(pane);
         });
 
@@ -674,7 +674,7 @@ namespace winrt::TerminalApp::implementation
 
         // Add the new event handlers to the new pane(s)
         // and update their ids.
-        pane->WalkTree([&](auto p) {
+        pane->WalkTree([&](const auto& p) {
             _AttachEventHandlersToPane(p);
             if (p->_IsLeaf())
             {
@@ -971,36 +971,6 @@ namespace winrt::TerminalApp::implementation
         auto dispatcher = TabViewItem().Dispatcher();
         ContentEventTokens events{};
 
-        events.CloseRequested = content.CloseRequested(
-            winrt::auto_revoke,
-            [dispatcher, weakThis](auto sender, auto&&) -> winrt::fire_and_forget {
-                // Don't forget! this ^^^^^^^^ sender can't be a reference, this is a async callback.
-
-                // The lambda lives in the `std::function`-style container owned by `control`. That is, when the
-                // `control` gets destroyed the lambda struct also gets destroyed. In other words, we need to
-                // copy `weakThis` onto the stack, because that's the only thing that gets captured in coroutines.
-                // See: https://devblogs.microsoft.com/oldnewthing/20211103-00/?p=105870
-                const auto weakThisCopy = weakThis;
-                co_await wil::resume_foreground(dispatcher);
-                // Check if Tab's lifetime has expired
-                if (auto tab{ weakThisCopy.get() })
-                {
-                    if (tab->_floatPane)
-                    {
-                        tab->_floatPane->Close();
-                    }
-                    else if (const auto content{ sender.try_as<TerminalApp::IPaneContent>() })
-                    {
-                        tab->_rootPane->WalkTree([content](std::shared_ptr<Pane> pane) {
-                            if (pane->GetContent() == content)
-                            {
-                                pane->Close();
-                            }
-                        });
-                    }
-                }
-            });
-
         events.TitleChanged = content.TitleChanged(
             winrt::auto_revoke,
             [dispatcher, weakThis](auto&&, auto&&) -> winrt::fire_and_forget {
@@ -1276,7 +1246,7 @@ namespace winrt::TerminalApp::implementation
         _RecalculateAndApplyReadOnly();
 
         // Raise our own ActivePaneChanged event.
-        ActivePaneChanged.raise();
+        ActivePaneChanged.raise(*this, nullptr);
     }
 
     // Method Description:

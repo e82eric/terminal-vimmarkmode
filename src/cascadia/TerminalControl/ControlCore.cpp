@@ -1733,10 +1733,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // - resetOnly: If true, only Reset() will be called, if anything. FindNext() will never be called.
     // Return Value:
     // - <none>
-    SearchResults ControlCore::Search(const std::wstring_view& text, const bool goForward, const bool caseSensitive, const bool resetOnly)
+    SearchResults ControlCore::Search(const std::wstring_view& text, const bool goForward, const bool caseSensitive, const bool regularExpression, const bool resetOnly)
     {
         const auto lock = _terminal->LockForWriting();
-        const auto searchInvalidated = _searcher.IsStale(*_terminal.get(), text, !caseSensitive);
+        SearchFlag flags{};
+        WI_SetFlagIf(flags, SearchFlag::CaseInsensitive, !caseSensitive);
+        WI_SetFlagIf(flags, SearchFlag::RegularExpression, regularExpression);
+        const auto searchInvalidated = _searcher.IsStale(*_terminal.get(), text, flags);
 
         if (searchInvalidated || !resetOnly)
         {
@@ -1745,7 +1748,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (searchInvalidated)
             {
                 oldResults = _searcher.ExtractResults();
-                _searcher.Reset(*_terminal.get(), text, !caseSensitive, !goForward);
+                _searcher.Reset(*_terminal.get(), text, flags, !goForward);
 
                 if (SnapSearchResultToSelection())
                 {
@@ -1779,6 +1782,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             .TotalMatches = totalMatches,
             .CurrentMatch = currentMatch,
             .SearchInvalidated = searchInvalidated,
+            .SearchRegexInvalid = !_searcher.IsOk(),
         };
     }
 
@@ -1881,12 +1885,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             // * prints "  [Restored <date> <time>]  <spaces until end of line>  "
             // * resets the color ("\x1b[m")
             // * newlines
-            // * clears the screen ("\x1b[2J")
-            // The last step is necessary because we launch ConPTY without PSEUDOCONSOLE_INHERIT_CURSOR by default.
-            // This will cause ConPTY to emit a \x1b[2J sequence on startup to ensure it and the terminal are in-sync.
-            // If we didn't do a \x1b[2J ourselves as well, the user would briefly see the last state of the terminal,
-            // before it's quickly scrolled away once ConPTY has finished starting up, which looks weird.
-            message = fmt::format(FMT_COMPILE(L"\x1b[100;37m  [{} {} {}]\x1b[K\x1b[m\r\n\x1b[2J"), msg, date, time);
+            message = fmt::format(FMT_COMPILE(L"\x1b[100;37m  [{} {} {}]\x1b[K\x1b[m\r\n"), msg, date, time);
         }
 
         wchar_t buffer[32 * 1024];
@@ -1924,6 +1923,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
 
             _terminal->Write(message);
+
+            // Show 3 lines of scrollback to the user, so they know it's there. Otherwise, in particular with the well
+            // hidden touch scrollbars in WinUI 2 and later, there's no indication that there's something to scroll up to.
+            //
+            // We only show 3 lines because ConPTY doesn't know about our restored buffer contents initially,
+            // and so ReadConsole calls will return whitespace.
+            //
+            // We also avoid using actual newlines or similar here, because if we ever change our text buffer implementation
+            // to actually track the written contents, we don't want this to be part of the next buffer snapshot.
+            const auto cursorPosition = _terminal->GetCursorPosition();
+            const auto y = std::max(0, cursorPosition.y - 4);
+            _terminal->SetViewportPosition({ 0, y });
         }
     }
 
@@ -1977,7 +1988,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto lock = _terminal->LockForWriting();
 
         auto& renderSettings = _terminal->GetRenderSettings();
-        renderSettings.ToggleBlinkRendition(*_renderer);
+        renderSettings.ToggleBlinkRendition(_renderer.get());
     }
 
     void ControlCore::BlinkCursor()
@@ -2983,6 +2994,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // Relies on the anchor set in AnchorContextMenu
         return _clickedOnMark(_contextMenuBufferPosition,
                               [](const ::MarkExtents& m) -> bool { return !m.HasOutput(); });
+    }
+
+    void ControlCore::PreviewInput(std::wstring_view input)
+    {
+        _terminal->PreviewText(input);
     }
 
     void ControlCore::SelectRow(int32_t row, int32_t col)
