@@ -17,6 +17,7 @@
 #include "ExitVimModeEventArgs.g.h"
 #include "VimTextChangedEventArgs.g.h"
 #include "ShowFuzzySearchEventArgs.g.h"
+#include "StartVimSearchEventArgs.g.h"
 #include "ToggleRowNumbersEventArgs.g.h"
 #include "CompletionsChangedEventArgs.g.h"
 #include "KeySentEventArgs.g.h"
@@ -201,6 +202,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         WINRT_PROPERTY(winrt::hstring, SearchString, L"");
+    };
+
+    struct StartVimSearchEventArgs : public StartVimSearchEventArgsT<StartVimSearchEventArgs>
+    {
+    public:
+        StartVimSearchEventArgs(const bool isReverse) :
+            _IsReverse(isReverse)
+        {
+        }
+
+        WINRT_PROPERTY(bool, IsReverse, false);
     };
 
     struct ToggleRowNumbersEventArgs : public ToggleRowNumbersEventArgsT<ToggleRowNumbersEventArgs>

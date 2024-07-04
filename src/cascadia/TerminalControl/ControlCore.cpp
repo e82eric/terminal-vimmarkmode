@@ -3012,6 +3012,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ needle }));
     }
 
+    void ControlCore::StartVimSearch(bool isReverse)
+    {
+        _vimProxy->StartSearch(isReverse);
+        _StartVimSearchHandlers(*this, winrt::make<StartVimSearchEventArgs>(isReverse));
+    }
+
     Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
     {
         const auto lock = _terminal->LockForWriting();
@@ -3128,7 +3134,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto lock = _terminal->LockForReading();
         _vimProxy->EnterVimMode(true);
-        _vimProxy->TryVimModeKeyBinding(0xBF, ControlKeyStates{ VirtualKeyModifiers::Shift });
+        StartVimSearch(true);
     }
 
     bool ControlCore::IsInVimMode()
@@ -3216,5 +3222,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const bool showMarkers{ _terminal->SelectionMode() >= ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Keyboard };
         UpdateSelectionMarkers.raise(*this, winrt::make<implementation::UpdateSelectionMarkersEventArgs>(!showMarkers));
         return _vimProxy->IsInVimMode();
+    }
+
+    void ControlCore::VimSearch(std::wstring_view searchString)
+    {
+        auto lock = _terminal->LockForReading();
+        _vimProxy->SetSearchString(searchString);
+    }
+
+    void ControlCore::ExitVimSearch()
+    {
+        auto lock = _terminal->LockForReading();
+        _vimProxy->ExitVimSearch();
+    }
+
+    void ControlCore::CommitVimSearch()
+    {
+        auto lock = _terminal->LockForReading();
+        _vimProxy->CommitSearch();
     }
 }

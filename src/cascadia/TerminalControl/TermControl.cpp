@@ -225,6 +225,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _revokers.VimTextChanged = _core.VimTextChanged(winrt::auto_revoke, { get_weak(), &TermControl::_VimTextChanged });
         _revokers.ExitVimMode = _core.ExitVimMode(winrt::auto_revoke, { get_weak(), &TermControl::_ExitVimMode });
         _revokers.ShowFuzzySearch = _core.ShowFuzzySearch(winrt::auto_revoke, { get_weak(), &TermControl::_ShowFuzzySearch });
+        _revokers.StartVimSearch = _core.StartVimSearch(winrt::auto_revoke, { get_weak(), &TermControl::_StartVimSearch });
         _revokers.ToggleRowNumbers= _core.ToggleRowNumbers(winrt::auto_revoke, { get_weak(), &TermControl::_ToggleRowNumbers });
 
         // "Bubbled" events - ones we want to handle, by raising our own event.
@@ -1551,6 +1552,30 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return;
         }
 
+        if (VimSearchStringTextBox().FocusState() != FocusState::Unfocused)
+        {
+            if (e.Key() == VirtualKey::Escape)
+            {
+                this->Focus(winrt::Windows::UI::Xaml::FocusState::Programmatic);
+                VimSearchType().Text(L"");
+                this->_core.VimSearch(L"");
+                this->_core.ExitVimSearch();
+                VimSearchStringTextBox().Text(L"");
+                VimSearchStringTextBox().IsEnabled(false);
+                return;
+            }
+            if (e.Key() == VirtualKey::Enter)
+            {
+                this->Focus(winrt::Windows::UI::Xaml::FocusState::Programmatic);
+                this->_core.CommitVimSearch();
+                e.Handled(true);
+                VimSearchStringTextBox().IsEnabled(false);
+                return;
+            }
+            _core.VimSearch(VimSearchStringTextBox().Text());
+            return;
+        }
+
         if (_fuzzySearchBox && _fuzzySearchBox.Visibility() == ::Visibility::Visible)
         {
             return;
@@ -2474,7 +2499,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         co_await wil::resume_foreground(Dispatcher());
         VimTextBox().Text(args.Text());
-        VimSearchStringTextBox().Text(args.SearchString());
         VimModeTextBox().Text(args.Mode());
     }
 
@@ -2484,6 +2508,27 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await wil::resume_foreground(Dispatcher());
 
         CreateFuzzySearchBoxControl(args.SearchString());
+    }
+
+    void TermControl::VimSearchTextBox_OnPointerPressed(IInspectable const& /*sender*/, PointerRoutedEventArgs const& e)
+    {
+        e.Handled(true);
+    }
+
+    winrt::fire_and_forget TermControl::_StartVimSearch(const IInspectable& /*sender*/,
+                                                         const Control::StartVimSearchEventArgs args)
+    {
+        co_await wil::resume_foreground(Dispatcher());
+        if (args.IsReverse())
+        {
+            VimSearchType().Text(L"? ");
+        }
+        else
+        {
+            VimSearchType().Text(L"/ ");
+        }
+        VimSearchStringTextBox().IsEnabled(true);
+        VimSearchStringTextBox().Focus(FocusState::Programmatic);
     }
 
     winrt::fire_and_forget TermControl::_ToggleRowNumbers(const IInspectable& /*sender*/,
@@ -2520,6 +2565,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
         hideTimer.Interval(std::chrono::milliseconds(400));
         VimSearchStringTextBox().Text(L"");
+        VimSearchType().Text(L"");
         hideTimer.Tick([hideTimer, weakThis](auto&&, auto&&) {
             if (auto strongThis = weakThis.get())
             {
@@ -2658,6 +2704,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::EnterVimModeWithSearch()
     {
         _core.EnterVimModeWithSearch();
+        VimSearchStringTextBox().IsEnabled(true);
         CurrentSearchRowHighlight().Visibility(Visibility::Visible);
     }
 
@@ -3797,17 +3844,29 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         VimModeTextBox().FontFamily(fontFamily);
         VimModeTextBox().FontSize(fontSize);
-        VimModeTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
         VimModeTextBox().LineHeight(lineHeight);
+
+        VimSearchType().FontFamily(fontFamily);
+        VimSearchType().FontSize(fontSize);
+        VimSearchType().LineHeight(lineHeight);
+
+        VimSearchStringTextBox().FontFamily(fontFamily);
         VimSearchStringTextBox().FontSize(fontSize);
-        VimSearchStringTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
-        VimSearchStringTextBox().LineHeight(lineHeight);
+        VimSearchStringTextBox().MaxHeight(lineHeight);
+        VimSearchStringTextBox().MinHeight(lineHeight);
+        VimSearchStringTextBox().BorderThickness(Thickness{ 0, 0, 0, 0 });
+        VimSearchStringTextBox().Background(Media::SolidColorBrush(Windows::UI::Colors::Transparent()));
+        VimSearchStringTextBox().SelectionHighlightColor(Media::SolidColorBrush(Windows::UI::Colors::Transparent()));
+        VimSearchStringTextBox().VerticalAlignment(VerticalAlignment::Center);
+
+        VimTextBox().FontFamily(fontFamily);
         VimTextBox().FontSize(fontSize);
         VimTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
         VimTextBox().LineHeight(lineHeight);
+
+        VimRowNumberTextBox().FontFamily(fontFamily);
         VimRowNumberTextBox().FontSize(fontSize);
         VimRowNumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
-        VimRowNumberTextBox().LineHeight(lineHeight);
     }
 
     void TermControl::_setRowNumberFontSize(double lineHeight, double fontSize, Windows::UI::Xaml::Media::FontFamily fontFamily)

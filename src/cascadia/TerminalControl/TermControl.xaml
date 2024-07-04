@@ -116,6 +116,37 @@
         <x:Double x:Key="ScrollBarSize">16</x:Double>
         <x:String x:Key="ScrollBarExpandBeginTime">0</x:String>
 
+        <Style x:Key="ClearTextBoxStyle" TargetType="TextBox">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Grid>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="Focused"/>
+                                    <VisualState x:Name="Disabled"/>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <ScrollViewer x:Name="ContentElement"
+                                          Margin="{TemplateBinding Padding}"
+                                          IsTabStop="False"
+                                          VerticalScrollBarVisibility="Hidden"
+                                          HorizontalScrollBarVisibility="Hidden"/>
+
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="SelectionHighlightColor">
+                <Setter.Value>
+                    <SolidColorBrush Color="Transparent"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="ForkedScrollbarTemplate"
                TargetType="ScrollBar">
             <Setter Property="MinWidth" Value="{StaticResource ScrollBarSize}" />
@@ -1375,30 +1406,32 @@
 
         </StackPanel>
 
-        <!--<local:FuzzySearchBoxControl x:Name="FuzzySearchBox"
-                                     Grid.Row="0"
-                                     Margin="25,25,25,25"
-                                     Search="_FuzzySearch"
-                                     VerticalAlignment="Stretch"
-                                     HorizontalAlignment="Stretch"
-                                     Closed="_CloseFuzzySearchBoxControl"
-                                     Visibility="Collapsed"
-                                     OnReturn="FuzzySearch_OnSelection"
-                                     ItemsSource="{x:Bind FuzzySearchResults}"/>-->
-
         <StackPanel Grid.Row="2" Grid.Column="1">
             <Border Background="#3c3836" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="auto" />
+                    <ColumnDefinition Width="auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Shell" x:Name="VimModeTextBox" Grid.Column="0" HorizontalAlignment="Left" Margin="0,0,10,0" Foreground="#ebdbb2"/>
-                <TextBlock Text="" x:Name="VimRowNumberTextBox" Grid.Column="3" HorizontalAlignment="Right" Foreground="#ebdbb2"/>
-                <TextBlock Text="" x:Name="VimSearchStringTextBox" Grid.Column="1" HorizontalAlignment="Left" Foreground="#ebdbb2"/>
-                <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="2" HorizontalAlignment="Right" Foreground="#ebdbb2" Padding="0,0,10,0"/>
+                <TextBlock Text="Shell" Padding="0" x:Name="VimModeTextBox" Grid.Column="0" HorizontalAlignment="Left" Margin="0,0,10,0" Foreground="#ebdbb2"/>
+                <TextBlock Text="" x:Name="VimSearchType" Grid.Column="1" HorizontalAlignment="Left" Foreground="#ebdbb2"/>
+                    <TextBox
+                        Text=""
+                        Style="{StaticResource ClearTextBoxStyle}"
+                        x:Name="VimSearchStringTextBox"
+                        Grid.Column="2"
+                        HorizontalAlignment="Left"
+                        Foreground="#ebdbb2"
+                        VerticalAlignment="Bottom"
+                        VerticalContentAlignment="Bottom"
+                        Background="Transparent"
+                        Padding="0"
+                        Margin="0" />
+                <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="3" HorizontalAlignment="Right" Foreground="#ebdbb2" Padding="0,0,10,0"/>
+                <TextBlock Text="" x:Name="VimRowNumberTextBox" Grid.Column="4" HorizontalAlignment="Right" Foreground="#ebdbb2"/>
             </Grid>
         </Border>
         </StackPanel>

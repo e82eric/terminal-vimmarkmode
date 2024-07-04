@@ -132,8 +132,13 @@ public:
     int32_t ViewportRowToHighlight();
     void StoreSelectionForResize();
     void UpdateSelectionFromResize() const;
+    void SetSearchString(std::wstring_view searchString);
+    void StartSearch(bool isReverse);
+    void ExitVimSearch();
+    void CommitSearch();
 
 private:
+    void _setStateForCompletedSequence();
     til::point _updateFromResize(til::point from) const;
     void _setPosForResize(til::point pos, til::point& target) const;
     VimMode _getVimMode();

@@ -369,6 +369,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::fire_and_forget _VimTextChanged(const IInspectable& sender, const Control::VimTextChangedEventArgs args);
         winrt::fire_and_forget _ExitVimMode(const IInspectable& sender, const Control::ExitVimModeEventArgs args);
         winrt::fire_and_forget _ShowFuzzySearch(const IInspectable& sender, const Control::ShowFuzzySearchEventArgs args);
+        winrt::fire_and_forget _StartVimSearch(const IInspectable& sender, const Control::StartVimSearchEventArgs args);
         winrt::fire_and_forget _ToggleRowNumbers(const IInspectable& sender, const Control::ToggleRowNumbersEventArgs args);
         void _updateRowNumbers();
         void _updateVimCurrentRowIndicator();
@@ -426,6 +427,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _SelectOutputHandler(const IInspectable& sender, const IInspectable& args);
         bool _displayCursorWhileBlurred() const noexcept;
 
+        void VimSearchTextBox_OnPointerPressed(IInspectable const& sender, winrt::Windows::UI::Xaml::Input::PointerRoutedEventArgs const& e);
+
         struct Revokers
         {
             Control::ControlCore::ScrollPositionChanged_revoker coreScrollPositionChanged;
@@ -460,6 +463,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Control::ControlCore::VimTextChanged_revoker VimTextChanged;
             Control::ControlCore::ExitVimMode_revoker ExitVimMode;
             Control::ControlCore::ShowFuzzySearch_revoker ShowFuzzySearch;
+            Control::ControlCore::StartVimSearch_revoker StartVimSearch;
             Control::ControlCore::ToggleRowNumbers_revoker ToggleRowNumbers;
         } _revokers{};
     };

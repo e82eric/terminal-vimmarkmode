@@ -17,6 +17,7 @@
 #include "ExitVimModeEventArgs.g.h"
 #include "VimTextChangedEventArgs.g.cpp"
 #include "ShowFuzzySearchEventArgs.g.cpp"
+#include "StartVimSearchEventArgs.g.cpp"
 #include "ToggleRowNumbersEventArgs.g.cpp"
 #include "CompletionsChangedEventArgs.g.cpp"
 #include "KeySentEventArgs.g.cpp"

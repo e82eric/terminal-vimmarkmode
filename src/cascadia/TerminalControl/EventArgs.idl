@@ -111,6 +111,11 @@ namespace Microsoft.Terminal.Control
         String SearchString { get; };
     }
 
+    runtimeclass StartVimSearchEventArgs
+    {
+        Boolean IsReverse { get; };
+    }
+
     runtimeclass ToggleRowNumbersEventArgs
     {
         Boolean Enable { get; };

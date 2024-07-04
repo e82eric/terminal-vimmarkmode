@@ -1362,22 +1362,9 @@ bool VimModeProxy::TryVimModeKeyBinding(
     // / ?
     else if (vkey == 0xBF)
     {
-        if (mods.IsShiftPressed())
-        {
-            _motion = VimMotionType::back;
-            _reverseSearch = true;
-        }
-        else
-        {
-            _motion = VimMotionType::forward;
-            _reverseSearch = false;
-        }
-        _action = VimActionType::search;
-        _vimMode = VimMode::search;
-        _searchString = L"";
+        StartSearch(mods.IsShiftPressed());
         hideMarkers = true;
-
-        _action = VimActionType::search;
+        _controlCore->StartVimSearch(_reverseSearch);
     }
     else if (vkey == L'O' && _vimMode == VimMode::visual)
     {
@@ -1726,26 +1713,11 @@ bool VimModeProxy::TryVimModeKeyBinding(
         shouldExit = _executeVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, vkeyText);
     }
 
-    std::wstring statusBarSearchString;
-
-    if (_vimMode != VimMode::search && _searchString.empty())
-    {
-        statusBarSearchString = L"";
-    }
-    else if (_searchString.empty())
-    {
-        statusBarSearchString = _reverseSearch ? L"?" : L"/";
-    }
-    else
-    {
-        statusBarSearchString = _reverseSearch ? L"?" + _searchString : L"/" + _searchString;
-    }
-
     if (_sequenceText != L"\r")
     {
         auto modeText = _vimMode == VimMode::search ? L"Search" : _vimMode == VimMode::normal ? L"Normal" :
                                                                                                 L"VisualLine";
-        _controlCore->UpdateVimText(modeText, statusBarSearchString, _sequenceText);
+        _controlCore->UpdateVimText(modeText, L"", _sequenceText);
     }
 
     wcsncpy_s(_lastVkey, vkeyText, sizeof(_lastVkey) / sizeof(_lastVkey[0]));
@@ -1756,17 +1728,7 @@ bool VimModeProxy::TryVimModeKeyBinding(
         {
             _vimMode = VimMode::normal;
         }
-
-        _lastTextObject = _textObject;
-        _lastAction = _action;
-        _lastMotion = _motion;
-        _textObject = VimTextObjectType::charTextObject;
-        _action = VimActionType::none;
-        _motion = VimMotionType::none;
-        _lastTimes = _times;
-        _timesString = L"";
-        _amount = VimTextAmount::none;
-        _leaderSequence = false;
+        _setStateForCompletedSequence();
 
         _sequenceText = L"";
         if (shouldExit)
@@ -1868,6 +1830,62 @@ void VimModeProxy::UpdateSelectionFromResize() const
     selection->end = _updateFromResize(_tempEnd);
     _terminal->SetSelectionAnchors(selection);
     _terminal->UserScrollViewport(selection->start.y - _tempTop);
+}
+
+void VimModeProxy::CommitSearch()
+{
+    _vimMode = VimMode::normal;
+    _executeVimSelection(VimActionType::commitSearch, VimTextObjectType::none, 1, VimMotionType::none, false, _searchString, L"");
+    _controlCore->UpdateSelectionFromVim(_searcher->Results());
+    _setStateForCompletedSequence();
+}
+
+void VimModeProxy::_setStateForCompletedSequence()
+{
+    _lastTextObject = _textObject;
+    _lastAction = _action;
+    _lastMotion = _motion;
+    _textObject = VimTextObjectType::charTextObject;
+    _action = VimActionType::none;
+    _motion = VimMotionType::none;
+    _lastTimes = _times;
+    _timesString = L"";
+    _amount = VimTextAmount::none;
+    _leaderSequence = false;
+}
+
+void VimModeProxy::ExitVimSearch()
+{
+    _vimMode = VimMode::normal;
+    _controlCore->UpdateVimText(L"Normal", _searchString, _sequenceText);
+    auto selection = _terminal->GetSelectionAnchors();
+    _terminal->UserScrollViewport(selection->start.y - _tempTop);
+    _setStateForCompletedSequence();
+}
+
+void VimModeProxy::SetSearchString(std::wstring_view searchString)
+{
+    _searchString = searchString;
+    _executeVimSelection(VimActionType::search, VimTextObjectType::none, 1, _motion, false, _searchString, L"");
+}
+
+void VimModeProxy::StartSearch(bool isReverse)
+{
+        if (isReverse)
+        {
+            _motion = VimMotionType::back;
+            _reverseSearch = true;
+        }
+        else
+        {
+            _motion = VimMotionType::forward;
+            _reverseSearch = false;
+        }
+        _action = VimActionType::search;
+        _vimMode = VimMode::search;
+        _searchString = L"";
+
+        _action = VimActionType::search;
 }
 
 bool VimModeProxy::_FindChar(std::wstring_view vkey, bool isTil, til::point& target) const
@@ -2367,7 +2385,6 @@ void VimModeProxy::_MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::Se
     selection->end = pos;
     selection->pivot = pos;
 
-    //_ScrollToPoint(pos);
     _terminal->UserScrollViewport(pos.y);
 }
 

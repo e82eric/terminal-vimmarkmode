@@ -448,6 +448,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     public:
         void SelectRow(int32_t row, int32_t col);
         void StartFuzzySearch(std::wstring_view needle);
+        void StartVimSearch(bool isReverse);
         Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
         void UpdateBar();
         void UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence);
@@ -464,7 +465,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         int32_t ViewportRowNumberToHighlight();
         void UpdateSelectionFromVim();
         void UpdateSelectionFromVim(const std::vector<til::point_span>& oldHighlights);
+        void VimSearch(std::wstring_view searchString);
+        void ExitVimSearch();
+        void CommitVimSearch();
 
+        TYPED_EVENT(StartVimSearch, IInspectable, Control::StartVimSearchEventArgs);
         TYPED_EVENT(ShowFuzzySearch, IInspectable, Control::ShowFuzzySearchEventArgs);
         TYPED_EVENT(ExitVimMode, IInspectable, Control::ExitVimModeEventArgs);
         TYPED_EVENT(VimTextChanged, IInspectable, Control::VimTextChangedEventArgs);
