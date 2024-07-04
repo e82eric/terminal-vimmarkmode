@@ -548,6 +548,7 @@ namespace winrt::TerminalApp::implementation
         winrt::com_ptr<TerminalTab> _senderOrFocusedTab(const IInspectable& sender);
 
         void _activePaneChanged(winrt::TerminalApp::TerminalTab tab, Windows::Foundation::IInspectable args);
+        void _floatClosed();
 
 #pragma region ActionHandlers
         // These are all defined in AppActionHandlers.cpp

@@ -658,7 +658,6 @@ namespace winrt::TerminalApp::implementation
     {
         ASSERT_UI_THREAD();
         _floatPane = pane;
-        //_AttachEventHandlersToPane(_floatPane);
     }
 
     // Method Description:

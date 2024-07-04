@@ -70,7 +70,7 @@
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch"
                 Margin="100"
-                BorderBrush="#8ec07c"
+                BorderBrush="#665c54"
                 BorderThickness="3">
         </Border>
 

@@ -216,6 +216,30 @@ namespace winrt::TerminalApp::implementation
         FloatContent().Child(pane->GetRootElement());
         FloatContent().Visibility(::Visibility::Visible);
         _GetFocusedTab().try_as<TerminalTab>()->AttachPaneAsFloat(pane);
+
+        auto closedToken = pane->Closed([weakThis{ get_weak() }](auto&& /*s*/, auto&& /*e*/) {
+            if (auto strongThis = weakThis.get())
+            {
+                if (const auto terminalTab{ strongThis->_GetFocusedTabImpl() })
+                {
+                    strongThis->FloatContent().Visibility(::Visibility::Collapsed);
+                    strongThis->FloatContent().Child(nullptr);
+                    terminalTab->ClearFloatPane();
+                    strongThis->_GetActiveControl().Focus(FocusState::Programmatic);
+                }
+            }
+        });
+    }
+
+    void TerminalPage::_floatClosed()
+    {
+        if (const auto terminalTab{ _GetFocusedTabImpl() })
+        {
+            FloatContent().Visibility(::Visibility::Collapsed);
+            FloatContent().Child(nullptr);
+            terminalTab->ClearFloatPane();
+            _GetActiveControl().Focus(FocusState::Programmatic);
+        }
     }
 
     // Method Description:
