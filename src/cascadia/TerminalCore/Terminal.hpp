@@ -158,6 +158,8 @@ public:
 
     void InvokeCompletions(std::wstring_view menuJson, unsigned int replaceLength) override;
 
+    void SearchMissingCommand(const std::wstring_view command) override;
+
 #pragma endregion
 
     void ClearMark();
@@ -235,6 +237,8 @@ public:
     void SetPlayMidiNoteCallback(std::function<void(const int, const int, const std::chrono::microseconds)> pfn) noexcept;
     void CompletionsChangedCallback(std::function<void(std::wstring_view, unsigned int)> pfn) noexcept;
     void SelectionClearedFromErase(std::function<bool()> pfn) noexcept;
+    void SetSearchMissingCommandCallback(std::function<void(std::wstring_view)> pfn) noexcept;
+    void SetClearQuickFixCallback(std::function<void()> pfn) noexcept;
     void SetSearchHighlights(const std::vector<til::point_span>& highlights) noexcept;
     void SetSearchHighlightFocused(const size_t focusedIdx);
 
@@ -349,6 +353,8 @@ private:
     std::function<void(const int, const int, const std::chrono::microseconds)> _pfnPlayMidiNote;
     std::function<void(std::wstring_view, unsigned int)> _pfnCompletionsChanged;
     std::function<bool()> _selectionClearedFromErase;
+    std::function<void(std::wstring_view)> _pfnSearchMissingCommand;
+    std::function<void()> _pfnClearQuickFix;
 
     RenderSettings _renderSettings;
     std::unique_ptr<::Microsoft::Console::VirtualTerminal::StateMachine> _stateMachine;
@@ -370,6 +376,7 @@ private:
     bool _suppressApplicationTitle = false;
     bool _trimBlockSelection = false;
     bool _autoMarkPrompts = false;
+    bool _rainbowSuggestions = false;
 
     size_t _taskbarState = 0;
     size_t _taskbarProgress = 0;

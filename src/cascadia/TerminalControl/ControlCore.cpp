@@ -19,6 +19,7 @@
 #include "../../renderer/atlas/AtlasEngine.h"
 #include "../../renderer/base/renderer.hpp"
 #include "../../renderer/uia/UiaRenderer.hpp"
+#include "../../types/inc/CodepointWidthDetector.hpp"
 
 #include "FuzzySearchTextSegment.h"
 
@@ -83,6 +84,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _desiredFont{ DEFAULT_FONT_FACE, 0, DEFAULT_FONT_WEIGHT, DEFAULT_FONT_SIZE, CP_UTF8 },
         _actualFont{ DEFAULT_FONT_FACE, 0, DEFAULT_FONT_WEIGHT, { 0, DEFAULT_FONT_SIZE }, CP_UTF8, false }
     {
+        static const auto textMeasurementInit = [&]() {
+            TextMeasurementMode mode = TextMeasurementMode::Graphemes;
+            switch (settings.TextMeasurement())
+            {
+            case TextMeasurement::Wcswidth:
+                mode = TextMeasurementMode::Wcswidth;
+                break;
+            case TextMeasurement::Console:
+                mode = TextMeasurementMode::Console;
+                break;
+            default:
+                break;
+            }
+            CodepointWidthDetector::Singleton().Reset(mode);
+            return true;
+        }();
+
         _settings = winrt::make_self<implementation::ControlSettings>(settings, unfocusedAppearance);
         _terminal = terminal;
         const auto lock = _terminal->LockForWriting();
@@ -124,6 +142,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto pfnSelectionClearedFromErase = [=]() -> bool { return _selectionClearedFromErase(); };
         _terminal->SelectionClearedFromErase(pfnSelectionClearedFromErase);
+        auto pfnSearchMissingCommand = [this](auto&& PH1) { _terminalSearchMissingCommand(std::forward<decltype(PH1)>(PH1)); };
+        _terminal->SetSearchMissingCommandCallback(pfnSearchMissingCommand);
+
+        auto pfnClearQuickFix = [this] { ClearQuickFix(); };
+        _terminal->SetClearQuickFixCallback(pfnClearQuickFix);
 
         // MSFT 33353327: Initialize the renderer in the ctor instead of Initialize().
         // We need the renderer to be ready to accept new engines before the SwapChainPanel is ready to go.
@@ -1688,6 +1711,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _midiAudio.PlayNote(reinterpret_cast<HWND>(_owningHwnd), noteNumber, velocity, std::chrono::duration_cast<std::chrono::milliseconds>(duration));
     }
 
+    void ControlCore::_terminalSearchMissingCommand(std::wstring_view missingCommand)
+    {
+        SearchMissingCommand.raise(*this, make<implementation::SearchMissingCommandEventArgs>(hstring{ missingCommand }));
+    }
+
+    void ControlCore::ClearQuickFix()
+    {
+        _cachedQuickFixes = nullptr;
+        RefreshQuickFixUI.raise(*this, nullptr);
+    }
+
     bool ControlCore::HasSelection() const
     {
         const auto lock = _terminal->LockForReading();
@@ -2377,7 +2411,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto context = winrt::make_self<CommandHistoryContext>(std::move(commands));
         context->CurrentCommandline(trimmedCurrentCommand);
+        context->QuickFixes(_cachedQuickFixes);
         return *context;
+    }
+
+    bool ControlCore::QuickFixesAvailable() const noexcept
+    {
+        return _cachedQuickFixes && _cachedQuickFixes.Size() > 0;
+    }
+
+    void ControlCore::UpdateQuickFixes(const Windows::Foundation::Collections::IVector<hstring>& quickFixes)
+    {
+        _cachedQuickFixes = quickFixes;
     }
 
     Core::Scheme ControlCore::ColorScheme() const noexcept
@@ -2743,21 +2788,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // Select the region of text between [s.start, s.end), in buffer space
     void ControlCore::_selectSpan(til::point_span s)
     {
-        // s.end is an _exclusive_ point. We need an inclusive one. But
-        // decrement in bounds wants an inclusive one. If you pass an exclusive
-        // one, then it might assert at you for being out of bounds. So we also
-        // take care of the case that the end point is outside the viewport
-        // manually.
+        // s.end is an _exclusive_ point. We need an inclusive one.
         const auto bufferSize{ _terminal->GetTextBuffer().GetSize() };
         til::point inclusiveEnd = s.end;
-        if (s.end.x == bufferSize.Width())
-        {
-            inclusiveEnd = til::point{ std::max(0, s.end.x - 1), s.end.y };
-        }
-        else
-        {
-            bufferSize.DecrementInBounds(inclusiveEnd);
-        }
+        bufferSize.DecrementInBounds(inclusiveEnd);
 
         _terminal->SelectNewRegion(s.start, inclusiveEnd);
         _renderer->TriggerSelection();

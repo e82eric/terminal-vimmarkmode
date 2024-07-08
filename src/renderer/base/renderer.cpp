@@ -274,7 +274,7 @@ void Renderer::TriggerRedraw(const Viewport& region)
 // - <none>
 void Renderer::TriggerRedraw(const til::point* const pcoord)
 {
-    TriggerRedraw(Viewport::FromCoord(*pcoord)); // this will notify to paint if we need it.
+    TriggerRedraw(Viewport::FromDimensions(*pcoord, { 1, 1 })); // this will notify to paint if we need it.
 }
 
 // Routine Description:
@@ -850,6 +850,13 @@ void Renderer::_PaintBufferOutput(_In_ IRenderEngine* const pEngine)
                 screenPosition,
                 lineWrapped,
                 smIt != quickSelectState.selectionMap.end() ? smIt->second : decltype(smIt->second)());
+
+            // Paint any image content on top of the text.
+            const auto& imageSlice = buffer.GetRowByOffset(row).GetImageSlice();
+            if (imageSlice) [[unlikely]]
+            {
+                LOG_IF_FAILED(pEngine->PaintImageSlice(*imageSlice, screenPosition.y, view.Left()));
+            }
         }
     }
 }
