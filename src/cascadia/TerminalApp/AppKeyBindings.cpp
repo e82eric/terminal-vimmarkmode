@@ -26,7 +26,8 @@ namespace winrt::TerminalApp::implementation
         if (const auto cmd{ _actionMap.GetActionByKeyChord(kc) })
         {
             if (cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::QuickSelect ||
-                cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::FuzzyFind)
+                cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::FuzzyFind ||
+                cmd.ActionAndArgs().Action() == Settings::Model::ShortcutAction::ToggleCommandPalette)
             {
                 return _dispatch.DoAction(cmd.ActionAndArgs());
             }

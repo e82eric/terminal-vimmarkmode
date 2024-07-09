@@ -141,22 +141,22 @@ namespace winrt::TerminalApp::implementation
         });
     }
 
-    void TerminalPage::_PreviewSendInput(const Settings::Model::SendInputArgs& args)
+    void TerminalPage::_PreviewSendInput(const Settings::Model::SendInputArgs& /*args*/)
     {
-        const auto backup = _restorePreviewFuncs.empty();
+        //const auto backup = _restorePreviewFuncs.empty();
 
-        _ApplyToActiveControls([&](const auto& control) {
-            const auto& str{ args.Input() };
-            control.PreviewInput(str);
+        //_ApplyToActiveControls([&](const auto& control) {
+        //    const auto& str{ args.Input() };
+        //    control.PreviewInput(str);
 
-            if (backup)
-            {
-                _restorePreviewFuncs.emplace_back([=]() {
-                    // On dismiss:
-                    control.PreviewInput(hstring{});
-                });
-            }
-        });
+        //    if (backup)
+        //    {
+        //        _restorePreviewFuncs.emplace_back([=]() {
+        //            // On dismiss:
+        //            control.PreviewInput(hstring{});
+        //        });
+        //    }
+        //});
     }
 
     void TerminalPage::_PreviewAction(const Settings::Model::ActionAndArgs& args)
