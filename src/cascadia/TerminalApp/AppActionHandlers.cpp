@@ -6,6 +6,7 @@
 
 #include "TerminalPage.h"
 #include "ScratchpadContent.h"
+#include "SearchSnippetsContent.h"
 #include "../WinRTUtils/inc/WtExeUtils.h"
 #include "../../types/inc/utils.hpp"
 #include "Utils.h"
@@ -1630,6 +1631,22 @@ namespace winrt::TerminalApp::implementation
         {
             control.ShowContextMenu();
         }
+        args.Handled(true);
+    }
+
+    void TerminalPage::_HandleSearchSnippets(const IInspectable& /*sender*/,
+                                             const ActionEventArgs& args)
+    {
+        const auto& scratchPane{ winrt::make_self<SearchSnippetsContent>(_GetActiveControl(), _settings) };
+        const auto resultPane = std::make_shared<Pane>(*scratchPane);
+        AddFloatPane(resultPane);
+
+        // This is maybe a little wacky - add our key event handler to the pane
+        // we made. So that we can get actions for keys that the content didn't
+        // handle.
+        scratchPane->GetRoot().KeyDown({ this, &TerminalPage::_KeyDownHandler });
+
+        scratchPane->Focus(FocusState::Programmatic);
         args.Handled(true);
     }
 

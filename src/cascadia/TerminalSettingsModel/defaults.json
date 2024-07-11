@@ -427,6 +427,7 @@
         { "command": "toggleRowNumbers" },
         { "command": "vimSearch" },
         { "command": "fuzzyFind" },
+        { "command": "searchSnippets", "id": "Terminal.SearchSnippets" },
         { "command": "closeWindow", "id": "Terminal.CloseWindow" },
         { "command": "toggleFullscreen", "id": "Terminal.ToggleFullscreen" },
         { "command": "toggleFocusMode", "id": "Terminal.ToggleFocusMode" },
@@ -630,6 +631,7 @@
     ],
     "keybindings": [
         // Application-level Keys
+        { "keys": "ctrl+shift+z", "id": "Terminal.SearchSnippets" },
         { "keys": "alt+f4", "id": "Terminal.CloseWindow" },
         { "keys": "alt+enter", "id": "Terminal.ToggleFullscreen" },
         { "keys": "f11", "id": "Terminal.ToggleFullscreen" },

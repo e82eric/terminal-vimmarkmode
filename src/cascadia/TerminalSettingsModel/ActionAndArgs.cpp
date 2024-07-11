@@ -95,6 +95,7 @@ static constexpr std::string_view SelectCommandKey{ "selectCommand" };
 static constexpr std::string_view SelectOutputKey{ "selectOutput" };
 static constexpr std::string_view MarkModeKey{ "markMode" };
 static constexpr std::string_view VimModeKey{ "vimMode" };
+static constexpr std::string_view SearchSnippetsKey{ "searchSnippets" };
 static constexpr std::string_view ToggleRowNumbersKey{ "toggleRowNumbers" };
 static constexpr std::string_view VimSearchKey{ "vimSearch" };
 static constexpr std::string_view ToggleBlockSelectionKey{ "toggleBlockSelection" };
@@ -438,6 +439,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 { ShortcutAction::SelectAll, RS_(L"SelectAllCommandKey") },
                 { ShortcutAction::MarkMode, RS_(L"MarkModeCommandKey") },
                 { ShortcutAction::VimMode, RS_(L"VimModeCommandKey") },
+                { ShortcutAction::SearchSnippets, RS_(L"SearchSnippetsKey") },
                 { ShortcutAction::ToggleRowNumbers, RS_(L"ToggleRowNumbersCommandKey") },
                 { ShortcutAction::VimSearch, RS_(L"VimSearchKey") },
                 { ShortcutAction::ToggleBlockSelection, RS_(L"ToggleBlockSelectionCommandKey") },

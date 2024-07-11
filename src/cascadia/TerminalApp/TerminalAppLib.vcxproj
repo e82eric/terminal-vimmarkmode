@@ -164,6 +164,9 @@
     <ClInclude Include="SettingsPaneContent.h">
       <DependentUpon>TerminalPaneContent.idl</DependentUpon>
     </ClInclude>
+    <ClInclude Include="SearchSnippetsContent.h">
+      <DependentUpon>TerminalPaneContent.idl</DependentUpon>
+    </ClInclude>
     <ClInclude Include="Toast.h" />
     <ClInclude Include="TerminalSettingsCache.h">
       <DependentUpon>TerminalSettingsCache.idl</DependentUpon>
@@ -272,6 +275,9 @@
       <DependentUpon>TerminalPaneContent.idl</DependentUpon>
     </ClCompile>
     <ClCompile Include="ScratchpadContent.cpp">
+      <DependentUpon>TerminalPaneContent.idl</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="SearchSnippetsContent.cpp">
       <DependentUpon>TerminalPaneContent.idl</DependentUpon>
     </ClCompile>
     <ClCompile Include="SettingsPaneContent.cpp">
@@ -402,7 +408,7 @@
     <ProjectReference Include="$(OpenConsoleDir)src\cascadia\UIHelpers\UIHelpers.vcxproj">
       <Project>{6515F03F-E56D-4DB4-B23D-AC4FB80DB36F}</Project>
     </ProjectReference>
-
+    <ProjectReference Include="$(OpenConsoleDir)src\buffer\fzf\fzf.vcxproj" />
   </ItemGroup>
   <PropertyGroup>
     <!-- This is a hack to get the ARM64 CI build working. See

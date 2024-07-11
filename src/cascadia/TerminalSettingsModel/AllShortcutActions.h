@@ -106,6 +106,7 @@
     ON_ALL_ACTIONS(SelectOutput)            \
     ON_ALL_ACTIONS(MarkMode)                \
     ON_ALL_ACTIONS(VimMode)                 \
+    ON_ALL_ACTIONS(SearchSnippets)          \
     ON_ALL_ACTIONS(VimSearch)               \
     ON_ALL_ACTIONS(ToggleRowNumbers)        \
     ON_ALL_ACTIONS(ToggleBlockSelection)    \

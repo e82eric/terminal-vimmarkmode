@@ -4,6 +4,8 @@
 #include "pch.h"
 #include "ScratchpadContent.h"
 
+#include "../../buffer/fzf/fzf.h"
+
 using namespace winrt::Windows::Foundation;
 using namespace winrt::Windows::UI::Xaml;
 using namespace winrt::Microsoft::Terminal::Settings::Model;
