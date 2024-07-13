@@ -69,10 +69,13 @@
                 Visibility="Collapsed"
                 Grid.Row="2"
                 HorizontalAlignment="Stretch"
-                VerticalAlignment="Stretch"
                 Margin="100"
+                Padding="4"
+                CornerRadius="4"
+                VerticalAlignment="Top"
+                Background ="#282828"
                 BorderBrush="#665c54"
-                BorderThickness="3">
+                BorderThickness="0">
         </Border>
 
         <!--

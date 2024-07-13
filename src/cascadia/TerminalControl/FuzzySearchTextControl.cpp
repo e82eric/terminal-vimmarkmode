@@ -85,12 +85,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                 if (match.IsHighlighted())
                 {
-                    foregroundBrush.Color(Windows::UI::Colors::OrangeRed());
+                    foregroundBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0xFB, 0x49, 0x34));
                 }
                 else
                 {
-                    // Set the brush color for non-highlighted text
-                    foregroundBrush.Color(Windows::UI::Colors::White());
+                    foregroundBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0xfb, 0xf1, 0xc7));
                 }
 
                 Documents::Run run;

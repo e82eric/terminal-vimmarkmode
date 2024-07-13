@@ -1379,6 +1379,63 @@
                                         Closed="_CloseSearchBoxControl"
                                         Search="_Search"
                                         SearchChanged="_SearchChanged" />
+
+<StackPanel 
+    x:Name="VimSearchContainer"
+    Grid.Row="2"
+    Visibility="Collapsed"
+    VerticalAlignment="Center">
+
+    <Grid>
+        <!-- Title on top of the border -->
+
+        <!-- Border with content -->
+        <Border
+            BorderBrush="#665c54"
+            BorderThickness="3"
+            CornerRadius="4"
+            VerticalAlignment="Center"
+            Margin="100,10,100,0"
+            Background="#282828">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox
+                    x:Name="VimSearchStringTextBox"
+                    Style="{StaticResource ClearTextBoxStyle}"
+                    IsSpellCheckEnabled="False"
+                    HorizontalAlignment="Stretch"
+                    FontSize="16"
+                    PlaceholderText="Search"
+                    Foreground="#ebdbb2"
+                    LostFocus="_vimSearchLostFocusHandler"
+                    Grid.Column="0"/>
+                <TextBlock
+                    x:Name="StatusBox"
+                    MinWidth="70"
+                    Grid.Column="1"
+                    x:Uid="SearchBox_StatusBox"
+                    HorizontalAlignment="Right"
+                    TextAlignment="Center"
+                    Margin="10,0,10,0"
+                    VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+        <Border HorizontalAlignment="Center"  VerticalAlignment="Top" Margin="100,0,100,0" Background="#282828">
+            <TextBlock
+                x:Name="VimSearchHeaderTextBlock"
+                Text="Search"
+                FontSize="16"
+                FontWeight="Bold"
+                Foreground="#b0b846"
+                HorizontalAlignment="Center"
+                Padding="5,0"
+                />
+        </Border>
+    </Grid>
+</StackPanel>
             </Grid>
 
             <ScrollBar x:Name="ScrollBar"
@@ -1432,7 +1489,7 @@
 
         </StackPanel>
 
-        <StackPanel Grid.Row="2" Grid.Column="1">
+        <StackPanel Grid.Row="2" Grid.Column="1" Visibility="Collapsed">
             <Border Background="#3c3836" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -1444,23 +1501,12 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="Shell" Padding="0" x:Name="VimModeTextBox" Grid.Column="0" HorizontalAlignment="Left" Margin="0,0,10,0" Foreground="#ebdbb2"/>
                 <TextBlock Text="" x:Name="VimSearchType" Grid.Column="1" HorizontalAlignment="Left" Foreground="#ebdbb2"/>
-                    <TextBox
-                        Text=""
-                        Style="{StaticResource ClearTextBoxStyle}"
-                        x:Name="VimSearchStringTextBox"
-                        Grid.Column="2"
-                        HorizontalAlignment="Left"
-                        Foreground="#ebdbb2"
-                        VerticalAlignment="Bottom"
-                        VerticalContentAlignment="Bottom"
-                        Background="Transparent"
-                        Padding="0"
-                        Margin="0" />
                 <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="3" HorizontalAlignment="Right" Foreground="#ebdbb2" Padding="0,0,10,0"/>
                 <TextBlock Text="" x:Name="VimRowNumberTextBox" Grid.Column="4" HorizontalAlignment="Right" Foreground="#ebdbb2"/>
             </Grid>
         </Border>
         </StackPanel>
+        
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="QuickFixButtonStates">
                 <VisualState x:Name="Normal" />

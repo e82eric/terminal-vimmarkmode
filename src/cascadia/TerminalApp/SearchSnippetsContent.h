@@ -55,6 +55,7 @@ namespace winrt::TerminalApp::implementation
         winrt::Windows::UI::Xaml::Controls::ListBox _listBox{ nullptr };
         winrt::Windows::UI::Xaml::Controls::TextBox _searchBox{ nullptr };
         winrt::Windows::UI::Xaml::Controls::TextBox _box{ nullptr };
+        winrt::Windows::UI::Xaml::Controls::Border _textBoxBorder{nullptr};
         winrt::Windows::Foundation::Collections::IVector<Microsoft::Terminal::Settings::Model::Command> _tasks;
         winrt::Microsoft::Terminal::Control::TermControl _control{ nullptr };
 

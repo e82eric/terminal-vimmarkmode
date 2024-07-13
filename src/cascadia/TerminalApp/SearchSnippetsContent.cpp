@@ -3,6 +3,9 @@
 
 #include "pch.h"
 #include "SearchSnippetsContent.h"
+
+#include <winrt/windows.ui.xaml.interop.h>
+
 #include "HighlightedText.h"
 
 #include "../../buffer/fzf/fzf.h"
@@ -16,20 +19,42 @@ namespace winrt::TerminalApp::implementation
     SearchSnippetsContent::SearchSnippetsContent(const winrt::Microsoft::Terminal::Control::TermControl& control, const Microsoft::Terminal::Settings::Model::CascadiaSettings& settings)
     {
         _control = control;
-        _root = winrt::Windows::UI::Xaml::Controls::Grid{};
+        _root = Controls::Grid{};
         _tasks = settings.GlobalSettings().ActionMap().FilterToSendInput(winrt::hstring{});
 
         auto res = Windows::UI::Xaml::Application::Current().Resources();
-        auto bg = res.Lookup(winrt::box_value(L"UnfocusedBorderBrush"));
-        _root.Background(bg.try_as<Media::Brush>());
+        auto transparentBrush = Windows::UI::Xaml::Media::SolidColorBrush(Windows::UI::Colors::Transparent());
+        _root.Background(transparentBrush);
 
-        _box = winrt::Windows::UI::Xaml::Controls::TextBox{};
-        _box.Margin({ 10, 10, 10, 10 });
-        _box.AcceptsReturn(true);
-        _box.TextWrapping(TextWrapping::Wrap);
-        _root.Children().Append(_box);
+        auto backgroundBrush = Media::SolidColorBrush(Windows::UI::ColorHelper::FromArgb(0xFF, 0x28, 0x28, 0x28));
+
+        _textBoxBorder = Controls::Border{};
+        _textBoxBorder.BorderBrush(Media::SolidColorBrush(Windows::UI::ColorHelper::FromArgb(0xFF, 0x66, 0x5C, 0x54)));
+        _textBoxBorder.BorderThickness(Thickness(3.0, 3.0, 3.0, 3.0));
+        _textBoxBorder.CornerRadius(CornerRadius(4.0, 4.0, 4.0, 4.0));
+        _textBoxBorder.Margin(Thickness(0.0, 4, 0.0, 8.0));
+        _textBoxBorder.Padding(Thickness(2,2, 2,2));
+        _textBoxBorder.Background(backgroundBrush);
+
+        auto listBoxBorder = Controls::Border{};
+        listBoxBorder.BorderBrush(Media::SolidColorBrush(Windows::UI::ColorHelper::FromArgb(0xFF, 0x66, 0x5C, 0x54)));
+        listBoxBorder.BorderThickness(Thickness(3.0, 3.0, 3.0, 3.0));
+        listBoxBorder.CornerRadius(CornerRadius(4.0, 4.0, 4.0, 4.0));
+        listBoxBorder.Margin(Thickness(0.0, 0.0, 0.0, 8.0));
+        listBoxBorder.Padding(Thickness(2,2, 2,2));
+        listBoxBorder.Background(backgroundBrush);
+
+        Media::SolidColorBrush textColorBrush;
+        textColorBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0x32, 0x30, 0x2F));
+        Style clearTextBoxStyle{ xaml_typename<Controls::TextBox>() };
+        Setter borderThicknessSetter{
+            Controls::Control::BorderThicknessProperty(),
+            box_value(ThicknessHelper::FromLengths(0, 0, 0, 0))
+        };
+
+        clearTextBoxStyle.Setters().Append(borderThicknessSetter);
         const Controls::RowDefinition row1;
-        row1.Height(GridLengthHelper::FromValueAndType(1, GridUnitType::Star));
+        row1.Height(GridLengthHelper::FromValueAndType(1, GridUnitType::Auto));
         _root.RowDefinitions().Append(row1);
 
         const Controls::RowDefinition row2;
@@ -37,17 +62,51 @@ namespace winrt::TerminalApp::implementation
         _root.RowDefinitions().Append(row2);
 
         _listBox = Controls::ListBox{};
-        _listBox.Margin({ 10, 10, 10, 10 });
-        _root.Children().Append(_listBox);
+
+        Media::SolidColorBrush selectedItemBackgroundBrush;
+        selectedItemBackgroundBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0x46, 0x41, 0x3e));
+
+        // Add it to the ListBox's resources
+        _listBox.Resources().Insert(box_value(L"ListBoxItemBackgroundSelected"), selectedItemBackgroundBrush);
+        _listBox.Margin({ 0, 0, 0, 0 });
+        _root.Children().Append(listBoxBorder);
+        listBoxBorder.Child(_listBox);
 
         _searchBox = Controls::TextBox{};
-        _root.Children().Append(_searchBox);
+        _searchBox.Style(clearTextBoxStyle);
+        _searchBox.Background(backgroundBrush);
+        _root.Children().Append(_textBoxBorder);
 
         _searchBox.TextChanged({ this, &SearchSnippetsContent::OnTextChanged });
         _searchBox.KeyDown({ this, &SearchSnippetsContent::OnKeyUp });
+        _searchBox.Foreground(textColorBrush);
+        _textBoxBorder.Child(_searchBox);
 
-        Controls::Grid::SetRow(_listBox, 0);
-        Controls::Grid::SetRow(_searchBox, 1);
+        Controls::Border headerBorder{};
+        headerBorder.HorizontalAlignment(HorizontalAlignment::Center);
+        headerBorder.VerticalAlignment(VerticalAlignment::Top);
+        headerBorder.Margin({ 100, 0, 100, 0 });
+        headerBorder.Background(Media::SolidColorBrush(Windows::UI::ColorHelper::FromArgb(0xFF, 0x28, 0x28, 0x28)));
+
+        // Create the TextBlock
+        Controls::TextBlock headerTextBlock{};
+        headerTextBlock.Text(L"Snippets");
+        headerTextBlock.FontSize(16);
+        headerTextBlock.FontWeight(Windows::UI::Text::FontWeights::Bold());
+        headerTextBlock.Foreground(Media::SolidColorBrush(Windows::UI::ColorHelper::FromArgb(0xFF, 0xb0, 0xb8, 0x46)));
+        headerTextBlock.HorizontalAlignment(HorizontalAlignment::Center);
+        headerTextBlock.Padding({ 5, 0, 5, 0 });
+        headerTextBlock.Margin({ 0, -8, 0, 0 });
+
+        // Add the TextBlock to the Border
+        headerBorder.Child(headerTextBlock);
+
+        // Add the Border to the parent container (e.g., a Grid)
+        _root.Children().Append(headerBorder);
+
+        Controls::Grid::SetRow(listBoxBorder, 1);
+        Controls::Grid::SetRow(_textBoxBorder, 0);
+        Controls::Grid::SetRow(headerBorder, 0);
 
         _fzfSlab = fzf_make_default_slab();
         _populateForEmptySearch();
@@ -329,11 +388,12 @@ namespace winrt::TerminalApp::implementation
 
             if (match.IsHighlighted())
             {
-                foregroundBrush.Color(Windows::UI::Colors::OrangeRed());
+                foregroundBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0xFB, 0x49, 0x34)); // Gruvbox red
             }
             else
             {
-                foregroundBrush.Color(Windows::UI::Colors::White());
+                // Set the brush color for non-highlighted text
+                foregroundBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0xf9, 0xf5, 0xd7)); // Gruvbox light beige
             }
 
             Documents::Run run;

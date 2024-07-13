@@ -1588,7 +1588,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 this->_core.VimSearch(L"");
                 this->_core.ExitVimSearch();
                 VimSearchStringTextBox().Text(L"");
-                VimSearchStringTextBox().IsEnabled(false);
+                VimSearchContainer().Visibility(::Visibility::Collapsed);
                 return;
             }
             if (e.Key() == VirtualKey::Enter)
@@ -1596,7 +1596,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 this->Focus(winrt::Windows::UI::Xaml::FocusState::Programmatic);
                 this->_core.CommitVimSearch();
                 e.Handled(true);
-                VimSearchStringTextBox().IsEnabled(false);
+                VimSearchContainer().Visibility(::Visibility::Collapsed);
                 return;
             }
             _core.VimSearch(VimSearchStringTextBox().Text());
@@ -2383,6 +2383,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         GetTSFHandle().Unfocus(&_tsfDataProvider);
     }
 
+    void TermControl::_vimSearchLostFocusHandler(const Windows::Foundation::IInspectable& , const Windows::UI::Xaml::RoutedEventArgs& )
+    {
+        VimSearchContainer().Visibility(::Visibility::Collapsed);
+    }
+
     // Method Description:
     // - Triggered when the swapchain changes size. We use this to resize the
     //      terminal buffers to match the new visible size.
@@ -2548,13 +2553,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await wil::resume_foreground(Dispatcher());
         if (args.IsReverse())
         {
+            VimSearchHeaderTextBlock().Text(L"?Search");
             VimSearchType().Text(L"? ");
         }
         else
         {
+            VimSearchHeaderTextBlock().Text(L"/Search");
             VimSearchType().Text(L"/ ");
         }
-        VimSearchStringTextBox().IsEnabled(true);
+        VimSearchContainer().Visibility(::Visibility::Visible);
         VimSearchStringTextBox().Focus(FocusState::Programmatic);
     }
 
@@ -3886,15 +3893,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         VimSearchType().FontFamily(fontFamily);
         VimSearchType().FontSize(fontSize);
         VimSearchType().LineHeight(lineHeight);
-
-        VimSearchStringTextBox().FontFamily(fontFamily);
-        VimSearchStringTextBox().FontSize(fontSize);
-        VimSearchStringTextBox().MaxHeight(lineHeight);
-        VimSearchStringTextBox().MinHeight(lineHeight);
-        VimSearchStringTextBox().BorderThickness(Thickness{ 0, 0, 0, 0 });
-        VimSearchStringTextBox().Background(Media::SolidColorBrush(Windows::UI::Colors::Transparent()));
-        VimSearchStringTextBox().SelectionHighlightColor(Media::SolidColorBrush(Windows::UI::Colors::Transparent()));
-        VimSearchStringTextBox().VerticalAlignment(VerticalAlignment::Center);
 
         VimTextBox().FontFamily(fontFamily);
         VimTextBox().FontSize(fontSize);

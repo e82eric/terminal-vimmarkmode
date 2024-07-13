@@ -27,7 +27,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border BorderBrush="Gray" BorderThickness="2" CornerRadius="4" Margin="0,0,0,8" Grid.Row="0">
+        <Border BorderBrush="#665c54" BorderThickness="3" CornerRadius="4" Margin="0,0,0,8" Grid.Row="0" Padding="2" >
             <SwapChainPanel
                 x:Name="FuzzySearchSwapChainPanel"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
@@ -36,7 +36,7 @@
             </SwapChainPanel>
         </Border>
 
-        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Margin="0,0,0,8" Grid.Row="1">
+        <Border BorderBrush="#665c54" BorderThickness="3" CornerRadius="4" Margin="0,0,0,8" Grid.Row="1" Padding="2">
             <ListBox
             x:Name="ListBox"       
             SelectionChanged="_OnListBoxSelectionChanged"
@@ -49,9 +49,15 @@
                         <local:FuzzySearchTextControl Text="{x:Bind}" HorizontalAlignment="Stretch"/>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
+
+            <ListBox.Resources>
+                <!--  We need this here because otherwise the background is blue in Windows 10  -->
+                <SolidColorBrush x:Key="ListBoxItemBackgroundSelected"
+                                 Color="#32302F" />
+            </ListBox.Resources>
             </ListBox>
         </Border>
-        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Grid.Row="2">
+        <Border BorderBrush="#665c54" BorderThickness="3" CornerRadius="4" Grid.Row="2" Padding="2">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />

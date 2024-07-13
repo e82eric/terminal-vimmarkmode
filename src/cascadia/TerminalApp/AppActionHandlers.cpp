@@ -72,7 +72,7 @@ namespace winrt::TerminalApp::implementation
                                            const ActionEventArgs& args)
     {
         const auto termPane = _MakePane(nullptr, nullptr, nullptr);
-        AddFloatPane(termPane);
+        AddFloatPane(termPane, true);
         termPane->FocusPane(termPane);
         args.Handled(true);
     }
@@ -1639,7 +1639,7 @@ namespace winrt::TerminalApp::implementation
     {
         const auto& scratchPane{ winrt::make_self<SearchSnippetsContent>(_GetActiveControl(), _settings) };
         const auto resultPane = std::make_shared<Pane>(*scratchPane);
-        AddFloatPane(resultPane);
+        AddFloatPane(resultPane, false);
 
         // This is maybe a little wacky - add our key event handler to the pane
         // we made. So that we can get actions for keys that the content didn't
