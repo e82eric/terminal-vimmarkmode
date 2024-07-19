@@ -41,6 +41,11 @@
       "command": "toggleFullscreen"
     },
     {
+      "command": "duplicatePaneAsFloat",
+      "id": "User.duplicatePaneAsFloat",
+      "keys": "ctrl+shift+e"
+    },
+    {
       "command": "fuzzyFind",
       "keys": "ctrl+shift+f"
     },
