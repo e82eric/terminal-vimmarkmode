@@ -88,7 +88,6 @@ namespace winrt::TerminalApp::implementation
         headerBorder.Margin({ 100, 0, 100, 0 });
         headerBorder.Background(Media::SolidColorBrush(Windows::UI::ColorHelper::FromArgb(0xFF, 0x28, 0x28, 0x28)));
 
-        // Create the TextBlock
         Controls::TextBlock headerTextBlock{};
         headerTextBlock.Text(L"Snippets");
         headerTextBlock.FontSize(16);
@@ -98,10 +97,8 @@ namespace winrt::TerminalApp::implementation
         headerTextBlock.Padding({ 5, 0, 5, 0 });
         headerTextBlock.Margin({ 0, -8, 0, 0 });
 
-        // Add the TextBlock to the Border
         headerBorder.Child(headerTextBlock);
 
-        // Add the Border to the parent container (e.g., a Grid)
         _root.Children().Append(headerBorder);
 
         Controls::Grid::SetRow(listBoxBorder, 1);
