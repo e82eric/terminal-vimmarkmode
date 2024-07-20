@@ -72,10 +72,10 @@
                 Margin="100"
                 Padding="4"
                 CornerRadius="4"
-                VerticalAlignment="Top"
+                VerticalAlignment="Stretch"
                 Background ="#282828"
                 BorderBrush="#665c54"
-                BorderThickness="0">
+                BorderThickness="3">
         </Border>
 
         <!--

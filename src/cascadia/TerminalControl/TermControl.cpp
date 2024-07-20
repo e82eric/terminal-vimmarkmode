@@ -610,6 +610,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
+    void TermControl::StartSnippetSearch(Windows::Foundation::Collections::IVector<hstring> snippets)
+    {
+        SnippetSearch().Visibility(Visibility::Visible);
+        SnippetSearch().Show(snippets);
+    }
+
     // This is called when a Find Next/Previous Match action is triggered.
     void TermControl::SearchMatch(const bool goForward)
     {
@@ -739,6 +745,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                                   const RoutedEventArgs& /*args*/)
     {
         _fuzzySearchBox.Visibility(Visibility::Collapsed);
+        this->Focus(FocusState::Programmatic);
+    }
+
+    void TermControl::_CloseSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, const Windows::UI::Xaml::RoutedEventArgs& /*args*/)
+    {
+        SnippetSearch().Visibility(Visibility::Collapsed);
+    }
+
+    void TermControl::_OnReturnSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, hstring input)
+    {
+        SnippetSearch().Visibility(Visibility::Collapsed);
+        SendInput(input);
         this->Focus(FocusState::Programmatic);
     }
 
@@ -1575,6 +1593,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // If the current focused element is a child element of searchbox,
         // we do not send this event up to terminal
         if (_searchBox && _searchBox->ContainsFocus())
+        {
+            return;
+        }
+
+        if (SnippetSearch().ContainsFocus())
         {
             return;
         }

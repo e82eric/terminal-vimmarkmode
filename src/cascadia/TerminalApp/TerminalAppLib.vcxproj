@@ -164,9 +164,6 @@
     <ClInclude Include="SettingsPaneContent.h">
       <DependentUpon>TerminalPaneContent.idl</DependentUpon>
     </ClInclude>
-    <ClInclude Include="SearchSnippetsContent.h">
-      <DependentUpon>TerminalPaneContent.idl</DependentUpon>
-    </ClInclude>
     <ClInclude Include="Toast.h" />
     <ClInclude Include="TerminalSettingsCache.h">
       <DependentUpon>TerminalSettingsCache.idl</DependentUpon>
@@ -275,9 +272,6 @@
       <DependentUpon>TerminalPaneContent.idl</DependentUpon>
     </ClCompile>
     <ClCompile Include="ScratchpadContent.cpp">
-      <DependentUpon>TerminalPaneContent.idl</DependentUpon>
-    </ClCompile>
-    <ClCompile Include="SearchSnippetsContent.cpp">
       <DependentUpon>TerminalPaneContent.idl</DependentUpon>
     </ClCompile>
     <ClCompile Include="SettingsPaneContent.cpp">

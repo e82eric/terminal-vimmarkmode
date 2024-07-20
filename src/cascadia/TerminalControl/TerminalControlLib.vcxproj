@@ -58,6 +58,9 @@
     <ClInclude Include="FuzzySearchBoxControl.h">
       <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClInclude>
+    <ClInclude Include="SnippetSearchControl.h">
+      <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
+    </ClInclude>
     <ClInclude Include="VimModeProxy.h" />
     <ClInclude Include="XamlLights.h">
       <DependentUpon>XamlLights.idl</DependentUpon>
@@ -109,6 +112,9 @@
     <ClCompile Include="FuzzySearchBoxControl.cpp">
       <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClCompile>
+    <ClCompile Include="SnippetSearchControl.cpp">
+      <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
+    </ClCompile>
     <ClCompile Include="VimModeProxy.cpp" />
     <ClCompile Include="XamlLights.cpp">
       <DependentUpon>XamlLights.idl</DependentUpon>
@@ -149,6 +155,9 @@
     <Midl Include="FuzzySearchBoxControl.idl">
       <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </Midl>
+    <Midl Include="SnippetSearchControl.idl">
+      <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
+    </Midl>
     <Midl Include="XamlLights.idl" />
     <Midl Include="TermControl.idl">
       <DependentUpon>TermControl.xaml</DependentUpon>
@@ -164,6 +173,7 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="FuzzySearchBoxControl.xaml" />
+    <Page Include="SnippetSearchControl.xaml" />
     <Page Include="TermControl.xaml">
       <SubType>Designer</SubType>
     </Page>

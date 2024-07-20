@@ -211,18 +211,8 @@ namespace winrt::TerminalApp::implementation
         return nullptr;
     }
 
-    void TerminalPage::AddFloatPane(std::shared_ptr<Pane> pane, bool showBorder)
+    void TerminalPage::AddFloatPane(std::shared_ptr<Pane> pane)
     {
-        if (showBorder)
-        {
-            FloatContent().BorderThickness(Thickness{ 3, 3, 3, 3 });
-            FloatContent().VerticalAlignment(::VerticalAlignment::Stretch);
-        }
-        else
-        {
-            FloatContent().BorderThickness(Thickness{ 0, 0, 0, 0 });
-            FloatContent().VerticalAlignment(::VerticalAlignment::Top);
-        }
         FloatContent().Child(pane->GetRootElement());
         FloatContent().Visibility(::Visibility::Visible);
         _GetFocusedTab().try_as<TerminalTab>()->AttachPaneAsFloat(pane);

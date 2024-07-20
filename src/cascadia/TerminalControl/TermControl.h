@@ -145,6 +145,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void CreateSearchBoxControl();
         void CreateFuzzySearchBoxControl(std::wstring_view searchString) const;
+        void StartSnippetSearch(Windows::Foundation::Collections::IVector<hstring> snippets);
 
         void SearchMatch(const bool goForward);
 
@@ -406,6 +407,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void _FuzzySearch(const winrt::hstring& text);
         void _CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
+        void _CloseSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
+        void _OnReturnSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, hstring);
         void _setVimBarFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
         void _setRowNumberFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
         void _Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive, const bool regularExpression);

@@ -1,0 +1,76 @@
+<UserControl x:Class="Microsoft.Terminal.Control.SnippetSearchControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="using:Microsoft.Terminal.Control"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             x:Name="Root"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Top"
+             d:DesignHeight="55"
+             d:DesignWidth="285"
+             Background="Black"
+             Opacity="1"
+             TabNavigation="Cycle"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style x:Key="ClearTextBoxStyle" TargetType="TextBox">
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="8" Padding="4,8" Background="#282828">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Border BorderBrush="#665c54" BorderThickness="3" CornerRadius="4" Margin="0,12,0,8" Grid.Row="0" Padding="2">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="FuzzySearchTextBox"
+                        Style="{StaticResource ClearTextBoxStyle}"
+                        IsSpellCheckEnabled="False"
+                        KeyDown="_TextBoxKeyDown"
+                        HorizontalAlignment="Stretch"
+                        TextChanged="_TextBoxTextChanged"
+                        Grid.Column="0"/>
+                </Grid>
+            </Border>
+            <Border HorizontalAlignment="Center"  VerticalAlignment="Top" Margin="100,0,100,0" Background="#282828">
+                <TextBlock
+                x:Name="VimSearchHeaderTextBlock"
+                Text="Snippets"
+                FontSize="16"
+                FontWeight="Bold"
+                Foreground="#b0b846"
+                HorizontalAlignment="Center"
+                Padding="5,0"
+                />
+            </Border>
+        </Grid>
+        <Border BorderBrush="#665c54" BorderThickness="3" CornerRadius="4" Grid.Row="1" Padding="2">
+            <ListBox
+                x:Name="ListBox"
+                Background="#FF282828"
+                BorderBrush="#32302F"
+                BorderThickness="3"
+                VerticalAlignment="Stretch">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="local:FuzzySearchTextLine">
+                        <local:FuzzySearchTextControl Text="{x:Bind}" HorizontalAlignment="Stretch"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            <ListBox.Resources>
+                <!--  We need this here because otherwise the background is blue in Windows 10  -->
+                <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="#32302F" />
+            </ListBox.Resources>
+            </ListBox>
+        </Border>
+    </Grid>
+</UserControl>

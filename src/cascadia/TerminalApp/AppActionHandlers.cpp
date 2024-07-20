@@ -6,7 +6,6 @@
 
 #include "TerminalPage.h"
 #include "ScratchpadContent.h"
-#include "SearchSnippetsContent.h"
 #include "../WinRTUtils/inc/WtExeUtils.h"
 #include "../../types/inc/utils.hpp"
 #include "Utils.h"
@@ -72,7 +71,7 @@ namespace winrt::TerminalApp::implementation
                                            const ActionEventArgs& args)
     {
         const auto termPane = _MakePane(nullptr, nullptr, nullptr);
-        AddFloatPane(termPane, true);
+        AddFloatPane(termPane);
         termPane->FocusPane(termPane);
         args.Handled(true);
     }
@@ -1643,19 +1642,25 @@ namespace winrt::TerminalApp::implementation
         args.Handled(true);
     }
 
-    void TerminalPage::_HandleSearchSnippets(const IInspectable& /*sender*/,
+    void TerminalPage::_HandleSearchSnippets(const IInspectable& sender,
                                              const ActionEventArgs& args)
     {
-        const auto& scratchPane{ winrt::make_self<SearchSnippetsContent>(_GetActiveControl(), _settings) };
-        const auto resultPane = std::make_shared<Pane>(*scratchPane);
-        AddFloatPane(resultPane, false);
-
-        // This is maybe a little wacky - add our key event handler to the pane
-        // we made. So that we can get actions for keys that the content didn't
-        // handle.
-        scratchPane->GetRoot().KeyDown({ this, &TerminalPage::_KeyDownHandler });
-
-        scratchPane->Focus(FocusState::Programmatic);
+        if (const auto activeTab{ _senderOrFocusedTab(sender) })
+        {
+            _SetFocusedTab(*activeTab);
+            if (const auto& control{ activeTab->GetActiveTerminalControl() })
+            {
+                const auto toSearch = winrt::single_threaded_observable_vector<hstring>();
+                const auto snippets = _settings.GlobalSettings().ActionMap().FilterToSendInput(winrt::hstring{});
+                for (auto task : snippets)
+                {
+                    auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
+                    auto input = sendInputArgs.Input();
+                    toSearch.Append(input);
+                }
+                control.StartSnippetSearch(toSearch);
+            }
+        }
         args.Handled(true);
     }
 

@@ -1,0 +1,19 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+
+import "ICoreState.idl";
+import "IControlSettings.idl";
+import "FuzzySearchTextSegment.idl";
+
+namespace Microsoft.Terminal.Control
+{
+
+    [default_interface] runtimeclass SnippetSearchControl : Windows.UI.Xaml.Controls.UserControl
+    {
+        SnippetSearchControl();
+        void Show(IVector<String> snippets);
+        Boolean ContainsFocus();
+        event Windows.Foundation.TypedEventHandler<SnippetSearchControl, Windows.UI.Xaml.RoutedEventArgs> Closed;
+        event Windows.Foundation.TypedEventHandler<SnippetSearchControl, String> OnReturn;
+    }
+}
