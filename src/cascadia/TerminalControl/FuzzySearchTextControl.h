@@ -9,6 +9,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 {
     struct FuzzySearchTextControl : FuzzySearchTextControlT<FuzzySearchTextControl>
     {
+        static Windows::UI::Xaml::DependencyProperty TextColorProperty();
+        static Windows::UI::Xaml::DependencyProperty HighlightedTextColorProperty();
+
+        Windows::UI::Xaml::Media::Brush TextColor();
+        void TextColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Xaml::Media::Brush HighlightedTextColor();
+        void HighlightedTextColor(Windows::UI::Xaml::Media::Brush const& value);
+
         FuzzySearchTextControl();
 
         static Windows::UI::Xaml::DependencyProperty TextProperty();
@@ -21,6 +30,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     private:
         static Windows::UI::Xaml::DependencyProperty _textProperty;
         static void _onTextChanged(const Windows::UI::Xaml::DependencyObject& o, const Windows::UI::Xaml::DependencyPropertyChangedEventArgs& e);
+        static Windows::UI::Xaml::DependencyProperty _TextColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _HighlightedTextColorProperty;
     };
 }
 

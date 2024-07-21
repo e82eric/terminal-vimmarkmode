@@ -18,6 +18,35 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 {
     struct FuzzySearchBoxControl : FuzzySearchBoxControlT<FuzzySearchBoxControl>
     {
+        static Windows::UI::Xaml::DependencyProperty BorderColorProperty();
+        static Windows::UI::Xaml::DependencyProperty HeaderTextColorProperty();
+        static Windows::UI::Xaml::DependencyProperty BackgroundColorProperty();
+        static Windows::UI::Xaml::DependencyProperty SelectedItemColorProperty();
+        static Windows::UI::Xaml::DependencyProperty InnerBorderThicknessProperty();
+        static Windows::UI::Xaml::DependencyProperty TextColorProperty();
+        static Windows::UI::Xaml::DependencyProperty HighlightedTextColorProperty();
+
+        Windows::UI::Xaml::Media::Brush BorderColor();
+        void BorderColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Xaml::Media::Brush HeaderTextColor();
+        void HeaderTextColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Xaml::Media::Brush BackgroundColor();
+        void BackgroundColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Color SelectedItemColor();
+        void SelectedItemColor(Windows::UI::Color const& value);
+
+        Windows::UI::Xaml::Thickness InnerBorderThickness();
+        void InnerBorderThickness(Windows::UI::Xaml::Thickness const& value);
+
+        Windows::UI::Xaml::Media::Brush TextColor();
+        void TextColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Xaml::Media::Brush HighlightedTextColor();
+        void HighlightedTextColor(Windows::UI::Xaml::Media::Brush const& value);
+
         FuzzySearchBoxControl(Control::IControlSettings settings, Control::IControlAppearance unfocusedAppearance );
         FuzzySearchBoxControl(
             Control::IControlSettings settings,
@@ -75,6 +104,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _panelWidth{ 0 };
         float _panelHeight{ 0 };
         float _compositionScale{ 0 };
+
+        static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _BackgroundColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _SelectedItemColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _InnerBorderThicknessProperty;
+        static Windows::UI::Xaml::DependencyProperty _TextColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _HighlightedTextColorProperty;
     };
 }
 

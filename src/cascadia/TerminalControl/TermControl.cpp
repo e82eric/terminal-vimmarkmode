@@ -936,6 +936,44 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         // update the position of the quick fix menu (in case we changed the padding)
         RefreshQuickFixMenu();
+
+        auto createSolidColorBrush = [](const Core::Color& coreColor) {
+            Media::SolidColorBrush result{};
+            auto color = Windows::UI::ColorHelper::FromArgb(coreColor.A, coreColor.R, coreColor.G, coreColor.B);
+            result.Color(color);
+            return result;
+        };
+
+        const auto headerTextColor = createSolidColorBrush(_core.ColorScheme().BrightGreen);
+        const auto borderColor = createSolidColorBrush(_core.ColorScheme().BrightBlack);
+        const auto backgroundColor = createSolidColorBrush(_core.ColorScheme().Background);
+        const auto selectionColor = createSolidColorBrush(_core.ColorScheme().SelectionBackground);
+        const auto highlightColor = createSolidColorBrush(_core.ColorScheme().BrightRed);
+        const auto textColor = createSolidColorBrush(_core.ColorScheme().Foreground);
+        constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
+
+        SnippetSearch().BorderColor(borderColor);
+        SnippetSearch().HeaderTextColor(headerTextColor);
+        SnippetSearch().BackgroundColor(backgroundColor);
+        SnippetSearch().SelectedItemColor(selectionColor.Color());
+        SnippetSearch().InnerBorderThickness(borderThickness);
+        SnippetSearch().TextColor(textColor);
+        SnippetSearch().HighlightedTextColor(highlightColor);
+        SnippetSearch().ResultFontSize(18);
+
+        VimSearchBorder().BorderThickness(borderThickness);
+        VimSearchBorder().BorderBrush(borderColor);
+        VimSearchBorder().Background(backgroundColor);
+        VimSearchHeaderTextBlock().Foreground(headerTextColor);
+        VimSearchHeaderTextBorder().Background(backgroundColor);
+
+        _fuzzySearchBox.BorderColor(borderColor);
+        _fuzzySearchBox.HeaderTextColor(headerTextColor);
+        _fuzzySearchBox.BackgroundColor(backgroundColor);
+        _fuzzySearchBox.SelectedItemColor(selectionColor.Color());
+        _fuzzySearchBox.InnerBorderThickness(borderThickness);
+        _fuzzySearchBox.TextColor(textColor);
+        _fuzzySearchBox.HighlightedTextColor(highlightColor);
     }
 
     // Method Description:

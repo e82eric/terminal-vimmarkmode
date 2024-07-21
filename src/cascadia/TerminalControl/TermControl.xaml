@@ -1382,6 +1382,8 @@
                 <local:SnippetSearchControl
                     x:Name="SnippetSearch"
                     Margin="100,100,100,0"
+                    HeaderTextColor="#B8BB26"
+                    BorderColor="#928374"
                     Closed="_CloseSnippetSearchControl"
                     OnReturn="_OnReturnSnippetSearchControl"
                     Visibility="Collapsed"/>
@@ -1397,12 +1399,10 @@
 
         <!-- Border with content -->
         <Border
-            BorderBrush="#665c54"
-            BorderThickness="3"
+            x:Name="VimSearchBorder"
             CornerRadius="4"
             VerticalAlignment="Center"
-            Margin="100,10,100,0"
-            Background="#282828">
+            Margin="100,10,100,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -1429,16 +1429,14 @@
                     VerticalAlignment="Center"/>
             </Grid>
         </Border>
-        <Border HorizontalAlignment="Center"  VerticalAlignment="Top" Margin="100,0,100,0" Background="#282828">
+        <Border x:Name="VimSearchHeaderTextBorder" HorizontalAlignment="Center"  VerticalAlignment="Top" Margin="100,0,100,0">
             <TextBlock
                 x:Name="VimSearchHeaderTextBlock"
                 Text="Search"
                 FontSize="16"
                 FontWeight="Bold"
-                Foreground="#b0b846"
                 HorizontalAlignment="Center"
-                Padding="5,0"
-                />
+                Padding="5,0" />
         </Border>
     </Grid>
 </StackPanel>

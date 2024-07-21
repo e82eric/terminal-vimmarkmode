@@ -12,6 +12,39 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SnippetSearchControl();
         ~SnippetSearchControl() override;
 
+        static Windows::UI::Xaml::DependencyProperty BorderColorProperty();
+        static Windows::UI::Xaml::DependencyProperty HeaderTextColorProperty();
+        static Windows::UI::Xaml::DependencyProperty BackgroundColorProperty();
+        static Windows::UI::Xaml::DependencyProperty SelectedItemColorProperty();
+        static Windows::UI::Xaml::DependencyProperty InnerBorderThicknessProperty();
+        static Windows::UI::Xaml::DependencyProperty TextColorProperty();
+        static Windows::UI::Xaml::DependencyProperty HighlightedTextColorProperty();
+        static Windows::UI::Xaml::DependencyProperty ResultFontSizeProperty();
+
+        Windows::UI::Xaml::Media::Brush BorderColor();
+        void BorderColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Xaml::Media::Brush HeaderTextColor();
+        void HeaderTextColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Xaml::Media::Brush BackgroundColor();
+        void BackgroundColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Xaml::Media::Brush TextColor();
+        void TextColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Xaml::Media::Brush HighlightedTextColor();
+        void HighlightedTextColor(Windows::UI::Xaml::Media::Brush const& value);
+
+        Windows::UI::Color SelectedItemColor();
+        void SelectedItemColor(Windows::UI::Color const& value);
+
+        Windows::UI::Xaml::Thickness InnerBorderThickness();
+        void InnerBorderThickness(Windows::UI::Xaml::Thickness const& value);
+
+        double ResultFontSize();
+        void ResultFontSize(double const& value);
+
         void Show(Windows::Foundation::Collections::IVector<hstring> snippets);
         bool ContainsFocus();
 
@@ -33,6 +66,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _close();
         std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
         Windows::Foundation::Collections::IVector<hstring> _snippets;
+
+        static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _BackgroundColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _SelectedItemColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _InnerBorderThicknessProperty;
+        static Windows::UI::Xaml::DependencyProperty _TextColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _HighlightedTextColorProperty;
+        static Windows::UI::Xaml::DependencyProperty _ResultFontSizeProperty;
 
         fzf_slab_t* _fzfSlab;
     };

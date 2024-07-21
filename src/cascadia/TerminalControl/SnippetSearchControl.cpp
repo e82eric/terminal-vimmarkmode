@@ -14,6 +14,182 @@ using namespace winrt::Windows::UI::Core;
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
+    DependencyProperty SnippetSearchControl::_borderColorProperty =
+        DependencyProperty::Register(
+            L"BorderColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::SnippetSearchControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty SnippetSearchControl::_headerTextColorProperty =
+        DependencyProperty::Register(
+            L"HeaderTextColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::SnippetSearchControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty SnippetSearchControl::_BackgroundColorProperty =
+        DependencyProperty::Register(
+            L"BackgroundColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::SnippetSearchControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty SnippetSearchControl::_SelectedItemColorProperty =
+        DependencyProperty::Register(
+            L"SelectedItemColor",
+            xaml_typename<Windows::UI::Color>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::SnippetSearchControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty SnippetSearchControl::_InnerBorderThicknessProperty =
+        DependencyProperty::Register(
+            L"BorderThickness",
+            xaml_typename<Thickness>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::SnippetSearchControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty SnippetSearchControl::_TextColorProperty =
+        DependencyProperty::Register(
+            L"TextColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::SnippetSearchControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty SnippetSearchControl::_HighlightedTextColorProperty =
+        DependencyProperty::Register(
+            L"HighlightedTextColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::SnippetSearchControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty SnippetSearchControl::_ResultFontSizeProperty =
+        DependencyProperty::Register(
+            L"ResultFontSize",
+            xaml_typename<double>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::SnippetSearchControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty SnippetSearchControl::BackgroundColorProperty()
+    {
+        return _BackgroundColorProperty;
+    }
+
+    Brush SnippetSearchControl::BackgroundColor()
+    {
+        return GetValue(_BackgroundColorProperty).as<Brush>();
+    }
+
+    void SnippetSearchControl::BackgroundColor(Brush const& value)
+    {
+        SetValue(_BackgroundColorProperty, value);
+    }
+
+    Brush SnippetSearchControl::TextColor()
+    {
+        return GetValue(_TextColorProperty).as<Brush>();
+    }
+
+    void SnippetSearchControl::TextColor(Brush const& value)
+    {
+        SetValue(_TextColorProperty, value);
+    }
+
+    DependencyProperty SnippetSearchControl::TextColorProperty()
+    {
+        return _TextColorProperty;
+    }
+
+    Brush SnippetSearchControl::HighlightedTextColor()
+    {
+        return GetValue(_HighlightedTextColorProperty).as<Brush>();
+    }
+
+    void SnippetSearchControl::HighlightedTextColor(Brush const& value)
+    {
+        SetValue(_HighlightedTextColorProperty, value);
+    }
+
+    DependencyProperty SnippetSearchControl::HighlightedTextColorProperty()
+    {
+        return _HighlightedTextColorProperty;
+    }
+
+    DependencyProperty SnippetSearchControl::SelectedItemColorProperty()
+    {
+        return _SelectedItemColorProperty;
+    }
+
+    Windows::UI::Color SnippetSearchControl::SelectedItemColor()
+    {
+        return GetValue(_SelectedItemColorProperty).as<Windows::UI::Color>();
+    }
+
+    void SnippetSearchControl::SelectedItemColor(Windows::UI::Color const& value)
+    {
+        SetValue(_SelectedItemColorProperty, box_value(value));
+    }
+
+    DependencyProperty SnippetSearchControl::BorderColorProperty()
+    {
+        return _borderColorProperty;
+    }
+
+    Brush SnippetSearchControl::BorderColor()
+    {
+        return GetValue(_borderColorProperty).as<Brush>();
+    }
+
+    void SnippetSearchControl::BorderColor(Brush const& value)
+    {
+        SetValue(_borderColorProperty, value);
+    }
+
+    DependencyProperty SnippetSearchControl::HeaderTextColorProperty()
+    {
+        return _headerTextColorProperty;
+    }
+
+    Brush SnippetSearchControl::HeaderTextColor()
+    {
+        return GetValue(_headerTextColorProperty).as<Brush>();
+    }
+
+    void SnippetSearchControl::HeaderTextColor(Brush const& value)
+    {
+        SetValue(_headerTextColorProperty, value);
+    }
+
+    DependencyProperty SnippetSearchControl::InnerBorderThicknessProperty()
+    {
+        return _InnerBorderThicknessProperty;
+    }
+
+    Thickness SnippetSearchControl::InnerBorderThickness()
+    {
+        return GetValue(_InnerBorderThicknessProperty).as<Thickness>();
+    }
+
+    void SnippetSearchControl::InnerBorderThickness(Thickness const& value)
+    {
+        SetValue(_InnerBorderThicknessProperty, box_value(value));
+    }
+
+    DependencyProperty SnippetSearchControl::ResultFontSizeProperty()
+    {
+        return _ResultFontSizeProperty;
+    }
+
+    double SnippetSearchControl::ResultFontSize()
+    {
+        return GetValue(_ResultFontSizeProperty).as<double>();
+    }
+
+    void SnippetSearchControl::ResultFontSize(double const& value)
+    {
+        SetValue(_ResultFontSizeProperty, box_value(value));
+    }
+
     SnippetSearchControl::SnippetSearchControl()
     {
         InitializeComponent();
@@ -282,22 +458,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             const auto matchText = match.TextSegment();
             const auto fontWeight = match.IsHighlighted() ? Windows::UI::Text::FontWeights::Bold() : Windows::UI::Text::FontWeights::Normal();
 
-            SolidColorBrush foregroundBrush;
+            Documents::Run run;
 
             if (match.IsHighlighted())
             {
-                foregroundBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0xFB, 0x49, 0x34)); // Gruvbox red
+                run.Foreground(HighlightedTextColor());
             }
             else
             {
-                // Set the brush color for non-highlighted text
-                foregroundBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0xf9, 0xf5, 0xd7)); // Gruvbox light beige
+                run.Foreground(TextColor());
             }
 
-            Documents::Run run;
             run.Text(matchText);
             run.FontWeight(fontWeight);
-            run.Foreground(foregroundBrush);
+            run.FontSize(ResultFontSize());
             inlinesCollection.Append(run);
         }
         const auto lbi = Controls::ListBoxItem();
@@ -308,6 +482,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::Show(Windows::Foundation::Collections::IVector<hstring> snippets)
     {
+        FuzzySearchTextBox().Text(L"");
         _snippets = snippets;
         if (FuzzySearchTextBox())
         {

@@ -11,5 +11,9 @@ namespace Microsoft.Terminal.Control
         Windows.UI.Xaml.DependencyProperty TextProperty { get; };
         FuzzySearchTextLine Text;
         Windows.UI.Xaml.Controls.TextBlock TextView { get; };
+        Windows.UI.Xaml.Media.Brush TextColor;
+        Windows.UI.Xaml.DependencyProperty TextColorProperty { get; };
+        Windows.UI.Xaml.Media.Brush HighlightedTextColor;
+        Windows.UI.Xaml.DependencyProperty HighlightedTextColorProperty { get; };
     }
 }

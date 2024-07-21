@@ -19,5 +19,19 @@ namespace Microsoft.Terminal.Control
         void SetSearchResult(FuzzySearchResult val);
         event Windows.Foundation.TypedEventHandler<FuzzySearchBoxControl, Windows.UI.Xaml.RoutedEventArgs> Closed;
         event Windows.Foundation.TypedEventHandler<FuzzySearchBoxControl, FuzzySearchTextLine> OnReturn;
+        Windows.UI.Xaml.Media.Brush HeaderTextColor;
+        Windows.UI.Xaml.DependencyProperty HeaderTextColorProperty { get; };
+        Windows.UI.Xaml.Media.Brush BorderColor;
+        Windows.UI.Xaml.DependencyProperty BorderColorProperty { get; };
+        Windows.UI.Xaml.Media.Brush BackgroundColor;
+        Windows.UI.Xaml.DependencyProperty BackgroundColorProperty { get; };
+        Windows.UI.Color SelectedItemColor;
+        Windows.UI.Xaml.DependencyProperty SelectedItemColorProperty { get; };
+        Windows.UI.Xaml.Thickness InnerBorderThickness;
+        Windows.UI.Xaml.DependencyProperty InnerBorderThicknessProperty { get; };
+        Windows.UI.Xaml.Media.Brush TextColor;
+        Windows.UI.Xaml.DependencyProperty TextColorProperty { get; };
+        Windows.UI.Xaml.Media.Brush HighlightedTextColor;
+        Windows.UI.Xaml.DependencyProperty HighlightedTextColorProperty { get; };
     }
 }

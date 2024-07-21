@@ -20,14 +20,14 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="8" Padding="4,8" Background="#282828">
+    <Grid Margin="4" Padding="4,8" Background="{x:Bind BackgroundColor, Mode=OneWay}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0">
-            <Border BorderBrush="#665c54" BorderThickness="3" CornerRadius="4" Margin="0,12,0,8" Grid.Row="0" Padding="2">
+            <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" CornerRadius="4" Margin="0,12,0,8" Grid.Row="0" Padding="2">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -42,34 +42,30 @@
                         Grid.Column="0"/>
                 </Grid>
             </Border>
-            <Border HorizontalAlignment="Center"  VerticalAlignment="Top" Margin="100,0,100,0" Background="#282828">
+            <Border HorizontalAlignment="Center" VerticalAlignment="Top" Margin="100,0,100,0" Background="{x:Bind BackgroundColor, Mode=OneWay}">
                 <TextBlock
-                x:Name="VimSearchHeaderTextBlock"
-                Text="Snippets"
-                FontSize="16"
-                FontWeight="Bold"
-                Foreground="#b0b846"
-                HorizontalAlignment="Center"
-                Padding="5,0"
-                />
+                    x:Name="VimSearchHeaderTextBlock"
+                    Text="Snippets"
+                    FontSize="16"
+                    FontWeight="Bold"
+                    Foreground="{x:Bind HeaderTextColor, Mode=OneWay}"
+                    HorizontalAlignment="Center"
+                    Padding="5,0" />
             </Border>
         </Grid>
-        <Border BorderBrush="#665c54" BorderThickness="3" CornerRadius="4" Grid.Row="1" Padding="2">
+        <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" CornerRadius="4" Grid.Row="1" Padding="2">
             <ListBox
                 x:Name="ListBox"
-                Background="#FF282828"
-                BorderBrush="#32302F"
-                BorderThickness="3"
+                Background="{x:Bind BackgroundColor, Mode=OneWay}"
                 VerticalAlignment="Stretch">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="local:FuzzySearchTextLine">
                         <local:FuzzySearchTextControl Text="{x:Bind}" HorizontalAlignment="Stretch"/>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
-            <ListBox.Resources>
-                <!--  We need this here because otherwise the background is blue in Windows 10  -->
-                <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="#32302F" />
-            </ListBox.Resources>
+                <ListBox.Resources>
+                    <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="{x:Bind SelectedItemColor, Mode=OneWay}" />
+                </ListBox.Resources>
             </ListBox>
         </Border>
     </Grid>

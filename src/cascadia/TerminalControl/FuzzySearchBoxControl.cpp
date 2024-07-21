@@ -16,6 +16,160 @@ using namespace winrt::Windows::UI::Core;
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
+    DependencyProperty FuzzySearchBoxControl::_borderColorProperty =
+        DependencyProperty::Register(
+            L"BorderColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty FuzzySearchBoxControl::_headerTextColorProperty =
+        DependencyProperty::Register(
+            L"HeaderTextColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty FuzzySearchBoxControl::_BackgroundColorProperty =
+        DependencyProperty::Register(
+            L"BackgroundColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty FuzzySearchBoxControl::_SelectedItemColorProperty =
+        DependencyProperty::Register(
+            L"SelectedItemColor",
+            xaml_typename<Windows::UI::Color>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty FuzzySearchBoxControl::_InnerBorderThicknessProperty =
+        DependencyProperty::Register(
+            L"BorderThickness",
+            xaml_typename<Thickness>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty FuzzySearchBoxControl::_TextColorProperty =
+        DependencyProperty::Register(
+            L"TextColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty FuzzySearchBoxControl::_HighlightedTextColorProperty =
+        DependencyProperty::Register(
+            L"HighlightedTextColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchBoxControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty FuzzySearchBoxControl::BackgroundColorProperty()
+    {
+        return _BackgroundColorProperty;
+    }
+
+    Brush FuzzySearchBoxControl::BackgroundColor()
+    {
+        return GetValue(_BackgroundColorProperty).as<Brush>();
+    }
+
+    void FuzzySearchBoxControl::BackgroundColor(Brush const& value)
+    {
+        SetValue(_BackgroundColorProperty, value);
+    }
+
+    DependencyProperty FuzzySearchBoxControl::SelectedItemColorProperty()
+    {
+        return _SelectedItemColorProperty;
+    }
+
+    Windows::UI::Color FuzzySearchBoxControl::SelectedItemColor()
+    {
+        return GetValue(_SelectedItemColorProperty).as<Windows::UI::Color>();
+    }
+
+    void FuzzySearchBoxControl::SelectedItemColor(Windows::UI::Color const& value)
+    {
+        SetValue(_SelectedItemColorProperty, box_value(value));
+    }
+
+    DependencyProperty FuzzySearchBoxControl::BorderColorProperty()
+    {
+        return _borderColorProperty;
+    }
+
+    Brush FuzzySearchBoxControl::BorderColor()
+    {
+        return GetValue(_borderColorProperty).as<Brush>();
+    }
+
+    void FuzzySearchBoxControl::BorderColor(Brush const& value)
+    {
+        SetValue(_borderColorProperty, value);
+    }
+
+    DependencyProperty FuzzySearchBoxControl::HeaderTextColorProperty()
+    {
+        return _headerTextColorProperty;
+    }
+
+    Brush FuzzySearchBoxControl::HeaderTextColor()
+    {
+        return GetValue(_headerTextColorProperty).as<Brush>();
+    }
+
+    void FuzzySearchBoxControl::HeaderTextColor(Brush const& value)
+    {
+        SetValue(_headerTextColorProperty, value);
+    }
+
+    DependencyProperty FuzzySearchBoxControl::InnerBorderThicknessProperty()
+    {
+        return _InnerBorderThicknessProperty;
+    }
+
+    Thickness FuzzySearchBoxControl::InnerBorderThickness()
+    {
+        return GetValue(_InnerBorderThicknessProperty).as<Thickness>();
+    }
+
+    void FuzzySearchBoxControl::InnerBorderThickness(Thickness const& value)
+    {
+        SetValue(_InnerBorderThicknessProperty, box_value(value));
+    }
+
+    Brush FuzzySearchBoxControl::TextColor()
+    {
+        return GetValue(_TextColorProperty).as<Brush>();
+    }
+
+    void FuzzySearchBoxControl::TextColor(Brush const& value)
+    {
+        SetValue(_TextColorProperty, value);
+    }
+
+    DependencyProperty FuzzySearchBoxControl::TextColorProperty()
+    {
+        return _TextColorProperty;
+    }
+
+    Brush FuzzySearchBoxControl::HighlightedTextColor()
+    {
+        return GetValue(_HighlightedTextColorProperty).as<Brush>();
+    }
+
+    void FuzzySearchBoxControl::HighlightedTextColor(Brush const& value)
+    {
+        SetValue(_HighlightedTextColorProperty, value);
+    }
+
+    DependencyProperty FuzzySearchBoxControl::HighlightedTextColorProperty()
+    {
+        return _HighlightedTextColorProperty;
+    }
+
     FuzzySearchBoxControl::FuzzySearchBoxControl(Control::IControlSettings settings, Control::IControlAppearance unfocusedAppearance):
         FuzzySearchBoxControl(settings, unfocusedAppearance, std::make_shared<::Microsoft::Terminal::Core::Terminal>())
     {

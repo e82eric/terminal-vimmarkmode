@@ -8,6 +8,7 @@
 #include "FuzzySearchTextControl.g.cpp"
 
 using namespace winrt;
+using namespace winrt::Windows::UI::Xaml::Media;
 using namespace winrt::Windows::UI::Core;
 using namespace winrt::Windows::UI::Xaml;
 using namespace winrt::Windows::System;
@@ -17,6 +18,20 @@ using namespace winrt::Windows::Foundation::Collections;
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
+    DependencyProperty FuzzySearchTextControl::_TextColorProperty =
+        DependencyProperty::Register(
+            L"TextColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchTextControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty FuzzySearchTextControl::_HighlightedTextColorProperty =
+        DependencyProperty::Register(
+            L"HighlightedTextColor",
+            xaml_typename<Brush>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchTextControl>(),
+            PropertyMetadata{ nullptr });
+
     // Our control exposes a "Text" property to be used with Data Binding
     // To allow this we need to register a Dependency Property Identifier to be used by the property system
     // (https://docs.microsoft.com/en-us/windows/uwp/xaml-platform/custom-dependency-properties)
@@ -25,6 +40,36 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>(),
         xaml_typename<winrt::Microsoft::Terminal::Control::FuzzySearchTextControl>(),
         PropertyMetadata(nullptr, FuzzySearchTextControl::_onTextChanged));
+
+    Brush FuzzySearchTextControl::TextColor()
+    {
+        return GetValue(_TextColorProperty).as<Brush>();
+    }
+
+    void FuzzySearchTextControl::TextColor(Brush const& value)
+    {
+        SetValue(_TextColorProperty, value);
+    }
+
+    DependencyProperty FuzzySearchTextControl::TextColorProperty()
+    {
+        return _TextColorProperty;
+    }
+
+    Brush FuzzySearchTextControl::HighlightedTextColor()
+    {
+        return GetValue(_HighlightedTextColorProperty).as<Brush>();
+    }
+
+    void FuzzySearchTextControl::HighlightedTextColor(Brush const& value)
+    {
+        SetValue(_HighlightedTextColorProperty, value);
+    }
+
+    DependencyProperty FuzzySearchTextControl::HighlightedTextColorProperty()
+    {
+        return _HighlightedTextColorProperty;
+    }
 
     FuzzySearchTextControl::FuzzySearchTextControl()
     {
@@ -81,21 +126,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 const auto matchText = match.TextSegment();
                 const auto fontWeight = match.IsHighlighted() ? FontWeights::Bold() : FontWeights::Normal();
 
-                Windows::UI::Xaml::Media::SolidColorBrush foregroundBrush;
-
+                Documents::Run run;
                 if (match.IsHighlighted())
                 {
-                    foregroundBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0xFB, 0x49, 0x34));
+                    run.Foreground(control.HighlightedTextColor());
                 }
                 else
                 {
-                    foregroundBrush.Color(Windows::UI::ColorHelper::FromArgb(0xFF, 0xfb, 0xf1, 0xc7));
+                    run.Foreground(control.TextColor());
                 }
 
-                Documents::Run run;
                 run.Text(matchText);
                 run.FontWeight(fontWeight);
-                run.Foreground(foregroundBrush);
                 inlinesCollection.Append(run);
             }
         }
