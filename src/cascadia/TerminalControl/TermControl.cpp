@@ -2640,6 +2640,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto weakThis{ get_weak() };
         co_await wil::resume_foreground(Dispatcher());
 
+        VimSearchStringTextBox().Text(L"");
         CursorVisibility(CursorDisplayState::Shown);
         CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
         _updateRowNumbers();

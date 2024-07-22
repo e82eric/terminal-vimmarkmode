@@ -461,8 +461,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void StartFuzzySearch(std::wstring_view needle);
         void StartVimSearch(bool isReverse);
         Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
-        void UpdateBar();
-        void UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence);
         void ExitVim();
         void EnterVimModeWithSearch();
         void EnterVimMode();
@@ -483,7 +481,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         TYPED_EVENT(StartVimSearch, IInspectable, Control::StartVimSearchEventArgs);
         TYPED_EVENT(ShowFuzzySearch, IInspectable, Control::ShowFuzzySearchEventArgs);
         TYPED_EVENT(ExitVimMode, IInspectable, Control::ExitVimModeEventArgs);
-        TYPED_EVENT(VimTextChanged, IInspectable, Control::VimTextChangedEventArgs);
         TYPED_EVENT(ToggleRowNumbers, IInspectable, Control::ToggleRowNumbersEventArgs);
 
     private:

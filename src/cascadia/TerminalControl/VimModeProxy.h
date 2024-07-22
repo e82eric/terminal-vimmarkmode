@@ -210,7 +210,6 @@ private:
     til::point _tempEnd;
     til::point _tempPivot;
     bool _showRowNumbers = false;
-    void _enterVimMode();
     VimTextObjectType _textObject = VimTextObjectType::none;
     VimMotionType _motion = VimMotionType::none;
     VimMode _vimMode = VimMode::none;
@@ -222,7 +221,6 @@ private:
     int _times = 0;
     bool _reverseSearch = false;
     std::wstring _searchString = L"";
-    std::wstring _sequenceText = L"";
     bool _quickSelectCopy = false;
     wchar_t _lastVkey[2] = { L'\0' };
     int _lastTimes = 0;

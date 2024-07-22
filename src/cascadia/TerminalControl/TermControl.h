@@ -379,7 +379,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _ScrollPositionChanged(const IInspectable& sender, const Control::ScrollPositionChangedArgs& args);
 
         void _showRowNumbers();
-        //winrt::fire_and_forget _VimTextChanged(const IInspectable& sender, const Control::VimTextChangedEventArgs args);
         winrt::fire_and_forget _ExitVimMode(const IInspectable& sender, const Control::ExitVimModeEventArgs args);
         winrt::fire_and_forget _ShowFuzzySearch(const IInspectable& sender, const Control::ShowFuzzySearchEventArgs args);
         winrt::fire_and_forget _StartVimSearch(const IInspectable& sender, const Control::StartVimSearchEventArgs args);
@@ -408,7 +407,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _CloseSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _OnReturnSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, hstring);
-        //void _setVimBarFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
         void _setRowNumberFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
         void _Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive, const bool regularExpression);
         void _SearchChanged(const winrt::hstring& text, const bool goForward, const bool caseSensitive, const bool regularExpression);
@@ -478,7 +476,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Control::ControlInteractivity::PasteFromClipboard_revoker PasteFromClipboard;
             Control::ControlInteractivity::ContextMenuRequested_revoker ContextMenuRequested;
 
-            Control::ControlCore::VimTextChanged_revoker VimTextChanged;
             Control::ControlCore::ExitVimMode_revoker ExitVimMode;
             Control::ControlCore::ShowFuzzySearch_revoker ShowFuzzySearch;
             Control::ControlCore::StartVimSearch_revoker StartVimSearch;

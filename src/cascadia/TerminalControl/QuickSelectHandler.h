@@ -35,8 +35,7 @@ public:
         std::wstring_view text,
         bool copyMode,
         Search& searcher,
-        Microsoft::Console::Render::Renderer* renderer,
-        winrt::Microsoft::Terminal::Control::implementation::ControlCore* controlCore);
+        Microsoft::Console::Render::Renderer* renderer);
     bool Enabled();
     void HandleChar(
         uint32_t vkey,

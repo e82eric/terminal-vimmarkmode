@@ -3130,28 +3130,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return fuzzySearchResult;
     }
 
-    void ControlCore::UpdateBar()
-    {
-        const auto mode = _vimProxy->IsInVimMode() ? L"Normal" : _quickSelectHandler->Enabled() ? L"QuickSelect" : L"Shell";
-
-        _VimTextChangedHandlers(
-            *this,
-            winrt::make<implementation::VimTextChangedEventArgs>(
-                winrt::hstring{ L"" },
-                winrt::hstring{ L"" },
-                winrt::hstring{ mode }));
-    }
-
-    void ControlCore::UpdateVimText(std::wstring_view mode, std::wstring_view search, std::wstring_view sequence)
-    {
-        _VimTextChangedHandlers(
-            *this,
-            winrt::make<implementation::VimTextChangedEventArgs>(
-                winrt::hstring{ sequence },
-                winrt::hstring{ search },
-                winrt::hstring{ mode }));
-    }
-
     void ControlCore::ExitVim()
     {
         LOG_IF_FAILED(_renderEngine->InvalidateAll());
@@ -3189,7 +3167,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         const auto lock = _terminal->LockForWriting();
-        _quickSelectHandler->EnterQuickSelectMode(text, copy, _searcher, _renderer.get(), this);
+        _quickSelectHandler->EnterQuickSelectMode(text, copy, _searcher, _renderer.get());
     }
 
     void ControlCore::ToggleRowNumberMode()

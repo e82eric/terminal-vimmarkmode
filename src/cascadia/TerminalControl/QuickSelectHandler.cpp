@@ -18,8 +18,7 @@ void QuickSelectHandler::EnterQuickSelectMode(
     std::wstring_view text,
     bool copyMode,
     Search& searcher,
-    Microsoft::Console::Render::Renderer* renderer,
-    winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore)
+    Microsoft::Console::Render::Renderer* renderer)
 {
     _vimProxy->ExitVimMode();
     _quickSelectAlphabet->Enabled(true);
@@ -29,9 +28,7 @@ void QuickSelectHandler::EnterQuickSelectMode(
     _terminal->SetSearchHighlights({});
     _terminal->SetQuickSelectHighlights(searcher.Results());
     renderer->TriggerRedrawAll();
-    controlCore->UpdateBar();
     _terminal->GetTextBuffer().GetCursor().SetIsVisible(false);
-    //controlCore->UpdateSelectionFromVim();
 }
 
 bool QuickSelectHandler::Enabled()
@@ -51,7 +48,6 @@ void QuickSelectHandler::HandleChar(
         _quickSelectAlphabet->ClearChars();
         _terminal->SetQuickSelectHighlights({});
         renderer->TriggerRedrawAll();
-        controlCore->UpdateBar();
         _terminal->GetTextBuffer().GetCursor().SetIsVisible(true);
         return;
     }
@@ -60,7 +56,6 @@ void QuickSelectHandler::HandleChar(
     {
         _quickSelectAlphabet->RemoveChar();
         renderer->TriggerRedrawAll();
-        controlCore->UpdateBar();
         return;
     }
 
@@ -127,7 +122,6 @@ void QuickSelectHandler::HandleChar(
     }
     renderer->TriggerRedrawAll();
     renderer->NotifyPaintFrame();
-    controlCore->UpdateBar();
 }
 
 void QuickSelectHandler::_exitQuickSelectMode(Microsoft::Console::Render::Renderer* renderer) const

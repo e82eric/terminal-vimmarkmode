@@ -1701,23 +1701,11 @@ bool VimModeProxy::TryVimModeKeyBinding(
         skipExecute = true;
     }
 
-    if (vkey != VK_RETURN && _vimMode != VimMode::search && vkey != L'\r')
-    {
-        _sequenceText += vkeyText;
-    }
-
     auto shouldExit = false;
 
     if (sequenceCompleted && !skipExecute)
     {
         shouldExit = _executeVimSelection(_action, _textObject, _times, _motion, _vimMode == VimMode::visual, _searchString, vkeyText);
-    }
-
-    if (_sequenceText != L"\r")
-    {
-        auto modeText = _vimMode == VimMode::search ? L"Search" : _vimMode == VimMode::normal ? L"Normal" :
-                                                                                                L"VisualLine";
-        _controlCore->UpdateVimText(modeText, L"", _sequenceText);
     }
 
     wcsncpy_s(_lastVkey, vkeyText, sizeof(_lastVkey) / sizeof(_lastVkey[0]));
@@ -1730,7 +1718,6 @@ bool VimModeProxy::TryVimModeKeyBinding(
         }
         _setStateForCompletedSequence();
 
-        _sequenceText = L"";
         if (shouldExit)
         {
             ResetVimState();
@@ -1857,7 +1844,6 @@ void VimModeProxy::_setStateForCompletedSequence()
 void VimModeProxy::ExitVimSearch()
 {
     _vimMode = VimMode::normal;
-    _controlCore->UpdateVimText(L"Normal", _searchString, _sequenceText);
     auto selection = _terminal->GetSelectionAnchors();
     _terminal->UserScrollViewport(selection->start.y - _tempTop);
     _setStateForCompletedSequence();
@@ -2397,7 +2383,6 @@ void VimModeProxy::ResetVimState()
     _lastMotion = VimMotionType::none;
     _textObject = VimTextObjectType::none;
     _lastTimes = 0;
-    _sequenceText = L"";
     _searchString = L"";
     _lastVkey[0] = L'\0';
     _terminal->ClearYankRegion();
@@ -2421,7 +2406,6 @@ void VimModeProxy::EnterVimMode(bool selectLastChar)
 {
     _vimMode = VimMode::normal;
     ResetVimModeForSizeChange(selectLastChar);
-    _controlCore->UpdateVimText(L"Normal", _searchString, _sequenceText);
 }
 
 bool VimModeProxy::IsInVimMode()
