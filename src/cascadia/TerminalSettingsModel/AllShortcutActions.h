@@ -78,7 +78,6 @@
     ON_ALL_ACTIONS(CloseTabsAfter)          \
     ON_ALL_ACTIONS(TabSearch)               \
     ON_ALL_ACTIONS(MoveTab)                 \
-    ON_ALL_ACTIONS(SaveSnippet)             \
     ON_ALL_ACTIONS(BreakIntoDebugger)       \
     ON_ALL_ACTIONS(TogglePaneReadOnly)      \
     ON_ALL_ACTIONS(EnablePaneReadOnly)      \
@@ -119,7 +118,8 @@
     ON_ALL_ACTIONS(RestartConnection)       \
     ON_ALL_ACTIONS(ToggleBroadcastInput)    \
     ON_ALL_ACTIONS(OpenScratchpad)          \
-    ON_ALL_ACTIONS(OpenAbout)
+    ON_ALL_ACTIONS(OpenAbout)               \
+    ON_ALL_ACTIONS(QuickFix)
 
 #define ALL_SHORTCUT_ACTIONS_WITH_ARGS             \
     ON_ALL_ACTIONS_WITH_ARGS(AdjustFontSize)       \
@@ -157,7 +157,6 @@
     ON_ALL_ACTIONS_WITH_ARGS(SplitPane)            \
     ON_ALL_ACTIONS_WITH_ARGS(SwitchToTab)          \
     ON_ALL_ACTIONS_WITH_ARGS(ToggleCommandPalette) \
-    ON_ALL_ACTIONS_WITH_ARGS(SaveSnippet)          \
     ON_ALL_ACTIONS_WITH_ARGS(FocusPane)            \
     ON_ALL_ACTIONS_WITH_ARGS(ExportBuffer)         \
     ON_ALL_ACTIONS_WITH_ARGS(ClearBuffer)          \
@@ -167,3 +166,12 @@
     ON_ALL_ACTIONS_WITH_ARGS(SelectCommand)        \
     ON_ALL_ACTIONS_WITH_ARGS(SelectOutput)         \
     ON_ALL_ACTIONS_WITH_ARGS(ColorSelection)
+
+// These two macros here are for actions that we only use as internal currency.
+// They don't need to be parsed by the settings model, or saved as actions to
+// JSON.
+#define INTERNAL_SHORTCUT_ACTIONS \
+    ON_ALL_ACTIONS(SaveSnippet)
+
+#define INTERNAL_SHORTCUT_ACTIONS_WITH_ARGS \
+    ON_ALL_ACTIONS_WITH_ARGS(SaveSnippet)\

@@ -1534,7 +1534,19 @@ namespace winrt::TerminalApp::implementation
                 }
 
                 // Aggregate all the commands from the different sources that
-                // the user selected.
+                // the user selected. This is the order presented to the user
+
+                if (WI_IsFlagSet(source, SuggestionsSource::QuickFixes) &&
+                    context != nullptr &&
+                    context.QuickFixes() != nullptr)
+                {
+                    // \ue74c --> OEM icon
+                    const auto recentCommands = Command::HistoryToCommands(context.QuickFixes(), hstring{ L"" }, false, hstring{ L"\ue74c" });
+                    for (const auto& t : recentCommands)
+                    {
+                        commandsCollection.push_back(t);
+                    }
+                }
 
                 // Tasks are all the sendInput commands the user has saved in
                 // their settings file. Ask the ActionMap for those.
@@ -1555,18 +1567,6 @@ namespace winrt::TerminalApp::implementation
                 {
                     // \ue81c --> History icon
                     const auto recentCommands = Command::HistoryToCommands(context.History(), currentCommandline, false, hstring{ L"\ue81c" });
-                    for (const auto& t : recentCommands)
-                    {
-                        commandsCollection.push_back(t);
-                    }
-                }
-
-                if (WI_IsFlagSet(source, SuggestionsSource::QuickFixes) &&
-                    context != nullptr &&
-                    context.QuickFixes() != nullptr)
-                {
-                    // \ue74c --> OEM icon
-                    const auto recentCommands = Command::HistoryToCommands(context.QuickFixes(), hstring{ L"" }, false, hstring{ L"\ue74c" });
                     for (const auto& t : recentCommands)
                     {
                         commandsCollection.push_back(t);
@@ -1687,5 +1687,15 @@ namespace winrt::TerminalApp::implementation
     {
         _ShowAboutDialog();
         args.Handled(true);
+    }
+
+    void TerminalPage::_HandleQuickFix(const IInspectable& /*sender*/,
+                                       const ActionEventArgs& args)
+    {
+        if (const auto& control{ _GetActiveControl() })
+        {
+            const auto handled = control.OpenQuickFixMenu();
+            args.Handled(handled);
+        }
     }
 }
