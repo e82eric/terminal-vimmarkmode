@@ -225,7 +225,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _revokers.interactivityScrollPositionChanged = _interactivity.ScrollPositionChanged(winrt::auto_revoke, { get_weak(), &TermControl::_ScrollPositionChanged });
         _revokers.ContextMenuRequested = _interactivity.ContextMenuRequested(winrt::auto_revoke, { get_weak(), &TermControl::_contextMenuHandler });
 
-        _revokers.VimTextChanged = _core.VimTextChanged(winrt::auto_revoke, { get_weak(), &TermControl::_VimTextChanged });
         _revokers.ExitVimMode = _core.ExitVimMode(winrt::auto_revoke, { get_weak(), &TermControl::_ExitVimMode });
         _revokers.ShowFuzzySearch = _core.ShowFuzzySearch(winrt::auto_revoke, { get_weak(), &TermControl::_ShowFuzzySearch });
         _revokers.StartVimSearch = _core.StartVimSearch(winrt::auto_revoke, { get_weak(), &TermControl::_StartVimSearch });
@@ -952,6 +951,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto textColor = createSolidColorBrush(_core.ColorScheme().Foreground);
         constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
 
+        NumberBorder().Background(backgroundColor);
+        NumberTextBox().Foreground(textColor);
+
         SnippetSearch().BorderColor(borderColor);
         SnippetSearch().HeaderTextColor(headerTextColor);
         SnippetSearch().BackgroundColor(backgroundColor);
@@ -1645,7 +1647,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (e.Key() == VirtualKey::Escape)
             {
                 this->Focus(winrt::Windows::UI::Xaml::FocusState::Programmatic);
-                VimSearchType().Text(L"");
                 this->_core.VimSearch(L"");
                 this->_core.ExitVimSearch();
                 VimSearchStringTextBox().Text(L"");
@@ -2473,7 +2474,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_core.IsInVimMode())
         {
             _updateRowNumbers();
-            _updateVimCurrentRowIndicator();
         }
     }
 
@@ -2579,20 +2579,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         _updateRowNumbers();
-        _updateVimCurrentRowIndicator();
-    }
-
-        // Method Description:
-    // - Tells TSFInputControl to redraw the Canvas/TextBlock so it'll update
-    //   to be where the current cursor position is.
-    // Arguments:
-    // - N/A
-    winrt::fire_and_forget TermControl::_VimTextChanged(const IInspectable& /*sender*/,
-                                                               const Control::VimTextChangedEventArgs args)
-    {
-        co_await wil::resume_foreground(Dispatcher());
-        VimTextBox().Text(args.Text());
-        VimModeTextBox().Text(args.Mode());
+        RefreshQuickFixMenu();
     }
 
     winrt::fire_and_forget TermControl::_ShowFuzzySearch(const IInspectable& /*sender*/,
@@ -2615,12 +2602,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (args.IsReverse())
         {
             VimSearchHeaderTextBlock().Text(L"?Search");
-            VimSearchType().Text(L"? ");
         }
         else
         {
             VimSearchHeaderTextBlock().Text(L"/Search");
-            VimSearchType().Text(L"/ ");
         }
         VimSearchContainer().Visibility(::Visibility::Visible);
         VimSearchStringTextBox().Focus(FocusState::Programmatic);
@@ -2655,43 +2640,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto weakThis{ get_weak() };
         co_await wil::resume_foreground(Dispatcher());
 
-        VimModeTextBox().Text(L"Shell");
-
-        auto hideTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
-        hideTimer.Interval(std::chrono::milliseconds(400));
-        VimSearchStringTextBox().Text(L"");
-        VimSearchType().Text(L"");
-        hideTimer.Tick([hideTimer, weakThis](auto&&, auto&&) {
-            if (auto strongThis = weakThis.get())
-            {
-                strongThis->VimTextBox().Text(L"");
-                hideTimer.Stop();
-            }
-        });
-
-        hideTimer.Start();
         CursorVisibility(CursorDisplayState::Shown);
         CurrentSearchRowHighlight().Visibility(Visibility::Collapsed);
         _updateRowNumbers();
-    }
-
-    void TermControl::_updateVimCurrentRowIndicator()
-    {
-        if (_core.IsInVimMode())
-        {
-            auto cursorViewportRow = _core.ViewportRowNumberToHighlight();
-            Core::Point terminalPos{ 0, cursorViewportRow };
-            const til::point locationInDIPs{ _toPosInDips(terminalPos) };
-            SelectionCanvas().SetLeft(CurrentSearchRowHighlight(),
-                                      (locationInDIPs.x - SwapChainPanel().ActualOffset().x));
-            SelectionCanvas().SetTop(CurrentSearchRowHighlight(),
-                                     (locationInDIPs.y - SwapChainPanel().ActualOffset().y));
-            CurrentSearchRowHighlight().Visibility(Visibility::Visible);
-            CurrentSearchRowHighlight().Width(SwapChainPanel().ActualWidth());
-            auto currentSearchRowBrush = Windows::UI::Xaml::Media::SolidColorBrush();
-            currentSearchRowBrush.Color(Windows::UI::ColorHelper::FromArgb(15, 0xbd, 0xae, 0x93));
-            CurrentSearchRowHighlight().Fill(currentSearchRowBrush);
-        }
     }
 
     void TermControl::_updateRowNumbers()
@@ -2710,23 +2661,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             NumberTextBox().Text(numbers);
         }
-        std::wstring numStr;
-        const auto y = _core.ViewportRowNumberToHighlight();
-        if (_core.IsInVimMode())
-        {
-            const auto offset = _core.ScrollOffset();
-            const auto selectionInfo = _core.SelectionInfo();
-            const std::wstring widthStr = std::to_wstring(selectionInfo.CharsSelected);
-            const Core::Point point = y == selectionInfo.EndPos.Y ? selectionInfo.EndPos : selectionInfo.StartPos;
-            numStr = L"Y:" + std::to_wstring(y + offset) + L" X:" + std::to_wstring(point.X) + L" " + widthStr;
-        }
-        else
-        {
-            const auto cursorPos = _core.CursorPosition();
-            numStr = L"Y:" + std::to_wstring(y + _core.ScrollOffset()) + L" X:" + std::to_wstring(cursorPos.X);
-        }
-        VimRowNumberTextBox().Text(numStr);
-        RefreshQuickFixMenu();
     }
 
     hstring TermControl::Title()
@@ -2800,7 +2734,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::EnterVimModeWithSearch()
     {
         _core.EnterVimModeWithSearch();
-        VimSearchStringTextBox().IsEnabled(true);
         CurrentSearchRowHighlight().Visibility(Visibility::Visible);
     }
 
@@ -3882,7 +3815,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
 
                 _updateRowNumbers();
-                _updateVimCurrentRowIndicator();
             }
             else
             {
@@ -3932,7 +3864,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto fontSize = _core.Settings().FontSize() * 1.2;
 
         _fuzzySearchBox.SetFontSize(args.Width(), args.Height());
-        _setVimBarFontSize(directXHeight, fontSize, fontFamily);
         _setRowNumberFontSize(directXHeight, fontSize, fontFamily);
         CurrentSearchRowHighlight().Height(directXHeight);
 
@@ -3943,26 +3874,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             QuickFixIcon().FontSize(static_cast<double>(args.Width() / dpiScale));
             RefreshQuickFixMenu();
         }
-    }
-
-    void TermControl::_setVimBarFontSize(double lineHeight, double fontSize, Windows::UI::Xaml::Media::FontFamily fontFamily)
-    {
-        VimModeTextBox().FontFamily(fontFamily);
-        VimModeTextBox().FontSize(fontSize);
-        VimModeTextBox().LineHeight(lineHeight);
-
-        VimSearchType().FontFamily(fontFamily);
-        VimSearchType().FontSize(fontSize);
-        VimSearchType().LineHeight(lineHeight);
-
-        VimTextBox().FontFamily(fontFamily);
-        VimTextBox().FontSize(fontSize);
-        VimTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
-        VimTextBox().LineHeight(lineHeight);
-
-        VimRowNumberTextBox().FontFamily(fontFamily);
-        VimRowNumberTextBox().FontSize(fontSize);
-        VimRowNumberTextBox().LineStackingStrategy(LineStackingStrategy::BlockLineHeight);
     }
 
     void TermControl::_setRowNumberFontSize(double lineHeight, double fontSize, Windows::UI::Xaml::Media::FontFamily fontFamily)

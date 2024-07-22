@@ -1275,11 +1275,6 @@
             <local:VisualBellLight x:Name="BellLight" />
         </Grid.Lights>
 
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="auto" />
-        </Grid.RowDefinitions>
-
         <Image x:Name="BackgroundImage"
                AutomationProperties.AccessibilityView="Raw" />
 
@@ -1287,17 +1282,10 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="auto" />
                 <ColumnDefinition Width="*" />
-                <!--<ColumnDefinition Width="Auto" />-->
             </Grid.ColumnDefinitions>
 
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*"/>
-                <!--<RowDefinition Height="400" />-->
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-
-	        <Border Background="#282828" x:Name="NumberBorder" Visibility="Collapsed" HorizontalAlignment="Left">
-		        <TextBlock x:Name="NumberTextBox" Visibility="Collapsed" FontWeight="Normal"  Foreground="#bdae93"/>
+	        <Border x:Name="NumberBorder" Visibility="Collapsed" HorizontalAlignment="Left">
+		        <TextBlock x:Name="NumberTextBox" Visibility="Collapsed" FontWeight="Normal" />
 	        </Border>
 
             <Grid Grid.Column="1"
@@ -1307,7 +1295,6 @@
                   PointerPressed="_PointerPressedHandler"
                   PointerReleased="_PointerReleasedHandler"
                   Visibility="Visible">
-
 
                 <SwapChainPanel x:Name="SwapChainPanel"
                                 CompositionScaleChanged="_SwapChainScaleChanged"
@@ -1382,8 +1369,6 @@
                 <local:SnippetSearchControl
                     x:Name="SnippetSearch"
                     Margin="100,100,100,0"
-                    HeaderTextColor="#B8BB26"
-                    BorderColor="#928374"
                     Closed="_CloseSnippetSearchControl"
                     OnReturn="_OnReturnSnippetSearchControl"
                     Visibility="Collapsed"/>
@@ -1393,11 +1378,7 @@
     Grid.Row="2"
     Visibility="Collapsed"
     VerticalAlignment="Center">
-
     <Grid>
-        <!-- Title on top of the border -->
-
-        <!-- Border with content -->
         <Border
             x:Name="VimSearchBorder"
             CornerRadius="4"
@@ -1415,7 +1396,6 @@
                     HorizontalAlignment="Stretch"
                     FontSize="16"
                     PlaceholderText="Search"
-                    Foreground="#ebdbb2"
                     LostFocus="_vimSearchLostFocusHandler"
                     Grid.Column="0"/>
                 <TextBlock
@@ -1429,7 +1409,11 @@
                     VerticalAlignment="Center"/>
             </Grid>
         </Border>
-        <Border x:Name="VimSearchHeaderTextBorder" HorizontalAlignment="Center"  VerticalAlignment="Top" Margin="100,0,100,0">
+        <Border
+            x:Name="VimSearchHeaderTextBorder"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Top"
+            Margin="100,0,100,0">
             <TextBlock
                 x:Name="VimSearchHeaderTextBlock"
                 Text="Search"
@@ -1488,28 +1472,6 @@
                 </StackPanel>
             </Border>
         </Grid>
-
-        <StackPanel Grid.Row="1" VerticalAlignment="Bottom">
-
-        </StackPanel>
-
-        <StackPanel Grid.Row="2" Grid.Column="1" Visibility="Collapsed">
-            <Border Background="#3c3836" x:Name="VimGrid" Visibility="Visible" BorderThickness="1" Grid.Row="2">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="auto" />
-                    <ColumnDefinition Width="auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Shell" Padding="0" x:Name="VimModeTextBox" Grid.Column="0" HorizontalAlignment="Left" Margin="0,0,10,0" Foreground="#ebdbb2"/>
-                <TextBlock Text="" x:Name="VimSearchType" Grid.Column="1" HorizontalAlignment="Left" Foreground="#ebdbb2"/>
-                <TextBlock Text="" x:Name="VimTextBox"  Grid.Column="3" HorizontalAlignment="Right" Foreground="#ebdbb2" Padding="0,0,10,0"/>
-                <TextBlock Text="" x:Name="VimRowNumberTextBox" Grid.Column="4" HorizontalAlignment="Right" Foreground="#ebdbb2"/>
-            </Grid>
-        </Border>
-        </StackPanel>
         
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="QuickFixButtonStates">

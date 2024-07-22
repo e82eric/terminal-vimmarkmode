@@ -379,13 +379,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _ScrollPositionChanged(const IInspectable& sender, const Control::ScrollPositionChangedArgs& args);
 
         void _showRowNumbers();
-        winrt::fire_and_forget _VimTextChanged(const IInspectable& sender, const Control::VimTextChangedEventArgs args);
+        //winrt::fire_and_forget _VimTextChanged(const IInspectable& sender, const Control::VimTextChangedEventArgs args);
         winrt::fire_and_forget _ExitVimMode(const IInspectable& sender, const Control::ExitVimModeEventArgs args);
         winrt::fire_and_forget _ShowFuzzySearch(const IInspectable& sender, const Control::ShowFuzzySearchEventArgs args);
         winrt::fire_and_forget _StartVimSearch(const IInspectable& sender, const Control::StartVimSearchEventArgs args);
         winrt::fire_and_forget _ToggleRowNumbers(const IInspectable& sender, const Control::ToggleRowNumbersEventArgs args);
         void _updateRowNumbers();
-        void _updateVimCurrentRowIndicator();
 
         bool _CapturePointer(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
         bool _ReleasePointerCapture(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::Input::PointerRoutedEventArgs& e);
@@ -409,7 +408,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _CloseSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _OnReturnSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, hstring);
-        void _setVimBarFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
+        //void _setVimBarFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
         void _setRowNumberFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);
         void _Search(const winrt::hstring& text, const bool goForward, const bool caseSensitive, const bool regularExpression);
         void _SearchChanged(const winrt::hstring& text, const bool goForward, const bool caseSensitive, const bool regularExpression);
