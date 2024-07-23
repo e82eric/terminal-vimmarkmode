@@ -19,13 +19,6 @@ Revision History:
 
 #include "textBuffer.hpp"
 #include "../renderer/inc/IRenderData.hpp"
-#include "../fzf/fzf.h"
-
-struct FuzzySearchResultRow
-{
-    til::CoordType startRowNumber;
-    std::vector<int32_t> positions;
-};
 
 enum class SearchFlag : unsigned int
 {
@@ -43,7 +36,6 @@ public:
     Search() = default;
     bool ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive, std::vector<til::point_span>* prevResults = nullptr);
     void QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive);
-    std::vector<FuzzySearchResultRow> FuzzySearch(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle) const;
 
     bool IsStale(const Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, SearchFlag flags) const noexcept;
     bool Reset(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, SearchFlag flags, bool reverse);
@@ -73,5 +65,4 @@ private:
     std::vector<til::point_span> _results;
     ptrdiff_t _index = 0;
     ptrdiff_t _step = 0;
-    fzf_slab_t* _fzfSlab = fzf_make_default_slab();
 };

@@ -29,6 +29,7 @@
   <Import Project="$(OpenConsoleDir)src\cppwinrt.build.pre.props" />
   <!-- ========================= Headers ======================== -->
   <ItemGroup>
+    <ClInclude Include="FuzzySearcher.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ControlCore.h">
       <DependentUpon>ControlCore.idl</DependentUpon>
@@ -80,6 +81,7 @@
   </ItemGroup>
   <!-- ========================= Cpp Files ======================== -->
   <ItemGroup>
+    <ClCompile Include="FuzzySearcher.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -187,6 +189,7 @@
   <ItemGroup>
     <ProjectReference Include="$(OpenConsoleDir)src\audio\midi\lib\midi.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\buffer\out\lib\bufferout.vcxproj" />
+    <ProjectReference Include="$(OpenConsoleDir)src\buffer\fzf\fzf.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\cascadia\TerminalCore\lib\TerminalCore-lib.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\renderer\atlas\atlas.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\renderer\base\lib\base.vcxproj" />

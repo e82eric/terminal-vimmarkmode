@@ -974,7 +974,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SnippetSearch().InnerBorderThickness(borderThickness);
         SnippetSearch().TextColor(textColor);
         SnippetSearch().HighlightedTextColor(highlightColor);
-        SnippetSearch().ResultFontSize(18);
+        SnippetSearch().ResultFontSize(14);
 
         VimSearchBorder().BorderThickness(borderThickness);
         VimSearchBorder().BorderBrush(borderColor);

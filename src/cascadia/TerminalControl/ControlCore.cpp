@@ -175,6 +175,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         UpdateSettings(settings, unfocusedAppearance);
         auto quickSelectAlphabet = std::make_shared<QuickSelectAlphabet>();
         _vimProxy = std::make_shared<VimModeProxy>(_terminal, this, &_searcher);
+        _fuzzySearch = std::make_unique<class FuzzySearcher>();
         _quickSelectHandler = std::make_unique<QuickSelectHandler>(
             _terminal,
             _vimProxy,
@@ -1820,21 +1821,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         };
     }
 
-    std::wstring GetRowFullText(FuzzySearchResultRow &fuzzySearchResult2, TextBuffer &textBuffer)
-    {
-        std::wstring result;
-
-        auto i = fuzzySearchResult2.startRowNumber;
-        while (textBuffer.GetRowByOffset(i).WasWrapForced())
-        {
-            result += textBuffer.GetRowByOffset(i).GetText();
-            i++;
-        }
-        result += textBuffer.GetRowByOffset(i).GetText();
-
-        return result;
-    }
-
     const std::vector<til::point_span>& ControlCore::SearchResultRows() const noexcept
     {
         return _searcher.Results();
@@ -3055,79 +3041,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
     {
         const auto lock = _terminal->LockForWriting();
-
-        const auto fuzzySearchResultRows = _searcher.FuzzySearch(*GetRenderData(), text);
-
-        auto searchResults = winrt::single_threaded_observable_vector<Control::FuzzySearchTextLine>();
-
-        for (auto p : fuzzySearchResultRows)
-        {
-            auto rowFullText = GetRowFullText(p, _terminal->GetTextBuffer());
-
-            //sort the positions descending so that it is easier to create text segments from them
-            std::ranges::sort(p.positions, [](int32_t a, int32_t b) {
-                return a < b;
-            });
-
-            //Covert row text to text runs
-            auto runs = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
-            std::wstring currentRun;
-            bool isCurrentRunHighlighted = false;
-            size_t highlightIndex = 0;
-
-            for (int32_t i = 0; i < rowFullText.length(); ++i)
-            {
-                if (highlightIndex < p.positions.size() && i == p.positions[highlightIndex])
-                {
-                    if (!isCurrentRunHighlighted)
-                    {
-                        if (!currentRun.empty())
-                        {
-                            auto textSegmentHString = hstring(currentRun);
-                            auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
-                            runs.Append(textSegment);
-                            currentRun.clear();
-                        }
-                        isCurrentRunHighlighted = true;
-                    }
-                    highlightIndex++;
-                }
-                else
-                {
-                    if (isCurrentRunHighlighted)
-                    {
-                        if (!currentRun.empty())
-                        {
-                            hstring textSegmentHString = hstring(currentRun);
-                            auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, true);
-                            runs.Append(textSegment);
-                            currentRun.clear();
-                        }
-                        isCurrentRunHighlighted = false;
-                    }
-                }
-                currentRun += rowFullText[i];
-            }
-
-            if (!currentRun.empty())
-            {
-                auto textSegmentHString = hstring(currentRun);
-                auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, isCurrentRunHighlighted);
-                runs.Append(textSegment);
-            }
-
-            auto firstPosition = 0;
-            if (p.positions.size() > 0)
-            {
-                firstPosition = p.positions[0];
-            }
-            auto line = winrt::make<FuzzySearchTextLine>(runs, p.startRowNumber, firstPosition);
-
-            searchResults.Append(line);
-        }
-
-        auto fuzzySearchResult = winrt::make<FuzzySearchResult>(searchResults, static_cast<int32_t>(fuzzySearchResultRows.size()), static_cast<int32_t>(searchResults.Size()));
-        return fuzzySearchResult;
+        auto results = _fuzzySearch->Search(*_terminal, text);
+        return results;
     }
 
     void ControlCore::ExitVim()

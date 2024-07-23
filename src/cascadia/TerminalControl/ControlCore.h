@@ -28,6 +28,7 @@
 #include "../buffer/out/search.h"
 #include "../buffer/out/TextColor.h"
 #include "VimModeProxy.h"
+#include "FuzzySearcher.h"
 #include "../../renderer/inc/FontInfoDesired.hpp"
 
 namespace Microsoft::Console::Render::Atlas
@@ -486,6 +487,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     private:
         bool _selectionClearedFromErase();
         std::shared_ptr<VimModeProxy> _vimProxy;
+        std::shared_ptr<FuzzySearcher> _fuzzySearch;
         std::unique_ptr<QuickSelectHandler> _quickSelectHandler;
     };
 }
