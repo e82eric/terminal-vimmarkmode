@@ -77,7 +77,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void FuzzySearchBoxControl::BackgroundColor(Brush const& value)
     {
-        SetValue(_BackgroundColorProperty, value);
+        if (value != BackgroundColor())
+        {
+            SetValue(_BackgroundColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"BackgroundColor" });
+        }
     }
 
     DependencyProperty FuzzySearchBoxControl::SelectedItemColorProperty()
@@ -92,7 +96,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void FuzzySearchBoxControl::SelectedItemColor(Windows::UI::Color const& value)
     {
-        SetValue(_SelectedItemColorProperty, box_value(value));
+        if (value != SelectedItemColor())
+        {
+            SetValue(_SelectedItemColorProperty, box_value(value));
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"SelectedItemColor" });
+        }
     }
 
     DependencyProperty FuzzySearchBoxControl::BorderColorProperty()
@@ -107,7 +115,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void FuzzySearchBoxControl::BorderColor(Brush const& value)
     {
-        SetValue(_borderColorProperty, value);
+        if (value != BorderColor())
+        {
+            SetValue(_borderColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"BorderColor" });
+        }
     }
 
     DependencyProperty FuzzySearchBoxControl::HeaderTextColorProperty()
@@ -122,7 +134,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void FuzzySearchBoxControl::HeaderTextColor(Brush const& value)
     {
-        SetValue(_headerTextColorProperty, value);
+        if (value != HeaderTextColor())
+        {
+            SetValue(_headerTextColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"HeaderTextColor" });
+        }
     }
 
     DependencyProperty FuzzySearchBoxControl::InnerBorderThicknessProperty()
@@ -137,7 +153,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void FuzzySearchBoxControl::InnerBorderThickness(Thickness const& value)
     {
-        SetValue(_InnerBorderThicknessProperty, box_value(value));
+        if (value != InnerBorderThickness())
+        {
+            SetValue(_InnerBorderThicknessProperty, box_value(value));
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"InnerBorderThickness" });
+        }
     }
 
     Brush FuzzySearchBoxControl::TextColor()
@@ -147,7 +167,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void FuzzySearchBoxControl::TextColor(Brush const& value)
     {
-        SetValue(_TextColorProperty, value);
+        if (value != TextColor())
+        {
+            SetValue(_TextColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"TextColor" });
+        }
     }
 
     DependencyProperty FuzzySearchBoxControl::TextColorProperty()
@@ -162,7 +186,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void FuzzySearchBoxControl::HighlightedTextColor(Brush const& value)
     {
-        SetValue(_HighlightedTextColorProperty, value);
+        if (value != HighlightedTextColor())
+        {
+            SetValue(_HighlightedTextColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"HighlightedTextColor" });
+        }
     }
 
     DependencyProperty FuzzySearchBoxControl::HighlightedTextColorProperty()

@@ -8,7 +8,7 @@ import "FuzzySearchTextSegment.idl";
 namespace Microsoft.Terminal.Control
 {
 
-    [default_interface] runtimeclass SnippetSearchControl : Windows.UI.Xaml.Controls.UserControl
+    [default_interface] runtimeclass SnippetSearchControl : Windows.UI.Xaml.Controls.UserControl,Windows.UI.Xaml.Data.INotifyPropertyChanged
     {
         SnippetSearchControl();
         void Show(IVector<String> snippets);

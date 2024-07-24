@@ -82,7 +82,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::BackgroundColor(Brush const& value)
     {
-        SetValue(_BackgroundColorProperty, value);
+        if (value != BackgroundColorProperty())
+        {
+            SetValue(_BackgroundColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"BackgroundColor" });
+        }
     }
 
     Brush SnippetSearchControl::TextColor()
@@ -92,7 +96,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::TextColor(Brush const& value)
     {
-        SetValue(_TextColorProperty, value);
+        if (value != TextColor())
+        {
+            SetValue(_TextColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"TextColor" });
+        }
     }
 
     DependencyProperty SnippetSearchControl::TextColorProperty()
@@ -107,7 +115,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::HighlightedTextColor(Brush const& value)
     {
-        SetValue(_HighlightedTextColorProperty, value);
+        if (value != HighlightedTextColorProperty())
+        {
+            SetValue(_HighlightedTextColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"HighlightedTextColor" });
+        }
     }
 
     DependencyProperty SnippetSearchControl::HighlightedTextColorProperty()
@@ -127,7 +139,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::SelectedItemColor(Windows::UI::Color const& value)
     {
-        SetValue(_SelectedItemColorProperty, box_value(value));
+        if (value != SelectedItemColor())
+        {
+            SetValue(_SelectedItemColorProperty, box_value(value));
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"SelectedItemColor" });
+        }
     }
 
     DependencyProperty SnippetSearchControl::BorderColorProperty()
@@ -142,7 +158,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::BorderColor(Brush const& value)
     {
-        SetValue(_borderColorProperty, value);
+        if (value != BorderColor())
+        {
+            SetValue(_borderColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"BorderColor" });
+        }
     }
 
     DependencyProperty SnippetSearchControl::HeaderTextColorProperty()
@@ -157,7 +177,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::HeaderTextColor(Brush const& value)
     {
-        SetValue(_headerTextColorProperty, value);
+        if (value != HeaderTextColor())
+        {
+            SetValue(_headerTextColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"HeaderTextColor" });
+        }
     }
 
     DependencyProperty SnippetSearchControl::InnerBorderThicknessProperty()
@@ -172,7 +196,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::InnerBorderThickness(Thickness const& value)
     {
-        SetValue(_InnerBorderThicknessProperty, box_value(value));
+        if (value != InnerBorderThickness())
+        {
+            SetValue(_InnerBorderThicknessProperty, box_value(value));
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"InnerBorderThickness" });
+        }
     }
 
     DependencyProperty SnippetSearchControl::ResultFontSizeProperty()
@@ -187,7 +215,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::ResultFontSize(double const& value)
     {
-        SetValue(_ResultFontSizeProperty, box_value(value));
+        if (value != ResultFontSize())
+        {
+            SetValue(_ResultFontSizeProperty, box_value(value));
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"ResultFontSize" });
+        }
     }
 
     SnippetSearchControl::SnippetSearchControl()

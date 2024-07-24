@@ -9,7 +9,7 @@ namespace Microsoft.Terminal.Control
 {
     delegate void FuzzySearchHandler(String query);
 
-    [default_interface] runtimeclass FuzzySearchBoxControl : Windows.UI.Xaml.Controls.UserControl
+    [default_interface] runtimeclass FuzzySearchBoxControl : Windows.UI.Xaml.Controls.UserControl, Windows.UI.Xaml.Data.INotifyPropertyChanged
     {
         FuzzySearchBoxControl(IControlSettings settings, IControlAppearance unfocusedAppearance);
         void Show(String searchString);
