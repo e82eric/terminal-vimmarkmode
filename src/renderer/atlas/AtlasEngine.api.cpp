@@ -442,6 +442,15 @@ void AtlasEngine::SetSelectionBackground(const COLORREF color, const float alpha
     }
 }
 
+void AtlasEngine::SetYankSelectionBackground(const COLORREF color, const float alpha) noexcept
+{
+    const u32 selectionColor = (color & 0xffffff) | gsl::narrow_cast<u32>(lrintf(alpha * 255.0f)) << 24;
+    if (_api.s->misc->selectionColor != selectionColor)
+    {
+        _api.s.write()->misc.write()->yankSelectionColor = selectionColor;
+    }
+}
+
 void AtlasEngine::SetSoftwareRendering(bool enable) noexcept
 {
     if (_api.s->target->useWARP != enable)

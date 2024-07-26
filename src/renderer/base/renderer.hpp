@@ -149,6 +149,10 @@ namespace Microsoft::Console::Render
         std::function<void()> _pfnRendererEnteredErrorState;
         bool _destructing = false;
         bool _forceUpdateViewport = false;
+        COLORREF _quickSelectNonMatch;
+        COLORREF _quickSelectMatch;
+        COLORREF _quickSelectHighlight;
+        COLORREF _quickSelectSelectedHighlight;
 
 #ifdef UNIT_TESTING
         friend class ConptyOutputTests;

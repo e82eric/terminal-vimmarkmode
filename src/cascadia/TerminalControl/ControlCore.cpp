@@ -374,6 +374,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             // Update AtlasEngine's SelectionBackground
             _renderEngine->SetSelectionBackground(til::color{ _settings->SelectionBackground() });
+            _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_YELLOW) });
 
             const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
             const auto width = vp.Width();
@@ -946,6 +947,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             // Update AtlasEngine settings under the lock
             _renderEngine->SetSelectionBackground(til::color{ newAppearance->SelectionBackground() });
+            _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_YELLOW) });
             _renderEngine->SetRetroTerminalEffect(newAppearance->RetroTerminalEffect());
             _renderEngine->SetPixelShaderPath(newAppearance->PixelShaderPath());
             _renderEngine->SetPixelShaderImagePath(newAppearance->PixelShaderImagePath());
@@ -2509,6 +2511,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto lock = _terminal->LockForWriting();
         _terminal->ApplyScheme(scheme);
         _renderEngine->SetSelectionBackground(til::color{ _settings->SelectionBackground() });
+        _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_YELLOW) });
         _renderer->TriggerRedrawAll(true);
     }
 

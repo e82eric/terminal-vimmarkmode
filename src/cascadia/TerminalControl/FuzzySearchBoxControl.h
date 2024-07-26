@@ -4,7 +4,7 @@
 
 #include "FuzzySearchBoxControl.g.h"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
-#include <ControlSettings.h>
+#include "ControlSettings.h"
 #include "../../renderer/inc/FontInfoDesired.hpp"
 
 namespace Microsoft::Console::Render::Atlas

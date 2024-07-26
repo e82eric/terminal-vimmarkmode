@@ -110,6 +110,19 @@ IRenderData* Renderer::GetRenderData() const noexcept
     return S_OK;
 }
 
+COLORREF lightenColor(COLORREF color, float factor) {
+    int r = GetRValue(color);
+    int g = GetGValue(color);
+    int b = GetBValue(color);
+
+    // Increase the brightness by the given factor
+    r = std::min(255, static_cast<int>(r * factor));
+    g = std::min(255, static_cast<int>(g * factor));
+    b = std::min(255, static_cast<int>(b * factor));
+
+    return RGB(r, g, b);
+}
+
 [[nodiscard]] HRESULT Renderer::_PaintFrame() noexcept
 {
     {
@@ -117,6 +130,13 @@ IRenderData* Renderer::GetRenderData() const noexcept
         auto unlock = wil::scope_exit([&]() {
             _pData->UnlockConsole();
         });
+
+
+        const auto backgroundColor = _renderSettings.GetColorTableEntry(TextColor::DEFAULT_BACKGROUND);
+        _quickSelectNonMatch = lightenColor(backgroundColor, 1.8f);
+        _quickSelectMatch = _renderSettings.GetColorTableEntry(TextColor::DEFAULT_FOREGROUND);
+        _quickSelectSelectedHighlight = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_RED);
+        _quickSelectHighlight = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_YELLOW);
 
         // Last chance check if anything scrolled without an explicit invalidate notification since the last frame.
         _CheckViewportAndScroll();
@@ -952,16 +972,16 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                     }
 
                     //Override all formating to make it easier to see whats selectable and not
-                    origAttr.SetForeground(0xFF545C66);
+                    origAttr.SetForeground(_quickSelectNonMatch);
                     origAttr.SetDefaultBackground();
                     if (isHighlight)
                     {
-                        origAttr.SetForeground(0xff8499a8);
+                        origAttr.SetForeground(_quickSelectMatch);
                         auto overlayOffset = screenPoint.x + cols - overlay.selection.Left();
                         if (overlayOffset < overlay.chars.size())
                         {
                             auto ch = overlay.chars[overlayOffset];
-                            COLORREF colorref = ch.isMatch ? 0xFF0028FF : 0xFF00A5FF;
+                            COLORREF colorref = ch.isMatch ? _quickSelectSelectedHighlight : _quickSelectHighlight;
                             origAttr.SetForeground(colorref);
                             charOverrides += ch.val;
                         }
