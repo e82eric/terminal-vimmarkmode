@@ -142,8 +142,10 @@ private:
     til::point _updateFromResize(til::point from) const;
     void _setPosForResize(til::point pos, til::point& target) const;
     VimMode _getVimMode();
-    void _handleSearch(bool moveForward, bool isVisual);
-    void _nextSearchResult(bool moveForward, bool isVisual);
+    void _handleSearch(bool moveForward);
+    void _moveToNextSearchResult(bool moveForward, bool isVisual);
+    void _highlightClosestSearchResult(bool moveForward);
+    std::tuple<til::point, int64_t> _findNextResult(const std::vector<til::point_span>& results, const til::point& point, bool moveForward, bool goNext);
     void _findChar(std::wstring_view vkey, bool isVisual);
     void _tilChar(std::wstring_view vkey, bool isVisual);
     void _findCharBack(std::wstring_view vkey, bool isVisual);
@@ -195,7 +197,7 @@ private:
     std::pair<til::point, bool> _GetLineFirstNonBlankChar(const til::point target) const;
     void _MoveByViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept;
-    void _ScrollIfNeeded(til::point& pos) noexcept;
+    void _ScrollIfNeeded(const til::point& pos) noexcept;
     void _vimScrollScreenPosition(VimTextObjectType textObjectType);
     wil::unique_close_clipboard_call _openClipboard();
     std::wstring _getClipboardText();

@@ -2612,6 +2612,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                                          const Control::StartVimSearchEventArgs args)
     {
         co_await wil::resume_foreground(Dispatcher());
+        VimSearchStringTextBox().Text(L"");
         if (args.IsReverse())
         {
             VimSearchHeaderTextBlock().Text(L"?Search");

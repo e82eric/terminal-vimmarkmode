@@ -1289,7 +1289,7 @@ void Terminal::SetSearchHighlightFocused(const size_t focusedIdx)
     if (focusedIdx < _searchHighlights.size())
     {
         const auto focused = til::at(_searchHighlights, focusedIdx);
-        _ScrollToPoints(focused.start, focused.end);
+        //_ScrollToPoints(focused.start, focused.end);
     }
 }
 
