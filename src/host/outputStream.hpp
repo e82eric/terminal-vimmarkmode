@@ -40,6 +40,7 @@ public:
     void SetSystemMode(const Mode mode, const bool enabled) override;
     bool GetSystemMode(const Mode mode) const override;
 
+    void ReturnAnswerback() override;
     void WarningBell() override;
 
     void SetWindowTitle(const std::wstring_view title) override;
@@ -62,7 +63,6 @@ public:
     void SetWorkingDirectory(const std::wstring_view uri) override;
     void PlayMidiNote(const int noteNumber, const int velocity, const std::chrono::microseconds duration) override;
 
-    bool IsConsolePty() const override;
     bool IsVtInputEnabled() const override;
 
     void NotifyAccessibilityChange(const til::rect& changedRect) override;

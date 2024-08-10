@@ -51,6 +51,16 @@ namespace Microsoft.Terminal.Control
         Int32 CharsSelected;
     };
 
+    struct SearchRequest
+    {
+        String Text;
+        Boolean GoForward;
+        Boolean CaseSensitive;
+        Boolean RegularExpression;
+        Boolean Reset;
+        Int32 ScrollOffset;
+    };
+
     struct SearchResults
     {
         Int32 TotalMatches;
@@ -151,7 +161,7 @@ namespace Microsoft.Terminal.Control
 
         void EnterQuickSelectMode(String text, Boolean copy);
         FuzzySearchResult FuzzySearch(String text);
-        SearchResults Search(String text, Boolean goForward, Boolean caseSensitive, Boolean regularExpression, Boolean reset);
+        SearchResults Search(SearchRequest request);
         void ClearSearch();
         Boolean SnapSearchResultToSelection;
 

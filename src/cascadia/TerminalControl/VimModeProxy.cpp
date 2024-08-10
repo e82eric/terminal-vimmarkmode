@@ -95,7 +95,7 @@ void VimModeProxy::_highlightClosestSearchResult(bool moveForward)
         }
 
         const auto idx = std::distance(results.begin(), toSelect);
-        _terminal->SetSearchHighlightFocused(idx);
+        _terminal->SetSearchHighlightFocused(idx, 0);
         _ScrollIfNeeded(toSelect->start);
     }
 }
@@ -108,7 +108,7 @@ void VimModeProxy::_handleSearch(bool moveForward)
     const auto results = _searcher->Results();
     if (!results.empty())
     {
-        _terminal->SetSearchHighlightFocused(results.size() - 1);
+        _terminal->SetSearchHighlightFocused(results.size() - 1, 0);
         _highlightClosestSearchResult(moveForward);
     }
     _controlCore->UpdateSelectionFromVim(oldResults);
@@ -1087,7 +1087,7 @@ bool VimModeProxy::_executeVimSelection(
         {
             auto focused = _terminal->GetSearchHighlightFocused();
             _terminal->SelectChar(focused->start);
-            _terminal->SetSearchHighlightFocused(-1);
+            _terminal->SetSearchHighlightFocused(-1, 0);
             _controlCore->UpdateSelectionFromVim(results);
         }
         break;

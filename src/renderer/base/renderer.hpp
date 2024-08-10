@@ -23,14 +23,6 @@ Author(s):
 
 #include "../../buffer/out/textBuffer.hpp"
 
-// fwdecl unittest classes
-#ifdef UNIT_TESTING
-namespace TerminalCoreUnitTests
-{
-    class ConptyRoundtripTests;
-};
-#endif
-
 namespace Microsoft::Console::Render
 {
     class Renderer
@@ -60,7 +52,6 @@ namespace Microsoft::Console::Render
         void TriggerScroll();
         void TriggerScroll(const til::point* const pcoordDelta);
 
-        void TriggerFlush(const bool circling);
         void TriggerTitleChange();
 
         void TriggerNewTextNotification(const std::wstring_view newText);

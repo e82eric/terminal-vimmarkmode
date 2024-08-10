@@ -71,6 +71,11 @@ bool Terminal::GetSystemMode(const Mode mode) const noexcept
     return _systemMode.test(mode);
 }
 
+void Terminal::ReturnAnswerback()
+{
+    ReturnResponse(_answerbackMessage);
+}
+
 void Terminal::WarningBell()
 {
     _pfnWarningBell();
@@ -308,11 +313,6 @@ void Terminal::ShowWindow(bool showOrHide)
     {
         _pfnShowWindowChanged(showOrHide);
     }
-}
-
-bool Terminal::IsConsolePty() const noexcept
-{
-    return false;
 }
 
 bool Terminal::IsVtInputEnabled() const noexcept

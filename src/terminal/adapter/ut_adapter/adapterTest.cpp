@@ -118,6 +118,11 @@ public:
         return _systemMode.test(mode);
     }
 
+    void ReturnAnswerback()
+    {
+        Log::Comment(L"ReturnAnswerback MOCK called...");
+    }
+
     void WarningBell() override
     {
         Log::Comment(L"WarningBell MOCK called...");
@@ -193,12 +198,6 @@ public:
     void PlayMidiNote(const int /*noteNumber*/, const int /*velocity*/, const std::chrono::microseconds /*duration*/) override
     {
         Log::Comment(L"PlayMidiNote MOCK called...");
-    }
-
-    bool IsConsolePty() const override
-    {
-        Log::Comment(L"IsConsolePty MOCK called...");
-        return _isPty;
     }
 
     void NotifyAccessibilityChange(const til::rect& /*changedRect*/) override
@@ -1710,7 +1709,7 @@ public:
         _testGetSet->PrepData();
         VERIFY_IS_TRUE(_pDispatch->DeviceAttributes());
 
-        auto pwszExpectedResponse = L"\x1b[?61;1;4;6;7;14;21;22;23;24;28;32;42c";
+        auto pwszExpectedResponse = L"\x1b[?61;4;6;7;14;21;22;23;24;28;32;42c";
         _testGetSet->ValidateInputEvent(pwszExpectedResponse);
 
         Log::Comment(L"Test 2: Verify failure when ReturnResponse doesn't work.");
@@ -1947,6 +1946,55 @@ public:
         _testGetSet->_textBuffer->SetCurrentAttributes(attribute);
         requestSetting(L"m");
         _testGetSet->ValidateInputEvent(L"\033P1$r0;38:2::12:34:56;48:2::65:43:21;58:2::128:222:45m\033\\");
+
+        Log::Comment(L"Requesting DECSCUSR style (blinking block).");
+        _testGetSet->PrepData();
+        _testGetSet->_textBuffer->GetCursor().SetBlinkingAllowed(true);
+        _testGetSet->_textBuffer->GetCursor().SetType(CursorType::FullBox);
+        requestSetting(L" q");
+        _testGetSet->ValidateInputEvent(L"\033P1$r1 q\033\\");
+
+        Log::Comment(L"Requesting DECSCUSR style (steady block).");
+        _testGetSet->PrepData();
+        _testGetSet->_textBuffer->GetCursor().SetBlinkingAllowed(false);
+        _testGetSet->_textBuffer->GetCursor().SetType(CursorType::FullBox);
+        requestSetting(L" q");
+        _testGetSet->ValidateInputEvent(L"\033P1$r2 q\033\\");
+
+        Log::Comment(L"Requesting DECSCUSR style (blinking underline).");
+        _testGetSet->PrepData();
+        _testGetSet->_textBuffer->GetCursor().SetBlinkingAllowed(true);
+        _testGetSet->_textBuffer->GetCursor().SetType(CursorType::Underscore);
+        requestSetting(L" q");
+        _testGetSet->ValidateInputEvent(L"\033P1$r3 q\033\\");
+
+        Log::Comment(L"Requesting DECSCUSR style (steady underline).");
+        _testGetSet->PrepData();
+        _testGetSet->_textBuffer->GetCursor().SetBlinkingAllowed(false);
+        _testGetSet->_textBuffer->GetCursor().SetType(CursorType::Underscore);
+        requestSetting(L" q");
+        _testGetSet->ValidateInputEvent(L"\033P1$r4 q\033\\");
+
+        Log::Comment(L"Requesting DECSCUSR style (blinking bar).");
+        _testGetSet->PrepData();
+        _testGetSet->_textBuffer->GetCursor().SetBlinkingAllowed(true);
+        _testGetSet->_textBuffer->GetCursor().SetType(CursorType::VerticalBar);
+        requestSetting(L" q");
+        _testGetSet->ValidateInputEvent(L"\033P1$r5 q\033\\");
+
+        Log::Comment(L"Requesting DECSCUSR style (steady bar).");
+        _testGetSet->PrepData();
+        _testGetSet->_textBuffer->GetCursor().SetBlinkingAllowed(false);
+        _testGetSet->_textBuffer->GetCursor().SetType(CursorType::VerticalBar);
+        requestSetting(L" q");
+        _testGetSet->ValidateInputEvent(L"\033P1$r6 q\033\\");
+
+        Log::Comment(L"Requesting DECSCUSR style (non-standard).");
+        _testGetSet->PrepData();
+        _testGetSet->_textBuffer->GetCursor().SetBlinkingAllowed(true);
+        _testGetSet->_textBuffer->GetCursor().SetType(CursorType::Legacy);
+        requestSetting(L" q");
+        _testGetSet->ValidateInputEvent(L"\033P1$r0 q\033\\");
 
         Log::Comment(L"Requesting DECSCA attributes (unprotected).");
         _testGetSet->PrepData();
