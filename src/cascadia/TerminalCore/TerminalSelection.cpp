@@ -57,7 +57,7 @@ std::vector<til::inclusive_rect> Terminal::_GetSelectionRects() const noexcept
 
     try
     {
-        return _activeBuffer().GetTextRects(_selection->start, _selection->end, _blockSelection, false);
+        return _activeBuffer().GetTextRects(_selection->start, _selection->end, _selection->blockSelection, false);
     }
     CATCH_LOG();
     return result;
@@ -78,7 +78,7 @@ std::vector<til::point_span> Terminal::_GetSelectionSpans() const noexcept
 
     try
     {
-        return _activeBuffer().GetTextSpans(_selection->start, _selection->end, _blockSelection, false);
+        return _activeBuffer().GetTextSpans(_selection->start, _selection->end, _selection->blockSelection, false);
     }
     CATCH_LOG();
     return result;
@@ -158,13 +158,13 @@ const Terminal::SelectionEndpoint Terminal::SelectionEndpointTarget() const noex
 const bool Terminal::IsSelectionActive() const noexcept
 {
     _assertLocked();
-    return _selection.has_value();
+    return _selection->active;
 }
 
 const bool Terminal::IsBlockSelection() const noexcept
 {
     _assertLocked();
-    return _blockSelection;
+    return _selection->blockSelection;
 }
 
 // Method Description:
@@ -175,15 +175,18 @@ const bool Terminal::IsBlockSelection() const noexcept
 void Terminal::MultiClickSelection(const til::point viewportPos, SelectionExpansion expansionMode)
 {
     // set the selection pivot to expand the selection using SetSelectionEnd()
-    _selection = SelectionAnchors{};
-    _selection->pivot = _ConvertToBufferCell(viewportPos);
+    auto selection{ _selection.write() };
+    wil::hide_name _selection;
+
+    selection->pivot = _ConvertToBufferCell(viewportPos);
+    selection->active = true;
 
     _multiClickSelectionMode = expansionMode;
     SetSelectionEnd(viewportPos);
 
     // we need to set the _selectionPivot again
     // for future shift+clicks
-    _selection->pivot = _selection->start;
+    selection->pivot = selection->start;
 }
 
 // Method Description:
@@ -194,13 +197,21 @@ void Terminal::SetSelectionAnchor(const til::point viewportPos)
 {
     _assertLocked();
 
-    _selection = SelectionAnchors{};
-    _selection->pivot = _ConvertToBufferCell(viewportPos);
+    auto selection{ _selection.write() };
+    wil::hide_name _selection;
+
+    selection->pivot = _ConvertToBufferCell(viewportPos);
+    selection->active = true;
 
     _multiClickSelectionMode = SelectionExpansion::Char;
     SetSelectionEnd(viewportPos);
 
-    _selection->start = _selection->pivot;
+    selection->start = selection->pivot;
+}
+
+void Terminal::SetSelectionEnd(const til::point viewportPos, std::optional<SelectionExpansion> newExpansionMode)
+{
+    _SetSelectionEnd(_selection.write(), viewportPos, newExpansionMode);
 }
 
 // Method Description:
@@ -209,9 +220,10 @@ void Terminal::SetSelectionAnchor(const til::point viewportPos)
 // Arguments:
 // - viewportPos: the (x,y) coordinate on the visible viewport
 // - newExpansionMode: overwrites the _multiClickSelectionMode for this function call. Used for ShiftClick
-void Terminal::SetSelectionEnd(const til::point viewportPos, std::optional<SelectionExpansion> newExpansionMode)
+void Terminal::_SetSelectionEnd(SelectionInfo* selection, const til::point viewportPos, std::optional<SelectionExpansion> newExpansionMode)
 {
-    if (!IsSelectionActive())
+    wil::hide_name _selection;
+    if (!selection->active)
     {
         // capture a log for spurious endpoint sets without an active selection
         LOG_HR(E_ILLEGAL_STATE_CHANGE);
@@ -231,17 +243,17 @@ void Terminal::SetSelectionEnd(const til::point viewportPos, std::optional<Selec
     if (newExpansionMode.has_value())
     {
         // shift-click operations only expand the target side
-        auto& anchorToExpand = targetStart ? _selection->start : _selection->end;
+        auto& anchorToExpand = targetStart ? selection->start : selection->end;
         anchorToExpand = targetStart ? expandedAnchors.first : expandedAnchors.second;
 
         // the other anchor should then become the pivot (we don't expand it)
-        auto& anchorToPivot = targetStart ? _selection->end : _selection->start;
-        anchorToPivot = _selection->pivot;
+        auto& anchorToPivot = targetStart ? selection->end : selection->start;
+        anchorToPivot = selection->pivot;
     }
     else
     {
         // expand both anchors
-        std::tie(_selection->start, _selection->end) = expandedAnchors;
+        std::tie(selection->start, selection->end) = expandedAnchors;
     }
     _selectionMode = SelectionInteractionMode::Mouse;
     _selectionIsTargetingUrl = false;
@@ -307,7 +319,7 @@ std::pair<til::point, til::point> Terminal::_ExpandSelectionAnchors(std::pair<ti
 // - isEnabled: new value for _blockSelection
 void Terminal::SetBlockSelection(const bool isEnabled) noexcept
 {
-    _blockSelection = isEnabled;
+    _selection.write()->blockSelection = isEnabled;
 }
 
 void Terminal::ToggleMarkers(const bool isEnabled) noexcept
@@ -343,11 +355,13 @@ void Terminal::ToggleMarkMode()
         {
             // No selection --> start one at the cursor
             const auto cursorPos{ _activeBuffer().GetCursor().GetPosition() };
-            _selection = SelectionAnchors{};
-            _selection->start = cursorPos;
-            _selection->end = cursorPos;
-            _selection->pivot = cursorPos;
-            _blockSelection = false;
+            *_selection.write() = SelectionInfo{
+                .start = cursorPos,
+                .end = cursorPos,
+                .pivot = cursorPos,
+                .blockSelection = false,
+                .active = true,
+            };
             WI_SetAllFlags(_selectionEndpoint, SelectionEndpoint::Start | SelectionEndpoint::End);
         }
         else if (WI_AreAllFlagsClear(_selectionEndpoint, SelectionEndpoint::Start | SelectionEndpoint::End))
@@ -377,13 +391,13 @@ void Terminal::SwitchSelectionEndpoint() noexcept
         {
             // moving end --> now we're moving start
             _selectionEndpoint = SelectionEndpoint::Start;
-            _selection->pivot = _selection->end;
+            _selection.write()->pivot = _selection->end;
         }
         else if (WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start))
         {
             // moving start --> now we're moving end
             _selectionEndpoint = SelectionEndpoint::End;
-            _selection->pivot = _selection->start;
+            _selection.write()->pivot = _selection->start;
         }
     }
 }
@@ -393,9 +407,11 @@ void Terminal::ExpandSelectionToWord()
     if (IsSelectionActive())
     {
         const auto& buffer = _activeBuffer();
-        _selection->start = buffer.GetWordStart(_selection->start, _wordDelimiters);
-        _selection->pivot = _selection->start;
-        _selection->end = buffer.GetWordEnd(_selection->end, _wordDelimiters);
+        auto selection{ _selection.write() };
+        wil::hide_name _selection;
+        selection->start = buffer.GetWordStart(selection->start, _wordDelimiters);
+        selection->pivot = selection->start;
+        selection->end = buffer.GetWordEnd(selection->end, _wordDelimiters);
 
         // if we're targeting both endpoints, instead just target "end"
         if (WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::Start) && WI_IsFlagSet(_selectionEndpoint, SelectionEndpoint::End))
@@ -540,12 +556,16 @@ void Terminal::SelectHyperlink(const SearchDirection dir)
     }
 
     // 2. Select the hyperlink
-    _selection->start = result->first;
-    _selection->pivot = result->first;
-    _selection->end = result->second;
-    bufferSize.DecrementInBounds(_selection->end);
-    _selectionIsTargetingUrl = true;
-    _selectionEndpoint = SelectionEndpoint::End;
+    {
+        auto selection{ _selection.write() };
+        wil::hide_name _selection;
+        selection->start = result->first;
+        selection->pivot = result->first;
+        selection->end = result->second;
+        bufferSize.DecrementInBounds(selection->end);
+        _selectionIsTargetingUrl = true;
+        _selectionEndpoint = SelectionEndpoint::End;
+    }
 
     // 3. Scroll to the selected area (if necessary)
     _ScrollToPoint(_selection->end);
@@ -603,18 +623,21 @@ Terminal::UpdateSelectionParams Terminal::ConvertKeyEventToUpdateSelectionParams
     return std::nullopt;
 }
 
-std::optional<Terminal::SelectionAnchors> Terminal::GetSelectionAnchors()
+til::generational<Terminal::SelectionInfo> Terminal::GetSelectionAnchors()
 {
     return _selection;
 }
 
-void Terminal::SetSelectionAnchors(std::optional<Terminal::SelectionAnchors> val)
+void Terminal::SetSelectionAnchors(SelectionInfo* val)
 {
     const auto endMovingDown = val->end.y > _selection->end.y;
     const auto startMovingDown = val->start.y > _selection->start.y;
     const auto startMovingUp = val->start.y < _selection->start.y;
     const auto endMovingUp = val->end.y < _selection->end.y;
-    _selection = val;
+    auto selection{ _selection.write() };
+    selection->start = val->start;
+    selection->end = val->end;
+    selection->pivot = val->pivot;
 
     til::point point;
     if (endMovingDown)
@@ -662,33 +685,32 @@ int32_t Terminal::NumberOfVisibleSearchSelections()
 
 void Terminal::SelectChar(til::point point)
 {
-    if (!_selection.has_value())
-    {
-        _selection = SelectionAnchors{};
-    }
-    _selection->start = point;
-    _selection->end = point;
-    _selection->pivot = point;
+    auto selection{ _selection.write() };
+    selection->active = true;
+    selection->start = point;
+    selection->end = point;
+    selection->pivot = point;
 }
 
 void Terminal::SetPivot()
 {
     auto targetPos{ _selection->start };
-    _selection->pivot = targetPos;
+    auto selection { _selection.write() };
+    selection->pivot = targetPos;
 }
 
 std::vector<til::inclusive_rect> Terminal::_GetYankSelectionRects() const noexcept
 {
     std::vector<til::inclusive_rect> result;
 
-    if (!_yankSelection.has_value())
+    if (!_yankSelection->active)
     {
         return result;
     }
 
     try
     {
-        return _activeBuffer().GetTextRects(_yankSelection->start, _yankSelection->end, _blockSelection, false);
+        return _activeBuffer().GetTextRects(_yankSelection->start, _yankSelection->end, _yankSelection->blockSelection, false);
     }
     CATCH_LOG();
     return result;
@@ -749,19 +771,23 @@ void Terminal::UpdateSelection(SelectionDirection direction, SelectionExpansion 
     // 3. Actually modify the selection state
     _selectionIsTargetingUrl = false;
     _selectionMode = std::max(_selectionMode, SelectionInteractionMode::Keyboard);
+
+    auto selection{ _selection.write() };
+    wil::hide_name _selection;
+
     if (shouldMoveBothEndpoints)
     {
         // [Mark Mode] + shift unpressed --> move all three (i.e. just use arrow keys)
-        _selection->start = targetPos;
-        _selection->end = targetPos;
-        _selection->pivot = targetPos;
+        selection->start = targetPos;
+        selection->end = targetPos;
+        selection->pivot = targetPos;
     }
     else
     {
         // [Mark Mode] + shift --> updating a standard selection
         // This is also standard quick-edit modification
         bool targetStart = false;
-        std::tie(_selection->start, _selection->end) = _PivotSelection(targetPos, targetStart);
+        std::tie(selection->start, selection->end) = _PivotSelection(targetPos, targetStart);
 
         // IMPORTANT! Pivoting the selection here might have changed which endpoint we're targeting.
         // So let's set the targeted endpoint again.
@@ -776,10 +802,15 @@ void Terminal::UpdateSelection(SelectionDirection direction, SelectionExpansion 
 void Terminal::SelectAll()
 {
     const auto bufferSize{ _activeBuffer().GetSize() };
-    _selection = SelectionAnchors{};
-    _selection->start = bufferSize.Origin();
-    _selection->end = { bufferSize.RightInclusive(), _GetMutableViewport().BottomInclusive() };
-    _selection->pivot = _selection->end;
+    const til::point end{ bufferSize.RightInclusive(), _GetMutableViewport().BottomInclusive() };
+    *_selection.write() = SelectionInfo{
+        .start = bufferSize.Origin(),
+        .end = end,
+        .pivot = end,
+        .blockSelection = false,
+        .active = true,
+    };
+
     _selectionMode = SelectionInteractionMode::Keyboard;
     _selectionIsTargetingUrl = false;
     _ScrollToPoint(_selection->start);
@@ -933,9 +964,10 @@ void Terminal::_MoveByHalfViewport(SelectionDirection direction, til::point& pos
     }
     }
 
-    _selection->start = pos;
-    _selection->end = pos;
-    _selection->pivot = pos;
+    auto selection { _selection.write() };
+    selection->start = pos;
+    selection->end = pos;
+    selection->pivot = pos;
 
     _ScrollToPoint(pos);
 }
@@ -962,7 +994,7 @@ void Terminal::_MoveByBuffer(SelectionDirection direction, til::point& pos) noex
 void Terminal::ClearSelection()
 {
     _assertLocked();
-    _selection = std::nullopt;
+    _selection.write()->active = false;
     _selectionMode = SelectionInteractionMode::None;
     _selectionIsTargetingUrl = false;
     _selectionEndpoint = static_cast<SelectionEndpoint>(0);
@@ -996,7 +1028,7 @@ Terminal::TextCopyData Terminal::RetrieveSelectedTextFromBuffer(const bool singl
 
     const auto& textBuffer = _activeBuffer();
 
-    const auto req = TextBuffer::CopyRequest::FromConfig(textBuffer, _selection->start, _selection->end, singleLine, _blockSelection, _trimBlockSelection);
+    const auto req = TextBuffer::CopyRequest::FromConfig(textBuffer, _selection->start, _selection->end, singleLine, _selection->blockSelection, _trimBlockSelection);
     data.plainText = textBuffer.GetPlainText(req);
 
     if (html || rtf)

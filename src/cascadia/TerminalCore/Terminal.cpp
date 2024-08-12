@@ -423,9 +423,10 @@ int32_t Terminal::SelectLastChar()
     {
         lastNonSpaceChar = _altBuffer->GetLastNonSpaceCharacter();
     }
-    _selection->start = lastNonSpaceChar;
-    _selection->end = lastNonSpaceChar;
-    _selection->pivot = lastNonSpaceChar;
+    auto selection{ _selection.write() };
+    selection->start = lastNonSpaceChar;
+    selection->end = lastNonSpaceChar;
+    selection->pivot = lastNonSpaceChar;
     return lastNonSpaceChar.y;
 }
 

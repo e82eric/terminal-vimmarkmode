@@ -166,7 +166,8 @@ void VimModeProxy::_matchingChar(std::wstring_view startDelimiter, std::wstring_
 
 void VimModeProxy::_matchingCharFromStart(til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual)
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     const std::tuple<bool, til::point, til::point> findResult = _findBlockEndFromStart(startPos, startDelimiter, endDelimiter);
     if (std::get<0>(findResult))
     {
@@ -196,7 +197,8 @@ void VimModeProxy::_matchingCharFromStart(til::point startPos, std::wstring_view
 
 void VimModeProxy::_matchingCharFromEnd(til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual)
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     const std::tuple<bool, til::point, til::point> findResult = _findBlockStartFromEnd(startPos, startDelimiter, endDelimiter);
     if (std::get<0>(findResult))
     {
@@ -226,7 +228,8 @@ void VimModeProxy::_matchingCharFromEnd(til::point startPos, std::wstring_view s
 
 void VimModeProxy::_matchingChar(til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock)
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    auto selection{ selectionAnchors.write() };
     std::tuple<bool, til::point, til::point> findResult;
     if (onStartDelimiter)
     {
@@ -268,7 +271,8 @@ void VimModeProxy::_matchingChar(til::point startPos, std::wstring_view startDel
 
 void VimModeProxy::_inDelimiterSameLine(std::wstring_view delimiter, bool includeDelimiter)
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     const auto pos = selection->start == selection->pivot ? selection->end : selection->start;
 
     const auto posIsDelimiter = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(pos.x) == delimiter;
@@ -341,7 +345,8 @@ void VimModeProxy::_inDelimiter(std::wstring_view startDelimiter, std::wstring_v
 {
     auto delimitersAreSame = startDelimiter == endDelimiter;
 
-    const auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     const auto pos = selection->start == selection->pivot ? selection->end : selection->start;
 
     auto numberOfInnerPairs = 0;
@@ -491,7 +496,8 @@ void VimModeProxy::_selectInWord(bool largeWord)
 
 void VimModeProxy::_selectLineRight(bool isVisual)
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     if (_terminal->IsBlockSelection())
     {
         auto maxNonSpaceChar = 0;
@@ -546,7 +552,8 @@ void VimModeProxy::_selectLineLeft(bool isVisual)
 
 void VimModeProxy::_selectLineUp()
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     auto endIsMoving = false;
     if (selection->end.y > selection->pivot.y)
     {
@@ -573,7 +580,8 @@ void VimModeProxy::_selectLineUp()
 
 void VimModeProxy::_selectLineDown()
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     if (selection->start.y < selection->pivot.y)
     {
         auto start = til::point{ 0, selection->start.y + 1 };
@@ -598,7 +606,8 @@ void VimModeProxy::_selectLineDown()
 
 void VimModeProxy::_selectTop(bool isVisual)
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     if (isVisual)
     {
         selection->start = til::point{ selection->start.x, 0 };
@@ -623,7 +632,8 @@ void VimModeProxy::_selectBottom(bool isVisual)
 
 void VimModeProxy::_selectHalfPageUp(bool isVisual, bool entireLine)
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     const auto bufferSize{ _terminal->GetTextBuffer().GetSize() };
     const auto startIsPivot = selection->start.y == selection->pivot.y && selection->start.x == selection->pivot.x;
     const auto targetPos= startIsPivot ? selection->end : selection->start;
@@ -665,7 +675,8 @@ void VimModeProxy::_selectHalfPageUp(bool isVisual, bool entireLine)
 
 void VimModeProxy::_selectHalfPageDown(bool isVisual, bool entireLine)
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     const auto startIsPivot = selection->start.y == selection->pivot.y && selection->start.x == selection->pivot.x;
     const auto pos = startIsPivot ? selection->end : selection->start;
 
@@ -1054,7 +1065,8 @@ bool VimModeProxy::_executeVimSelection(
     {
     case VimActionType::swapPivot:
     {
-        auto selection = _terminal->GetSelectionAnchors();
+        auto selectionAnchors = _terminal->GetSelectionAnchors();
+        const auto selection{ selectionAnchors.write() };
         selection->pivot = selection->pivot == selection->start ? selection->end : selection->start;
         _terminal->SetSelectionAnchors(selection);
         break;
@@ -1755,7 +1767,7 @@ int32_t VimModeProxy::ViewportRowToHighlight()
     auto lock = _terminal->LockForReading();
     const auto offset = _terminal->GetScrollOffset();
     const auto selection = _terminal->GetSelectionAnchors();
-    if (!selection.has_value())
+    if (!selection->active)
     {
         return _terminal->GetCursorPosition().y;
     }
@@ -1821,7 +1833,8 @@ til::point VimModeProxy::_updateFromResize(til::point from) const
 
 void VimModeProxy::UpdateSelectionFromResize() const
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     selection->start = _updateFromResize(_tempStart);
     selection->pivot = _updateFromResize(_tempPivot);
     selection->end = _updateFromResize(_tempEnd);
@@ -1984,7 +1997,8 @@ bool VimModeProxy::_FindCharBack(std::wstring_view vkey, bool isTil, til::point&
 
 void VimModeProxy::_UpdateSelection(bool isVisual, til::point adjusted)
 {
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     if (isVisual)
     {
         auto pivotIsStart = selection->start == selection->pivot;
@@ -2258,7 +2272,8 @@ void VimModeProxy::_InWord(til::point& pos, std::wstring_view delimiters)
     auto endPair = _GetEndOfWord(pos, delimiters);
     auto startPair = _GetStartOfWord(pos, delimiters);
 
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     if (endPair.second && endPair.second)
     {
         selection->end = endPair.first;
@@ -2377,7 +2392,8 @@ void VimModeProxy::_MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::Se
     }
     }
 
-    auto selection = _terminal->GetSelectionAnchors();
+    auto selectionAnchors = _terminal->GetSelectionAnchors();
+    const auto selection{ selectionAnchors.write() };
     selection->start = pos;
     selection->end = pos;
     selection->pivot = pos;

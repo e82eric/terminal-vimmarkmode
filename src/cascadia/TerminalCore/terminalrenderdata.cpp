@@ -216,7 +216,7 @@ try
             const til::point_span selection = lowerIt[i];
             const auto start = selection.start;
             const auto end = selection.end;
-            const auto adj = _activeBuffer().GetTextRects(start, end, _blockSelection, false);
+            const auto adj = _activeBuffer().GetTextRects(start, end, _selection->blockSelection, false);
 
             if (adj[0].right - adj[0].left + 1 >= ch.chars.size())
             {
@@ -301,16 +301,19 @@ til::CoordType Terminal::_ScrollToPoints(const til::point coordStart, const til:
 
 void Terminal::SelectYankRegion()
 {
-    _yankSelection = SelectionAnchors{};
+    auto yankSelection{ _yankSelection.write() };
 
-    _yankSelection->end = _selection->end;
-    _yankSelection->start = _selection->start;
-    _yankSelection->pivot = _selection->pivot;
+    yankSelection->active = true;
+    yankSelection->blockSelection = _selection->blockSelection;
+    yankSelection->end = _selection->end;
+    yankSelection->start = _selection->start;
+    yankSelection->pivot = _selection->pivot;
 }
 
 void Terminal::ClearYankRegion()
 {
-    _yankSelection.reset();
+    auto yankSelection{ _yankSelection.write() };
+    yankSelection->active = false;
 }
 
 void Terminal::SelectNewRegion(const til::point coordStart, const til::point coordEnd)

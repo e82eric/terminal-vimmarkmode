@@ -54,11 +54,6 @@ try
 }
 CATCH_LOG()
 
-void Terminal::SetTextAttributes(const TextAttribute& attrs) noexcept
-{
-    _activeBuffer().SetCurrentAttributes(attrs);
-}
-
 void Terminal::SetSystemMode(const Mode mode, const bool enabled) noexcept
 {
     _assertLocked();
@@ -344,30 +339,29 @@ void Terminal::SearchMissingCommand(const std::wstring_view command)
 void Terminal::NotifyBufferRotation(const int delta)
 {
     // Update our selection, so it doesn't move as the buffer is cycled
-    if (_selection)
+    if (_selection->active)
     {
+        auto selection{ _selection.write() };
+        wil::hide_name _selection;
         // If the end of the selection will be out of range after the move, we just
         // clear the selection. Otherwise we move both the start and end points up
         // by the given delta and clamp to the first row.
-        if (_selection->end.y < delta)
+        if (selection->end.y < delta)
         {
-            _selection->end = til::point{ 0, 0 };
-            _selection->start = til::point{ 0, 0 };
-            _selection->pivot = til::point{ 0, 0 };
             auto vimMode = _selectionClearedFromErase();
             if (!vimMode)
             {
-                _selection.reset();
+                selection->active = false;
             }
         }
         else
         {
             // Stash this, so we can make sure to update the pivot to match later.
-            const auto pivotWasStart = _selection->start == _selection->pivot;
-            _selection->start.y = std::max(_selection->start.y - delta, 0);
-            _selection->end.y = std::max(_selection->end.y - delta, 0);
+            const auto pivotWasStart = selection->start == selection->pivot;
+            selection->start.y = std::max(selection->start.y - delta, 0);
+            selection->end.y = std::max(selection->end.y - delta, 0);
             // Make sure to sync the pivot with whichever value is the right one.
-            _selection->pivot = pivotWasStart ? _selection->start : _selection->end;
+            selection->pivot = pivotWasStart ? selection->start : selection->end;
         }
     }
 

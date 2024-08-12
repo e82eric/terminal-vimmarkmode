@@ -222,6 +222,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             const auto& renderSettings = _terminal->GetRenderSettings();
             _fuzzySearchRenderData = std::make_unique<FuzzySearchRenderData>(_terminal.get());
+
             _renderer = std::make_unique<::Microsoft::Console::Render::Renderer>(renderSettings, _fuzzySearchRenderData.get(), nullptr, 0, std::move(renderThread));
 
             //_renderer->SetRendererEnteredErrorStateCallback([this]() { RendererEnteredErrorState.raise(nullptr, nullptr); });
@@ -654,7 +655,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else
         {
-            result = winrt::hstring{ fmt::format(RS_(L"TermControl_NumResults").c_str(), numberOfResults, totalRowsSearched) };
+            result = winrt::hstring{ RS_fmt(L"TermControl_NumResults", numberOfResults, totalRowsSearched) };
         }
 
         StatusBox().Text(result);

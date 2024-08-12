@@ -1376,13 +1376,13 @@
     x:Name="VimSearchContainer"
     Grid.Row="2"
     Visibility="Collapsed"
-    VerticalAlignment="Center">
+    VerticalAlignment="Bottom">
     <Grid>
         <Border
             x:Name="VimSearchBorder"
             CornerRadius="4"
             VerticalAlignment="Center"
-            Margin="100,10,100,0">
+            Margin="100,10,100,5">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />

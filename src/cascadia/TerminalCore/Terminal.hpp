@@ -15,6 +15,7 @@
 #include "../../types/inc/GlyphWidth.hpp"
 #include "../../cascadia/terminalcore/ITerminalInput.hpp"
 
+#include <til/generational.h>
 #include <til/ticket_lock.h>
 #include <til/winrt.h>
 
@@ -133,7 +134,6 @@ public:
     Microsoft::Console::VirtualTerminal::StateMachine& GetStateMachine() noexcept override;
     BufferState GetBufferAndViewport() noexcept override;
     void SetViewportPosition(const til::point position) noexcept override;
-    void SetTextAttributes(const TextAttribute& attrs) noexcept override;
     void SetSystemMode(const Mode mode, const bool enabled) noexcept override;
     bool GetSystemMode(const Mode mode) const noexcept override;
     void ReturnAnswerback() override;
@@ -393,15 +393,16 @@ private:
     // the pivot is the til::point that remains selected when you extend a selection in any direction
     //   this is particularly useful when a word selection is extended over its starting point
     //   see TerminalSelection.cpp for more information
-    struct SelectionAnchors
+    struct SelectionInfo
     {
         til::point start;
         til::point end;
         til::point pivot;
+        bool blockSelection = false;
+        bool active = false;
     };
-    std::optional<SelectionAnchors> _selection;
-    std::optional<SelectionAnchors> _yankSelection;
-    bool _blockSelection = false;
+    til::generational<SelectionInfo> _yankSelection{};
+    til::generational<SelectionInfo> _selection{};
     std::wstring _wordDelimiters;
     SelectionExpansion _multiClickSelectionMode = SelectionExpansion::Char;
     SelectionInteractionMode _selectionMode = SelectionInteractionMode::None;
@@ -488,6 +489,7 @@ private:
     void _MoveByViewport(SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByHalfViewport(SelectionDirection direction, til::point& pos) noexcept;
     void _MoveByBuffer(SelectionDirection direction, til::point& pos) noexcept;
+    void _SetSelectionEnd(SelectionInfo* selection, const til::point position, std::optional<SelectionExpansion> newExpansionMode = std::nullopt);
 #pragma endregion
 
 #ifdef UNIT_TESTING
@@ -500,8 +502,8 @@ private:
     std::vector<til::point_span> _quickSelectHighlights;
 
 public:
-    std::optional<Microsoft::Terminal::Core::Terminal::SelectionAnchors> GetSelectionAnchors();
-    void SetSelectionAnchors(std::optional<SelectionAnchors> val);
+    til::generational<SelectionInfo> GetSelectionAnchors();
+    void SetSelectionAnchors(SelectionInfo* val);
     void SetQuickSelectHandler(std::shared_ptr<QuickSelectAlphabet> val);
     int32_t NumberOfVisibleSearchSelections();
     std::optional<std::tuple<til::point, til::point>> GetViewportSelectionAtIndex(int32_t index);
