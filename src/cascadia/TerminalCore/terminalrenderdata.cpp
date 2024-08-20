@@ -129,17 +129,16 @@ std::pair<COLORREF, COLORREF> Terminal::GetAttributeColors(const TextAttribute& 
     return GetRenderSettings().GetAttributeColors(attr);
 }
 
-std::vector<Microsoft::Console::Types::Viewport> Terminal::GetSelectionRects() noexcept
+std::span<const til::point_span> Terminal::GetSelectionSpans() const noexcept
 try
 {
-    std::vector<Viewport> result;
-
-    for (const auto& lineRect : _GetSelectionRects())
+    if (_selection.generation() != _lastSelectionGeneration)
     {
-        result.emplace_back(Viewport::FromInclusive(lineRect));
+        _lastSelectionSpans = _GetSelectionSpans();
+        _lastSelectionGeneration = _selection.generation();
     }
 
-    return result;
+    return _lastSelectionSpans;
 }
 catch (...)
 {
@@ -147,17 +146,16 @@ catch (...)
     return {};
 }
 
-std::vector<Microsoft::Console::Types::Viewport> Terminal::GetYankSelectionRects() noexcept
+std::span<const til::point_span> Terminal::GetYankSelectionRects() noexcept
 try
 {
-    std::vector<Viewport> result;
-
-    for (const auto& lineRect : _GetYankSelectionRects())
+    if (_yankSelection.generation() != _lastYankSelectionGeneration)
     {
-        result.emplace_back(Viewport::FromInclusive(lineRect));
+        _lastYankSelectionSpans = _GetYankSelectionRects();
+        _lastYankSelectionGeneration = _yankSelection.generation();
     }
 
-    return result;
+    return _lastYankSelectionSpans;
 }
 catch (...)
 {

@@ -43,27 +43,6 @@ DEFINE_ENUM_FLAG_OPERATORS(Terminal::SelectionEndpoint);
  */
 
 // Method Description:
-// - Helper to determine the selected region of the buffer. Used for rendering.
-// Return Value:
-// - A vector of rectangles representing the regions to select, line by line. They are absolute coordinates relative to the buffer origin.
-std::vector<til::inclusive_rect> Terminal::_GetSelectionRects() const noexcept
-{
-    std::vector<til::inclusive_rect> result;
-
-    if (!IsSelectionActive())
-    {
-        return result;
-    }
-
-    try
-    {
-        return _activeBuffer().GetTextRects(_selection->start, _selection->end, _selection->blockSelection, false);
-    }
-    CATCH_LOG();
-    return result;
-}
-
-// Method Description:
 // - Identical to GetTextRects if it's a block selection, else returns a single span for the whole selection.
 // Return Value:
 // - A vector of one or more spans representing the selection. They are absolute coordinates relative to the buffer origin.
@@ -699,9 +678,9 @@ void Terminal::SetPivot()
     selection->pivot = targetPos;
 }
 
-std::vector<til::inclusive_rect> Terminal::_GetYankSelectionRects() const noexcept
+std::vector<til::point_span> Terminal::_GetYankSelectionRects() const noexcept
 {
-    std::vector<til::inclusive_rect> result;
+    std::vector<til::point_span> result;
 
     if (!_yankSelection->active)
     {
@@ -710,7 +689,7 @@ std::vector<til::inclusive_rect> Terminal::_GetYankSelectionRects() const noexce
 
     try
     {
-        return _activeBuffer().GetTextRects(_yankSelection->start, _yankSelection->end, _yankSelection->blockSelection, false);
+        return _activeBuffer().GetTextSpans(_yankSelection->start, _yankSelection->end, _yankSelection->blockSelection, false);
     }
     CATCH_LOG();
     return result;

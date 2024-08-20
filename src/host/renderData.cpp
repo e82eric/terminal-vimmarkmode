@@ -59,24 +59,11 @@ const FontInfo& RenderData::GetFontInfo() const noexcept
 }
 
 // Method Description:
-// - Retrieves one rectangle per line describing the area of the viewport
+// - Retrieves one span per line describing the area of the viewport
 //   that should be highlighted in some way to represent a user-interactive selection
-// Return Value:
-// - Vector of Viewports describing the area selected
-std::vector<Viewport> RenderData::GetSelectionRects() noexcept
+std::span<const til::point_span> RenderData::GetSelectionSpans() const noexcept
 {
-    std::vector<Viewport> result;
-
-    try
-    {
-        for (const auto& select : Selection::Instance().GetSelectionRects())
-        {
-            result.emplace_back(Viewport::FromInclusive(select));
-        }
-    }
-    CATCH_LOG();
-
-    return result;
+    return Selection::Instance().GetSelectionSpans();
 }
 
 // Method Description:
@@ -84,20 +71,9 @@ std::vector<Viewport> RenderData::GetSelectionRects() noexcept
 //   that should be highlighted
 // Return Value:
 // - Vector of Viewports describing the area selected
-std::vector<Viewport> RenderData::GetYankSelectionRects() noexcept
+std::span<const til::point_span> RenderData::GetYankSelectionRects() noexcept
 {
-    std::vector<Viewport> result;
-
-    try
-    {
-        for (const auto& select : Selection::Instance().GetSelectionRects())
-        {
-            result.emplace_back(Viewport::FromInclusive(select));
-        }
-    }
-    CATCH_LOG();
-
-    return result;
+    return Selection::Instance().GetSelectionSpans();
 }
 
 // Method Description:
@@ -408,7 +384,7 @@ const til::point RenderData::GetSelectionEnd() const noexcept
     //  - SelectionAnchor: the initial position where the selection was started
     //  - SelectionRect: the rectangular region denoting a portion of the buffer that is selected
 
-    // The following is an excerpt from Selection::s_GetSelectionRects
+    // The following is an excerpt from Selection::GetSelectionSpans
     // if the anchor (start of select) was in the top right or bottom left of the box,
     // we need to remove rectangular overlap in the middle.
     // e.g.

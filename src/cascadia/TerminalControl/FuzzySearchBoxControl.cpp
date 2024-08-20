@@ -422,7 +422,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             // Update AtlasEngine's SelectionBackground
             _renderEngine->SetSelectionBackground(til::color{ _settings->SelectionBackground() });
-            _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_YELLOW) });
+            _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_WHITE) });
 
             const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
             const auto width = vp.Width();

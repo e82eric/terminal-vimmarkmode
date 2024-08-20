@@ -374,7 +374,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             // Update AtlasEngine's SelectionBackground
             _renderEngine->SetSelectionBackground(til::color{ _settings->SelectionBackground() });
-            _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_YELLOW) });
+            _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::DARK_WHITE) });
 
             const auto vp = _renderEngine->GetViewportInCharacters(viewInPixels);
             const auto width = vp.Width();
@@ -462,7 +462,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else
         {
-            _connection.WriteInput(wstr);
+            _connection.WriteInput(winrt_wstring_to_array_view(wstr));
         }
     }
 
@@ -947,7 +947,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             // Update AtlasEngine settings under the lock
             _renderEngine->SetSelectionBackground(til::color{ newAppearance->SelectionBackground() });
-            _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_YELLOW) });
+            _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_WHITE) });
             _renderEngine->SetRetroTerminalEffect(newAppearance->RetroTerminalEffect());
             _renderEngine->SetPixelShaderPath(newAppearance->PixelShaderPath());
             _renderEngine->SetPixelShaderImagePath(newAppearance->PixelShaderImagePath());
@@ -1931,32 +1931,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             if (read < sizeof(buffer))
             {
+                // Normally the cursor should already be at the start of the line, but let's be absolutely sure it is.
+                if (_terminal->GetCursorPosition().x != 0)
+                {
+                    _terminal->Write(L"\r\n");
+                }
+                _terminal->Write(message);
                 break;
             }
-        }
-
-        {
-            const auto lock = _terminal->LockForWriting();
-
-            // Normally the cursor should already be at the start of the line, but let's be absolutely sure it is.
-            if (_terminal->GetCursorPosition().x != 0)
-            {
-                _terminal->Write(L"\r\n");
-            }
-
-            _terminal->Write(message);
-
-            // Show 3 lines of scrollback to the user, so they know it's there. Otherwise, in particular with the well
-            // hidden touch scrollbars in WinUI 2 and later, there's no indication that there's something to scroll up to.
-            //
-            // We only show 3 lines because ConPTY doesn't know about our restored buffer contents initially,
-            // and so ReadConsole calls will return whitespace.
-            //
-            // We also avoid using actual newlines or similar here, because if we ever change our text buffer implementation
-            // to actually track the written contents, we don't want this to be part of the next buffer snapshot.
-            const auto cursorPosition = _terminal->GetCursorPosition();
-            const auto y = std::max(0, cursorPosition.y - 4);
-            _terminal->SetViewportPosition({ 0, y });
         }
     }
 
@@ -2516,7 +2498,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto lock = _terminal->LockForWriting();
         _terminal->ApplyScheme(scheme);
         _renderEngine->SetSelectionBackground(til::color{ _settings->SelectionBackground() });
-        _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_YELLOW) });
+        _renderEngine->SetYankSelectionBackground(til::color{ _settings->GetColorTableEntry(TextColor::BRIGHT_WHITE) });
         _renderer->TriggerRedrawAll(true);
     }
 
@@ -2591,7 +2573,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             // _sendInputToConnection() asserts that we aren't in focus mode,
             // but window focus events are always fine to send.
-            _connection.WriteInput(*out);
+            _connection.WriteInput(winrt_wstring_to_array_view(*out));
         }
     }
 

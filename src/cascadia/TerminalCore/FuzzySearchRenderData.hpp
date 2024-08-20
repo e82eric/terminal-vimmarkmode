@@ -15,12 +15,12 @@ public:
     Microsoft::Console::Types::Viewport GetViewport() noexcept override;
     til::point GetTextBufferEndPosition() const noexcept override;
     const FontInfo& GetFontInfo() const noexcept override;
-    std::vector<Microsoft::Console::Types::Viewport> GetYankSelectionRects() noexcept override;
+    std::span<const til::point_span> GetYankSelectionRects() noexcept override;
     void SelectYankRegion() override;
     void ClearYankRegion() override;
     bool InQuickSelectMode() override;
     Microsoft::Console::Render::QuickSelectState GetQuickSelectState() noexcept override;
-    std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept override;
+    std::span<const til::point_span> GetSelectionSpans() const noexcept override;
     [[nodiscard]] std::unique_lock<til::recursive_ticket_lock> LockForReading() const noexcept;
     [[nodiscard]] std::unique_lock<til::recursive_ticket_lock> LockForWriting() noexcept;
     void LockConsole() noexcept override;
@@ -55,4 +55,5 @@ private:
     til::size _size;
     til::CoordType _row;
     til::recursive_ticket_lock _readWriteLock;
+    mutable std::vector<til::point_span> _lastSelectionSpans;
 };

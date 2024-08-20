@@ -53,7 +53,7 @@ const FontInfo& FuzzySearchRenderData::GetFontInfo() const noexcept
     return _pData->GetFontInfo();
 }
 
-std::vector<Microsoft::Console::Types::Viewport> FuzzySearchRenderData::GetYankSelectionRects() noexcept
+std::span<const til::point_span> FuzzySearchRenderData::GetYankSelectionRects() noexcept
 {
     return {};
 }
@@ -76,7 +76,7 @@ Microsoft::Console::Render::QuickSelectState FuzzySearchRenderData::GetQuickSele
     return {};
 }
 
-std::vector<Microsoft::Console::Types::Viewport> FuzzySearchRenderData::GetSelectionRects() noexcept
+std::span<const til::point_span> FuzzySearchRenderData::GetSelectionSpans() const noexcept
 {
     auto startPoint = til::point{ 0, _row };
     til::CoordType endRow = _row;
@@ -85,17 +85,10 @@ std::vector<Microsoft::Console::Types::Viewport> FuzzySearchRenderData::GetSelec
     {
         endRow++;
     }
-    const auto rects = _pData->GetTextBuffer().GetTextRects(til::point{ 0, _row }, til::point{ _viewPort.Width() - 1, endRow }, false, false);
+    const auto rects = _pData->GetTextBuffer().GetTextSpans(til::point{ 0, _row }, til::point{ _viewPort.Width() - 1, endRow }, false, false);
+    _lastSelectionSpans = rects;
 
-    std::vector<Microsoft::Console::Types::Viewport> result;
-    result.reserve(rects.size());
-
-    for (const auto& lineRect : rects)
-    {
-        result.emplace_back(Microsoft::Console::Types::Viewport::FromInclusive(lineRect));
-    }
-
-    return result;
+    return _lastSelectionSpans;
 }
 
 [[nodiscard]] std::unique_lock<til::recursive_ticket_lock> FuzzySearchRenderData::LockForReading() const noexcept
