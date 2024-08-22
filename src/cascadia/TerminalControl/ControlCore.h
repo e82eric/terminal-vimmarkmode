@@ -491,6 +491,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         std::shared_ptr<VimModeProxy> _vimProxy;
         std::shared_ptr<FuzzySearcher> _fuzzySearch;
         std::unique_ptr<QuickSelectHandler> _quickSelectHandler;
+        const BYTE YANK_SELECTION_BACKGROUND_COLOR = TextColor::BRIGHT_CYAN;
     };
 }
 
