@@ -1381,6 +1381,8 @@ void Renderer::_PaintCursor(_In_ IRenderEngine* const pEngine)
     info.searchHighlightFocused = _pData->GetSearchHighlightFocused();
     info.selectionSpans = _pData->GetSelectionSpans();
     info.yankSelectionSpans = _pData->GetYankSelectionRects();
+    info.selectionBackground = _renderSettings.GetColorTableEntry(TextColor::SELECTION_BACKGROUND);
+    info.yankSelectionBackground = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_CYAN);
     return pEngine->PrepareRenderInfo(std::move(info));
 }
 
