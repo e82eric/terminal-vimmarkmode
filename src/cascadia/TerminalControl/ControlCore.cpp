@@ -110,7 +110,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Connection(connection);
 
         _terminal->SetWriteInputCallback([this](std::wstring_view wstr) {
-            _sendInputToConnection(wstr);
+            _pendingResponses.append(wstr);
         });
 
         // GH#8969: pre-seed working directory to prevent potential races
@@ -142,11 +142,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto pfnSelectionClearedFromErase = [=]() -> bool { return _selectionClearedFromErase(); };
         _terminal->SelectionClearedFromErase(pfnSelectionClearedFromErase);
-        auto pfnSearchMissingCommand = [this](auto&& PH1) { _terminalSearchMissingCommand(std::forward<decltype(PH1)>(PH1)); };
+        auto pfnSearchMissingCommand = [this](auto&& PH1, auto&& PH2) { _terminalSearchMissingCommand(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2)); };
         _terminal->SetSearchMissingCommandCallback(pfnSearchMissingCommand);
 
         auto pfnClearQuickFix = [this] { ClearQuickFix(); };
         _terminal->SetClearQuickFixCallback(pfnClearQuickFix);
+
+        auto pfnWindowSizeChanged = [this](auto&& PH1, auto&& PH2) { _terminalWindowSizeChanged(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2)); };
+        _terminal->SetWindowSizeChangedCallback(pfnWindowSizeChanged);
 
         // MSFT 33353327: Initialize the renderer in the ctor instead of Initialize().
         // We need the renderer to be ready to accept new engines before the SwapChainPanel is ready to go.
@@ -443,6 +446,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // - <none>
     void ControlCore::_sendInputToConnection(std::wstring_view wstr)
     {
+        _connection.WriteInput(winrt_wstring_to_array_view(wstr));
+    }
+
+    // Method Description:
+    // - Writes the given sequence as input to the active terminal connection,
+    // Arguments:
+    // - wstr: the string of characters to write to the terminal connection.
+    // Return Value:
+    // - <none>
+    void ControlCore::SendInput(const std::wstring_view wstr)
+    {
         if (wstr.empty())
         {
             return;
@@ -458,19 +472,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else
         {
-            _connection.WriteInput(winrt_wstring_to_array_view(wstr));
+            _sendInputToConnection(wstr);
         }
-    }
-
-    // Method Description:
-    // - Writes the given sequence as input to the active terminal connection,
-    // Arguments:
-    // - wstr: the string of characters to write to the terminal connection.
-    // Return Value:
-    // - <none>
-    void ControlCore::SendInput(const std::wstring_view wstr)
-    {
-        _sendInputToConnection(wstr);
     }
 
     bool ControlCore::SendCharEvent(const wchar_t ch,
@@ -508,7 +511,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         if (out)
         {
-            _sendInputToConnection(*out);
+            SendInput(*out);
             return true;
         }
         return false;
@@ -684,7 +687,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         if (out)
         {
-            _sendInputToConnection(*out);
+            SendInput(*out);
             return true;
         }
         return false;
@@ -703,7 +706,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         if (out)
         {
-            _sendInputToConnection(*out);
+            SendInput(*out);
             return true;
         }
         return false;
@@ -1487,7 +1490,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         // It's important to not hold the terminal lock while calling this function as sending the data may take a long time.
-        _sendInputToConnection(filtered);
+        SendInput(filtered);
 
         const auto lock = _terminal->LockForWriting();
         if (_vimProxy->IsInVimMode())
@@ -1708,9 +1711,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _midiAudio.PlayNote(reinterpret_cast<HWND>(_owningHwnd), noteNumber, velocity, std::chrono::duration_cast<std::chrono::milliseconds>(duration));
     }
 
-    void ControlCore::_terminalSearchMissingCommand(std::wstring_view missingCommand)
+    void ControlCore::_terminalWindowSizeChanged(int32_t width, int32_t height)
     {
-        SearchMissingCommand.raise(*this, make<implementation::SearchMissingCommandEventArgs>(hstring{ missingCommand }));
+        auto size = winrt::make<implementation::WindowSizeChangedEventArgs>(width, height);
+        WindowSizeChanged.raise(*this, size);
+    }
+
+    void ControlCore::_terminalSearchMissingCommand(std::wstring_view missingCommand, const til::CoordType& bufferRow)
+    {
+        SearchMissingCommand.raise(*this, make<implementation::SearchMissingCommandEventArgs>(hstring{ missingCommand }, bufferRow));
     }
 
     void ControlCore::ClearQuickFix()
@@ -1941,7 +1950,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         RendererWarning.raise(*this, winrt::make<RendererWarningArgs>(hr, winrt::hstring{ parameter }));
     }
 
-    winrt::fire_and_forget ControlCore::_renderEngineSwapChainChanged(const HANDLE sourceHandle)
+    safe_void_coroutine ControlCore::_renderEngineSwapChainChanged(const HANDLE sourceHandle)
     {
         // `sourceHandle` is a weak ref to a HANDLE that's ultimately owned by the
         // render engine's own unique_handle. We'll add another ref to it here.
@@ -2190,7 +2199,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     // Sending input requires that we're unlocked, because
                     // writing the input pipe may block indefinitely.
                     const auto suspension = _terminal->SuspendLock();
-                    _sendInputToConnection(buffer);
+                    SendInput(buffer);
                 }
             }
         }
@@ -2245,6 +2254,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 const auto lock = _terminal->LockForWriting();
                 _terminal->Write(hstr);
+            }
+
+            if (!_pendingResponses.empty())
+            {
+                _sendInputToConnection(_pendingResponses);
+                _pendingResponses.clear();
             }
 
             // Start the throttled update of where our hyperlinks are.
@@ -2368,7 +2383,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // If the very last thing in the list of recent commands, is exactly the
         // same as the current command, then let's not include it in the
         // history. It's literally the thing the user has typed, RIGHT now.
-        if (!commands.empty() && commands.back() == trimmedCurrentCommand)
+        // (also account for the fact that the cursor may be in the middle of a commandline)
+        if (!commands.empty() &&
+            !trimmedCurrentCommand.empty() &&
+            std::wstring_view{ commands.back() }.substr(0, trimmedCurrentCommand.size()) == trimmedCurrentCommand)
         {
             commands.pop_back();
         }
@@ -2563,9 +2581,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         if (out && !out->empty())
         {
-            // _sendInputToConnection() asserts that we aren't in focus mode,
-            // but window focus events are always fine to send.
-            _connection.WriteInput(winrt_wstring_to_array_view(*out));
+            _sendInputToConnection(*out);
         }
     }
 
@@ -2742,8 +2758,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    winrt::fire_and_forget ControlCore::_terminalCompletionsChanged(std::wstring_view menuJson,
-                                                                    unsigned int replaceLength)
+    safe_void_coroutine ControlCore::_terminalCompletionsChanged(std::wstring_view menuJson,
+                                                                 unsigned int replaceLength)
     {
         auto args = winrt::make_self<CompletionsChangedEventArgs>(winrt::hstring{ menuJson },
                                                                   replaceLength);
