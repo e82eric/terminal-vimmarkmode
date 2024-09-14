@@ -59,6 +59,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SetFontSize(int32_t width, int32_t height);
         void SetSearchResult(FuzzySearchResult val);
         void Show(std::wstring_view searchString);
+        void Detach();
 
         void _OnListBoxSelectionChanged(winrt::Windows::Foundation::IInspectable const&, Windows::UI::Xaml::Controls::SelectionChangedEventArgs const& e);
         void _TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);

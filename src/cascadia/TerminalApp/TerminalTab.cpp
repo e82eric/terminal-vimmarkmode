@@ -595,6 +595,14 @@ namespace winrt::TerminalApp::implementation
     {
         ASSERT_UI_THREAD();
 
+        if (HasFloatPane())
+        {
+            auto result = DetachFloatPane();
+            _UpdateActivePane(_rootPane->GetActivePane());
+            result->SetActive();
+            return result;
+        }
+
         // if we only have one pane, or the focused pane is the root, remove it
         // entirely and close this tab
         if (_rootPane == _activePane)
@@ -651,13 +659,35 @@ namespace winrt::TerminalApp::implementation
     void TerminalTab::ClearFloatPane()
     {
         ASSERT_UI_THREAD();
+        _floatPane->Closed(_floatPaneCloseToken);
         _floatPane.reset();
     }
 
-    void TerminalTab::AttachPaneAsFloat(std::shared_ptr<Pane> pane)
+    bool TerminalTab::HasFloatPane() const
+    {
+        return _floatPane != nullptr;
+    }
+
+    std::shared_ptr<Pane> TerminalTab::DetachFloatPane()
+    {
+        auto result = _floatPane;
+        ClearFloatPane();
+        return result;
+    }
+
+    void TerminalTab::MoveFloatPaneToSplit()
+    {
+        ASSERT_UI_THREAD();
+        auto pane = DetachFloatPane();
+        AttachPane(pane);
+        pane->GetContent().Focus(::FocusState::Programmatic);
+    }
+
+    void TerminalTab::AttachPaneAsFloat(std::shared_ptr<Pane> pane, winrt::event_token closeToken)
     {
         ASSERT_UI_THREAD();
         _floatPane = pane;
+        _floatPaneCloseToken = closeToken;
     }
 
     // Method Description:
@@ -1878,6 +1908,11 @@ namespace winrt::TerminalApp::implementation
     std::shared_ptr<Pane> TerminalTab::GetActivePane() const
     {
         ASSERT_UI_THREAD();
+
+        if (HasFloatPane())
+        {
+            return _floatPane;
+        }
 
         return _activePane;
     }

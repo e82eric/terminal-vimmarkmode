@@ -759,6 +759,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
+    void FuzzySearchBoxControl::Detach()
+    {
+        // Disable the renderer, so that it doesn't try to start any new frames
+        // for our engines while we're not attached to anything.
+        _renderer->WaitForPaintCompletionAndDisable(INFINITE);
+    }
+
     til::point FuzzySearchBoxControl::_toPosInDips(const Core::Point terminalCellPos)
     {
         const til::point terminalPos{ terminalCellPos };

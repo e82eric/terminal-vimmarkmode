@@ -2133,6 +2133,11 @@ namespace winrt::TerminalApp::implementation
             {
                 if (const auto pane{ terminalTab->GetActivePane() })
                 {
+                    if (focusedTab->HasFloatPane())
+                    {
+                        HideFloatPaneElements();
+                    }
+
                     auto startupActions = pane->BuildStartupActions(0, 1, BuildStartupKind::MovePane);
                     _DetachPaneFromWindow(pane);
                     _MoveContent(std::move(startupActions.args), windowId, tabIdx);
@@ -2177,6 +2182,12 @@ namespace winrt::TerminalApp::implementation
             {
                 return false;
             }
+
+            if (focusedTab->HasFloatPane())
+            {
+                HideFloatPaneElements();
+            }
+
             auto pane = focusedTab->DetachPane();
             targetTab->AttachPane(pane);
             _SetFocusedTab(*targetTab);
@@ -2192,6 +2203,10 @@ namespace winrt::TerminalApp::implementation
         }
         else
         {
+            if (focusedTab->HasFloatPane())
+            {
+                HideFloatPaneElements();
+            }
             auto pane = focusedTab->DetachPane();
             _CreateNewTabFromPane(pane);
             if (auto autoPeer = Automation::Peers::FrameworkElementAutomationPeer::FromElement(*this))

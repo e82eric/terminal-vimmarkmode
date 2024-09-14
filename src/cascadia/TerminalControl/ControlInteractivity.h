@@ -113,6 +113,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         winrt::com_ptr<ControlCore> _core{ nullptr };
         winrt::com_ptr<implementation::FuzzySearchBoxControl> _fuzzySearchBoxControl{ nullptr };
+
+        winrt::Microsoft::Terminal::Control::IControlSettings _settings{ nullptr };
+        winrt::Microsoft::Terminal::Control::IControlAppearance _unfocusedAppearance{ nullptr };
+        std::shared_ptr<::Microsoft::Terminal::Core::Terminal> _terminal{ nullptr };
+
         UINT _rowsToScroll = 3;
         float _internalScrollbarPosition = 0;
 

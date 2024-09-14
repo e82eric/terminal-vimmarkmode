@@ -323,6 +323,8 @@ namespace winrt::TerminalApp::implementation
         HRESULT _OpenNewTab(const Microsoft::Terminal::Settings::Model::INewContentArgs& newContentArgs);
         TerminalApp::TerminalTab _CreateNewTabFromPane(std::shared_ptr<Pane> pane, uint32_t insertPosition = -1);
         void AddFloatPane(std::shared_ptr<Pane> pane);
+        void HideFloatPaneElements();
+        void MoveFloatPaneToSplit();
 
         std::wstring _evaluatePathForCwd(std::wstring_view path);
 

@@ -216,9 +216,8 @@ namespace winrt::TerminalApp::implementation
     {
         FloatContent().Child(pane->GetRootElement());
         FloatContent().Visibility(::Visibility::Visible);
-        _GetFocusedTab().try_as<TerminalTab>()->AttachPaneAsFloat(pane);
 
-        auto closedToken = pane->Closed([weakThis{ get_weak() }](auto&& /*s*/, auto&& /*e*/) {
+        auto closeToken = pane->Closed([weakThis{ get_weak() }](auto&& /*s*/, auto&& /*e*/) {
             if (auto strongThis = weakThis.get())
             {
                 if (const auto terminalTab{ strongThis->_GetFocusedTabImpl() })
@@ -230,6 +229,21 @@ namespace winrt::TerminalApp::implementation
                 }
             }
         });
+
+        _GetFocusedTab().try_as<TerminalTab>()->AttachPaneAsFloat(pane, closeToken);
+    }
+
+    void TerminalPage::HideFloatPaneElements()
+    {
+        FloatContent().Visibility(Visibility::Collapsed);
+        FloatContent().Child(nullptr);
+    }
+
+    void TerminalPage::MoveFloatPaneToSplit()
+    {
+        HideFloatPaneElements();
+        auto tab = _GetFocusedTab().try_as<TerminalTab>();
+        tab->MoveFloatPaneToSplit();
     }
 
     void TerminalPage::_floatClosed()
@@ -609,6 +623,17 @@ namespace winrt::TerminalApp::implementation
         else
         {
             _SetFocusedTab(tab);
+        }
+
+        auto focusedTab = _GetFocusedTab().try_as<TerminalTab>();
+        auto pane = focusedTab->GetFloatPane();
+        if (pane.get() == nullptr)
+        {
+            FloatContent().Visibility(::Visibility::Collapsed);
+        }
+        else
+        {
+            FloatContent().Visibility(::Visibility::Visible);
         }
 
         return true;
