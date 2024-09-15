@@ -526,7 +526,7 @@ static constexpr UTextFuncs utextLogicalRowFuncs{
     .access = utextLogicalRowAccess,
 };
 
-UText Microsoft::Console::ICU::UTextForWrappableRow(const TextBuffer& textBuffer, til::CoordType& row) noexcept
+UText Microsoft::Console::ICU::UTextForWrappableRow(const TextBuffer& textBuffer, til::CoordType& row, bool isLastRow) noexcept
 {
     UText ut = UTEXT_INITIALIZER;
     ut.pFuncs = &utextLogicalRowFuncs;
@@ -534,10 +534,13 @@ UText Microsoft::Console::ICU::UTextForWrappableRow(const TextBuffer& textBuffer
     ut.a = row;
 
     auto length = 0;
-    while (textBuffer.GetRowByOffset(row).WasWrapForced())
+    if (!isLastRow)
     {
-        row++;
-        length += textBuffer.GetRowByOffset(row).size();
+        while (textBuffer.GetRowByOffset(row).WasWrapForced() && row)
+        {
+            row++;
+            length += textBuffer.GetRowByOffset(row).size();
+        }
     }
     length += textBuffer.GetRowByOffset(row).size();
 

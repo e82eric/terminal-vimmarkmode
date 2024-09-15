@@ -134,7 +134,7 @@ std::vector<FuzzySearcher::FuzzySearchResultRow> FuzzySearcher::_search(Microsof
     {
         const auto startRowNumber = rowNumber;
         //Warn: row number will be incremented by this function if there is a row wrap.  Is there a better way
-        auto uRowText = Microsoft::Console::ICU::UTextForWrappableRow(textBuffer, rowNumber);
+        auto uRowText = Microsoft::Console::ICU::UTextForWrappableRow(textBuffer, rowNumber, rowNumber == rowCount - 1);
         auto length = utext_nativeLength(&uRowText);
 
         if (length > 0)

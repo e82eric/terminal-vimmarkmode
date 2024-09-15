@@ -85,7 +85,7 @@ std::vector<til::point_span> Search::_regexSearch(const Microsoft::Console::Rend
     for (int32_t i = 0; i < rowCount; i++)
     {
         auto startRow = i;
-        auto uText = Microsoft::Console::ICU::UTextForWrappableRow(textBuffer, i);
+        auto uText = Microsoft::Console::ICU::UTextForWrappableRow(textBuffer, i, i == rowCount - 1);
 
         uregex_setUText(regex.get(), &uText, &status);
         if (U_FAILURE(status))
