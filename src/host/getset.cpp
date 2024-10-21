@@ -487,49 +487,8 @@ void ApiRoutines::SetConsoleActiveScreenBufferImpl(SCREEN_INFORMATION& newContex
 
         if (auto writer = gci.GetVtWriter())
         {
-            const auto viewport = gci.GetActiveOutputBuffer().GetBufferSize();
-            const auto size = viewport.Dimensions();
-            const auto area = static_cast<size_t>(viewport.Width() * viewport.Height());
-
-            auto& main = newContext.GetMainBuffer();
-            auto& alt = newContext.GetActiveBuffer();
-            const auto hasAltBuffer = &alt != &main;
-
-            // TODO GH#5094: This could use xterm's XTWINOPS "\e[8;<height>;<width>t" escape sequence here.
-            THROW_IF_NTSTATUS_FAILED(main.ResizeTraditional(size));
-            main.SetViewportSize(&size);
-            if (hasAltBuffer)
-            {
-                THROW_IF_NTSTATUS_FAILED(alt.ResizeTraditional(size));
-                alt.SetViewportSize(&size);
-            }
-
-            Viewport read;
-            til::small_vector<CHAR_INFO, 1024> infos;
-            infos.resize(area, CHAR_INFO{ L' ', FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED });
-
-            const auto dumpScreenInfo = [&](SCREEN_INFORMATION& screenInfo) {
-                THROW_IF_FAILED(ReadConsoleOutputWImpl(screenInfo, infos, viewport, read));
-                for (til::CoordType i = 0; i < size.height; i++)
-                {
-                    writer.WriteInfos({ 0, i }, { infos.begin() + i * size.width, static_cast<size_t>(size.width) });
-                }
-
-                writer.WriteCUP(screenInfo.GetTextBuffer().GetCursor().GetPosition());
-                writer.WriteAttributes(screenInfo.GetAttributes());
-                writer.WriteDECTCEM(screenInfo.GetTextBuffer().GetCursor().IsVisible());
-                writer.WriteDECAWM(WI_IsFlagSet(screenInfo.OutputMode, ENABLE_WRAP_AT_EOL_OUTPUT));
-            };
-
-            writer.WriteASB(false);
-            dumpScreenInfo(main);
-
-            if (hasAltBuffer)
-            {
-                writer.WriteASB(true);
-                dumpScreenInfo(alt);
-            }
-
+            const auto oldSize = gci.GetActiveOutputBuffer().GetBufferSize().Dimensions();
+            writer.WriteScreenInfo(newContext, oldSize);
             writer.Submit();
         }
 
@@ -1181,7 +1140,6 @@ void ApiRoutines::GetLargestConsoleWindowSizeImpl(const SCREEN_INFORMATION& cont
     {
         // Set new code page
         gci.OutputCP = codepage;
-
         SetConsoleCPInfo(TRUE);
     }
 
@@ -1198,11 +1156,34 @@ void ApiRoutines::GetLargestConsoleWindowSizeImpl(const SCREEN_INFORMATION& cont
 {
     try
     {
+        auto& gci = ServiceLocator::LocateGlobals().getConsoleInformation();
         LockConsole();
         auto Unlock = wil::scope_exit([&] { UnlockConsole(); });
-        return DoSrvSetConsoleOutputCodePage(codepage);
+        RETURN_IF_FAILED(DoSrvSetConsoleOutputCodePage(codepage));
+        // Setting the code page via the API also updates the default value.
+        // This is how the initial code page is set to UTF-8 in a WSL shell.
+        gci.DefaultOutputCP = codepage;
+        return S_OK;
     }
     CATCH_RETURN();
+}
+
+[[nodiscard]] HRESULT DoSrvSetConsoleInputCodePage(const unsigned int codepage)
+{
+    auto& gci = ServiceLocator::LocateGlobals().getConsoleInformation();
+
+    // Return if it's not known as a valid codepage ID.
+    RETURN_HR_IF(E_INVALIDARG, !(IsValidCodePage(codepage)));
+
+    // Do nothing if no change.
+    if (gci.CP != codepage)
+    {
+        // Set new code page
+        gci.CP = codepage;
+        SetConsoleCPInfo(FALSE);
+    }
+
+    return S_OK;
 }
 
 // Routine Description:
@@ -1218,19 +1199,10 @@ void ApiRoutines::GetLargestConsoleWindowSizeImpl(const SCREEN_INFORMATION& cont
         auto& gci = ServiceLocator::LocateGlobals().getConsoleInformation();
         LockConsole();
         auto Unlock = wil::scope_exit([&] { UnlockConsole(); });
-
-        // Return if it's not known as a valid codepage ID.
-        RETURN_HR_IF(E_INVALIDARG, !(IsValidCodePage(codepage)));
-
-        // Do nothing if no change.
-        if (gci.CP != codepage)
-        {
-            // Set new code page
-            gci.CP = codepage;
-
-            SetConsoleCPInfo(FALSE);
-        }
-
+        RETURN_IF_FAILED(DoSrvSetConsoleInputCodePage(codepage));
+        // Setting the code page via the API also updates the default value.
+        // This is how the initial code page is set to UTF-8 in a WSL shell.
+        gci.DefaultCP = codepage;
         return S_OK;
     }
     CATCH_RETURN();

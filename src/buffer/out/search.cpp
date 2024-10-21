@@ -17,7 +17,7 @@ bool Search::IsStale(const Microsoft::Console::Render::IRenderData& renderData, 
            _lastMutationId != renderData.GetTextBuffer().GetLastMutationId();
 }
 
-bool Search::Reset(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, SearchFlag flags, bool reverse)
+void Search::Reset(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, SearchFlag flags, bool reverse)
 {
     const auto& textBuffer = renderData.GetTextBuffer();
 
@@ -31,9 +31,16 @@ bool Search::Reset(Microsoft::Console::Render::IRenderData& renderData, const st
     _results = std::move(result).value_or(std::vector<til::point_span>{});
     _index = reverse ? gsl::narrow_cast<ptrdiff_t>(_results.size()) - 1 : 0;
     _step = reverse ? -1 : 1;
-    return true;
-}
 
+    if (_renderData->IsSelectionActive())
+    {
+        MoveToPoint(_renderData->GetTextBuffer().ScreenToBufferPosition(_renderData->GetSelectionAnchor()));
+    }
+    else if (const auto span = _renderData->GetSearchHighlightFocused())
+    {
+        MoveToPoint(_step > 0 ? span->start : span->end);
+    }
+}
 
 bool Search::ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool reverse, bool caseInsensitive, std::vector<til::point_span>* prevResults)
 {
@@ -140,15 +147,6 @@ void Search::QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderDat
     _results = _regexSearch(renderData, needle, caseInsensitive);
     _index = 0;
     _step = 1;
-}
-
-
-void Search::MoveToCurrentSelection()
-{
-    if (_renderData->IsSelectionActive())
-    {
-        MoveToPoint(_renderData->GetTextBuffer().ScreenToBufferPosition(_renderData->GetSelectionAnchor()));
-    }
 }
 
 void Search::MoveToPoint(const til::point anchor) noexcept
