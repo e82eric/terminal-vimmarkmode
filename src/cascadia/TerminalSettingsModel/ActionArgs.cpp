@@ -955,11 +955,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
     winrt::hstring SendInputToPaneArgs::GenerateName() const
     {
         auto str = fmt::format(FMT_COMPILE(L"input: {}"),  Input());
-
-        if (!PaneId() > -1)
-        {
-            fmt::format_to(std::back_inserter(str), FMT_COMPILE(L", name: {}"), PaneId());
-        }
+        fmt::format_to(std::back_inserter(str), FMT_COMPILE(L", name: {}"), PaneId());
 
         return winrt::hstring{ str };
     }

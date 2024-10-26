@@ -241,6 +241,10 @@ namespace winrt::TerminalApp::implementation
                 if (const auto termControl{ _GetActiveControl() })
                 {
                     termControl.SendInput(realArgs.Input());
+                    if (realArgs.SendReturn())
+                    {
+                        termControl.SendInput(L"\r");
+                    }
                     args.Handled(true);
                 }
             }

@@ -565,20 +565,22 @@ void AppCommandlineArgs::_buildNewFloatingPaneParser()
 
 void AppCommandlineArgs::_buildSendInputParser()
 {
-    _sendInputCommand = _app.add_subcommand("send-input", RS_A(L"SendInputToPaneDesc"));
+    _sendInputSubCommand.subcommand = _app.add_subcommand("send-input", RS_A(L"SendInputToPaneDesc"));
 
-    auto setupSubcommand = [this](auto* subcommand) {
-        auto targetOpt = subcommand->add_option("--target,-t", _sendInputToPaneTarget, RS_A(L"SendInputToPaneArgDesc"));
+    auto setupSubcommand = [this](auto& subcommand) {
+        auto targetOpt = subcommand.subcommand->add_option("--target,-t", _sendInputToPaneTarget, RS_A(L"SendInputToPaneArgDesc"));
         targetOpt->required();
         targetOpt->check(CLI::NonNegativeNumber);
-        auto inputOpt = subcommand->add_option("--input,-i", _sendInputToPaneInput, RS_A(L"SendInputToPaneArgDesc"));
-        inputOpt->required();
+        subcommand.subcommand->add_option("--input,-i", _sendInputToPaneInput, RS_A(L"SendInputToPaneArgDesc"));
+        subcommand._sendReturn = subcommand.subcommand->add_flag("--sendReturn", _sendReturn, RS_A(L"SendInputToPaneArgDesc"));
+        subcommand.subcommand->add_option("command,", _commandline, RS_A(L"CmdCommandArgDesc"));
+        subcommand.subcommand->positionals_at_end(true);
 
         // When ParseCommand is called, if this subcommand was provided, this
         // callback function will be triggered on the same thread. We can be sure
         // that `this` will still be safe - this function just lets us know this
         // command was parsed.
-        subcommand->callback([&, this]() {
+        subcommand.subcommand->callback([&, this]() {
             // Build the action from the values we've parsed on the commandline.
             ActionAndArgs actionAndArgs{};
             actionAndArgs.Action(ShortcutAction::SendInput);
@@ -586,6 +588,35 @@ void AppCommandlineArgs::_buildSendInputParser()
             // _getNewTerminalArgs does it
             SendInputToPaneArgs args{};
 
+            if (*subcommand._sendReturn)
+            {
+                args.SendReturn(_sendReturn);
+            }
+
+            if (!_commandline.empty())
+            {
+                std::ostringstream cmdlineBuffer;
+
+                for (const auto& arg : _commandline)
+                {
+                    if (cmdlineBuffer.tellp() != 0)
+                    {
+                        // If there's already something in here, prepend a space
+                        cmdlineBuffer << ' ';
+                    }
+
+                    if (arg.find(" ") != std::string::npos)
+                    {
+                        cmdlineBuffer << '"' << arg << '"';
+                    }
+                    else
+                    {
+                        cmdlineBuffer << arg;
+                    }
+                }
+
+                args.Input(winrt::to_hstring(cmdlineBuffer.str()));
+            }
 
             if (!_sendInputToPaneInput.empty())
             {
@@ -604,7 +635,7 @@ void AppCommandlineArgs::_buildSendInputParser()
         });
     };
 
-    setupSubcommand(_sendInputCommand);
+    setupSubcommand(_sendInputSubCommand);
 }
 
 void AppCommandlineArgs::_buildSaveSnippetParser()
@@ -847,7 +878,7 @@ bool AppCommandlineArgs::_noCommandsProvided()
              *_focusPaneShort ||
              *_newPaneShort.subcommand ||
              *_newPaneCommand.subcommand ||
-             *_sendInputCommand ||
+             *_sendInputSubCommand.subcommand ||
              *_saveCommand);
 }
 

@@ -234,6 +234,7 @@ protected:                                                                  \
 ////////////////////////////////////////////////////////////////////////////////
 #define SEND_INPUT_TO_PANE_ARGS(X)                                                           \
     X(uint32_t, PaneId, "paneId", false, 0u)                                     \
+    X(bool, SendReturn, "sendReturn", false, false)                                     \
     X(winrt::hstring, Input, "input", args->Input().empty(), L"")
 
 ////////////////////////////////////////////////////////////////////////////////

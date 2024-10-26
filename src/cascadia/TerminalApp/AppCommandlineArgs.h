@@ -81,8 +81,10 @@ private:
 
     struct SendInputSubcommand
     {
-        CLI::Option* text;
-        CLI::Option* paneId;
+        CLI::Option* input;
+        CLI::Option* _paneId;
+        CLI::Option* _sendReturn;
+        CLI::App* subcommand;
     };
 
     // --- Subcommands ---
@@ -101,7 +103,6 @@ private:
     CLI::App* _focusPaneCommand;
     CLI::App* _focusPaneShort;
     CLI::App* _saveCommand;
-    CLI::App* _sendInputCommand;
 
     // Are you adding a new sub-command? Make sure to update _noCommandsProvided!
 
@@ -133,6 +134,7 @@ private:
 
     int _focusPaneTarget{ -1 };
     int _sendInputToPaneTarget{ -1 };
+    bool _sendReturn;
     std::string _sendInputToPaneInput;
     std::string _saveInputName;
     std::string _keyChordOption;

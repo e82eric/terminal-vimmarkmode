@@ -391,9 +391,10 @@ namespace Microsoft.Terminal.Settings.Model
     [default_interface] runtimeclass SendInputToPaneArgs : IActionArgs
     {
         SendInputToPaneArgs();
-        SendInputToPaneArgs(UInt32 paneId, String Text);
+        SendInputToPaneArgs(UInt32 paneId, Boolean sendReturn, String Text);
         UInt32 PaneId;
         String Input;
+        Boolean SendReturn;
     };
 
     [default_interface] runtimeclass NewWindowArgs : IActionArgs
