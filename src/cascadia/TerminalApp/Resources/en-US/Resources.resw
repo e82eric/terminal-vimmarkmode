@@ -291,6 +291,12 @@
   <data name="SaveSnippetDesc" xml:space="preserve">
     <value>Save command line as input action</value>
   </data>
+  <data name="SendInputToPaneDesc" xml:space="preserve">
+    <value>Send input to pane</value>
+  </data>
+  <data name="SendInputToPaneArgDesc" xml:space="preserve">
+    <value>Target paneId</value>
+  </data>
   <data name="SaveSnippetArgDesc" xml:space="preserve">
     <value>An optional argument</value>
   </data>
@@ -348,6 +354,9 @@
   </data>
   <data name="CmdSessionIdArgDesc" xml:space="preserve">
     <value>Sets the WT_SESSION variable; must be a GUID</value>
+  </data>
+  <data name="NewFloatingPaneDesc" xml:space="preserve">
+    <value>Create a new floating pane</value>
   </data>
   <data name="CmdSplitPaneDesc" xml:space="preserve">
     <value>Create a new split pane</value>

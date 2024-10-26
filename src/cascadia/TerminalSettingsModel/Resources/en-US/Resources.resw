@@ -123,6 +123,12 @@
   <data name="NewTabParentCommandName" xml:space="preserve">
     <value>New tab...</value>
   </data>
+  <data name="NewFloatingPaneParentCommandName" xml:space="preserve">
+    <value>New floating pane...</value>
+  </data>
+  <data name="MoveFloatingPaneToSplitParentCommandName" xml:space="preserve">
+    <value>Move floating pane to split...</value>
+  </data>
   <data name="SplitPaneParentCommandName" xml:space="preserve">
     <value>Split pane...</value>
   </data>
@@ -237,6 +243,12 @@
   <data name="DuplicatePaneAsFloatCommandKey" xml:space="preserve">
     <value>Duplicate Pane As Float</value>
   </data>
+  <data name="ToggleFloatingPaneCommandKey" xml:space="preserve">
+    <value>Toggle the visibility of floating panes</value>
+  </data>
+  <data name="MovePaneToFloatingPaneCommandKey" xml:space="preserve">
+    <value>Move Pane To Floating Pane</value>
+  </data>
   <data name="ExecuteCommandlineCommandKey" xml:space="preserve">
     <value>Run commandline "{0}" in this window</value>
     <comment>{0} will be replaced with a user-defined commandline</comment>
@@ -309,6 +321,12 @@
   </data>
   <data name="NewTabCommandKey" xml:space="preserve">
     <value>New tab</value>
+  </data>
+  <data name="NewFloatingPaneCommandKey" xml:space="preserve">
+    <value>New floating pane</value>
+  </data>
+  <data name="MoveFloatingPaneToSplitCommandKey" xml:space="preserve">
+    <value>Move floating pane to split</value>
   </data>
   <data name="NewWindowCommandKey" xml:space="preserve">
     <value>New window</value>

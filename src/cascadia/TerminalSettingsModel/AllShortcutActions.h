@@ -28,8 +28,12 @@
     ON_ALL_ACTIONS(PasteText)               \
     ON_ALL_ACTIONS(OpenNewTabDropdown)      \
     ON_ALL_ACTIONS(DuplicatePaneAsFloat)    \
+    ON_ALL_ACTIONS(ToggleFloatingPane)      \
+    ON_ALL_ACTIONS(MovePaneToFloatingPane)  \
     ON_ALL_ACTIONS(DuplicateTab)            \
     ON_ALL_ACTIONS(NewTab)                  \
+    ON_ALL_ACTIONS(NewFloatingPane)         \
+    ON_ALL_ACTIONS(MoveFloatingPaneToSplit) \
     ON_ALL_ACTIONS(CloseWindow)             \
     ON_ALL_ACTIONS(CloseTab)                \
     ON_ALL_ACTIONS(ClosePane)               \
@@ -136,6 +140,8 @@
     ON_ALL_ACTIONS_WITH_ARGS(SwapPane)             \
     ON_ALL_ACTIONS_WITH_ARGS(MoveTab)              \
     ON_ALL_ACTIONS_WITH_ARGS(NewTab)               \
+    ON_ALL_ACTIONS_WITH_ARGS(NewFloatingPane)      \
+    ON_ALL_ACTIONS_WITH_ARGS(MoveFloatingPaneToSplit)      \
     ON_ALL_ACTIONS_WITH_ARGS(NewWindow)            \
     ON_ALL_ACTIONS_WITH_ARGS(NextTab)              \
     ON_ALL_ACTIONS_WITH_ARGS(OpenSettings)         \

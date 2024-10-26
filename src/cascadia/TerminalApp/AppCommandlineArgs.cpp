@@ -204,6 +204,8 @@ void AppCommandlineArgs::_buildParser()
     // Subcommands
     _buildNewTabParser();
     _buildSplitPaneParser();
+    _buildNewFloatingPaneParser();
+    _buildSendInputParser();
     _buildFocusTabParser();
     _buildMoveFocusParser();
     _buildMovePaneParser();
@@ -256,8 +258,7 @@ void AppCommandlineArgs::_buildNewTabParser()
 // - <none>
 void AppCommandlineArgs::_buildSplitPaneParser()
 {
-    _newPaneCommand.subcommand = _app.add_subcommand("split-pane", RS_A(L"CmdSplitPaneDesc"));
-    _newPaneShort.subcommand = _app.add_subcommand("sp", RS_A(L"CmdSPDesc"));
+    _newPaneCommand.subcommand = _app.add_subcommand("split-pane", RS_A(L"NewFloatingPaneDesc"));
 
     auto setupSubcommand = [this](auto& subcommand) {
         _addNewTerminalArgs(subcommand);
@@ -311,7 +312,6 @@ void AppCommandlineArgs::_buildSplitPaneParser()
     };
 
     setupSubcommand(_newPaneCommand);
-    setupSubcommand(_newPaneShort);
 }
 // Method Description:
 // - Adds the `move-pane` subcommand and related options to the commandline parser.
@@ -536,6 +536,75 @@ void AppCommandlineArgs::_buildFocusPaneParser()
 
     setupSubcommand(_focusPaneCommand);
     setupSubcommand(_focusPaneShort);
+}
+
+void AppCommandlineArgs::_buildNewFloatingPaneParser()
+{
+    _newPaneCommand.subcommand = _app.add_subcommand("new-floating-pane", RS_A(L"CmdSplitPaneDesc"));
+    _newPaneShort.subcommand = _app.add_subcommand("nfp", RS_A(L"CmdSPDesc"));
+
+    auto setupSubcommand = [this](auto& subcommand) {
+        _addNewTerminalArgs(subcommand);
+        subcommand._duplicateOption = subcommand.subcommand->add_flag("-D,--duplicate",
+                                                                      _splitDuplicate,
+                                                                      RS_A(L"CmdSplitPaneDuplicateArgDesc"));
+        subcommand.subcommand->callback([&, this]() {
+            ActionAndArgs newFloatingPaneActionArgs{};
+            newFloatingPaneActionArgs.Action(ShortcutAction::NewFloatingPane);
+
+            auto terminalArgs{ _getNewTerminalArgs(subcommand) };
+            NewFloatingPaneArgs args{ terminalArgs };
+            newFloatingPaneActionArgs.Args(args);
+            _startupActions.push_back(newFloatingPaneActionArgs);
+        });
+    };
+
+    setupSubcommand(_newPaneCommand);
+    setupSubcommand(_newPaneShort);
+}
+
+void AppCommandlineArgs::_buildSendInputParser()
+{
+    _sendInputCommand = _app.add_subcommand("send-input", RS_A(L"SendInputToPaneDesc"));
+
+    auto setupSubcommand = [this](auto* subcommand) {
+        auto targetOpt = subcommand->add_option("--target,-t", _sendInputToPaneTarget, RS_A(L"SendInputToPaneArgDesc"));
+        targetOpt->required();
+        targetOpt->check(CLI::NonNegativeNumber);
+        auto inputOpt = subcommand->add_option("--input,-i", _sendInputToPaneInput, RS_A(L"SendInputToPaneArgDesc"));
+        inputOpt->required();
+
+        // When ParseCommand is called, if this subcommand was provided, this
+        // callback function will be triggered on the same thread. We can be sure
+        // that `this` will still be safe - this function just lets us know this
+        // command was parsed.
+        subcommand->callback([&, this]() {
+            // Build the action from the values we've parsed on the commandline.
+            ActionAndArgs actionAndArgs{};
+            actionAndArgs.Action(ShortcutAction::SendInput);
+            // First, parse out the commandline in the same way that
+            // _getNewTerminalArgs does it
+            SendInputToPaneArgs args{};
+
+
+            if (!_sendInputToPaneInput.empty())
+            {
+
+                winrt::hstring hString = winrt::to_hstring(_sendInputToPaneInput);
+                args.Input(hString);
+            }
+
+            if (_sendInputToPaneTarget >= -1)
+            {
+                args.PaneId(_sendInputToPaneTarget);
+            }
+
+            actionAndArgs.Args(args);
+            _startupActions.push_back(actionAndArgs);
+        });
+    };
+
+    setupSubcommand(_sendInputCommand);
 }
 
 void AppCommandlineArgs::_buildSaveSnippetParser()
@@ -778,6 +847,7 @@ bool AppCommandlineArgs::_noCommandsProvided()
              *_focusPaneShort ||
              *_newPaneShort.subcommand ||
              *_newPaneCommand.subcommand ||
+             *_sendInputCommand ||
              *_saveCommand);
 }
 

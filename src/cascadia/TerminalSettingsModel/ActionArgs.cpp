@@ -10,6 +10,8 @@
 #include "NewTerminalArgs.g.cpp"
 #include "CopyTextArgs.g.cpp"
 #include "NewTabArgs.g.cpp"
+#include "NewFloatingPaneArgs.g.cpp"
+#include "MoveFloatingPaneToSplitArgs.g.cpp"
 #include "SwitchToTabArgs.g.cpp"
 #include "ResizePaneArgs.g.cpp"
 #include "MoveFocusArgs.g.cpp"
@@ -35,6 +37,7 @@
 #include "AddMarkArgs.g.cpp"
 #include "FindMatchArgs.g.cpp"
 #include "SaveSnippetArgs.g.cpp"
+#include "SendInputToPaneArgs.g.cpp"
 #include "ToggleCommandPaletteArgs.g.cpp"
 #include "SuggestionsArgs.g.cpp"
 #include "NewWindowArgs.g.cpp"
@@ -259,6 +262,49 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         return winrt::hstring{
             fmt::format(FMT_COMPILE(L"{}, {}"), RS_(L"NewTabCommandKey"), newTerminalArgsStr)
         };
+    }
+
+    winrt::hstring NewFloatingPaneArgs::GenerateName() const
+    {
+        winrt::hstring newTerminalArgsStr;
+        if (ContentArgs())
+        {
+            newTerminalArgsStr = ContentArgs().GenerateName();
+        }
+
+        if (newTerminalArgsStr.empty())
+        {
+            return RS_(L"NewFloatingPaneCommandKey");
+        }
+        return winrt::hstring{
+            fmt::format(FMT_COMPILE(L"{}, {}"), RS_(L"NewFloatingPaneCommandKey"), newTerminalArgsStr)
+        };
+    }
+
+    winrt::hstring MoveFloatingPaneToSplitArgs::GenerateName() const
+    {
+        std::wstring str;
+
+        switch (SplitDirection())
+        {
+        case SplitDirection::Up:
+            str.append(L"split: up, ");
+            break;
+        case SplitDirection::Right:
+            str.append(L"split: right, ");
+            break;
+        case SplitDirection::Down:
+            str.append(L"split: down, ");
+            break;
+        case SplitDirection::Left:
+            str.append(L"split: left, ");
+            break;
+        case SplitDirection::Automatic:
+            str.append(L"split: automatic, ");
+            break;
+        }
+
+        return winrt::hstring{ str };
     }
 
     winrt::hstring MovePaneArgs::GenerateName() const
@@ -904,6 +950,18 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             return winrt::hstring{ str };
         }
         return {};
+    }
+
+    winrt::hstring SendInputToPaneArgs::GenerateName() const
+    {
+        auto str = fmt::format(FMT_COMPILE(L"input: {}"),  Input());
+
+        if (!PaneId() > -1)
+        {
+            fmt::format_to(std::back_inserter(str), FMT_COMPILE(L", name: {}"), PaneId());
+        }
+
+        return winrt::hstring{ str };
     }
 
     static winrt::hstring _FormatColorString(const Control::SelectionColor& selectionColor)

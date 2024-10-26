@@ -322,9 +322,10 @@ namespace winrt::TerminalApp::implementation
         void _OpenNewTabDropdown();
         HRESULT _OpenNewTab(const Microsoft::Terminal::Settings::Model::INewContentArgs& newContentArgs);
         TerminalApp::TerminalTab _CreateNewTabFromPane(std::shared_ptr<Pane> pane, uint32_t insertPosition = -1);
-        void AddFloatPane(std::shared_ptr<Pane> pane);
-        void HideFloatPaneElements();
-        void MoveFloatPaneToSplit();
+        void ToggleFloatingPane();
+        void AddFloatingPane(std::shared_ptr<Pane> pane);
+        void HideFloatingPaneElements(winrt::com_ptr<TerminalTab> tab);
+        void MoveFloatingPaneToSplit(Microsoft::Terminal::Settings::Model::SplitDirection direction);
 
         std::wstring _evaluatePathForCwd(std::wstring_view path);
 
@@ -577,9 +578,10 @@ namespace winrt::TerminalApp::implementation
         winrt::com_ptr<TerminalTab> _senderOrFocusedTab(const IInspectable& sender);
 
         void _activePaneChanged(winrt::TerminalApp::TerminalTab tab, Windows::Foundation::IInspectable args);
-        void _floatClosed();
         safe_void_coroutine _doHandleSuggestions(Microsoft::Terminal::Settings::Model::SuggestionsArgs realArgs);
         winrt::fire_and_forget _doSearchSnippets(const IInspectable& sender, Microsoft::Terminal::Settings::Model::ActionEventArgs realArgs);
+
+        void _ensureFloatingPaneState(winrt::com_ptr<TerminalTab> tab);
 
 #pragma region ActionHandlers
         // These are all defined in AppActionHandlers.cpp

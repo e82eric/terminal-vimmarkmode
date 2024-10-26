@@ -19,6 +19,8 @@ static constexpr std::string_view CloseTabsAfterKey{ "closeTabsAfter" };
 static constexpr std::string_view CloseWindowKey{ "closeWindow" };
 static constexpr std::string_view CopyTextKey{ "copy" };
 static constexpr std::string_view DuplicatePaneAsFloatKey{ "duplicatePaneAsFloat" };
+static constexpr std::string_view ToggleFloatingPaneKey{ "toggleFloatingPane" };
+static constexpr std::string_view MovePaneToFloatingPaneKey{ "movePaneToFloatingPane" };
 static constexpr std::string_view DuplicateTabKey{ "duplicateTab" };
 static constexpr std::string_view ExecuteCommandlineKey{ "wt" };
 static constexpr std::string_view FindKey{ "find" };
@@ -28,6 +30,8 @@ static constexpr std::string_view MoveFocusKey{ "moveFocus" };
 static constexpr std::string_view MovePaneKey{ "movePane" };
 static constexpr std::string_view SwapPaneKey{ "swapPane" };
 static constexpr std::string_view NewTabKey{ "newTab" };
+static constexpr std::string_view NewFloatingPaneKey{ "newFloatingPane" };
+static constexpr std::string_view MoveFloatingPaneToSplitKey{ "moveFloatingPaneToSplit" };
 static constexpr std::string_view NextTabKey{ "nextTab" };
 static constexpr std::string_view OpenNewTabDropdownKey{ "openNewTabDropdown" };
 static constexpr std::string_view OpenSettingsKey{ "openSettings" };
@@ -364,6 +368,10 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 { ShortcutAction::CopyText, RS_(L"CopyTextCommandKey") },
                 { ShortcutAction::DuplicateTab, RS_(L"DuplicateTabCommandKey") },
                 { ShortcutAction::DuplicatePaneAsFloat, RS_(L"DuplicatePaneAsFloatCommandKey") },
+                { ShortcutAction::NewFloatingPane, RS_(L"NewFloatingPaneCommandKey") },
+                { ShortcutAction::MoveFloatingPaneToSplit, RS_(L"MoveFloatingPaneToSplitCommandKey") },
+                { ShortcutAction::ToggleFloatingPane, RS_(L"ToggleFloatingPaneCommandKey") },
+                { ShortcutAction::MovePaneToFloatingPane, RS_(L"MovePaneToFloatingPaneCommandKey") },
                 { ShortcutAction::ExecuteCommandline, RS_(L"ExecuteCommandlineCommandKey") },
                 { ShortcutAction::Find, RS_(L"FindCommandKey") },
                 { ShortcutAction::FuzzyFind, RS_(L"FuzzyFindCommandKey") },

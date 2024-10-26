@@ -215,48 +215,68 @@ namespace winrt::TerminalApp::implementation
         return nullptr;
     }
 
-    void TerminalPage::AddFloatPane(std::shared_ptr<Pane> pane)
+    void TerminalPage::_ensureFloatingPaneState(winrt::com_ptr<TerminalTab> tab)
     {
-        FloatContent().Child(pane->GetRootElement());
-        FloatContent().Visibility(::Visibility::Visible);
+        if (!tab->FloatingPaneVisible())
+        {
+            FloatContent().Visibility(Visibility::Collapsed);
+            FloatContent().Child(nullptr);
+        }
+        else
+        {
+            FloatContent().Visibility(Visibility::Visible);
+            tab->SetFloatingPaneVisibility(true);
+            FloatContent().Child(tab->GetFloatPane()->GetRootElement());
+        }
+        _GetActiveControl().Focus(FocusState::Programmatic);
+    }
 
-        auto closeToken = pane->Closed([weakThis{ get_weak() }](auto&& /*s*/, auto&& /*e*/) {
+    void TerminalPage::ToggleFloatingPane()
+    {
+        auto tab = _GetFocusedTabImpl();
+        if (tab->FloatingPaneVisible())
+        {
+            tab->SetFloatingPaneVisibility(false);
+        }
+        else
+        {
+            tab->SetFloatingPaneVisibility(true);
+        }
+        _ensureFloatingPaneState(tab);
+    }
+
+    void TerminalPage::AddFloatingPane(std::shared_ptr<Pane> pane)
+    {
+        auto closeToken = pane->Closed([weakThis{ get_weak() }, pane](auto&& /*s*/, auto&& /*e*/) {
             if (auto strongThis = weakThis.get())
             {
                 if (const auto terminalTab{ strongThis->_GetFocusedTabImpl() })
                 {
-                    strongThis->FloatContent().Visibility(::Visibility::Collapsed);
-                    strongThis->FloatContent().Child(nullptr);
-                    terminalTab->ClearFloatPane();
-                    strongThis->_GetActiveControl().Focus(FocusState::Programmatic);
+                    terminalTab->RemoveFloatPane(pane);
+                    strongThis->_ensureFloatingPaneState(terminalTab);
                 }
             }
         });
 
-        _GetFocusedTab().try_as<TerminalTab>()->AttachPaneAsFloat(pane, closeToken);
+        auto tab = _GetFocusedTabImpl();
+        tab.try_as<TerminalTab>()->AttachPaneAsFloat(pane, closeToken);
+        _ensureFloatingPaneState(tab);
     }
 
-    void TerminalPage::HideFloatPaneElements()
+    void TerminalPage::HideFloatingPaneElements(winrt::com_ptr<TerminalTab> tab)
     {
-        FloatContent().Visibility(Visibility::Collapsed);
-        FloatContent().Child(nullptr);
+        tab->SetFloatingPaneVisibility(false);
+        _ensureFloatingPaneState(tab);
     }
 
-    void TerminalPage::MoveFloatPaneToSplit()
+    void TerminalPage::MoveFloatingPaneToSplit(SplitDirection direction)
     {
-        HideFloatPaneElements();
         auto tab = _GetFocusedTab().try_as<TerminalTab>();
-        tab->MoveFloatPaneToSplit();
-    }
-
-    void TerminalPage::_floatClosed()
-    {
-        if (const auto terminalTab{ _GetFocusedTabImpl() })
+        if (tab->HasFloatPane() && tab->FloatingPaneVisible())
         {
-            FloatContent().Visibility(::Visibility::Collapsed);
-            FloatContent().Child(nullptr);
-            terminalTab->ClearFloatPane();
-            _GetActiveControl().Focus(FocusState::Programmatic);
+            tab->SetFloatingPaneVisibility(false);
+            _ensureFloatingPaneState(tab);
+            tab->MoveFloatPaneToSplit(direction);
         }
     }
 
@@ -629,15 +649,7 @@ namespace winrt::TerminalApp::implementation
         }
 
         auto focusedTab = _GetFocusedTab().try_as<TerminalTab>();
-        auto pane = focusedTab->GetFloatPane();
-        if (pane.get() == nullptr)
-        {
-            FloatContent().Visibility(::Visibility::Collapsed);
-        }
-        else
-        {
-            FloatContent().Visibility(::Visibility::Visible);
-        }
+        _ensureFloatingPaneState(focusedTab);
 
         return true;
     }
@@ -832,10 +844,7 @@ namespace winrt::TerminalApp::implementation
 
             if (const auto pane {terminalTab->GetFloatPane()})
             {
-                FloatContent().Child(nullptr);
-                FloatContent().Visibility(::Visibility::Collapsed);
-                terminalTab->ClearFloatPane();
-                _GetActiveControl().Focus(FocusState::Programmatic);
+                _ensureFloatingPaneState(terminalTab);
             }
             else if (const auto pane{ terminalTab->GetActivePane() })
             {

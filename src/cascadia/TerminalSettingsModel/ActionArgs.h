@@ -10,6 +10,8 @@
 #include "NewTerminalArgs.g.h"
 #include "CopyTextArgs.g.h"
 #include "NewTabArgs.g.h"
+#include "NewFloatingPaneArgs.g.h"
+#include "MoveFloatingPaneToSplitArgs.g.h"
 #include "SwitchToTabArgs.g.h"
 #include "ResizePaneArgs.g.h"
 #include "MoveFocusArgs.g.h"
@@ -36,6 +38,7 @@
 #include "AddMarkArgs.g.h"
 #include "MoveTabArgs.g.h"
 #include "SaveSnippetArgs.g.h"
+#include "SendInputToPaneArgs.g.h"
 #include "ToggleCommandPaletteArgs.g.h"
 #include "SuggestionsArgs.g.h"
 #include "FindMatchArgs.g.h"
@@ -227,6 +230,11 @@ protected:                                                                  \
     X(winrt::hstring, Name, "name", false, L"")                                     \
     X(winrt::hstring, Commandline, "commandline", args->Commandline().empty(), L"") \
     X(winrt::hstring, KeyChord, "keyChord", false, L"")
+
+////////////////////////////////////////////////////////////////////////////////
+#define SEND_INPUT_TO_PANE_ARGS(X)                                                           \
+    X(uint32_t, PaneId, "paneId", false, 0u)                                     \
+    X(winrt::hstring, Input, "input", args->Input().empty(), L"")
 
 ////////////////////////////////////////////////////////////////////////////////
 #define SUGGESTIONS_ARGS(X)                                                 \
@@ -640,6 +648,105 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         }
     };
 
+    struct NewFloatingPaneArgs : public NewFloatingPaneArgsT<NewFloatingPaneArgs>
+    {
+        NewFloatingPaneArgs() = default;
+        NewFloatingPaneArgs(const Model::INewContentArgs& terminalArgs) :
+            _ContentArgs{ terminalArgs } {};
+        WINRT_PROPERTY(Model::INewContentArgs, ContentArgs, nullptr);
+
+    public:
+        hstring GenerateName() const;
+
+        bool Equals(const IActionArgs& other)
+        {
+            auto otherAsUs = other.try_as<NewFloatingPaneArgs>();
+            if (otherAsUs)
+            {
+                return otherAsUs->_ContentArgs.Equals(_ContentArgs);
+            }
+            return false;
+        };
+        static FromJsonResult FromJson(const Json::Value& json)
+        {
+            // LOAD BEARING: Not using make_self here _will_ break you in the future!
+            auto args = winrt::make_self<NewFloatingPaneArgs>();
+            auto [content, warnings] = ContentArgsFromJson(json);
+            args->_ContentArgs = content;
+            return { *args, warnings };
+        }
+        static Json::Value ToJson(const IActionArgs& val)
+        {
+            if (!val)
+            {
+                return {};
+            }
+            const auto args{ get_self<NewFloatingPaneArgs>(val) };
+            return ContentArgsToJson(args->_ContentArgs);
+        }
+        IActionArgs Copy() const
+        {
+            auto copy{ winrt::make_self<NewFloatingPaneArgs>() };
+            copy->_ContentArgs = _ContentArgs.Copy();
+            return *copy;
+        }
+        size_t Hash() const
+        {
+            til::hasher h;
+            h.write(ContentArgs());
+            return h.finalize();
+        }
+    };
+
+    struct MoveFloatingPaneToSplitArgs : public MoveFloatingPaneToSplitArgsT<MoveFloatingPaneToSplitArgs>
+    {
+        MoveFloatingPaneToSplitArgs() = default;
+        MoveFloatingPaneToSplitArgs(SplitDirection direction) :
+            _SplitDirection{ direction }{};
+        ACTION_ARG(Model::SplitDirection, SplitDirection, SplitDirection::Automatic);
+        static constexpr std::string_view SplitKey{ "split" };
+
+    public:
+        hstring GenerateName() const;
+
+        bool Equals(const IActionArgs& other)
+        {
+            auto otherAsUs = other.try_as<MoveFloatingPaneToSplitArgs>();
+            return otherAsUs->_SplitDirection == _SplitDirection;
+        };
+        static FromJsonResult FromJson(const Json::Value& json)
+        {
+            // LOAD BEARING: Not using make_self here _will_ break you in the future!
+            auto args = winrt::make_self<MoveFloatingPaneToSplitArgs>();
+            JsonUtils::GetValueForKey(json, SplitKey, args->_SplitDirection);
+            return { *args, {} };
+        }
+        static Json::Value ToJson(const IActionArgs& val)
+        {
+            if (!val)
+            {
+                return {};
+            }
+            Json::Value json{ Json::ValueType::objectValue };
+
+            const auto args{ get_self<MoveFloatingPaneToSplitArgs>(val) };
+            JsonUtils::SetValueForKey(json, SplitKey, args->_SplitDirection);
+            return json;
+        }
+        IActionArgs Copy() const
+        {
+            auto copy{ winrt::make_self<MoveFloatingPaneToSplitArgs>() };
+            copy->_SplitDirection = _SplitDirection;
+            return *copy;
+        }
+        size_t Hash() const
+        {
+            til::hasher h;
+            h.write(SplitDirection());
+            return h.finalize();
+        }
+    };
+
     struct SplitPaneArgs : public SplitPaneArgsT<SplitPaneArgs>
     {
         SplitPaneArgs() = default;
@@ -836,6 +943,8 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
 
     ACTION_ARGS_STRUCT(SaveSnippetArgs, SAVE_TASK_ARGS);
 
+    ACTION_ARGS_STRUCT(SendInputToPaneArgs, SEND_INPUT_TO_PANE_ARGS);
+
     ACTION_ARGS_STRUCT(SuggestionsArgs, SUGGESTIONS_ARGS);
 
     ACTION_ARGS_STRUCT(FindMatchArgs, FIND_MATCH_ARGS);
@@ -940,6 +1049,8 @@ namespace winrt::Microsoft::Terminal::Settings::Model::factory_implementation
     BASIC_FACTORY(SwitchToTabArgs);
     BASIC_FACTORY(NewTerminalArgs);
     BASIC_FACTORY(NewTabArgs);
+    BASIC_FACTORY(NewFloatingPaneArgs);
+    BASIC_FACTORY(MoveFloatingPaneToSplitArgs);
     BASIC_FACTORY(MoveFocusArgs);
     BASIC_FACTORY(MovePaneArgs);
     BASIC_FACTORY(SetTabColorArgs);
@@ -959,6 +1070,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::factory_implementation
     BASIC_FACTORY(MoveTabArgs);
     BASIC_FACTORY(OpenSettingsArgs);
     BASIC_FACTORY(SaveSnippetArgs);
+    BASIC_FACTORY(SendInputToPaneArgs);
     BASIC_FACTORY(FindMatchArgs);
     BASIC_FACTORY(NewWindowArgs);
     BASIC_FACTORY(FocusPaneArgs);

@@ -79,11 +79,18 @@ private:
         CLI::Option* _duplicateOption;
     };
 
+    struct SendInputSubcommand
+    {
+        CLI::Option* text;
+        CLI::Option* paneId;
+    };
+
     // --- Subcommands ---
     NewTerminalSubcommand _newTabCommand;
     NewTerminalSubcommand _newTabShort;
     NewPaneSubcommand _newPaneCommand;
     NewPaneSubcommand _newPaneShort;
+    SendInputSubcommand _sendInputSubCommand;
     CLI::App* _focusTabCommand;
     CLI::App* _focusTabShort;
     CLI::App* _moveFocusCommand;
@@ -94,6 +101,7 @@ private:
     CLI::App* _focusPaneCommand;
     CLI::App* _focusPaneShort;
     CLI::App* _saveCommand;
+    CLI::App* _sendInputCommand;
 
     // Are you adding a new sub-command? Make sure to update _noCommandsProvided!
 
@@ -124,6 +132,8 @@ private:
     bool _focusPrevTab{ false };
 
     int _focusPaneTarget{ -1 };
+    int _sendInputToPaneTarget{ -1 };
+    std::string _sendInputToPaneInput;
     std::string _saveInputName;
     std::string _keyChordOption;
     // Are you adding more args here? Make sure to reset them in _resetStateToDefault
@@ -152,6 +162,8 @@ private:
     void _buildMovePaneParser();
     void _buildSwapPaneParser();
     void _buildFocusPaneParser();
+    void _buildNewFloatingPaneParser();
+    void _buildSendInputParser();
     bool _noCommandsProvided();
     void _resetStateToDefault();
     int _handleExit(const CLI::App& command, const CLI::Error& e);

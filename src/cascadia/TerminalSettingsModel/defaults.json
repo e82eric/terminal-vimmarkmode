@@ -425,6 +425,8 @@
         // Application-level Keys
         { "command": "vimMode" },
         { "command": "toggleRowNumbers" },
+        { "command": "toggleFloatingPane" },
+        { "command": "movePaneToFloatingPane" },
         { "command": "vimSearch" },
         { "command": "fuzzyFind" },
         { "command": "searchSnippets", "id": "Terminal.SearchSnippets" },
@@ -594,6 +596,29 @@
                     "name": "${profile.name}",
                     "command": { "action": "newTab", "profile": "${profile.name}" }
                 }
+            ]
+        },
+        {
+            // New floating pane...
+            "name": { "key": "NewFloatingPaneParentCommandName" },
+            "commands": [
+                {
+                    "iterateOn": "profiles",
+                    "icon": "${profile.icon}",
+                    "name": "${profile.name}",
+                    "command": { "action": "newFloatingPane", "profile": "${profile.name}" }
+                }
+            ]
+        },
+        {
+            // Move floating pane to split...
+            "name": { "key": "MoveFloatingPaneToSplitParentCommandName" },
+            "commands": [
+                { "command": { "action": "moveFloatingPaneToSplit", "split": "automatic" } },
+                { "command": { "action": "moveFloatingPaneToSplit", "split": "up" } },
+                { "command": { "action": "moveFloatingPaneToSplit", "split": "down" } },
+                { "command": { "action": "moveFloatingPaneToSplit", "split": "left" } },
+                { "command": { "action": "moveFloatingPaneToSplit", "split": "right" } }
             ]
         },
         {

@@ -180,9 +180,10 @@ namespace winrt::TerminalApp::implementation
     {
         ASSERT_UI_THREAD();
 
-        if (_floatPane)
+        auto floatingPane = GetFloatPane();
+        if (floatingPane && _floatingPaneVisible)
         {
-            return _floatPane->GetTerminalControl();
+            return floatingPane->GetTerminalControl();
         }
         else if (_activePane)
         {
@@ -193,6 +194,11 @@ namespace winrt::TerminalApp::implementation
 
     IPaneContent TerminalTab::GetActiveContent() const
     {
+        if (FloatingPaneVisible())
+        {
+            return GetFloatPane()->GetContent();
+        }
+
         return _activePane ? _activePane->GetContent() : nullptr;
     }
 
@@ -595,7 +601,7 @@ namespace winrt::TerminalApp::implementation
     {
         ASSERT_UI_THREAD();
 
-        if (HasFloatPane())
+        if (FloatingPaneVisible())
         {
             auto result = DetachFloatPane();
             _UpdateActivePane(_rootPane->GetActivePane());
@@ -653,41 +659,109 @@ namespace winrt::TerminalApp::implementation
     {
         ASSERT_UI_THREAD();
 
-        return _floatPane;
+        if (_floatingPanes.size() == 0)
+        {
+            return nullptr;
+        }
+
+        return std::get<0>(_floatingPanes[_activeFloatingPaneIndex]);
     }
 
-    void TerminalTab::ClearFloatPane()
+    void TerminalTab::RemoveFloatPane(std::shared_ptr<Pane> pane)
     {
         ASSERT_UI_THREAD();
-        _floatPane->Closed(_floatPaneCloseToken);
-        _floatPane.reset();
+
+        for (auto i = 0; i < _floatingPanes.size(); i++)
+        {
+            auto floatingPaneTuple = _floatingPanes[i];
+            auto floatingPane = std::get<0>(floatingPaneTuple);
+            if (floatingPane == pane)
+            {
+                auto closeToken = std::get<1>(floatingPaneTuple);
+                floatingPane->Closed(closeToken);
+                //Removing element while in loop is only safe because we break afterward
+                _floatingPanes.erase(_floatingPanes.begin() + i);
+                if (_floatingPanes.size() == 0)
+                {
+                    _floatingPaneVisible = false;
+                    _activeFloatingPaneIndex = 0;
+                }
+                else if (i < _activeFloatingPaneIndex)
+                {
+                    _activeFloatingPaneIndex = static_cast<uint16_t>(std::max(0, static_cast<int>(_activeFloatingPaneIndex) - 1));
+                }
+                else if (i == _activeFloatingPaneIndex && i == _floatingPanes.size())
+                {
+                    _activeFloatingPaneIndex = static_cast<uint16_t>(_floatingPanes.size() - 1);
+                }
+
+                break;
+            }
+        }
     }
 
     bool TerminalTab::HasFloatPane() const
     {
-        return _floatPane != nullptr;
+        return _floatingPanes.size() > 0;
+    }
+
+    bool TerminalTab::FloatingPaneVisible() const
+    {
+        return HasFloatPane() && _floatingPaneVisible;
+    }
+
+    void TerminalTab::SelectNextFloatingPane()
+    {
+        auto newIndex = _activeFloatingPaneIndex + 1;
+        if (newIndex >= _floatingPanes.size())
+        {
+            _activeFloatingPaneIndex = 0;
+        }
+        else
+        {
+            _activeFloatingPaneIndex = static_cast<uint16_t>(newIndex);
+        }
+    }
+
+    void TerminalTab::SelectPreviousFloatingPane()
+    {
+        auto newIndex = _activeFloatingPaneIndex - 1;
+        if (newIndex < 0)
+        {
+            _activeFloatingPaneIndex = static_cast<uint16_t>(_floatingPanes.size() - 1);
+        }
+        else
+        {
+            _activeFloatingPaneIndex = static_cast<uint16_t>(newIndex);
+        }
     }
 
     std::shared_ptr<Pane> TerminalTab::DetachFloatPane()
     {
-        auto result = _floatPane;
-        ClearFloatPane();
+        auto result = GetFloatPane();
+        RemoveFloatPane(result);
         return result;
     }
 
-    void TerminalTab::MoveFloatPaneToSplit()
+    void TerminalTab::MoveFloatPaneToSplit(SplitDirection direction)
     {
         ASSERT_UI_THREAD();
         auto pane = DetachFloatPane();
-        AttachPane(pane);
+        SplitPane(direction, 0.5f, pane);
         pane->GetContent().Focus(::FocusState::Programmatic);
     }
 
     void TerminalTab::AttachPaneAsFloat(std::shared_ptr<Pane> pane, winrt::event_token closeToken)
     {
         ASSERT_UI_THREAD();
-        _floatPane = pane;
-        _floatPaneCloseToken = closeToken;
+        _floatingPanes.emplace_back(std::make_tuple(pane, closeToken));
+        _activeFloatingPaneIndex = static_cast<uint16_t>(_floatingPanes.size() - 1);
+        _floatingPaneVisible = true;
+    }
+
+    void TerminalTab::SetFloatingPaneVisibility(bool value)
+    {
+        _floatingPaneVisible = value;
     }
 
     // Method Description:
@@ -1912,9 +1986,9 @@ namespace winrt::TerminalApp::implementation
     {
         ASSERT_UI_THREAD();
 
-        if (HasFloatPane())
+        if (FloatingPaneVisible())
         {
-            return _floatPane;
+            return GetFloatPane();
         }
 
         return _activePane;

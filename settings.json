@@ -41,8 +41,8 @@
       "command": "toggleFullscreen"
     },
     {
-      "command": "duplicatePaneAsFloat",
-      "id": "User.duplicatePaneAsFloat",
+      "command": "toggleFloatingPane",
+      "id": "User.toggleFloatingPane",
       "keys": "ctrl+shift+e"
     },
     {

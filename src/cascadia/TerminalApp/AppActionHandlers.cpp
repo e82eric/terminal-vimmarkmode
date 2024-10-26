@@ -67,19 +67,44 @@ namespace winrt::TerminalApp::implementation
         args.Handled(true);
     }
 
-    void TerminalPage::_HandleDuplicatePaneAsFloat(const IInspectable& /*sender*/,
-                                           const ActionEventArgs& args)
+    void TerminalPage::_HandleToggleFloatingPane(const IInspectable&, const ActionEventArgs &args)
     {
-        if (FloatContent().Visibility() == Visibility::Visible)
+        if (_GetFocusedTabImpl()->HasFloatPane())
         {
-            MoveFloatPaneToSplit();
+            ToggleFloatingPane();
         }
         else
         {
             const auto termPane = _MakePane(nullptr, nullptr, nullptr);
-            AddFloatPane(termPane);
+            AddFloatingPane(termPane);
             termPane->FocusPane(termPane);
         }
+
+        args.Handled(true);
+    }
+
+    void TerminalPage::_HandleMovePaneToFloatingPane(const IInspectable&, const ActionEventArgs &args)
+    {
+        if (const auto terminalTab{ _GetFocusedTabImpl() })
+        {
+            if (terminalTab->GetLeafPaneCount() > 1)
+            {
+                if (const auto pane{ terminalTab->GetActivePane() })
+                {
+                    terminalTab->DetachPane();
+                    AddFloatingPane(pane);
+                }
+            }
+        }
+
+        args.Handled(true);
+    }
+
+    void TerminalPage::_HandleDuplicatePaneAsFloat(const IInspectable& /*sender*/,
+                                           const ActionEventArgs& args)
+    {
+        const auto termPane = _MakePane(nullptr, nullptr, nullptr);
+        AddFloatingPane(termPane);
         args.Handled(true);
     }
 
@@ -202,6 +227,22 @@ namespace winrt::TerminalApp::implementation
             {
                 termControl.SendInput(realArgs.Input());
                 args.Handled(true);
+            }
+        }
+        else if (const auto& realArgs = args.ActionArgs().try_as<SendInputToPaneArgs>())
+        {
+            if (const auto activeTab{ _GetFocusedTabImpl() })
+            {
+                _UnZoomIfNeeded();
+                activeTab->SetFloatingPaneVisibility(false);
+                _ensureFloatingPaneState(activeTab);
+                activeTab->FocusPane(realArgs.PaneId());
+
+                if (const auto termControl{ _GetActiveControl() })
+                {
+                    termControl.SendInput(realArgs.Input());
+                    args.Handled(true);
+                }
             }
         }
     }
@@ -511,6 +552,34 @@ namespace winrt::TerminalApp::implementation
             }
 
             LOG_IF_FAILED(_OpenNewTab(realArgs.ContentArgs()));
+            args.Handled(true);
+        }
+    }
+
+    void TerminalPage::_HandleNewFloatingPane(const IInspectable& /*sender*/,
+                                     const ActionEventArgs& args)
+    {
+        if (const auto& realArgs = args.ActionArgs().try_as<NewFloatingPaneArgs>())
+        {
+            auto current = _GetActiveControl();
+            if (const auto& newTerminalArgs{ realArgs.ContentArgs().try_as<NewTerminalArgs>() })
+            {
+                auto t = current.CurrentWorkingDirectory();
+                newTerminalArgs.StartingDirectory(current.CurrentWorkingDirectory());
+            }
+            const auto termPane = _MakePane(realArgs.ContentArgs(), nullptr, nullptr);
+            AddFloatingPane(termPane);
+            args.Handled(true);
+        }
+    }
+
+    void TerminalPage::_HandleMoveFloatingPaneToSplit(const IInspectable& /*sender*/,
+                                     const ActionEventArgs& args)
+    {
+        if (const auto& realArgs = args.ActionArgs().try_as<MoveFloatingPaneToSplitArgs>())
+        {
+            MoveFloatingPaneToSplit(realArgs.SplitDirection());
+            args.Handled(true);
             args.Handled(true);
         }
     }
@@ -1218,6 +1287,8 @@ namespace winrt::TerminalApp::implementation
                 if (const auto activeTab{ _GetFocusedTabImpl() })
                 {
                     _UnZoomIfNeeded();
+                    activeTab->SetFloatingPaneVisibility(false);
+                    _ensureFloatingPaneState(activeTab);
                     args.Handled(activeTab->FocusPane(paneId));
                 }
             }

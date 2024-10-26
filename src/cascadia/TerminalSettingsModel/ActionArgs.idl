@@ -192,6 +192,18 @@ namespace Microsoft.Terminal.Settings.Model
         INewContentArgs ContentArgs { get; };
     };
 
+    [default_interface] runtimeclass NewFloatingPaneArgs : IActionArgs
+    {
+        NewFloatingPaneArgs(INewContentArgs contentArgs);
+        INewContentArgs ContentArgs { get; };
+    };
+
+    [default_interface] runtimeclass MoveFloatingPaneToSplitArgs : IActionArgs
+    {
+        MoveFloatingPaneToSplitArgs(SplitDirection splitDirection);
+        SplitDirection SplitDirection { get; };
+    };
+
     [default_interface] runtimeclass MovePaneArgs : IActionArgs
     {
         MovePaneArgs(UInt32 tabIndex, String Window);
@@ -374,6 +386,14 @@ namespace Microsoft.Terminal.Settings.Model
         String Name;
         String Commandline;
         String KeyChord;
+    };
+
+    [default_interface] runtimeclass SendInputToPaneArgs : IActionArgs
+    {
+        SendInputToPaneArgs();
+        SendInputToPaneArgs(UInt32 paneId, String Text);
+        UInt32 PaneId;
+        String Input;
     };
 
     [default_interface] runtimeclass NewWindowArgs : IActionArgs

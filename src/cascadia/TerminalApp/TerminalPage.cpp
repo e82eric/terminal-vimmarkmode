@@ -1860,6 +1860,21 @@ namespace winrt::TerminalApp::implementation
     {
         if (const auto terminalTab{ _GetFocusedTabImpl() })
         {
+            if (terminalTab->FloatingPaneVisible())
+            {
+                if (direction == FocusDirection::Right)
+                {
+                    terminalTab->SelectNextFloatingPane();
+                }
+                else if (direction == FocusDirection::Left)
+                {
+                    terminalTab->SelectPreviousFloatingPane();
+                }
+                _ensureFloatingPaneState(terminalTab);
+
+                return true;
+            }
+
             return terminalTab->NavigateFocus(direction);
         }
         return false;
@@ -2133,15 +2148,21 @@ namespace winrt::TerminalApp::implementation
             {
                 if (const auto pane{ terminalTab->GetActivePane() })
                 {
-                    if (focusedTab->HasFloatPane())
+                    bool isFloatingPane = false;
+                    if (focusedTab->FloatingPaneVisible())
                     {
-                        HideFloatPaneElements();
+                        HideFloatingPaneElements(focusedTab);
+                        terminalTab->RemoveFloatPane(pane);
+                        isFloatingPane = true;
                     }
 
                     auto startupActions = pane->BuildStartupActions(0, 1, BuildStartupKind::MovePane);
                     _DetachPaneFromWindow(pane);
                     _MoveContent(std::move(startupActions.args), windowId, tabIdx);
-                    focusedTab->DetachPane();
+                    if (!isFloatingPane)
+                    {
+                        focusedTab->DetachPane();
+                    }
 
                     if (auto autoPeer = Automation::Peers::FrameworkElementAutomationPeer::FromElement(*this))
                     {
@@ -2183,12 +2204,13 @@ namespace winrt::TerminalApp::implementation
                 return false;
             }
 
-            if (focusedTab->HasFloatPane())
+            auto isFloatingPane = focusedTab->FloatingPaneVisible();
+            auto pane = focusedTab->DetachPane();
+            if (isFloatingPane)
             {
-                HideFloatPaneElements();
+                HideFloatingPaneElements(focusedTab);
             }
 
-            auto pane = focusedTab->DetachPane();
             targetTab->AttachPane(pane);
             _SetFocusedTab(*targetTab);
 
@@ -2203,11 +2225,13 @@ namespace winrt::TerminalApp::implementation
         }
         else
         {
-            if (focusedTab->HasFloatPane())
-            {
-                HideFloatPaneElements();
-            }
+            auto isFloatingPane = focusedTab->FloatingPaneVisible();
             auto pane = focusedTab->DetachPane();
+            if (isFloatingPane)
+            {
+                HideFloatingPaneElements(focusedTab);
+            }
+
             _CreateNewTabFromPane(pane);
             if (auto autoPeer = Automation::Peers::FrameworkElementAutomationPeer::FromElement(*this))
             {
