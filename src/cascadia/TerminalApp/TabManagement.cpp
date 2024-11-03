@@ -846,7 +846,7 @@ namespace winrt::TerminalApp::implementation
             {
                 _ensureFloatingPaneState(terminalTab);
             }
-            else if (const auto pane{ terminalTab->GetActivePane() })
+            if (const auto pane{ terminalTab->GetActivePane() })
             {
                 if (co_await _PaneConfirmCloseReadOnly(pane))
                 {
