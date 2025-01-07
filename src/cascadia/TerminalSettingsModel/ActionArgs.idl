@@ -64,9 +64,9 @@ namespace Microsoft.Terminal.Settings.Model
         DefaultsFile,
         AllFiles,
         SettingsUI,
-        FileExplorer,
         SendInput,
-        Clipboard
+        Clipboard,
+        Directory
     };
 
     enum MoveTabDirection
@@ -183,6 +183,7 @@ namespace Microsoft.Terminal.Settings.Model
         CopyTextArgs();
         Boolean DismissSelection { get; };
         Boolean SingleLine { get; };
+        Boolean WithControlSequences { get; };
         Windows.Foundation.IReference<Microsoft.Terminal.Control.CopyFormat> CopyFormatting { get; };
     };
 

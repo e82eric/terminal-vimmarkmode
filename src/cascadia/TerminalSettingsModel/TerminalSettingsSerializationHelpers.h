@@ -439,9 +439,9 @@ JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::SettingsTarget)
         pair_type{ "defaultsFile", ValueType::DefaultsFile },
         pair_type{ "allFiles", ValueType::AllFiles },
         pair_type{ "settingsUI", ValueType::SettingsUI },
-        pair_type{ "fileExplorer", ValueType::FileExplorer },
         pair_type{ "sendInput", ValueType::SendInput },
         pair_type{ "clipboard", ValueType::Clipboard },
+        pair_type{ "directory", ValueType::Directory }
     };
 };
 
@@ -791,5 +791,15 @@ JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Control::DefaultInputScope)
     JSON_MAPPINGS(2) = {
         pair_type{ "default", ValueType::Default },
         pair_type{ "alphanumericHalfWidth", ValueType::AlphanumericHalfWidth },
+    };
+};
+
+JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Control::PathTranslationStyle)
+{
+    static constexpr std::array<pair_type, 4> mappings = {
+        pair_type{ "none", ValueType::None },
+        pair_type{ "wsl", ValueType::WSL },
+        pair_type{ "cygwin", ValueType::Cygwin },
+        pair_type{ "msys2", ValueType::MSYS2 },
     };
 };

@@ -138,7 +138,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void SendInput(std::wstring_view wstr);
         void PasteText(const winrt::hstring& hstr);
-        bool CopySelectionToClipboard(bool singleLine, const Windows::Foundation::IReference<CopyFormat>& formats);
+        bool CopySelectionToClipboard(bool singleLine, bool withControlSequences, const Windows::Foundation::IReference<CopyFormat>& formats);
         void SelectAll();
         void ClearSelection();
         bool ToggleBlockSelection();
@@ -171,6 +171,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void RestoreFromPath(const wchar_t* path) const;
 
         void ClearQuickFix();
+
+        void OpenCWD();
 
 #pragma region ICoreState
         const size_t TaskbarState() const noexcept;

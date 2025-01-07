@@ -43,6 +43,8 @@
     </ClCompile>
     <ClCompile Include="Toast.cpp" />
     <ClCompile Include="LanguageProfileNotifier.cpp" />
+    <ClCompile Include="Monarch.cpp" />
+    <ClCompile Include="Peasant.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -77,6 +79,9 @@
     </ClInclude>
     <ClInclude Include="Toast.h" />
     <ClInclude Include="LanguageProfileNotifier.h" />
+    <ClInclude Include="WindowsPackageManagerFactory.h" />
+    <ClInclude Include="Monarch.h" />
+    <ClInclude Include="Peasant.h" />
   </ItemGroup>
   <ItemGroup>
     <Midl Include="AppLogic.idl">
@@ -107,6 +112,7 @@
     <Midl Include="IPaneContent.idl" />
     <Midl Include="TerminalPaneContent.idl" />
     <Midl Include="TerminalSettingsCache.idl" />
+    <Midl Include="Monarch.idl" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="MinMaxCloseControl.xaml">
@@ -147,6 +153,10 @@
     </Page>
     <Page Include="AboutDialog.xaml" />
     <Page Include="SuggestionsControl.xaml" />
+<<<<<<< HEAD
+=======
+    <Page Include="SnippetsPaneContent.xaml" />
+>>>>>>> microsoft/main
   </ItemGroup>
   <ItemGroup>
     <Filter Include="app">

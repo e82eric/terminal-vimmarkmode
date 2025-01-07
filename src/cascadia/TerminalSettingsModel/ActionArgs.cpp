@@ -211,6 +211,11 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             str.append(RS_(L"CopyTextCommandKey"));
         }
 
+        if (WithControlSequences())
+        {
+            str.append(L", withControlSequences: true");
+        }
+
         if (!DismissSelection())
         {
             str.append(L", dismissSelection: false");
@@ -534,10 +539,10 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             return RS_(L"OpenSettingsCommandKey");
         case SettingsTarget::SendInput:
             return L"Send Input: Settings File Path";
-        case SettingsTarget::FileExplorer:
-            return L"Open Settings Directory";
         case SettingsTarget::Clipboard:
             return L"Send settings file path to clipboard";
+        case SettingsTarget::Directory:
+            return RS_(L"SettingsFileOpenInExplorerCommandKey");
         case SettingsTarget::SettingsUI:
         default:
             return RS_(L"OpenSettingsUICommandKey");
