@@ -47,66 +47,6 @@ constexpr std::wstring_view StateCollapsed{ L"Collapsed" };
 DEFINE_ENUM_FLAG_OPERATORS(winrt::Microsoft::Terminal::Control::CopyFormat);
 DEFINE_ENUM_FLAG_OPERATORS(winrt::Microsoft::Terminal::Control::MouseButtonState);
 
-// WinUI 3's UIElement.ProtectedCursor property allows someone to set the cursor on a per-element basis.
-// This would allow us to hide the cursor when the TermControl has input focus and someone starts typing.
-// Unfortunately, no equivalent exists for WinUI 2 so we fake it with the CoreWindow.
-// There are 3 downsides:
-// * SetPointerCapture() is global state and may interfere with other components.
-// * You can't start dragging the cursor (for text selection) while it's still hidden.
-// * The CoreWindow covers the union of all window rectangles, so the cursor is hidden even if it's outside
-//   the current foreground window, but still on top of another Terminal window in the background.
-static void hideCursorUntilMoved()
-{
-    static bool cursorIsHidden;
-    static const auto shouldVanish = []() {
-        BOOL shouldVanish = TRUE;
-        SystemParametersInfoW(SPI_GETMOUSEVANISH, 0, &shouldVanish, 0);
-        if (!shouldVanish)
-        {
-            return false;
-        }
-
-        const auto window = CoreWindow::GetForCurrentThread();
-        static constexpr auto releaseCapture = [](CoreWindow window, PointerEventArgs) {
-            if (cursorIsHidden)
-            {
-                window.ReleasePointerCapture();
-            }
-        };
-        static constexpr auto restoreCursor = [](CoreWindow window, PointerEventArgs) {
-            if (cursorIsHidden)
-            {
-                cursorIsHidden = false;
-                window.PointerCursor(CoreCursor{ CoreCursorType::Arrow, 0 });
-            }
-        };
-
-        winrt::Windows::Foundation::TypedEventHandler<CoreWindow, PointerEventArgs> releaseCaptureHandler{ releaseCapture };
-        std::ignore = window.PointerMoved(releaseCaptureHandler);
-        std::ignore = window.PointerPressed(releaseCaptureHandler);
-        std::ignore = window.PointerReleased(releaseCaptureHandler);
-        std::ignore = window.PointerWheelChanged(releaseCaptureHandler);
-        std::ignore = window.PointerCaptureLost(restoreCursor);
-        return true;
-    }();
-
-    if (shouldVanish && !cursorIsHidden)
-    {
-        try
-        {
-            const auto window = CoreWindow::GetForCurrentThread();
-            window.PointerCursor(nullptr);
-            window.SetPointerCapture();
-            cursorIsHidden = true;
-        }
-        catch (...)
-        {
-            // Swallow the 0x80070057 "Failed to get pointer information." exception that randomly occurs.
-            // Curiously, it doesn't happen during the PointerCursor() but during the SetPointerCapture() call (thanks, WinUI).
-        }
-    }
-}
-
 // InputPane::GetForCurrentView() does not reliably work for XAML islands,
 // as it assumes that there's a 1:1 relationship between windows and threads.
 //
@@ -1043,7 +983,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto settings{ _core.Settings() };
 
         // Apply padding as swapChainPanel's margin
-        const auto newMargin = ParseThicknessFromPadding(settings.Padding());
+        const auto newMargin = StringToXamlThickness(settings.Padding());
         SwapChainPanel().Margin(newMargin);
 
         // Apply settings for scrollbar
@@ -1668,8 +1608,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             return;
         }
-
-        hideCursorUntilMoved();
 
         const auto ch = e.Character();
         const auto keyStatus = e.KeyStatus();
@@ -3227,7 +3165,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         float height = rows * static_cast<float>(actualFontSize.height);
-        const auto thickness = ParseThicknessFromPadding(padding);
+        const auto thickness = StringToXamlThickness(padding);
         // GH#2061 - make sure to account for the size the padding _will be_ scaled to
         width += scale * static_cast<float>(thickness.Left + thickness.Right);
         height += scale * static_cast<float>(thickness.Top + thickness.Bottom);
@@ -3263,7 +3201,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             width += scrollbarSize;
         }
 
-        const auto thickness = ParseThicknessFromPadding(padding);
+        const auto thickness = StringToXamlThickness(padding);
         // GH#2061 - make sure to account for the size the padding _will be_ scaled to
         width += scale * static_cast<float>(thickness.Left + thickness.Right);
         height += scale * static_cast<float>(thickness.Top + thickness.Bottom);
@@ -3360,63 +3298,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::WindowVisibilityChanged(const bool showOrHide)
     {
         _core.WindowVisibilityChanged(showOrHide);
-    }
-
-    // Method Description:
-    // - Create XAML Thickness object based on padding props provided.
-    //   Used for controlling the TermControl XAML Grid container's Padding prop.
-    // Arguments:
-    // - padding: 2D padding values
-    //      Single Double value provides uniform padding
-    //      Two Double values provide isometric horizontal & vertical padding
-    //      Four Double values provide independent padding for 4 sides of the bounding rectangle
-    // Return Value:
-    // - Windows::UI::Xaml::Thickness object
-    Windows::UI::Xaml::Thickness TermControl::ParseThicknessFromPadding(const hstring padding)
-    {
-        const auto singleCharDelim = L',';
-        std::wstringstream tokenStream(padding.c_str());
-        std::wstring token;
-        uint8_t paddingPropIndex = 0;
-        std::array<double, 4> thicknessArr = {};
-        size_t* idx = nullptr;
-
-        // Get padding values till we run out of delimiter separated values in the stream
-        //  or we hit max number of allowable values (= 4) for the bounding rectangle
-        // Non-numeral values detected will default to 0
-        // std::getline will not throw exception unless flags are set on the wstringstream
-        // std::stod will throw invalid_argument exception if the input is an invalid double value
-        // std::stod will throw out_of_range exception if the input value is more than DBL_MAX
-        try
-        {
-            for (; std::getline(tokenStream, token, singleCharDelim) && (paddingPropIndex < thicknessArr.size()); paddingPropIndex++)
-            {
-                // std::stod internally calls wcstod which handles whitespace prefix (which is ignored)
-                //  & stops the scan when first char outside the range of radix is encountered
-                // We'll be permissive till the extent that stod function allows us to be by default
-                // Ex. a value like 100.3#535w2 will be read as 100.3, but ;df25 will fail
-                thicknessArr[paddingPropIndex] = std::stod(token, idx);
-            }
-        }
-        catch (...)
-        {
-            // If something goes wrong, even if due to a single bad padding value, we'll reset the index & return default 0 padding
-            paddingPropIndex = 0;
-            LOG_CAUGHT_EXCEPTION();
-        }
-
-        switch (paddingPropIndex)
-        {
-        case 1:
-            return ThicknessHelper::FromUniformLength(thicknessArr[0]);
-        case 2:
-            return ThicknessHelper::FromLengths(thicknessArr[0], thicknessArr[1], thicknessArr[0], thicknessArr[1]);
-        // No case for paddingPropIndex = 3, since it's not a norm to provide just Left, Top & Right padding values leaving out Bottom
-        case 4:
-            return ThicknessHelper::FromLengths(thicknessArr[0], thicknessArr[1], thicknessArr[2], thicknessArr[3]);
-        default:
-            return Thickness();
-        }
     }
 
     // Method Description:
