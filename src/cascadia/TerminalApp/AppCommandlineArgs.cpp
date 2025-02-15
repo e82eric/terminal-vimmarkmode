@@ -1125,7 +1125,7 @@ void AppCommandlineArgs::ValidateStartupCommands()
         // current terminal window. This will prevent us from spawning a new
         // window just to save the commandline.
         if (_startupActions.size() == 1 &&
-            _startupActions.front().Action() == ShortcutAction::SaveSnippet &&
+            (_startupActions.front().Action() == ShortcutAction::SaveSnippet || _startupActions.front().Action() == ShortcutAction::SendInput) && 
             _windowTarget.empty())
         {
             _windowTarget = "0";
