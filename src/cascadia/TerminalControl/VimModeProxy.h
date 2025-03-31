@@ -138,6 +138,7 @@ public:
     void CommitSearch();
 
 private:
+    til::point _getLastNonSpaceChar() const;
     void _setStateForCompletedSequence();
     til::point _updateFromResize(til::point from) const;
     void _setPosForResize(til::point pos, til::point& target) const;

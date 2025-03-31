@@ -513,6 +513,9 @@ void AdaptDispatch::CursorSaveState()
     savedCursorState.IsOriginModeRelative = _modes.test(Mode::Origin);
     savedCursorState.Attributes = page.Attributes();
     savedCursorState.TermOutput = _termOutput;
+    savedCursorState.CursorType = page.Cursor().GetType();
+    savedCursorState.IsBlinkingAllowed = page.Cursor().IsBlinkingAllowed();
+    savedCursorState.Size = page.Cursor().GetSize();
 }
 
 // Routine Description:
@@ -540,6 +543,10 @@ void AdaptDispatch::CursorRestoreState()
     {
         page.Cursor().DelayEOLWrap();
     }
+
+    page.Cursor().SetBlinkingAllowed(savedCursorState.IsBlinkingAllowed);
+    page.Cursor().SetType(savedCursorState.CursorType);
+    page.Cursor().SetSize(savedCursorState.Size);
 
     // Restore text attributes.
     page.SetAttributes(savedCursorState.Attributes);

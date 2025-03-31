@@ -516,14 +516,19 @@ void VimModeProxy::_selectLineRight(bool isVisual)
     else
     {
         const auto pos = selection->pivot == selection->start ? selection->end : selection->start;
+        auto lastRowWithChars = pos.y;
         til::CoordType endLine = pos.y;
         while (_terminal->GetTextBuffer().GetRowByOffset(endLine).WasWrapForced())
         {
             endLine++;
+            if (_terminal->GetTextBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() > 0)
+            {
+                lastRowWithChars = endLine;
+            }
         }
 
-        const auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() - 1);
-        auto s = til::point{ lastNonSpaceColumn, endLine };
+        const auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(lastRowWithChars).GetLastNonSpaceColumn() - 1);
+        auto s = til::point{ lastNonSpaceColumn, lastRowWithChars };
         _UpdateSelection(isVisual, s);
     }
 }
@@ -625,7 +630,7 @@ void VimModeProxy::_selectTop(bool isVisual)
 
 void VimModeProxy::_selectBottom(bool isVisual)
 {
-    auto lastChar = _terminal->GetTextBuffer().GetLastNonSpaceCharacter();
+    auto lastChar = _getLastNonSpaceChar();
     _UpdateSelection(isVisual, lastChar);
     _terminal->UserScrollViewport(lastChar.y);
 }
@@ -681,7 +686,7 @@ void VimModeProxy::_selectHalfPageDown(bool isVisual, bool entireLine)
     const auto pos = startIsPivot ? selection->end : selection->start;
 
     const auto viewportHeight{ _terminal->GetViewport().Height() };
-    const auto lastRow = _terminal->GetTextBuffer().GetLastNonSpaceCharacter().y;
+    const auto lastRow = _getLastNonSpaceChar().y;
     const auto newY= pos.y + viewportHeight / 2 ;
     const auto y = newY > lastRow ? lastRow : newY;
     const til::CoordType x = pos.x;
@@ -848,7 +853,7 @@ bool VimModeProxy::_executeVimSelection(
 {
     bool exitAfter = false;
     bool selectFromStart = isVisual || action == VimActionType::yank;
-    const auto lastNonSpaceChar = _terminal->GetTextBuffer().GetLastNonSpaceCharacter();
+    const auto lastNonSpaceChar = _getLastNonSpaceChar();
 
     for (int i = 0; i < times; i++)
     {
@@ -1850,6 +1855,19 @@ void VimModeProxy::CommitSearch()
     _setStateForCompletedSequence();
 }
 
+til::point VimModeProxy::_getLastNonSpaceChar() const
+{
+    auto &buffer = _terminal->GetTextBuffer();
+    auto maybeLastChar = buffer.GetLastNonSpaceCharacter();
+    auto maybeLastRowNumber = maybeLastChar.y;
+    while (buffer.GetRowByOffset(maybeLastRowNumber).GetLastNonSpaceColumn() == 0)
+    {
+        maybeLastRowNumber--;
+    }
+    auto lastColumn = buffer.GetRowByOffset(maybeLastRowNumber).GetLastNonSpaceColumn();
+    return til::point{ lastColumn, maybeLastRowNumber };
+}
+
 void VimModeProxy::_setStateForCompletedSequence()
 {
     _lastTextObject = _textObject;
@@ -2044,7 +2062,7 @@ std::tuple<bool, til::point, til::point> VimModeProxy::_findBlockEndFromStart(ti
     til::CoordType endY = -1;
 
     auto innerPairs = 0;
-    auto lastNonSpaceChar = _terminal->GetTextBuffer().GetLastNonSpaceCharacter();
+    auto lastNonSpaceChar = _getLastNonSpaceChar();
     auto found = false;
     for (auto j = pos.y; j <= lastNonSpaceChar.y; j++)
     {
@@ -2463,7 +2481,8 @@ void VimModeProxy::ResetVimModeForSizeChange(bool selectLastChar)
 
         if (selectLastChar)
         {
-            _terminal->SelectLastChar();
+            auto lastNonSpaceChar = _getLastNonSpaceChar();
+            _terminal->SelectChar(lastNonSpaceChar);
         }
 
         if (selectLastChar)

@@ -427,20 +427,6 @@ try
 }
 CATCH_RETURN()
 
-int32_t Terminal::SelectLastChar()
-{
-    auto lastNonSpaceChar = _mainBuffer->GetLastNonSpaceCharacter();
-    if (_inAltBuffer())
-    {
-        lastNonSpaceChar = _altBuffer->GetLastNonSpaceCharacter();
-    }
-    auto selection{ _selection.write() };
-    selection->start = lastNonSpaceChar;
-    selection->end = lastNonSpaceChar;
-    selection->pivot = lastNonSpaceChar;
-    return lastNonSpaceChar.y;
-}
-
 void Terminal::Write(std::wstring_view stringView)
 {
     _stateMachine->ProcessString(stringView);

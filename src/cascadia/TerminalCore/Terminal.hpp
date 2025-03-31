@@ -175,7 +175,6 @@ public:
     [[nodiscard]] ::Microsoft::Console::VirtualTerminal::TerminalInput::OutputType FocusChanged(const bool focused) override;
 
     [[nodiscard]] HRESULT UserResize(const til::size viewportSize) noexcept override;
-    int32_t SelectLastChar();
     void UserScrollViewport(const int viewTop) override;
     int GetScrollOffset() noexcept override;
 

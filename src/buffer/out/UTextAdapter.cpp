@@ -498,15 +498,17 @@ try
     auto rowNumber = 0;
     if (nativeIndex > 0)
     {
-        rowNumber = std::max(0, static_cast<til::CoordType>((numberOfRows) - (charsInRow / nativeIndex)));
+        rowNumber = std::min(numberOfRows - 1, static_cast<til::CoordType>(nativeIndex / charsInRow));
     }
     auto rowIndex = nativeIndex - (rowNumber * charsInRow);
 
     auto text = textBuffer.GetRowByOffset(startRow + rowNumber).GetText();
+    auto nativeLimit = static_cast<int64_t>(nativeIndex + (charsInRow - rowIndex));
 
     ut->chunkOffset = 0;
     ut->chunkNativeStart = nativeIndex;
     ut->chunkNativeLimit = charsInRow - rowIndex;
+    ut->chunkNativeLimit = nativeLimit;
     ut->chunkLength = charsInRow - static_cast<int32_t>(rowIndex);
 #pragma warning(suppress : 26490) // Don't use reinterpret_cast (type.1).
     ut->chunkContents = reinterpret_cast<const char16_t*>(text.data() + rowIndex);

@@ -604,15 +604,7 @@ void AppCommandlineArgs::_buildSendInputParser()
                         // If there's already something in here, prepend a space
                         cmdlineBuffer << ' ';
                     }
-
-                    if (arg.find(" ") != std::string::npos)
-                    {
-                        cmdlineBuffer << '"' << arg << '"';
-                    }
-                    else
-                    {
-                        cmdlineBuffer << arg;
-                    }
+                    cmdlineBuffer << arg;
                 }
 
                 args.Input(winrt::to_hstring(cmdlineBuffer.str()));
@@ -1125,7 +1117,9 @@ void AppCommandlineArgs::ValidateStartupCommands()
         // current terminal window. This will prevent us from spawning a new
         // window just to save the commandline.
         if (_startupActions.size() == 1 &&
-            (_startupActions.front().Action() == ShortcutAction::SaveSnippet || _startupActions.front().Action() == ShortcutAction::SendInput) && 
+            (_startupActions.front().Action() == ShortcutAction::SaveSnippet ||
+                _startupActions.front().Action() == ShortcutAction::SendInput ||
+                _startupActions.front().Action() == ShortcutAction::NewFloatingPane) && 
             _windowTarget.empty())
         {
             _windowTarget = "0";
