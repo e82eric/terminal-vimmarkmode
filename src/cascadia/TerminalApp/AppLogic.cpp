@@ -81,8 +81,6 @@ static winrt::hstring _GetErrorText(SettingsLoadErrors error)
     return _GetMessageText(static_cast<uint32_t>(error), settingsLoadErrorsLabels);
 }
 
-static constexpr std::wstring_view StartupTaskName = L"StartTerminalOnLoginTask";
-
 namespace winrt::TerminalApp::implementation
 {
     // Function Description:
@@ -183,8 +181,6 @@ namespace winrt::TerminalApp::implementation
         // Assert that we've already loaded our settings. We have to do
         // this as a MTA, before the app is Create()'d
         WINRT_ASSERT(_loadedInitialSettings);
-
-        _ApplyLanguageSettingChange();
 
         TraceLoggingWrite(
             g_hTerminalAppProvider,
@@ -335,8 +331,16 @@ namespace winrt::TerminalApp::implementation
     void AppLogic::_ApplyLanguageSettingChange() noexcept
     try
     {
+        const auto language = _settings.GlobalSettings().Language();
+
         if (!IsPackaged())
         {
+            if (!language.empty())
+            {
+                // We cannot use the packaged app API, PrimaryLanguageOverride, but we *can* tell the resource loader
+                // to set the Language for all loaded resources to the user's preferred language.
+                winrt::Windows::ApplicationModel::Resources::Core::ResourceContext::SetGlobalQualifierValue(L"Language", language);
+            }
             return;
         }
 
@@ -344,48 +348,12 @@ namespace winrt::TerminalApp::implementation
 
         // NOTE: PrimaryLanguageOverride throws if this instance is unpackaged.
         const auto primaryLanguageOverride = ApplicationLanguages::PrimaryLanguageOverride();
-        const auto language = _settings.GlobalSettings().Language();
-
         if (primaryLanguageOverride != language)
         {
             ApplicationLanguages::PrimaryLanguageOverride(language);
         }
     }
     CATCH_LOG()
-
-    safe_void_coroutine AppLogic::_ApplyStartupTaskStateChange()
-    try
-    {
-        // First, make sure we're running in a packaged context. This method
-        // won't work, and will crash mysteriously if we're running unpackaged.
-        if (!IsPackaged())
-        {
-            co_return;
-        }
-
-        const auto tryEnableStartupTask = _settings.GlobalSettings().StartOnUserLogin();
-        const auto task = co_await StartupTask::GetAsync(StartupTaskName);
-
-        switch (task.State())
-        {
-        case StartupTaskState::Disabled:
-            if (tryEnableStartupTask)
-            {
-                co_await task.RequestEnableAsync();
-            }
-            break;
-        case StartupTaskState::DisabledByUser:
-            // TODO: GH#6254: define UX for other StartupTaskStates
-            break;
-        case StartupTaskState::Enabled:
-            if (!tryEnableStartupTask)
-            {
-                task.Disable();
-            }
-            break;
-        }
-    }
-    CATCH_LOG();
 
     // Method Description:
     // - Reloads the settings from the settings.json file.
@@ -435,6 +403,9 @@ namespace winrt::TerminalApp::implementation
             _settings.LogSettingChanges(true);
         }
 
+        _ApplyLanguageSettingChange();
+        _ProcessLazySettingsChanges();
+
         if (initialLoad)
         {
             // Register for directory change notification.
@@ -444,10 +415,6 @@ namespace winrt::TerminalApp::implementation
 
         // Here, we successfully reloaded the settings, and created a new
         // TerminalSettings object.
-
-        _ApplyLanguageSettingChange();
-        _ApplyStartupTaskStateChange();
-        _ProcessLazySettingsChanges();
 
         auto warnings{ winrt::multi_threaded_vector<SettingsLoadWarnings>() };
         for (auto&& warn : _warnings)
@@ -473,7 +440,6 @@ namespace winrt::TerminalApp::implementation
         // Both LoadSettings and ReloadSettings are supposed to call this function,
         // but LoadSettings skips it, so that the UI starts up faster.
         // Now that the UI is present we can do them with a less significant UX impact.
-        _ApplyStartupTaskStateChange();
         _ProcessLazySettingsChanges();
 
         FILETIME creationTime, exitTime, kernelTime, userTime, now;

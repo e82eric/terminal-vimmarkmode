@@ -25,35 +25,12 @@ static constexpr auto renderBackoffBaseTimeMilliseconds{ 150 };
 // - Creates a new renderer controller for a console.
 // Arguments:
 // - pData - The interface to console data structures required for rendering
-// - pEngine - The output engine for targeting each rendering frame
 // Return Value:
 // - An instance of a Renderer.
-Renderer::Renderer(const RenderSettings& renderSettings,
-                   IRenderData* pData,
-                   _In_reads_(cEngines) IRenderEngine** const rgpEngines,
-                   const size_t cEngines,
-                   std::unique_ptr<RenderThread> thread) :
+Renderer::Renderer(const RenderSettings& renderSettings, IRenderData* pData) :
     _renderSettings(renderSettings),
-    _pData(pData),
-    _pThread{ std::move(thread) }
+    _pData(pData)
 {
-    for (size_t i = 0; i < cEngines; i++)
-    {
-        AddRenderEngine(rgpEngines[i]);
-    }
-}
-
-// Routine Description:
-// - Destroys an instance of a renderer
-// Arguments:
-// - <none>
-// Return Value:
-// - <none>
-Renderer::~Renderer()
-{
-    // RenderThread blocks until it has shut down.
-    _destructing = true;
-    _pThread.reset();
 }
 
 IRenderData* Renderer::GetRenderData() const noexcept
@@ -72,11 +49,6 @@ IRenderData* Renderer::GetRenderData() const noexcept
     auto tries = maxRetriesForRenderEngine;
     while (tries > 0)
     {
-        if (_destructing)
-        {
-            return S_FALSE;
-        }
-
         // BODGY: Optimally we would want to retry per engine, but that causes different
         // problems (intermittent inconsistent states between text renderer and UIA output,
         // not being able to lock the cursor location, etc.).
@@ -91,7 +63,7 @@ IRenderData* Renderer::GetRenderData() const noexcept
         if (--tries == 0)
         {
             // Stop trying.
-            _pThread->DisablePainting();
+            _thread.DisablePainting();
             if (_pfnRendererEnteredErrorState)
             {
                 _pfnRendererEnteredErrorState();
@@ -227,12 +199,8 @@ CATCH_RETURN()
 
 void Renderer::NotifyPaintFrame() noexcept
 {
-    // If we're running in the unittests, we might not have a render thread.
-    if (_pThread)
-    {
-        // The thread will provide throttling for us.
-        _pThread->NotifyPaint();
-    }
+    // The thread will provide throttling for us.
+    _thread.NotifyPaint();
 }
 
 // Routine Description:
@@ -335,7 +303,7 @@ void Renderer::TriggerRedrawAll(const bool backgroundChanged, const bool frameCh
 void Renderer::TriggerTeardown() noexcept
 {
     // We need to shut down the paint thread on teardown.
-    _pThread->WaitForPaintCompletionAndDisable(INFINITE);
+    _thread.TriggerTeardown();
 }
 
 // Routine Description:
@@ -401,9 +369,8 @@ try
             const til::rect vp{ _viewport.ToExclusive() };
             for (auto&& sp : spans)
             {
-                sp.iterate_rows(bufferWidth, [&](til::CoordType row, til::CoordType min, til::CoordType max) {
+                sp.iterate_rows_exclusive(bufferWidth, [&](til::CoordType row, til::CoordType min, til::CoordType max) {
                     const auto shift = buffer.GetLineRendition(row) != LineRendition::SingleWidth ? 1 : 0;
-                    max += 1; // Selection spans are inclusive (still)
                     min <<= shift;
                     max <<= shift;
                     til::rect r{ min, row, max, row + 1 };
@@ -697,25 +664,7 @@ void Renderer::EnablePainting()
     // When the renderer is constructed, the initial viewport won't be available yet,
     // but once EnablePainting is called it should be safe to retrieve.
     _viewport = _pData->GetViewport();
-
-    // When running the unit tests, we may be using a render without a render thread.
-    if (_pThread)
-    {
-        _pThread->EnablePainting();
-    }
-}
-
-// Routine Description:
-// - Waits for the current paint operation to complete, if any, up to the specified timeout.
-// - Resets an event in the render thread that precludes it from advancing, thus disabling rendering.
-// - If no paint operation is currently underway, returns immediately.
-// Arguments:
-// - dwTimeoutMs - Milliseconds to wait for the current paint operation to complete, if any (can be INFINITE).
-// Return Value:
-// - <none>
-void Renderer::WaitForPaintCompletionAndDisable(const DWORD dwTimeoutMs)
-{
-    _pThread->WaitForPaintCompletionAndDisable(dwTimeoutMs);
+    _thread.EnablePainting();
 }
 
 // Routine Description:
@@ -1552,14 +1501,6 @@ void Renderer::SetFrameColorChangedCallback(std::function<void()> pfn)
 void Renderer::SetRendererEnteredErrorStateCallback(std::function<void()> pfn)
 {
     _pfnRendererEnteredErrorState = std::move(pfn);
-}
-
-// Method Description:
-// - Attempts to restart the renderer.
-void Renderer::ResetErrorStateAndResume()
-{
-    // because we're not stateful (we could be in the future), all we want to do is reenable painting.
-    EnablePainting();
 }
 
 void Renderer::UpdateHyperlinkHoveredId(uint16_t id) noexcept

@@ -217,16 +217,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto lock = _terminal->LockForWriting();
 
         {
-            auto renderThread = std::make_unique<::Microsoft::Console::Render::RenderThread>();
-            auto* const localPointerToThread = renderThread.get();
-
             const auto& renderSettings = _terminal->GetRenderSettings();
             _fuzzySearchRenderData = std::make_unique<FuzzySearchRenderData>(_terminal.get());
-
-            _renderer = std::make_unique<::Microsoft::Console::Render::Renderer>(renderSettings, _fuzzySearchRenderData.get(), nullptr, 0, std::move(renderThread));
-
-            //_renderer->SetRendererEnteredErrorStateCallback([this]() { RendererEnteredErrorState.raise(nullptr, nullptr); });
-            THROW_IF_FAILED(localPointerToThread->Initialize(_renderer.get()));
+            _renderer = std::make_unique<::Microsoft::Console::Render::Renderer>(renderSettings, _fuzzySearchRenderData.get());
         }
 
         _updateSettings(settings, unfocusedAppearance);
@@ -763,7 +756,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         // Disable the renderer, so that it doesn't try to start any new frames
         // for our engines while we're not attached to anything.
-        _renderer->WaitForPaintCompletionAndDisable(INFINITE);
+        //_renderer->WaitForPaintCompletionAndDisable(INFINITE);
     }
 
     til::point FuzzySearchBoxControl::_toPosInDips(const Core::Point terminalCellPos)
