@@ -26,6 +26,7 @@
     <ClCompile Include="TerminalBufferTests.cpp" />
     <ClCompile Include="ScrollTest.cpp" />
     <ClCompile Include="TilWinRtHelpersTests.cpp" />
+    <ClCompile Include="VimMotionsTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\buffer\out\lib\bufferout.vcxproj">
@@ -63,8 +64,6 @@
   <!-- Careful reordering these. Some default props (contained in these files) are order sensitive. -->
   <Import Project="$(OpenConsoleDir)src\cppwinrt.build.post.props" />
   <Import Project="$(SolutionDir)src\common.build.tests.props" />
-
   <!-- This -must- go after cppwinrt.build.post.props because that includes many VS-provided props including appcontainer.common.props, which stomps on what cppwinrt.targets did. -->
   <Import Project="$(OpenConsoleDir)src\common.nugetversions.targets" />
-
 </Project>

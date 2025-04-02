@@ -48,9 +48,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="QuickSelectAlphabet.h" />
+    <ClInclude Include="VimMotions.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="QuickSelectAlphabet.cpp" />
+    <ClCompile Include="VimMotions.cpp" />
   </ItemGroup>
   <ItemDefinitionGroup>
     <ClCompile>

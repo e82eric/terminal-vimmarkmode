@@ -763,14 +763,14 @@ void Terminal::SelectChar(til::point point)
 {
     auto selection{ _selection.write() };
     selection->active = true;
-    selection->start = point;
-    selection->end = point;
-    selection->pivot = point;
+    selection->start = til::point{ point.x - 1, point.y };
+    selection->end = til::point{ point.x, point.y };
+    selection->pivot = selection->end;
 }
 
 void Terminal::SetPivot()
 {
-    auto targetPos{ _selection->start };
+    auto targetPos{ _selection->end };
     auto selection { _selection.write() };
     selection->pivot = targetPos;
 }

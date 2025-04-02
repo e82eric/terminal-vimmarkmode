@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "VimModeProxy.h"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
+#include "../../cascadia/TerminalCore/lib/VimMotions.hpp"
 
 VimModeProxy::VimModeProxy(std::shared_ptr<Microsoft::Terminal::Core::Terminal> terminal, winrt::Microsoft::Terminal::Control::implementation::ControlCore *controlCore, Search* searcher)
 {
@@ -116,38 +117,22 @@ void VimModeProxy::_handleSearch(bool moveForward)
 
 void VimModeProxy::_tilChar(std::wstring_view vkey, bool isVisual)
 {
-    til::point target;
-    if (_FindChar(vkey, true, target))
-    {
-        _UpdateSelection(isVisual, target);
-    }
+    vim::motions::TilChar(*_terminal, vkey, isVisual);
 }
 
 void VimModeProxy::_findChar(std::wstring_view vkey, bool isVisual)
 {
-    til::point target;
-    if (_FindChar(vkey, false, target))
-    {
-        _UpdateSelection(isVisual, target);
-    }
+    vim::motions::FindChar(*_terminal, vkey, isVisual);
 }
 
 void VimModeProxy::_findCharBack(std::wstring_view vkey, bool isVisual)
 {
-    til::point target;
-    if (_FindCharBack(vkey, false, target))
-    {
-        _UpdateSelection(isVisual, target);
-    }
+    vim::motions::FindCharBackwards(*_terminal, vkey, isVisual);
 }
 
 void VimModeProxy::_tilCharBack(std::wstring_view vkey, bool isVisual)
 {
-    til::point target;
-    if (_FindCharBack(vkey, true, target))
-    {
-        _UpdateSelection(isVisual, target);
-    }
+    vim::motions::TilCharBackwards(*_terminal, vkey, isVisual);
 }
 
 void VimModeProxy::_matchingChar(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual)
@@ -271,266 +256,37 @@ void VimModeProxy::_matchingChar(til::point startPos, std::wstring_view startDel
 
 void VimModeProxy::_inDelimiterSameLine(std::wstring_view delimiter, bool includeDelimiter)
 {
-    auto selectionAnchors = _terminal->GetSelectionAnchors();
-    const auto selection{ selectionAnchors.write() };
-    const auto pos = selection->start == selection->pivot ? selection->end : selection->start;
-
-    const auto posIsDelimiter = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(pos.x) == delimiter;
-
-    auto foundMatchGoingBack = false;
-    til::CoordType matchGoingBack;
-    for (auto i = pos.x - 1; i >= 0; i--)
-    {
-        auto g = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(i);
-        if (g == delimiter)
-        {
-            foundMatchGoingBack = true;
-            matchGoingBack = i;
-            break;
-        }
-    }
-
-    auto foundMatchGoingForward = false;
-    til::CoordType matchGoingForward;
-    for (auto i = pos.x + 1; i <= _terminal->GetTextBuffer().GetRowByOffset(pos.y).size(); i++)
-    {
-        auto g = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(i);
-        if (g == delimiter)
-        {
-            foundMatchGoingForward = true;
-            matchGoingForward = i;
-            break;
-        }
-    }
-
-    if (posIsDelimiter)
-    {
-        if (foundMatchGoingBack)
-        {
-            selection->end = til::point{ pos.x, pos.y };
-            selection->start = til::point{ matchGoingBack, pos.y };
-            if (!includeDelimiter)
-            {
-                selection->start.x++;
-                selection->end.x--;
-            }
-            _terminal->SetSelectionAnchors(selection);
-        }
-        else if (foundMatchGoingForward)
-        {
-            selection->start = til::point{ pos.x, pos.y };
-            selection->end = til::point{ matchGoingForward, pos.y };
-            if (!includeDelimiter)
-            {
-                selection->start.x++;
-                selection->end.x--;
-            }
-            _terminal->SetSelectionAnchors(selection);
-        }
-    }
-    else if (foundMatchGoingBack && foundMatchGoingForward)
-    {
-        selection->start = til::point{ matchGoingBack, pos.y };
-        selection->end = til::point{ matchGoingForward, pos.y };
-        if (!includeDelimiter)
-        {
-            selection->start.x++;
-            selection->end.x--;
-        }
-        _terminal->SetSelectionAnchors(selection);
-    }
+    vim::motions::InDelimiterSameLine(*_terminal, delimiter, includeDelimiter);
 }
 
 void VimModeProxy::_inDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
 {
-    auto delimitersAreSame = startDelimiter == endDelimiter;
-
-    auto selectionAnchors = _terminal->GetSelectionAnchors();
-    const auto selection{ selectionAnchors.write() };
-    const auto pos = selection->start == selection->pivot ? selection->end : selection->start;
-
-    auto numberOfInnerPairs = 0;
-    for (auto j = pos.y; j >= 0; j--)
-    {
-        auto x = j == pos.y ? pos.x - 1 : _terminal->GetTextBuffer().GetRowByOffset(j).size();
-        for (auto i = x; i >= 0; i--)
-        {
-            auto g = _terminal->GetTextBuffer().GetRowByOffset(j).GlyphAt(i);
-            //If delimiters are same there is no way to understand inner pairs
-            if (g == endDelimiter && !delimitersAreSame)
-            {
-                numberOfInnerPairs++;
-            }
-            else if (g == startDelimiter)
-            {
-                if (numberOfInnerPairs > 0)
-                {
-                    numberOfInnerPairs--;
-                }
-                else
-                {
-                    _matchingChar(til::point{ i, j }, startDelimiter, endDelimiter, true, !includeDelimiter);
-                    return;
-                }
-            }
-        }
-    }
+    vim::motions::InDelimiter(*_terminal, startDelimiter, endDelimiter, includeDelimiter);
 }
 
 void VimModeProxy::_selectWordRight(bool isVisual, bool isLargeWord)
 {
-    auto selection = _terminal->GetSelectionAnchors();
-    auto delimiters = _wordDelimiters;
-    if (isLargeWord)
-    {
-        delimiters = L"";
-    }
-
-    auto startPoint = selection->start < selection->pivot ? selection->start : selection->end;
-
-    auto endPair = _GetEndOfWord(startPoint, delimiters);
-    if (endPair.second)
-    {
-        if (endPair.first == startPoint)
-        {
-            endPair = _GetStartOfNextWord(endPair.first, delimiters);
-            if (endPair.second)
-            {
-                endPair = _GetEndOfWord(endPair.first, delimiters);
-            }
-        }
-
-        if (endPair.second)
-        {
-            _UpdateSelection(isVisual, endPair.first);
-        }
-        else
-        {
-            auto yToMove = selection->start < selection->pivot ? selection->start.y : selection->end.y;
-            auto startOfNextLine = til::point{ 0, yToMove + 1 };
-            endPair = _GetEndOfWord(startOfNextLine, delimiters);
-            if (endPair.second)
-            {
-                _UpdateSelection(isVisual, endPair.first);
-            }
-        }
-    }
+    vim::motions::MoveWordRight(*_terminal, isLargeWord, isVisual);
 }
 
 void VimModeProxy::_selectWordLeft(bool isVisual, bool isLargeWord)
 {
-    auto delimiters = _wordDelimiters;
-    if (isLargeWord)
-    {
-        delimiters = L"";
-    }
-
-    auto selection = _terminal->GetSelectionAnchors();
-    auto startPoint = selection->end > selection->pivot ? selection->end : selection->start;
-
-    auto startPair = _GetStartOfWord(startPoint, delimiters);
-    if (startPair.second)
-    {
-        if (startPair.first == startPoint)
-        {
-            startPair = _GetEndOfPreviousWord(startPair.first, delimiters);
-            if (startPair.second)
-            {
-                startPair = _GetStartOfWord(startPair.first, delimiters);
-            }
-        }
-
-        if (startPair.second)
-        {
-            _UpdateSelection(isVisual, startPair.first);
-        }
-        else
-        {
-            auto startOfPreviousLine = til::point{ 0, selection->end.y - 1 };
-            auto endOfLine = _GetLineEnd(startOfPreviousLine);
-            startPair = _GetStartOfWord(endOfLine, delimiters);
-            if (startPair.second)
-            {
-                _UpdateSelection(isVisual, startPair.first);
-            }
-        }
-    }
+    vim::motions::MoveWordLeft(*_terminal, isLargeWord, isVisual);
 }
 
 void VimModeProxy::_selectWordStartRight(bool isVisual, bool isLargeWord)
 {
-    auto delimiters = _wordDelimiters;
-    if (isLargeWord)
-    {
-        delimiters = L"";
-    }
-
-    auto selection = _terminal->GetSelectionAnchors();
-    auto startPoint = selection->start < selection->pivot ? selection->start : selection->end;
-
-    auto start = _GetStartOfNextWord(startPoint, delimiters);
-
-    if (start.second)
-    {
-        _UpdateSelection(isVisual, start.first);
-    }
-    else
-    {
-        auto yToMove = selection->start < selection->pivot ? selection->start.y : selection->end.y;
-        auto startOfNextLine = til::point{ 0, yToMove + 1 };
-        _UpdateSelection(isVisual, startOfNextLine);
-    }
+    vim::motions::MoveWordStartRight(*_terminal, isVisual, isLargeWord);
 }
 
 void VimModeProxy::_selectInWord(bool largeWord)
 {
-    auto delimiters = _wordDelimiters;
-    if (largeWord)
-    {
-        delimiters = L"";
-    }
-
-    auto targetPos{ _terminal->GetSelectionAnchors()->end };
-    _InWord(targetPos, delimiters);
+    vim::motions::SelectInWord(*_terminal, largeWord);
 }
 
 void VimModeProxy::_selectLineRight(bool isVisual)
 {
-    auto selectionAnchors = _terminal->GetSelectionAnchors();
-    const auto selection{ selectionAnchors.write() };
-    if (_terminal->IsBlockSelection())
-    {
-        auto maxNonSpaceChar = 0;
-        for (auto i = selection->start.y; i <= selection->end.y; i++)
-        {
-            const auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(i).GetLastNonSpaceColumn() - 1);
-            if (lastNonSpaceColumn > maxNonSpaceChar)
-            {
-                maxNonSpaceChar = lastNonSpaceColumn;
-            }
-        }
-        auto s = til::point{ maxNonSpaceChar, selection->end.y };
-        selection->end = s;
-        _terminal->SetSelectionAnchors(selection);
-    }
-    else
-    {
-        const auto pos = selection->pivot == selection->start ? selection->end : selection->start;
-        auto lastRowWithChars = pos.y;
-        til::CoordType endLine = pos.y;
-        while (_terminal->GetTextBuffer().GetRowByOffset(endLine).WasWrapForced())
-        {
-            endLine++;
-            if (_terminal->GetTextBuffer().GetRowByOffset(endLine).GetLastNonSpaceColumn() > 0)
-            {
-                lastRowWithChars = endLine;
-            }
-        }
-
-        const auto lastNonSpaceColumn = std::max(0, _terminal->GetTextBuffer().GetRowByOffset(lastRowWithChars).GetLastNonSpaceColumn() - 1);
-        auto s = til::point{ lastNonSpaceColumn, lastRowWithChars };
-        _UpdateSelection(isVisual, s);
-    }
+    vim::motions::MoveToEndOfLine(*_terminal, isVisual);
 }
 
 til::CoordType _getStartLineOfRow2(TextBuffer& textBuffer, til::CoordType row)
@@ -545,14 +301,7 @@ til::CoordType _getStartLineOfRow2(TextBuffer& textBuffer, til::CoordType row)
 
 void VimModeProxy::_selectLineLeft(bool isVisual)
 {
-    auto selection = _terminal->GetSelectionAnchors();
-    const auto pos = selection->pivot == selection->start ? selection->end : selection->start;
-    til::CoordType startLine = _getStartLineOfRow2(_terminal->GetTextBuffer(), pos.y);
-    if (_terminal->IsBlockSelection())
-    {
-        startLine = selection->start.y == selection->pivot.y ? selection->end.y : selection->start.y;
-    }
-    _UpdateSelection(isVisual, til::point{ 0, startLine });
+    vim::motions::MoveToStartOfLine(*_terminal, isVisual);
 }
 
 void VimModeProxy::_selectLineUp()
@@ -753,46 +502,22 @@ void VimModeProxy::_selectPageDown(bool isVisual)
 
 void VimModeProxy::_selectCharRight(bool isVisual)
 {
-    const auto selection = _terminal->GetSelectionAnchors();
-    auto point = selection->end > selection->pivot ? selection->end : selection->start;
-    point.x++;
-    if (point.x < _terminal->GetTextBuffer().GetLineWidth(point.y))
-    {
-        _UpdateSelection(isVisual, point);
-    }
+    vim::motions::MoveRight(*_terminal, isVisual);
 }
 
 void VimModeProxy::_selectCharLeft(bool isVisual)
 {
-    const auto selection = _terminal->GetSelectionAnchors();
-    auto point = selection->end > selection->pivot ? selection->end : selection->start;
-    point.x--;
-    if (point.x >= 0)
-    {
-        _UpdateSelection(isVisual, point);
-    }
+    vim::motions::MoveLeft(*_terminal, isVisual);
 }
 
-void VimModeProxy::_selectDown(bool isVisual, til::CoordType lastY)
+void VimModeProxy::_selectDown(bool isVisual, til::CoordType /*lastY*/)
 {
-    const auto selection = _terminal->GetSelectionAnchors();
-    auto point = selection->end > selection->pivot ? selection->end : selection->start;
-    point.y++;
-    if (point.y <= lastY)
-    {
-        _UpdateSelection(isVisual, point);
-    }
+    vim::motions::MoveDown(*_terminal, isVisual);
 }
 
 void VimModeProxy::_selectUp(bool isVisual)
 {
-    const auto selection = _terminal->GetSelectionAnchors();
-    auto point = selection->end > selection->pivot ? selection->end : selection->start;
-    point.y--;
-    if (point.y >= 0)
-    {
-        _UpdateSelection(isVisual, point);
-    }
+    vim::motions::MoveUp(*_terminal, isVisual);
 }
 
 std::pair<til::point, bool> VimModeProxy::_GetLineFirstNonBlankChar(const til::point target) const
@@ -2019,18 +1744,18 @@ void VimModeProxy::_UpdateSelection(bool isVisual, til::point adjusted)
     const auto selection{ selectionAnchors.write() };
     if (isVisual)
     {
-        auto pivotIsStart = selection->start == selection->pivot;
+        auto pivotIsStart = selection->start == til::point{ selection->pivot.x - 1, selection->pivot.y };
         //This means that the end is moving
         if (pivotIsStart)
         {
             if (adjusted < selection->pivot)
             {
                 selection->start = adjusted;
-                selection->end = selection->pivot;
+                selection->end = til::point{ selection->pivot.x, selection->pivot.y };
             }
             else
             {
-                selection->end = adjusted;
+                selection->end = til::point{ adjusted.x + 1, adjusted.y };
             }
         }
         //This means that the start is moving
@@ -2039,19 +1764,19 @@ void VimModeProxy::_UpdateSelection(bool isVisual, til::point adjusted)
             if (adjusted > selection->pivot)
             {
                 selection->start = selection->pivot;
-                selection->end = adjusted;
+                selection->end = til::point{ adjusted.x + 1, adjusted.y };
             }
             else
             {
-                selection->start = adjusted;
+                selection->start = til::point{ adjusted.x + 1, adjusted.y };
             }
         }
     }
     else
     {
         selection->start = adjusted;
-        selection->end = adjusted;
-        selection->pivot = adjusted;
+        selection->end = til::point{adjusted.x + 1, adjusted.y};
+        selection->pivot = selection->end;
     }
     _terminal->SetSelectionAnchors(selection);
 }
@@ -2481,8 +2206,7 @@ void VimModeProxy::ResetVimModeForSizeChange(bool selectLastChar)
 
         if (selectLastChar)
         {
-            auto lastNonSpaceChar = _getLastNonSpaceChar();
-            _terminal->SelectChar(lastNonSpaceChar);
+            vim::motions::SelectLastNonSpaceChar(*_terminal);
         }
 
         if (selectLastChar)
