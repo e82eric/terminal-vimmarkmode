@@ -146,15 +146,12 @@ private:
     void _handleSearch(bool moveForward);
     void _moveToNextSearchResult(bool moveForward, bool isVisual);
     void _highlightClosestSearchResult(bool moveForward);
-    std::tuple<til::point, int64_t> _findNextResult(const std::vector<til::point_span>& results, const til::point& point, bool moveForward, bool goNext);
     void _findChar(std::wstring_view vkey, bool isVisual);
     void _tilChar(std::wstring_view vkey, bool isVisual);
     void _findCharBack(std::wstring_view vkey, bool isVisual);
     void _tilCharBack(std::wstring_view vkey, bool isVisual);
     void _matchingChar(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual);
     void _matchingChar(til::point pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock);
-    void _matchingCharFromStart(til::point pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual);
-    void _matchingCharFromEnd(til::point pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual);
     void _inDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
     void _inDelimiterSameLine(std::wstring_view delimiter, bool includeDelimiter);
     void _selectWordRight(bool isVisual, bool isLargeWord);
@@ -184,21 +181,8 @@ private:
         const bool isVisual,
         const std::wstring searchString,
         std::wstring_view vkey);
-    bool _FindChar(std::wstring_view vkey, bool isTil, til::point& target) const;
-    bool _FindCharBack(std::wstring_view vkey, bool isTil, til::point& target);
-    void _UpdateSelection(bool isVisual, til::point adjusted);
-    std::tuple<bool, til::point, til::point> _findBlockEndFromStart(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter) const;
-    std::tuple<bool, til::point, til::point> _findBlockStartFromEnd(til::point& pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter) const;
-    void _InWord(til::point& pos, std::wstring_view delimiters);
-    std::pair<til::point, bool> _GetStartOfNextWord(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> _GetEndOfWord(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> _GetStartOfWord(const til::point target, const std::wstring_view wordDelimiters) const;
-    std::pair<til::point, bool> _GetEndOfPreviousWord(const til::point target, const std::wstring_view wordDelimiters) const;
-    til::point _GetLineEnd(const til::point target) const;
-    std::pair<til::point, bool> _GetLineFirstNonBlankChar(const til::point target) const;
-    void _MoveByViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept;
-    void _MoveByHalfViewport(::Microsoft::Terminal::Core::Terminal::SelectionDirection direction, til::point& pos) noexcept;
-    void _ScrollIfNeeded(const til::point& pos) noexcept;
+    void _updateSelection(bool isVisual, til::point adjusted);
+    void _scrollIfNeeded(const til::point& pos) noexcept;
     void _vimScrollScreenPosition(VimTextObjectType textObjectType);
     wil::unique_close_clipboard_call _openClipboard();
     std::wstring _getClipboardText();

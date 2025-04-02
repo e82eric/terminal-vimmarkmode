@@ -9,6 +9,7 @@
 #include <WexTestClass.h>
 
 #include "../cascadia/TerminalCore/Terminal.hpp"
+#include "../cascadia/TerminalCore/lib/VimMotions.hpp"
 #include "../cascadia/UnitTests_TerminalCore/MockTermSettings.h"
 #include "../renderer/inc/DummyRenderer.hpp"
 #include "consoletaeftemplates.hpp"
@@ -754,6 +755,21 @@ namespace TerminalCoreUnitTests
                 //   Shift+Click makes end inclusive (so add 1)
                 ValidateLinearSelection(term, { 10, 10 }, { 21, 10 });
             }
+        }
+
+        TEST_METHOD(TripleClickDrag_Vertical_Temp)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"C:\\Terminal>";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::SelectLastNonSpaceChar(term);
+
+            ValidateLinearSelection(term, { 12, 0 }, {13, 0});
         }
     };
 }
