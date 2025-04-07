@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "QuickSelectHandler.h"
 #include "VimModeProxy.h"
+#include "../TerminalCore/lib/VimMotions.hpp"
 
 class VimModeProxy;
 

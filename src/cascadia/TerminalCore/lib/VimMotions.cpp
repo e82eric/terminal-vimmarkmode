@@ -244,14 +244,16 @@ namespace vim
 
             auto result = target;
             bool found = false;
+            bufferSize.IncrementInBounds(result);
 
-            // expand right until we hit the right boundary or a different delimiter class
             while (result.x < bufferSize.RightInclusive())
             {
+                DelimiterClass previousClass = terminal.GetTextBuffer().GetRowByOffset(result.y).DelimiterClassAt( result.x - 1, wordDelimiters);
                 bufferSize.IncrementInBounds(result);
-                auto classAt = terminal.GetTextBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, wordDelimiters);
-                if (classAt == DelimiterClass::ControlChar || classAt == DelimiterClass::DelimiterChar)
+                auto classAt = terminal.GetTextBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x - 1, wordDelimiters);
+                if (classAt != previousClass && previousClass != DelimiterClass::ControlChar)
                 {
+                    bufferSize.DecrementInBounds(result);
                     found = true;
                     break;
                 }
@@ -262,9 +264,9 @@ namespace vim
                 return { {}, false };
             }
 
-            bufferSize.DecrementInBounds(result);
+            //bufferSize.DecrementInBounds(result);
 
-            return { result, true };
+            return { til::point{ result.x, result.y }, true };
         }
 
         til::point _GetLineEnd(Microsoft::Terminal::Core::Terminal &terminal, const til::point target)
@@ -291,7 +293,7 @@ namespace vim
                 bufferSize.IncrementInBounds(result);
             }
 
-            return til::point{ lastNonControlChar, target.y };
+            return til::point{ lastNonControlChar + 1, target.y };
         }
 
         std::pair<til::point, bool> _GetStartOfNextWord(Microsoft::Terminal::Core::Terminal &terminal, const til::point target, const std::wstring_view wordDelimiters)
@@ -339,16 +341,23 @@ namespace vim
 
         std::pair<til::point, bool> _GetStartOfWord(Microsoft::Terminal::Core::Terminal &terminal, const til::point target, const std::wstring_view wordDelimiters)
         {
+            if (target.x == 0)
+            {
+                return { {}, false };
+            }
             const auto bufferSize = terminal.GetTextBuffer().GetSize();
 
             auto result = target;
             bool found = false;
+            DelimiterClass previousClass;
+            bufferSize.DecrementInBounds(result);
 
-            while (result.x >= 0)
+            while (result.x > 0)
             {
+                previousClass = terminal.GetTextBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, wordDelimiters);
                 bufferSize.DecrementInBounds(result);
                 auto classAt = terminal.GetTextBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, wordDelimiters);
-                if (classAt == DelimiterClass::ControlChar || classAt == DelimiterClass::DelimiterChar || result.x == 0)
+                if (classAt != previousClass && previousClass != DelimiterClass::ControlChar)
                 {
                     found = true;
                     break;
@@ -357,13 +366,10 @@ namespace vim
 
             if (!found)
             {
-                return { {}, false };
+                return { {0, target.y}, true };
             }
 
-            if (result.x != 0)
-            {
-                bufferSize.IncrementInBounds(result);
-            }
+            bufferSize.IncrementInBounds(result);
 
             return { result, true };
         }
@@ -524,7 +530,7 @@ namespace vim
             return { result, true };
         }
 
-        til::CoordType _getStartLineOfRow2(TextBuffer& textBuffer, til::CoordType row)
+        til::CoordType _getStartLineOfRow(TextBuffer& textBuffer, til::CoordType row)
         {
             auto result = row;
             while (textBuffer.GetRowByOffset(result - 1).WasWrapForced())
@@ -540,18 +546,18 @@ namespace vim
             const auto selection{ selectionAnchors.write() };
             if (isVisual)
             {
-                auto pivotIsStart = selection->start == til::point{ selection->pivot.x - 1, selection->pivot.y };
+                auto pivotIsStart = selection->start == selection->pivot;
                 //This means that the end is moving
                 if (pivotIsStart)
                 {
                     if (adjusted < selection->pivot)
                     {
                         selection->start = adjusted;
-                        selection->end = til::point{ selection->pivot.x, selection->pivot.y };
+                        selection->end = selection->pivot;
                     }
                     else
                     {
-                        selection->end = til::point{ adjusted.x + 1, adjusted.y };
+                        selection->end = adjusted;
                     }
                 }
                 //This means that the start is moving
@@ -560,21 +566,19 @@ namespace vim
                     if (adjusted > selection->pivot)
                     {
                         selection->start = selection->pivot;
-                        selection->end = til::point{ adjusted.x + 1, adjusted.y };
+                        selection->end = adjusted;
                     }
                     else
                     {
-                        selection->start = til::point{ adjusted.x + 1, adjusted.y };
+                        selection->start = adjusted;
                     }
                 }
+                terminal.SetSelectionAnchors(selection);
             }
             else
             {
-                selection->start = adjusted;
-                selection->end = til::point{ adjusted.x + 1, adjusted.y };
-                selection->pivot = selection->end;
+                SelectPoint(terminal, adjusted);
             }
-            terminal.SetSelectionAnchors(selection);
         }
 
         til::point _getLastNonSpaceChar(const Microsoft::Terminal::Core::Terminal& terminal)
@@ -590,32 +594,99 @@ namespace vim
             return til::point{ lastColumn, maybeLastRowNumber };
         }
 
+        void SelectPoint(Microsoft::Terminal::Core::Terminal &terminal, til::point point)
+        {
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+            const auto selection{ selectionAnchors.write() };
+            selection->active = true;
+            selection->start = til::point{ point.x - 1, point.y };
+            selection->pivot = selection->start;
+            selection->end = til::point{ point.x, point.y };
+            terminal.SetSelectionAnchors(selection);
+        }
+
         void SelectLastNonSpaceChar(Microsoft::Terminal::Core::Terminal& terminal)
         {
             auto lastNonSpaceChar = _getLastNonSpaceChar(terminal);
-            terminal.SelectChar(lastNonSpaceChar);
+            SelectPoint(terminal, lastNonSpaceChar);
         }
 
         void MoveLeft(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
-            const auto selection = terminal.GetSelectionAnchors();
-            auto point = selection->end > selection->pivot ? selection->end : selection->start;
-            point.x--;
-            if (point.x >= 0)
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+            if (selectionAnchors->start.x == 0)
             {
-                _UpdateSelection(terminal, isVisual, point);
+                return;
             }
+            auto selection{ selectionAnchors.write() };
+
+            if (!isVisual)
+            {
+                selection->start.x--;
+                selection->end.x--;
+                selection->pivot = selection->end;
+            }
+            else
+            {
+                bool singleCell = (selectionAnchors->end.y == selectionAnchors->start.y &&
+                                   selectionAnchors->end.x - 1 == selectionAnchors->start.x);
+                if (singleCell)
+                {
+                    selection->start.x--;
+                    selection->pivot = selection->end;
+                }
+                else if (selection->end > selection->pivot)
+                {
+                    selection->end.x--;
+                    selection->pivot = selection->start;
+                }
+                else
+                {
+                    selection->start.x--;
+                    selection->pivot = selection->end;
+                }
+            }
+
+            terminal.SetSelectionAnchors(selection);
         }
 
         void MoveRight(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
-            const auto selection = terminal.GetSelectionAnchors();
-            auto point = selection->end > selection->pivot ? selection->end : selection->start;
-            point.x++;
-            if (point.x < terminal.GetTextBuffer().GetLineWidth(point.y))
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+
+            if (selectionAnchors->end.x >= terminal.GetTextBuffer().GetLineWidth(selectionAnchors->end.y))
             {
-                _UpdateSelection(terminal, isVisual, point);
+                return;
             }
+            const auto selection{ selectionAnchors.write() };
+            if (!isVisual)
+            {
+                selection->start.x++;
+                selection->end = {selection->start.x + 1, selection->start.y};
+                selection->pivot = selection->end;
+            }
+            else
+            {
+                bool singleCell = (selectionAnchors->end.y == selectionAnchors->start.y &&
+                                   selectionAnchors->end.x - 1 == selectionAnchors->start.x);
+                if (singleCell)
+                {
+                    selection->end.x++;
+                    selection->pivot = selection->start;
+                }
+                else if (selection->end > selection->pivot)
+                {
+                    selection->end.x++;
+                    selection->pivot = selection->start;
+                }
+                else
+                {
+                    selection->start.x++;
+                    selection->pivot = selection->end;
+                }
+            }
+
+            terminal.SetSelectionAnchors(selection);
         }
 
         void MoveDown(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
@@ -643,13 +714,24 @@ namespace vim
 
         void MoveToStartOfLine(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
-            auto selection = terminal.GetSelectionAnchors();
-            auto startLine = _getStartLineOfRow2(terminal.GetTextBuffer(), selection->start.y);
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+            auto selection{ selectionAnchors.write() };
+            auto startLine = _getStartLineOfRow(terminal.GetTextBuffer(), selection->start.y);
             if (terminal.IsBlockSelection())
             {
                 startLine = selection->start.y == selection->pivot.y ? selection->end.y : selection->start.y;
             }
             auto startOfLine = til::point{ 0, startLine };
+
+            if (!isVisual)
+            {
+                selection->start = startOfLine;
+                selection->end = til::point{ 1, startLine };
+                selection->pivot = selection->start;
+                terminal.SetSelectionAnchors(selection);
+                return;
+            }
+
             auto firstNonBlankChar = _GetLineFirstNonBlankChar(terminal, startOfLine);
 
             if (firstNonBlankChar.second == true)
@@ -662,7 +744,7 @@ namespace vim
             }
         }
 
-        void MoveToEndOfLine(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        void MoveToEndOfLine(Microsoft::Terminal::Core::Terminal& terminal, bool /*isVisual*/)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
             const auto selection{ selectionAnchors.write() };
@@ -697,7 +779,11 @@ namespace vim
 
                 const auto lastNonSpaceColumn = std::max(0, terminal.GetTextBuffer().GetRowByOffset(lastRowWithChars).GetLastNonSpaceColumn() - 1);
                 auto s = til::point{ lastNonSpaceColumn, lastRowWithChars };
-                _UpdateSelection(terminal, isVisual, s);
+                selection->start = s;
+                selection->end = til::point{ s.x + 1, s.y };
+                selection->pivot = selection->end;
+                terminal.SetSelectionAnchors(selection);
+                //_UpdateSelection(terminal, isVisual, s);
             }
         }
 
@@ -739,85 +825,152 @@ namespace vim
 
         void MoveWordLeft(Microsoft::Terminal::Core::Terminal& terminal, bool isLargeWord, bool isVisual)
         {
-            auto delimiters = _wordDelimiters;
-            if (isLargeWord)
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+            auto selection{ selectionAnchors.write() };
+            auto delimiters = isLargeWord ? L"" : _wordDelimiters;
+
+            const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
+            const bool pivotAtStart = (selection->start == selection->pivot);
+            const bool pivotAtEnd = (selection->end == selection->pivot);
+
+            auto lastPoint = _getLastNonSpaceChar(terminal);
+            auto startPoint = selection->start;
+            if (isSingleCell)
             {
-                delimiters = L"";
+                startPoint = { selection->start.x, selection->start.y };
+            }
+            else if (pivotAtStart)
+            {
+                startPoint = { selection->end.x - 1, selection->start.y };
             }
 
-            auto selection = terminal.GetSelectionAnchors();
-            auto startPoint = selection->end > selection->pivot ? selection->end : selection->start;
+            auto updateSelection = [&](til::point wordEnd) {
+                if (!isVisual)
+                {
+                    selection->start = wordEnd;
+                    selection->end = til::point{wordEnd.x + 1, wordEnd.y};
+                    selection->pivot = selection->start;
+                }
+                else if (isSingleCell)
+                {
+                    selection->start = {wordEnd.x, wordEnd.y};
+                    selection->pivot = selection->end;
+                }
+                else if (pivotAtStart)
+                {
+                    selection->end = {wordEnd.x + 1, wordEnd.y};
+                    selection->pivot = selection->start;
+                }
+                else if (pivotAtEnd)
+                {
+                    selection->start = { wordEnd.x, wordEnd.y };
+                    selection->pivot = selection->end;
+                }
+                terminal.SetSelectionAnchors(selection);
+            };
 
-            auto startPair = _GetStartOfWord(terminal, startPoint, delimiters);
-            if (startPair.second)
+            auto endPair = _GetStartOfWord(terminal, startPoint, delimiters);
+            if (endPair.second)
             {
-                if (startPair.first == startPoint)
-                {
-                    startPair = _GetEndOfPreviousWord(terminal, startPair.first, delimiters);
-                    if (startPair.second)
-                    {
-                        startPair = _GetStartOfWord(terminal, startPair.first, delimiters);
-                    }
-                }
+                updateSelection(endPair.first);
+                return;
+            }
 
-                if (startPair.second)
+            auto yToMove = startPoint.y;
+            while (yToMove - 1 >= 0)
+            {
+                --yToMove;
+                auto startOfNextLine = til::point{ 0, yToMove };
+                auto startOfNextLinePair = _GetLineEnd(terminal, startOfNextLine);
+                endPair = _GetStartOfWord(terminal, startOfNextLinePair, delimiters);
+                if (endPair.second)
                 {
-                    _UpdateSelection(terminal, isVisual, startPair.first);
-                }
-                else
-                {
-                    auto startOfPreviousLine = til::point{ 0, selection->end.y - 1 };
-                    auto endOfLine = _GetLineEnd(terminal, startOfPreviousLine);
-                    startPair = _GetStartOfWord(terminal, endOfLine, delimiters);
-                    if (startPair.second)
-                    {
-                        _UpdateSelection(terminal, isVisual, startPair.first);
-                    }
+                    updateSelection(endPair.first);
+                    return;
                 }
             }
+
+            updateSelection(til::point{ 0, 0 });
         }
 
-        void MoveWordRight(Microsoft::Terminal::Core::Terminal &terminal, bool isLargeWord, bool isVisual)
+        std::wstring _getVimDelimiters()
         {
-            auto selection = terminal.GetSelectionAnchors();
-            auto delimiters = _wordDelimiters;
-            if (isLargeWord)
+            std::wstring delimiters;
+            // Considering the standard ASCII range:
+            for (wchar_t c = 0; c < 128; ++c)
             {
-                delimiters = L"";
+                if (!(std::iswalnum(c) || c == L'_'))
+                {
+                    delimiters.push_back(c);
+                }
+            }
+            return delimiters;
+        }
+
+        void MoveWordRight(Microsoft::Terminal::Core::Terminal& terminal, bool isLargeWord, bool isVisual)
+        {
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+            auto selection{ selectionAnchors.write() };
+            auto delimiters = isLargeWord ? L"" : _wordDelimiters;
+
+            const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
+            const bool pivotAtStart = (selection->start == selection->pivot);
+            const bool pivotAtEnd = (selection->end == selection->pivot);
+
+            auto lastPoint = _getLastNonSpaceChar(terminal);
+            auto startPoint = selection->end;
+            if (isSingleCell || pivotAtEnd)
+            {
+                startPoint = { selection->start.x + 1, selection->start.y };
             }
 
-            auto startPoint = selection->start < selection->pivot ? selection->start : selection->end;
+            // Helper lambda to update the selection based on the word's end point.
+            auto updateSelection = [&](til::point wordEnd) {
+                if (!isVisual)
+                {
+                    selection->start = { wordEnd.x - 1, wordEnd.y };
+                    selection->end = wordEnd;
+                    selection->pivot = selection->end;
+                }
+                else if (isSingleCell || pivotAtStart)
+                {
+                    selection->end = wordEnd;
+                    selection->pivot = selection->start;
+                }
+                else if (pivotAtEnd)
+                {
+                    selection->start = { wordEnd.x - 1, wordEnd.y };
+                    selection->pivot = selection->end;
+                }
+                terminal.SetSelectionAnchors(selection);
+            };
 
             auto endPair = _GetEndOfWord(terminal, startPoint, delimiters);
             if (endPair.second)
             {
-                if (endPair.first == startPoint)
-                {
-                    endPair = _GetStartOfNextWord(terminal, endPair.first, delimiters);
-                    if (endPair.second)
-                    {
-                        endPair = _GetEndOfWord(terminal, endPair.first, delimiters);
-                    }
-                }
+                updateSelection(endPair.first);
+                return;
+            }
 
-                if (endPair.second)
+            auto yToMove = startPoint.y;
+            while (yToMove + 1 <= lastPoint.y)
+            {
+                ++yToMove;
+                auto startOfNextLine = til::point{ 0, yToMove };
+                auto startOfNextLinePair = _GetLineFirstNonBlankChar(terminal, startOfNextLine);
+                if (startOfNextLinePair.second)
                 {
-                    _UpdateSelection(terminal, isVisual, endPair.first);
-                }
-                else
-                {
-                    auto yToMove = selection->start < selection->pivot ? selection->start.y : selection->end.y;
-                    auto startOfNextLine = til::point{ 0, yToMove + 1 };
-                    endPair = _GetEndOfWord(terminal, startOfNextLine, delimiters);
+                    endPair = _GetEndOfWord(terminal, startOfNextLinePair.first, delimiters);
                     if (endPair.second)
                     {
-                        _UpdateSelection(terminal, isVisual, endPair.first);
+                        updateSelection(endPair.first);
+                        return;
                     }
                 }
             }
         }
 
-        void MoveWordStartRight(Microsoft::Terminal::Core::Terminal &terminal, bool isLargeWord, bool isVisual)
+        void MoveWordStartRight(Microsoft::Terminal::Core::Terminal& terminal, bool isLargeWord, bool isVisual)
         {
             auto delimiters = _wordDelimiters;
             if (isLargeWord)
@@ -842,7 +995,7 @@ namespace vim
             }
         }
 
-        void SelectInWord(Microsoft::Terminal::Core::Terminal &terminal, bool isLargeWord)
+        void SelectInWord(Microsoft::Terminal::Core::Terminal& terminal, bool isLargeWord)
         {
             auto delimiters = _wordDelimiters;
             if (isLargeWord)
@@ -854,7 +1007,7 @@ namespace vim
             _InWord(terminal, targetPos, delimiters);
         }
 
-        void InDelimiter(Microsoft::Terminal::Core::Terminal &terminal, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
+        void InDelimiter(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter)
         {
             auto delimitersAreSame = startDelimiter == endDelimiter;
 
@@ -890,7 +1043,7 @@ namespace vim
             }
         }
 
-        void InDelimiterSameLine(Microsoft::Terminal::Core::Terminal &terminal, std::wstring_view delimiter, bool includeDelimiter)
+        void InDelimiterSameLine(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view delimiter, bool includeDelimiter)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
             const auto selection{ selectionAnchors.write() };
@@ -962,7 +1115,7 @@ namespace vim
             }
         }
 
-        void MatchingChar(Microsoft::Terminal::Core::Terminal &terminal, til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock)
+        void MatchingChar(Microsoft::Terminal::Core::Terminal& terminal, til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
             auto selection{ selectionAnchors.write() };
@@ -1005,10 +1158,11 @@ namespace vim
             }
         }
 
-        void MoveToFirstNonBlankChar(Microsoft::Terminal::Core::Terminal &terminal, bool isVisual)
+        void MoveToFirstNonBlankChar(Microsoft::Terminal::Core::Terminal& terminal, bool /*isVisual*/)
         {
-            auto selection = terminal.GetSelectionAnchors();
-            auto startLine = _getStartLineOfRow2(terminal.GetTextBuffer(), selection->start.y);
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+            auto selection{ selectionAnchors.write() };
+            auto startLine = _getStartLineOfRow(terminal.GetTextBuffer(), selection->start.y);
             if (terminal.IsBlockSelection())
             {
                 startLine = selection->start.y == selection->pivot.y ? selection->end.y : selection->start.y;
@@ -1018,15 +1172,21 @@ namespace vim
 
             if (firstNonBlankChar.second == true)
             {
-                _UpdateSelection(terminal, isVisual, firstNonBlankChar.first);
+                selection->start = { 0, startLine };
+                selection->end = { 1, startLine };
+                selection->pivot = selection->start;
+                terminal.SetSelectionAnchors(selection);
             }
             else
             {
-                _UpdateSelection(terminal, isVisual, startOfLine);
+                selection->start = { 0, startLine };
+                selection->end = { 1, startLine };
+                selection->pivot = selection->start;
+                terminal.SetSelectionAnchors(selection);
             }
         }
 
-        void SelectPageDown(Microsoft::Terminal::Core::Terminal &terminal, bool isVisual)
+        void SelectPageDown(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
             auto selection = terminal.GetSelectionAnchors();
             const auto bufferSize{ terminal.GetTextBuffer().GetSize() };
@@ -1041,7 +1201,7 @@ namespace vim
             terminal.UserScrollViewport(newPos.y);
         }
 
-        void SelectPageUp(Microsoft::Terminal::Core::Terminal &terminal, bool isVisual)
+        void SelectPageUp(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
             auto selection = terminal.GetSelectionAnchors();
             const auto bufferSize{ terminal.GetTextBuffer().GetSize() };
@@ -1055,7 +1215,7 @@ namespace vim
             terminal.UserScrollViewport(newPos.y);
         }
 
-        void SelectHalfPageUp(Microsoft::Terminal::Core::Terminal &terminal, bool isVisual, bool entireLine)
+        void SelectHalfPageUp(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual, bool entireLine)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
             const auto selection{ selectionAnchors.write() };
@@ -1098,7 +1258,7 @@ namespace vim
             _UpdateSelection(terminal, isVisual, newPos);
         }
 
-        void SelectHalfPageDown(Microsoft::Terminal::Core::Terminal &terminal, bool isVisual, bool entireLine)
+        void SelectHalfPageDown(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual, bool entireLine)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
             const auto selection{ selectionAnchors.write() };
@@ -1143,14 +1303,14 @@ namespace vim
             _UpdateSelection(terminal, isVisual, newPos);
         }
 
-        void SelectBottom(Microsoft::Terminal::Core::Terminal &terminal, bool isVisual)
+        void SelectBottom(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
             auto lastChar = _getLastNonSpaceChar(terminal);
             _UpdateSelection(terminal, isVisual, lastChar);
             terminal.UserScrollViewport(lastChar.y);
         }
 
-        void SelectTop(Microsoft::Terminal::Core::Terminal &terminal, bool isVisual)
+        void SelectTop(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
             const auto selection{ selectionAnchors.write() };
@@ -1221,6 +1381,28 @@ namespace vim
             }
             if (selection->start.y >= 0 && selection->end.y > 0)
             {
+                terminal.SetSelectionAnchors(selection);
+            }
+        }
+
+        void SelectCurrentChar(Microsoft::Terminal::Core::Terminal &terminal)
+        {
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+            const auto selection{ selectionAnchors.write() };
+            auto pivotAtStart = selection->start == selection->pivot;
+            auto pivotAtEnd = selection->end == selection->pivot;
+            if (pivotAtStart)
+            {
+                selection->start = { selection->end.x - 1, selection->end.y };
+                selection->end = { selection->end.x, selection->end.y };
+                selection->pivot = selection->end;
+                terminal.SetSelectionAnchors(selection);
+            }
+            else if (pivotAtEnd)
+            {
+                selection->start = { selection->start.x, selection->start.y };
+                selection->end = { selection->start.x + 1, selection->start.y };
+                selection->pivot = selection->start;
                 terminal.SetSelectionAnchors(selection);
             }
         }

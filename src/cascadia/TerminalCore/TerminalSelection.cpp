@@ -714,6 +714,7 @@ void Terminal::SetSelectionAnchors(SelectionInfo* val)
     selection->start = val->start;
     selection->end = val->end;
     selection->pivot = val->pivot;
+    selection->active = true;
 
     til::point point;
     if (endMovingDown)
@@ -763,8 +764,8 @@ void Terminal::SelectChar(til::point point)
 {
     auto selection{ _selection.write() };
     selection->active = true;
-    selection->start = til::point{ point.x - 1, point.y };
-    selection->end = til::point{ point.x, point.y };
+    selection->start = til::point{ point.x, point.y };
+    selection->end = til::point{ point.x + 1, point.y };
     selection->pivot = selection->end;
 }
 

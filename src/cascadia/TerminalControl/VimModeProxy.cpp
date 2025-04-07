@@ -430,9 +430,8 @@ bool VimModeProxy::_executeVimSelection(
         case VimTextObjectType::charTextObject:
             switch (motion)
             {
-            case VimMotionType::none:
-                _selectCharRight(false);
-                _selectCharLeft(false);
+        case VimMotionType::none:
+                vim::motions::SelectCurrentChar(*_terminal);
                 break;
             case VimMotionType::moveLeft:
                 _selectCharLeft(selectFromStart);
