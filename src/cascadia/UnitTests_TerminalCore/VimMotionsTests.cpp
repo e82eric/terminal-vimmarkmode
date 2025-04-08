@@ -44,6 +44,14 @@ namespace VimMotionsTests
             VERIFY_ARE_EQUAL(end, sp.end, L"end");
         }
 
+        void ValidateLinearSelection(Terminal& term, const til::point start, const til::point end, const til::point pivot)
+        {
+            auto selectionSpans = term.GetSelectionAnchors();
+            VERIFY_ARE_EQUAL(start, selectionSpans->start, L"start");
+            VERIFY_ARE_EQUAL(end, selectionSpans->end, L"end");
+            VERIFY_ARE_EQUAL(pivot, selectionSpans->pivot, L"end");
+        }
+
         TextBuffer& GetTextBuffer(Terminal& term)
         {
             return term.GetBufferAndViewport().buffer;
@@ -630,6 +638,58 @@ namespace VimMotionsTests
 
             vim::motions::MoveWordLeft(term, false, true);
             ValidateLinearSelection(term, { 0, 0 }, {6, 0});
+        }
+
+        TEST_METHOD(MoveWordRight_Visual_AcrossPivot)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"this is another test";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::SelectLastNonSpaceChar(term);
+            vim::motions::MoveWordLeft(term, false, false);
+            vim::motions::MoveWordLeft(term, false, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            ValidateLinearSelection(term, { 11, 0 }, {12, 0}, {12, 0});
+
+            vim::motions::MoveLeft(term, true);
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 9, 0 }, {12, 0}, {12, 0});
+
+            vim::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, { 11, 0 }, {15, 0}, {11, 0});
+        }
+
+        TEST_METHOD(MoveWordLeft_Visual_AcrossPivot)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"this is another test";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::SelectLastNonSpaceChar(term);
+            vim::motions::MoveWordLeft(term, false, false);
+            vim::motions::MoveWordLeft(term, false, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            ValidateLinearSelection(term, { 11, 0 }, {12, 0}, {12, 0});
+
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 11, 0 }, {14, 0}, {11, 0});
+
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, { 8, 0 }, {12, 0}, {12, 0});
         }
 
         TEST_METHOD(MoveWordLeft_MultipleLines)

@@ -858,8 +858,17 @@ namespace vim
                 }
                 else if (pivotAtStart)
                 {
-                    selection->end = {wordEnd.x + 1, wordEnd.y};
-                    selection->pivot = selection->start;
+                    if (wordEnd < selection->pivot)
+                    {
+                        selection->start = wordEnd;
+                        selection->end = { selection->pivot.x + 1, selection->pivot.y };
+                        selection->pivot = selection->end;
+                    }
+                    else
+                    {
+                        selection->end = { wordEnd.x + 1, wordEnd.y };
+                        selection->pivot = selection->start;
+                    }
                 }
                 else if (pivotAtEnd)
                 {
@@ -939,8 +948,17 @@ namespace vim
                 }
                 else if (pivotAtEnd)
                 {
-                    selection->start = { wordEnd.x - 1, wordEnd.y };
-                    selection->pivot = selection->end;
+                    if (wordEnd > selection->pivot)
+                    {
+                        selection->end = { wordEnd.x, wordEnd.y };
+                        selection->start = { selection->pivot.x - 1, selection->pivot.y };
+                        selection->pivot = selection->start;
+                    }
+                    else
+                    {
+                        selection->start = { wordEnd.x - 1, wordEnd.y };
+                        selection->pivot = selection->end;
+                    }
                 }
                 terminal.SetSelectionAnchors(selection);
             };
