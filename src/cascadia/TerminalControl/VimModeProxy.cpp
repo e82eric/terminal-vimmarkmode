@@ -167,7 +167,7 @@ void VimModeProxy::_selectWordLeft(bool isVisual, bool isLargeWord)
 
 void VimModeProxy::_selectWordStartRight(bool isVisual, bool isLargeWord)
 {
-    vim::motions::MoveWordStartRight(*_terminal, isVisual, isLargeWord);
+    vim::motions::MoveWordStartRight(*_terminal, isLargeWord, isVisual);
 }
 
 void VimModeProxy::_selectInWord(bool largeWord)
