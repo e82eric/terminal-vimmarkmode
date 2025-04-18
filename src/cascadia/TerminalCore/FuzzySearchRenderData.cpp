@@ -58,6 +58,11 @@ std::span<const til::point_span> FuzzySearchRenderData::GetYankSelectionRects() 
     return {};
 }
 
+std::span<const til::point_span> FuzzySearchRenderData::GetVimCursor() const noexcept
+{
+    return {};
+}
+
 void FuzzySearchRenderData::SelectYankRegion()
 {
 }

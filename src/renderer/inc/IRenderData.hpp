@@ -66,6 +66,7 @@ namespace Microsoft::Console::Render
         virtual TextBuffer& GetTextBuffer() const noexcept = 0;
         virtual const FontInfo& GetFontInfo() const noexcept = 0;
         virtual std::span<const til::point_span> GetYankSelectionRects() noexcept = 0;
+        virtual std::span<const til::point_span> GetVimCursor() const noexcept = 0;
         virtual QuickSelectState GetQuickSelectState() noexcept = 0;
         virtual std::span<const til::point_span> GetSearchHighlights() const noexcept = 0;
         virtual const til::point_span* GetSearchHighlightFocused() const noexcept = 0;

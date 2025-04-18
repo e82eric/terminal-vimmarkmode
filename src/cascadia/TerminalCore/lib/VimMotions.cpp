@@ -1727,7 +1727,12 @@ namespace vim
             const auto selection{ selectionAnchors.write() };
             const auto bufferSize{ terminal.GetTextBuffer().GetSize() };
             const auto startIsPivot = selection->start.y == selection->pivot.y && selection->start.x == selection->pivot.x;
-            const auto targetPos = startIsPivot ? selection->end : selection->start;
+            const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
+            auto targetPos = selection->start;
+            if (startIsPivot && !isSingleCell)
+            {
+                targetPos = selection->end;
+            }
 
             const auto viewportHeight = terminal.GetViewport().Height();
             const auto newY = targetPos.y - viewportHeight / 2;
@@ -1740,12 +1745,12 @@ namespace vim
                     if (y > selection->start.y)
                     {
                         selection->end.y = y;
-                        selection->end.x = terminal.GetTextBuffer().GetRowByOffset(y).GetLastNonSpaceColumn() - 1;
+                        selection->end.x = terminal.GetTextBuffer().GetRowByOffset(y).GetLastNonSpaceColumn();
                     }
                     else
                     {
                         selection->end.y = selection->start.y;
-                        selection->end.x = terminal.GetTextBuffer().GetRowByOffset(selection->start.y).GetLastNonSpaceColumn() - 1;
+                        selection->end.x = terminal.GetTextBuffer().GetRowByOffset(selection->start.y).GetLastNonSpaceColumn();
                         selection->pivot = selection->end;
                         selection->start.y = y;
                         selection->start.x = 0;
@@ -1763,14 +1768,36 @@ namespace vim
 
             if (isVisual)
             {
-                selection->start = { point.x - 1, point.y };
-                //selection->end = { point.x, point.y };
-                selection->pivot = selection->end;
+                if (startIsPivot)
+                {
+                    if (point < selection->pivot)
+                    {
+                        selection->start = { point.x - 1, point.y };
+                        selection->end = { selection->pivot.x + 1, selection->pivot.y };
+                        selection->pivot = selection->end;
+                    }
+                    else
+                    {
+                        selection->end = point;
+                        //selection->start = { point.x - 1, point.y };
+                        //selection->pivot = selection->end;
+                    }
+                }
+                else
+                {
+                    selection->start = point;
+                    //selection->end = { selection->pivot.x + 1, selection->pivot.y };
+                    //selection->pivot = selection->end;
+                }
+
+                //selection->start = { point.x - 1, point.y };
+                ////selection->end = { point.x, point.y };
+                //selection->pivot = selection->end;
             }
             else
             {
-                selection->start = { point.x - 1, point.y };
-                selection->end = { point.x, point.y };
+                selection->start = { point.x, point.y };
+                selection->end = { point.x + 1, point.y };
                 selection->pivot = selection->start;
             }
 
@@ -1783,14 +1810,15 @@ namespace vim
             const auto selection{ selectionAnchors.write() };
             const auto viewportHeight{ terminal.GetViewport().Height() };
             const auto lastRow = _getLastNonSpaceChar(terminal).y;
+            const auto startIsPivot = selection->start.y == selection->pivot.y && selection->start.x == selection->pivot.x;
             if (entireLine)
             {
-                const auto startIsPivot = selection->start.y == selection->pivot.y && selection->start.x == selection->pivot.x;
                 const auto pos = startIsPivot ? selection->end : selection->start;
 
                 const auto newY = pos.y + viewportHeight / 2;
                 const auto y = newY > lastRow ? lastRow : newY;
                 //const til::CoordType x = pos.x;
+
                 if (!startIsPivot)
                 {
                     if (y < selection->end.y)
@@ -1804,13 +1832,13 @@ namespace vim
                         selection->start.x = 0;
                         selection->pivot = selection->start;
                         selection->end.y = newY;
-                        selection->end.x = terminal.GetTextBuffer().GetRowByOffset(selection->start.y).GetLastNonSpaceColumn() - 1;
+                        selection->end.x = terminal.GetTextBuffer().GetRowByOffset(y).GetLastNonSpaceColumn();
                     }
                 }
                 else
                 {
                     selection->end.y = y;
-                    selection->end.x = terminal.GetTextBuffer().GetRowByOffset(y).GetLastNonSpaceColumn() - 1;
+                    selection->end.x = terminal.GetTextBuffer().GetRowByOffset(y).GetLastNonSpaceColumn();
                     ;
                 }
                 terminal.SetSelectionAnchors(selection);
@@ -1819,7 +1847,7 @@ namespace vim
 
             const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
             const bool pivotAtStart = (selection->start == selection->pivot);
-            const bool pivotAtEnd = (selection->end == selection->pivot);
+            //const bool pivotAtEnd = (selection->end == selection->pivot);
             auto pos = selection->start;
             if (!isSingleCell && pivotAtStart)
             {
@@ -1833,17 +1861,43 @@ namespace vim
 
             if (isVisual)
             {
-                if (!isSingleCell && pivotAtEnd && point > selection->pivot)
+                if (isSingleCell)
                 {
-                    selection->start = { selection->pivot.x - 1, selection->pivot.y };
-                    selection->end = {point.x + 1, point.y};
-                    selection->pivot = selection->start;
-                }
-                else
-                {
+                    //selection->start = { point.x, point.y };
                     selection->end = { point.x + 1, point.y };
                     selection->pivot = selection->start;
                 }
+                else if (startIsPivot)
+                {
+                    selection->end = { point.x, point.y };
+                }
+                else
+                {
+                    if (point >= selection->pivot)
+                    {
+                        selection->start = { selection->pivot.x - 1, selection->pivot.y };
+                        selection->end = { point.x + 1, point.y };
+                        selection->pivot = selection->start;
+                    }
+                    else
+                    {
+                        selection->start = { point.x, point.y };
+                        //selection->end = { point.x + 1, point.y };
+                        //selection->pivot = selection->start;
+                    }
+                }
+
+                //if (!isSingleCell && pivotAtEnd && point > selection->pivot)
+                //{
+                //    selection->start = { selection->pivot.x - 1, selection->pivot.y };
+                //    selection->end = {point.x + 1, point.y};
+                //    selection->pivot = selection->start;
+                //}
+                //else
+                //{
+                //    selection->end = { point.x + 1, point.y };
+                //    selection->pivot = selection->start;
+                //}
             }
             else
             {

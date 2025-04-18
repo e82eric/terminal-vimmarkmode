@@ -173,6 +173,7 @@ namespace Microsoft::Console::Render::Atlas
             std::span<const til::point_span> searchHighlightFocused;
             std::span<const til::point_span> selectionSpans;
             std::span<const til::point_span> yankSelectionSpans;
+            std::span<const til::point_span> vimCursorSpans;
 
             // dirtyRect is a computed value based on invalidatedRows.
             til::rect dirtyRect;

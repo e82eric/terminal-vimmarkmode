@@ -317,6 +317,7 @@ CATCH_RETURN()
 
         _api.selectionSpans = til::point_span_subspan_within_rect(info.selectionSpans, dr);
         _api.yankSelectionSpans = til::point_span_subspan_within_rect(info.yankSelectionSpans, dr);
+        _api.vimCursorSpans = til::point_span_subspan_within_rect(info.vimCursorSpans, dr);
 
         const u32 newSelectionColor{ static_cast<COLORREF>(info.selectionBackground) | 0xff000000 };
         if (_api.s->misc->selectionColor != newSelectionColor)
@@ -536,6 +537,7 @@ try
     RETURN_IF_FAILED(_drawHighlighted(_api.searchHighlightFocused, y, x, columnEnd, highlightFocusFg, highlightFocusBg));
     RETURN_IF_FAILED(_drawHighlighted(_api.selectionSpans, y, x, columnEnd, _p.s->misc->selectionForeground, _p.s->misc->selectionColor));
     RETURN_IF_FAILED(_drawHighlighted(_api.yankSelectionSpans, y, x, columnEnd, _p.s->misc->yankSelectionForeground, _p.s->misc->yankSelectionColor));
+    RETURN_IF_FAILED(_drawHighlighted(_api.vimCursorSpans, y, x, columnEnd, _p.s->misc->yankSelectionForeground, _p.s->misc->yankSelectionColor));
 
     _api.lastPaintBufferLineCoord = { x, y };
     return S_OK;

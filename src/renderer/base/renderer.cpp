@@ -355,9 +355,11 @@ try
     }
 
     const auto spans = _pData->GetSelectionSpans();
+    const std::span<const til::point_span> cursorSpans = _pData->GetVimCursor();
     if (spans.size() != _lastSelectionPaintSize || (!spans.empty() && _lastSelectionPaintSpan != til::point_span{ spans.front().start, spans.back().end }))
     {
         std::vector<til::rect> newSelectionViewportRects;
+        std::vector<til::rect> newCursorViewportRects;
 
         _lastSelectionPaintSize = spans.size();
         if (_lastSelectionPaintSize)
@@ -377,6 +379,16 @@ try
                     newSelectionViewportRects.emplace_back(r.to_origin(vp));
                 });
             }
+            for (auto&& sp : cursorSpans)
+            {
+                sp.iterate_rows_exclusive(bufferWidth, [&](til::CoordType row, til::CoordType min, til::CoordType max) {
+                    const auto shift = buffer.GetLineRendition(row) != LineRendition::SingleWidth ? 1 : 0;
+                    min <<= shift;
+                    max <<= shift;
+                    til::rect r{ min, row, max, row + 1 };
+                    newCursorViewportRects.emplace_back(r.to_origin(vp));
+                });
+            }
         }
 
         FOREACH_ENGINE(pEngine)
@@ -386,6 +398,7 @@ try
         }
 
         std::exchange(_lastSelectionRectsByViewport, newSelectionViewportRects);
+        std::exchange(_lastVimCursorRectsByViewport, newCursorViewportRects);
 
         NotifyPaintFrame();
     }
@@ -1330,6 +1343,7 @@ void Renderer::_PaintCursor(_In_ IRenderEngine* const pEngine)
     info.searchHighlightFocused = _pData->GetSearchHighlightFocused();
     info.selectionSpans = _pData->GetSelectionSpans();
     info.yankSelectionSpans = _pData->GetYankSelectionRects();
+    info.vimCursorSpans = _pData->GetVimCursor();
     info.selectionBackground = _renderSettings.GetColorTableEntry(TextColor::SELECTION_BACKGROUND);
     info.yankSelectionBackground = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_CYAN);
     return pEngine->PrepareRenderInfo(std::move(info));

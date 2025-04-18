@@ -76,6 +76,12 @@ std::span<const til::point_span> RenderData::GetYankSelectionRects() noexcept
     return Selection::Instance().GetSelectionSpans();
 }
 
+std::span<const til::point_span> RenderData::GetVimCursor() const noexcept
+{
+    return {};
+}
+
+
 // Method Description:
 // - Retrieves one rectangle per line describing the area of the viewport
 //   that should be highlighted in some way to represent a user-interactive selection

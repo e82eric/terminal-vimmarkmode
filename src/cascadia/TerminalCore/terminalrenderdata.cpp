@@ -6,6 +6,7 @@
 #include <DefaultSettings.h>
 
 #include "QuickSelectAlphabet.h"
+#include "VimMotions.hpp"
 
 using namespace Microsoft::Terminal::Core;
 using namespace Microsoft::Console::Types;
@@ -161,6 +162,39 @@ catch (...)
 {
     LOG_CAUGHT_EXCEPTION();
     return {};
+}
+
+std::span<const til::point_span> Terminal::GetVimCursor() const noexcept
+{
+    auto selection = _selection;
+    const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
+    const bool pivotAtStart = (selection->start == selection->pivot);
+
+    til::point start;
+    til::point end;
+    if (!this->IsSelectionActive())
+    {
+        return {};
+    }
+
+    if (isSingleCell)
+    {
+        start = selection->start;
+        end = selection->end;
+    }
+    else if (pivotAtStart)
+    {
+        start = { selection->end.x - 1, selection->end.y };
+        end = selection->end;
+    }
+    else
+    {
+        start =  selection->start;
+        end = {selection->start.x + 1, selection->start.y };
+    }
+
+    _lastVimCursor = _activeBuffer().GetTextSpans(start, end, false, false);
+    return _lastVimCursor;
 }
 
 // Method Description:

@@ -214,6 +214,7 @@ public:
     std::span<const til::point_span> GetYankSelectionRects() noexcept override;
     std::span<const til::point_span> GetSelectionSpans() const noexcept override;
     std::span<const til::point_span> GetSearchHighlights() const noexcept override;
+    std::span<const til::point_span> GetVimCursor() const noexcept override;
     const til::point_span* GetSearchHighlightFocused() const noexcept override;
     const bool IsSelectionActive() const noexcept override;
     const bool IsBlockSelection() const noexcept override;
@@ -374,6 +375,7 @@ private:
     mutable til::generation_t _lastSelectionGeneration{};
     mutable std::vector<til::point_span> _lastYankSelectionSpans;
     mutable til::generation_t _lastYankSelectionGeneration{};
+    mutable std::vector<til::point_span> _lastVimCursor;
 
     CursorType _defaultCursorShape = CursorType::Legacy;
 

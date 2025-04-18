@@ -3875,7 +3875,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await resume_foreground(Dispatcher());
         if (weakThis.get() && args)
         {
-            if (_core.HasSelection() && !args.ClearMarkers() && !_core.IsInQuickSelectMode())
+            if (_core.HasSelection() && !args.ClearMarkers() && !_core.IsInQuickSelectMode() && !_core.IsInVimMode())
             {
                 // retrieve all of the necessary selection marker data
                 // from the TerminalCore layer under one lock to improve performance

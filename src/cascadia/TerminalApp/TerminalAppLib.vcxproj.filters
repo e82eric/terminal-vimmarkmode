@@ -153,10 +153,7 @@
     </Page>
     <Page Include="AboutDialog.xaml" />
     <Page Include="SuggestionsControl.xaml" />
-<<<<<<< HEAD
-=======
     <Page Include="SnippetsPaneContent.xaml" />
->>>>>>> microsoft/main
   </ItemGroup>
   <ItemGroup>
     <Filter Include="app">

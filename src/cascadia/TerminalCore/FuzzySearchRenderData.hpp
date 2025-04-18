@@ -16,6 +16,7 @@ public:
     til::point GetTextBufferEndPosition() const noexcept override;
     const FontInfo& GetFontInfo() const noexcept override;
     std::span<const til::point_span> GetYankSelectionRects() noexcept override;
+    std::span<const til::point_span> GetVimCursor() const noexcept override;
     void SelectYankRegion() override;
     void ClearYankRegion() override;
     bool InQuickSelectMode() override;
