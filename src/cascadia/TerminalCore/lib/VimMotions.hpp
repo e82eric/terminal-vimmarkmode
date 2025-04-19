@@ -29,8 +29,8 @@ namespace vim
         void SelectPageUp(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual);
         void SelectHalfPageUp(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual, bool entireLine);
         void SelectHalfPageDown(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual, bool entireLine);
-        void SelectBottom(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual);
-        void SelectTop(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual);
+        void SelectBottom(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual, bool entireLine);
+        void SelectTop(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual, bool entireLine);
         void SelectLineDown(Microsoft::Terminal::Core::Terminal& terminal);
         void SelectLineUp(Microsoft::Terminal::Core::Terminal& terminal);
         void MatchingChar(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual);

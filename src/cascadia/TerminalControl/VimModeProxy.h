@@ -163,8 +163,8 @@ private:
     void _selectLineFirstNonBlankChar(bool isVisual);
     void _selectLineUp();
     void _selectLineDown();
-    void _selectTop(bool isVisual);
-    void _selectBottom(bool isVisual);
+    void _selectTop(bool isVisual, bool entireLine);
+    void _selectBottom(bool isVisual, bool entireLine);
     void _selectHalfPageUp(bool isVisual, bool entireLine);
     void _selectHalfPageDown(bool isVisual, bool entireLine);
     void _selectPageUp(bool isVisual);

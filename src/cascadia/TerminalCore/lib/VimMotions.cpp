@@ -1909,24 +1909,42 @@ namespace vim
             terminal.SetSelectionAnchors(selection);
         }
 
-        void SelectBottom(Microsoft::Terminal::Core::Terminal& terminal, bool isvisual)
+        void SelectBottom(Microsoft::Terminal::Core::Terminal& terminal, bool isvisual, bool entireLine)
         {
             auto lastChar = _getLastNonSpaceChar(terminal);
             auto selectionAnchors = terminal.GetSelectionAnchors();
             const auto selection{ selectionAnchors.write() };
 
             auto pos = til::point{ selection->start.x, lastChar.y };
-            if (pos > lastChar)
+            if (pos > lastChar || entireLine)
             {
                 pos = lastChar;
             }
 
-            if (isvisual)
-            {
-                const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
-                //const bool pivotAtStart = (selection->start == selection->pivot);
-                const bool pivotAtEnd = (selection->end == selection->pivot);
+            const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
+            const bool pivotAtEnd = (selection->end == selection->pivot);
 
+
+            if (entireLine)
+            {
+                if (!isSingleCell && pivotAtEnd)
+                {
+                    if (pos > selection->pivot)
+                    {
+                        selection->start = { 0, selection->pivot.y };
+                        selection->end = { pos.x + 1, pos.y };
+                        selection->pivot = selection->start;
+                    }
+                }
+                else
+                {
+                    selection->start = { 0, selection->start.y };
+                    selection->end = { pos.x + 1, pos.y };
+                    selection->pivot = selection->start;
+                }
+            }
+            else if (isvisual)
+            {
                 if (!isSingleCell && pivotAtEnd)
                 {
                     if (pos > selection->pivot)
@@ -1953,16 +1971,38 @@ namespace vim
             terminal.UserScrollViewport(lastChar.y);
         }
 
-        void SelectTop(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        void SelectTop(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual, bool entireLine)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
             const auto selection{ selectionAnchors.write() };
-            if (isVisual)
-            {
-                const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
-                const bool pivotAtStart = (selection->start == selection->pivot);
-                //const bool pivotAtEnd = (selection->end == selection->pivot);
+            const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
+            const bool pivotAtStart = (selection->start == selection->pivot);
 
+            if (entireLine)
+            {
+                auto pos = til::point{ 0, 0 };
+                if (!isSingleCell && pivotAtStart)
+                {
+                    if (pos < selection->pivot)
+                    {
+                        auto lineEnd = _GetLineEnd(terminal, selection->pivot);
+                        selection->start = pos;
+                        selection->end = lineEnd;
+                        selection->pivot = selection->end;
+                    }
+                }
+                else
+                {
+                    auto lineEnd = _GetLineEnd(terminal, selection->end);
+                    selection->start = til::point{ selection->start.x, 0 };
+                    selection->end = lineEnd;
+                    selection->pivot = selection->end;
+                }
+
+                terminal.UserScrollViewport(0);
+            }
+            else if (isVisual)
+            {
                 auto pos = til::point{ selection->start.x, 0 };
                 if (!isSingleCell && pivotAtStart)
                 {

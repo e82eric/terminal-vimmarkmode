@@ -631,7 +631,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
             term.Write(text2);
 
-            vim::motions::SelectBottom(term, false);
+            vim::motions::SelectBottom(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -655,7 +655,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
             term.Write(text2);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -702,9 +702,9 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
             term.Write(text3);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, true);
-            vim::motions::SelectBottom(term, true);
+            vim::motions::SelectBottom(term, true, false);
             vim::motions::MoveToEndOfLine(term, true);
             ValidateLinearSelection(term, { 0, 0 }, {11, 2}, {0, 0});
 
@@ -725,7 +725,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
             term.Write(text2);
 
-            vim::motions::SelectBottom(term, false);
+            vim::motions::SelectBottom(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -749,7 +749,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
             term.Write(text2);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -826,7 +826,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
             term.Write(text3);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToEndOfLine(term, false);
             vim::motions::MoveLeft(term, false);
             vim::motions::MoveLeft(term, false);
@@ -903,7 +903,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text4);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveDown(term, false); 
             ValidateLinearSelection(term, { 0, 1 }, {1, 1}, {0, 1});
@@ -1110,7 +1110,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
             term.Write(text2);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -1134,7 +1134,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
             term.Write(text2);
 
-            vim::motions::SelectBottom(term, false);
+            vim::motions::SelectBottom(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -1231,7 +1231,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
             term.Write(text2);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -1329,7 +1329,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
             term.Write(text2);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -1565,9 +1565,9 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
             term.Write(text3);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
-            vim::motions::SelectBottom(term, true);
+            vim::motions::SelectBottom(term, true, false);
             vim::motions::MoveToEndOfLine(term, true);
             ValidateLinearSelection(term, { 0, 0 }, { 17, 2 }, {0, 0});
 
@@ -2538,7 +2538,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -2567,7 +2567,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -2596,7 +2596,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -2627,7 +2627,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectBottom(term, false);
+            vim::motions::SelectBottom(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -2656,7 +2656,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectBottom(term, false);
+            vim::motions::SelectBottom(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -2685,13 +2685,13 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectBottom(term, false);
+            vim::motions::SelectBottom(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
             ValidateLinearSelection(term, { 2, 3 }, {3, 3}, {2,3});
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             ValidateLinearSelection(term, { 2, 0 }, {3, 0}, {2,0});
         }
 
@@ -2714,13 +2714,13 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectBottom(term, false);
+            vim::motions::SelectBottom(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
             ValidateLinearSelection(term, { 2, 3 }, {3, 3}, {2,3});
 
-            vim::motions::SelectTop(term, true);
+            vim::motions::SelectTop(term, true, false);
             ValidateLinearSelection(term, { 2, 0 }, {3, 3}, {3,3});
         }
 
@@ -2743,7 +2743,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectBottom(term, false);
+            vim::motions::SelectBottom(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -2751,7 +2751,7 @@ namespace VimMotionsTests
             vim::motions::MoveDown(term, true);
             ValidateLinearSelection(term, { 2, 2 }, {3, 3}, {2,2});
 
-            vim::motions::SelectTop(term, true);
+            vim::motions::SelectTop(term, true, false);
             ValidateLinearSelection(term, { 2, 0 }, {3, 2}, {3,2});
         }
 
@@ -2774,13 +2774,13 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
             ValidateLinearSelection(term, { 2, 0 }, {3, 0}, {2,0});
 
-            vim::motions::SelectBottom(term, false);
+            vim::motions::SelectBottom(term, false, false);
             ValidateLinearSelection(term, { 2, 3 }, {3, 3}, {2,3});
         }
 
@@ -2803,14 +2803,43 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
             ValidateLinearSelection(term, { 2, 0 }, {3, 0}, {2,0});
 
-            vim::motions::SelectBottom(term, true);
+            vim::motions::SelectBottom(term, true, false);
             ValidateLinearSelection(term, { 2, 0 }, {3, 3}, {2,0});
+        }
+
+        TEST_METHOD(SelectBottom_EntireLine_Visual)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text3);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            ValidateLinearSelection(term, { 2, 0 }, {3, 0}, {2,0});
+
+            vim::motions::SelectBottom(term, true, true);
+            ValidateLinearSelection(term, { 0, 0 }, {11, 3}, {0,0});
         }
 
         TEST_METHOD(SelectBottom_AcrossPivot_Visual)
@@ -2832,7 +2861,7 @@ namespace VimMotionsTests
             GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
             term.Write(text3);
 
-            vim::motions::SelectTop(term, false);
+            vim::motions::SelectTop(term, false, false);
             vim::motions::MoveToStartOfLine(term, false);
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
@@ -2840,8 +2869,37 @@ namespace VimMotionsTests
             vim::motions::MoveUp(term, true);
             ValidateLinearSelection(term, { 2, 0 }, {3, 1}, {3,1});
 
-            vim::motions::SelectBottom(term, true);
+            vim::motions::SelectBottom(term, true, false);
             ValidateLinearSelection(term, { 2, 1 }, {3, 3}, {2,1});
+        }
+
+        TEST_METHOD(SelectBottom_AcrossPivot_EntireLine_Visual)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text3);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveDown(term, false);
+            vim::motions::MoveDown(term, false);
+            vim::motions::SelectTop(term, false, true);
+            ValidateLinearSelection(term, { 0, 0 }, {11, 2}, {11,2});
+
+            vim::motions::SelectBottom(term, true, true);
+            ValidateLinearSelection(term, { 0, 2 }, {11, 3}, {0,2});
         }
     };
 }

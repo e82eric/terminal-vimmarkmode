@@ -195,14 +195,14 @@ void VimModeProxy::_selectLineDown()
     vim::motions::SelectLineDown(*_terminal);
 }
 
-void VimModeProxy::_selectTop(bool isVisual)
+void VimModeProxy::_selectTop(bool isVisual, bool entireLine)
 {
-    vim::motions::SelectTop(*_terminal, isVisual);
+    vim::motions::SelectTop(*_terminal, isVisual, entireLine);
 }
 
-void VimModeProxy::_selectBottom(bool isVisual)
+void VimModeProxy::_selectBottom(bool isVisual, bool entireLine)
 {
-    vim::motions::SelectBottom(*_terminal, isVisual);
+    vim::motions::SelectBottom(*_terminal, isVisual, entireLine);
 }
 
 void VimModeProxy::_selectHalfPageUp(bool isVisual, bool entireLine)
@@ -405,10 +405,10 @@ bool VimModeProxy::_executeVimSelection(
                 _selectLineDown();
                 break;
             case VimMotionType::moveToTopOfBuffer:
-                _selectTop(true);
+                _selectTop(true, true);
                 break;
             case VimMotionType::moveToBottomOfBuffer:
-                _selectBottom(true);
+                _selectBottom(true, true);
                 break;
             case VimMotionType::halfPageUp:
                 _selectHalfPageUp(true, true);
@@ -451,10 +451,10 @@ bool VimModeProxy::_executeVimSelection(
             switch (motion)
             {
             case VimMotionType::moveToTopOfBuffer:
-                _selectTop(selectFromStart);
+                _selectTop(selectFromStart, false);
                 break;
             case VimMotionType::moveToBottomOfBuffer:
-                _selectBottom(selectFromStart);
+                _selectBottom(selectFromStart, false);
                 break;
             case VimMotionType::halfPageUp:
                 _selectHalfPageUp(selectFromStart, false);
