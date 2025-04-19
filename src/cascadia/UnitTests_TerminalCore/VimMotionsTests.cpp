@@ -2663,7 +2663,7 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 2, 3 }, {3, 3}, {2,3});
 
             vim::motions::SelectHalfPageUp(term, true, false);
-            ValidateLinearSelection(term, { 2, 0 }, {3, 3}, {3,3});
+            ValidateLinearSelection(term, { 1, 0 }, {3, 3}, {3,3});
         }
 
         TEST_METHOD(SelectTop)
