@@ -1985,7 +1985,7 @@ namespace vim
                 {
                     if (pos < selection->pivot)
                     {
-                        auto lineEnd = _GetLineEnd(terminal, selection->pivot);
+                        auto lineEnd = _GetLineEnd(terminal, { 0, selection->pivot.y });
                         selection->start = pos;
                         selection->end = lineEnd;
                         selection->pivot = selection->end;
@@ -1993,8 +1993,8 @@ namespace vim
                 }
                 else
                 {
-                    auto lineEnd = _GetLineEnd(terminal, selection->end);
-                    selection->start = til::point{ selection->start.x, 0 };
+                    auto lineEnd = _GetLineEnd(terminal, { 0, selection->end.y });
+                    selection->start = pos;
                     selection->end = lineEnd;
                     selection->pivot = selection->end;
                 }

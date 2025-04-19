@@ -2724,6 +2724,64 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 2, 0 }, {3, 3}, {3,3});
         }
 
+        TEST_METHOD(SelectTop_EntireLine_Visual)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text3);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveUp(term, false);
+            ValidateLinearSelection(term, { 0, 2 }, {1, 2}, {0,2});
+
+            vim::motions::SelectTop(term, true, true);
+            ValidateLinearSelection(term, { 0, 0 }, {11, 2}, {11,2});
+        }
+
+        TEST_METHOD(SelectTop_EntireLine_AcrossPivot_Visual)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text3);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveUp(term, false);
+            vim::motions::MoveUp(term, false);
+            vim::motions::SelectBottom(term, false, true);
+            ValidateLinearSelection(term, { 0, 1 }, {11, 3}, {0,1});
+
+            vim::motions::SelectTop(term, true, true);
+            ValidateLinearSelection(term, { 0, 0 }, {11, 1}, {11,1});
+        }
+
         TEST_METHOD(SelectTop_AcrossPivot_Visual)
         {
             Terminal term{ Terminal::TestDummyMarker{} };
