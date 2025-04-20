@@ -295,6 +295,287 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { textLength - 2, 0 }, {textLength, 0});
         }
 
+        TEST_METHOD(MoveLeft_BlockVisual_AfterMovingDown)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim::motions::MoveDown(term, true);
+            vim::motions::MoveDown(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, { 3, 2 }, {2,0});
+
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 1, 0 }, { 3, 2 }, {3,0});
+        }
+
+        TEST_METHOD(MoveLeft_BlockVisual_AfterMovingUp)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim::motions::MoveUp(term, true);
+            vim::motions::MoveUp(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, { 3, 3 }, {3,3});
+
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 1, 1 }, { 3, 3 }, {3,3});
+        }
+
+        TEST_METHOD(MoveLeft_BlockVisual_AfterMovingUpAndRight)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim::motions::MoveUp(term, true);
+            vim::motions::MoveUp(term, true);
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, { 4, 3 }, {3,3});
+
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, { 3, 3 }, {3,3});
+
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 1, 1 }, { 3, 3 }, {3,3});
+
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 0, 1 }, { 3, 3 }, {3,3});
+        }
+
+        TEST_METHOD(MoveLeft_BlockVisual_AfterMovingDownAndRight)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim::motions::MoveDown(term, true);
+            vim::motions::MoveDown(term, true);
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, { 4, 2 }, {2,0});
+
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, { 3, 2 }, {2,0});
+
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 1, 0 }, { 3, 2 }, {3,0});
+
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 0, 0 }, { 3, 2 }, {3,0});
+        }
+
+        TEST_METHOD(MoveRight_BlockVisual_AfterMovingDown)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim::motions::MoveDown(term, true);
+            vim::motions::MoveDown(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, { 3, 2 }, {2,0});
+
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, { 4, 2 }, {2,0});
+        }
+
+        TEST_METHOD(MoveRight_BlockVisual_AfterMovingUp)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim::motions::MoveUp(term, true);
+            vim::motions::MoveUp(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, { 3, 3 }, {3,3});
+
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, { 4, 3 }, {3,3});
+        }
+
+        TEST_METHOD(MoveRight_BlockVisual_AfterMovingUpAndLeft)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim::motions::MoveUp(term, true);
+            vim::motions::MoveUp(term, true);
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 1, 1 }, { 3, 3 }, {3,3});
+
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, { 3, 3 }, {3,3});
+
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, { 4, 3 }, {3,3});
+        }
+
+        TEST_METHOD(MoveRight_BlockVisual_AfterMovingDownAndLeft)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim::motions::MoveDown(term, true);
+            vim::motions::MoveDown(term, true);
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 1, 0 }, { 3, 2 }, {3,0});
+
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, { 3, 2 }, {3,0});
+
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, { 4, 2 }, {3,0});
+
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, { 5, 2 }, {3,0});
+        }
+
         TEST_METHOD(MoveDown)
         {
             Terminal term{ Terminal::TestDummyMarker{} };
@@ -1470,6 +1751,244 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 8, 0 }, {12, 0}, {12, 0});
         }
 
+        TEST_METHOD(MoveWordLeft_BlockVisual_AfterMovingDown)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveDown(term, true);
+            vim ::motions::MoveDown(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, {3, 2}, {2, 0});
+
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, {0, 0}, {3, 2}, {3,0});
+        }
+
+        TEST_METHOD(MoveWordLeft_BlockVisual_AfterMovingDownAndWordRight)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveDown(term, true);
+            vim ::motions::MoveDown(term, true);
+            vim::motions::MoveWordRight(term, false, true);
+            vim::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, { 2, 0 }, {9, 2}, {2, 0});
+
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, { 2, 0 }, {6, 2}, {2, 0});
+        }
+
+        TEST_METHOD(MoveWordLeft_BlockVisual_AfterMovingUpAndWordRight)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveUp(term, true);
+            vim ::motions::MoveUp(term, true);
+            vim::motions::MoveWordRight(term, false, true);
+            vim::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, { 2, 1 }, {9, 3}, {2, 3});
+
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, { 2, 1 }, {6, 3}, {2, 3});
+
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, { 0, 1 }, {3, 3}, {3, 3});
+        }
+
+        TEST_METHOD(MoveWordLeft_BlockVisual_AfterMovingUp)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveUp(term, true);
+            vim ::motions::MoveUp(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, {3, 3}, {3, 3});
+
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, {0, 1}, {3, 3}, {3,3});
+        }
+
+        TEST_METHOD(MoveWordLeft_AcrossPivot_BlockVisual_AfterMovingUpAndRight)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveUp(term, true);
+            vim ::motions::MoveUp(term, true);
+            vim ::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, {4, 3}, {3, 3});
+
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, {0, 1}, {3, 3}, {3,3});
+        }
+
+        TEST_METHOD(MoveWordLeft_AcrossPivotSingleColumn_BlockVisual_AfterMovingUpAndWordRight)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveWordStartRight(term, false, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveUp(term, true);
+            vim ::motions::MoveUp(term, true);
+            ValidateLinearSelection(term, { 5, 1 }, {6, 3}, {6, 3});
+
+            vim ::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, { 5, 1 }, {9, 3}, {5, 3});
+
+            vim ::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, { 5, 1 }, {6, 3}, {5, 3});
+
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, {0, 1}, {6, 3}, {6,3});
+        }
+
+        TEST_METHOD(MoveWordLeft_AcrossPivot_BlockVisual_AfterMovingDownAndRight)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveDown(term, true);
+            vim ::motions::MoveDown(term, true);
+            vim ::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, {4, 2}, {2, 0});
+
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, {0, 0}, {3, 2}, {3,0});
+        }
+
         TEST_METHOD(MoveWordLeft_MultipleLines)
         {
             Terminal term{ Terminal::TestDummyMarker{} };
@@ -2128,6 +2647,206 @@ namespace VimMotionsTests
 
             vim::motions::MoveWordStartRight(term, false, true);
             ValidateLinearSelection(term, {0, 0}, {17, 2}, {0,0});
+        }
+
+        TEST_METHOD(MoveWordRight_BlockVisual_MultipleLines)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveUp(term, true);
+            vim ::motions::MoveUp(term, true);
+            ValidateLinearSelection(term, { 2, 1 }, {3, 3}, {3, 3});
+
+            vim::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, {2, 1}, {4, 3}, {2,3});
+        }
+
+        TEST_METHOD(MoveWordRight_AcrossPivot_BlockVisual_AfterMovingDown)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveDown(term, true);
+            vim ::motions::MoveDown(term, true);
+            ValidateLinearSelection(term, { 2, 0 }, {3, 2}, {2, 0});
+
+            vim::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, {2, 0}, {4, 2}, {2,0});
+        }
+
+        TEST_METHOD(MoveWordRight_BlockVisual_AfterMovingDown)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveWordRight(term, false, false);
+            vim ::motions::MoveWordRight(term, false, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveDown(term, true);
+            vim ::motions::MoveDown(term, true);
+            vim::motions::MoveWordLeft(term, false, true);
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, { 0, 0 }, {9, 2}, {9, 0});
+
+            vim::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, {3, 0}, {9, 2}, {9,0});
+        }
+
+        TEST_METHOD(MoveWordRight_BlockVisual_AfterMovingUp)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveWordRight(term, false, false);
+            vim ::motions::MoveWordRight(term, false, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveUp(term, true);
+            vim ::motions::MoveUp(term, true);
+            vim::motions::MoveWordLeft(term, false, true);
+            vim::motions::MoveWordLeft(term, false, true);
+            ValidateLinearSelection(term, { 0, 1 }, {9, 3}, {9, 3});
+
+            vim::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, {3, 1}, {9, 3}, {9,3});
+        }
+
+        TEST_METHOD(MoveWordRight_BlockVisual_AfterMovingDown_AcrossPivot)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveDown(term, true);
+            vim ::motions::MoveDown(term, true);
+            vim ::motions::MoveLeft(term, true);
+            vim ::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 0, 0 }, {3, 2}, {3, 0});
+
+            vim::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, {2, 0}, {4, 2}, {2,0});
+        }
+
+        TEST_METHOD(MoveWordRight_AcrossPivot_BlockVisual)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"test line 1";
+            const std::wstring_view text2 = L"test line 2";
+            const std::wstring_view text3 = L"test line 3";
+            const std::wstring_view text4 = L"test line 4";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 3 });
+            term.Write(text4);
+
+            vim::motions::SelectBottom(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim ::motions::MoveRight(term, false);
+            vim ::motions::MoveRight(term, false);
+            term.SetBlockSelection(true);
+            vim ::motions::MoveUp(term, true);
+            vim ::motions::MoveUp(term, true);
+            vim ::motions::MoveLeft(term, true);
+            vim ::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 0, 1 }, {3, 3}, {3, 3});
+
+            vim::motions::MoveWordRight(term, false, true);
+            ValidateLinearSelection(term, {2, 1}, {4, 3}, {2,3});
         }
 
         TEST_METHOD(MoveWordStartRight_LargeWord)

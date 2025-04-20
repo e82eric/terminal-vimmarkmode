@@ -177,7 +177,51 @@ std::span<const til::point_span> Terminal::GetVimCursor() const noexcept
         return {};
     }
 
-    if (isSingleCell)
+    if (selection->blockSelection)
+    {
+        auto singleColumn = selection->start.x + 1 == selection->end.x;
+        auto pivotAtBottom = selection->pivot.y == selection->end.y;
+        
+        if (pivotAtBottom)
+        {
+            auto movingLeft = selection->end.x == selection->pivot.x;
+            if (singleColumn || movingLeft)
+            {
+                start = selection->start;
+                end = { selection->start.x + 1, selection->start.y };
+            }
+            //else if (movingLeft)
+            //{
+            //    start = selection->start;
+            //    end = { selection->start.x + 1, selection->start.y };
+            //}
+            else
+            {
+                start = { selection->end.x - 1, selection->start.y };
+                end = { selection->end.x, selection->start.y };
+            }
+        }
+        else
+        {
+            auto movingLeft = selection->end.x == selection->pivot.x;
+            if (singleColumn || !movingLeft)
+            {
+                start = { selection->end.x - 1, selection->end.y };
+                end = selection->end;
+            }
+            //else if (movingLeft)
+            //{
+            //    start = selection->start;
+            //    end = { selection->start.x + 1, selection->start.y };
+            //}
+            else
+            {
+                start = { selection->start.x, selection->end.y };
+                end = { selection->start.x + 1, selection->end.y };
+            }
+        }
+    }
+    else if (isSingleCell)
     {
         start = selection->start;
         end = selection->end;

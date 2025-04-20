@@ -663,10 +663,6 @@ namespace vim
         void MoveLeft(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
-            //if (selectionAnchors->start.x == 0)
-            //{
-            //    return;
-            //}
             auto selection{ selectionAnchors.write() };
 
             if (!isVisual)
@@ -676,6 +672,36 @@ namespace vim
                     selection->start.x--;
                     selection->end.x--;
                     selection->pivot = selection->start;
+                }
+            }
+            else if (selection->blockSelection)
+            {
+                auto singleColumn = selection->start.x + 1 == selection->end.x;
+                auto pivotAtBottom = selection->pivot.y == selection->end.y;
+                auto pivotAtRight = selection->end.x == selection->pivot.x;
+
+                if (pivotAtBottom)
+                {
+                    if (singleColumn || pivotAtRight)
+                    {
+                        selection->start = { selection->start.x - 1, selection->start.y };
+                    }
+                    else
+                    {
+                        selection->end = { selection->end.x - 1, selection->end.y };
+                    }
+                }
+                else
+                {
+                    if (pivotAtRight || singleColumn)
+                    {
+                        selection->start = { selection->start.x - 1, selection->start.y };
+                        selection->pivot = { selection->end.x, selection->start.y };
+                    }
+                    else
+                    {
+                        selection->end = { selection->end.x - 1, selection->end.y };
+                    }
                 }
             }
             else
@@ -729,6 +755,35 @@ namespace vim
                 selection->start.x++;
                 selection->end = {selection->start.x + 1, selection->start.y};
                 selection->pivot = selection->start;
+            }
+            else if (selection->blockSelection)
+            {
+                auto singleColumn = selection->start.x + 1 == selection->end.x;
+                auto pivotAtBottom = selection->pivot.y == selection->end.y;
+                auto pivotAtRight = selection->end.x == selection->pivot.x;
+
+                if (pivotAtBottom)
+                {
+                    if (!singleColumn && pivotAtRight)
+                    {
+                        selection->start = { selection->start.x + 1, selection->start.y };
+                    }
+                    else
+                    {
+                        selection->end = { selection->end.x + 1, selection->end.y };
+                    }
+                }
+                else
+                {
+                    if (!singleColumn && pivotAtRight)
+                    {
+                        selection->start = { selection->start.x + 1, selection->start.y };
+                    }
+                    else
+                    {
+                        selection->end = { selection->end.x + 1, selection->end.y };
+                    }
+                }
             }
             else
             {
@@ -1154,14 +1209,15 @@ namespace vim
 
             auto lastPoint = _getLastNonSpaceChar(terminal);
             auto startPoint = selection->start;
-            if (isSingleCell)
-            {
-                startPoint = { selection->start.x, selection->start.y };
-            }
-            else if (pivotAtStart)
-            {
-                startPoint = { selection->end.x - 1, selection->end.y };
-            }
+            //if (isSingleCell)
+            //{
+            //    startPoint = { selection->start.x, selection->start.y };
+            //}
+            //else if (pivotAtStart)
+            //{
+            //    startPoint = { selection->end.x - 1, selection->end.y };
+            //}
+            startPoint = terminal.GetVimCursor().front().start;
 
             auto updateSelection = [&](til::point wordEnd) {
                 if (!isVisual)
@@ -1169,6 +1225,58 @@ namespace vim
                     selection->start = wordEnd;
                     selection->end = til::point{wordEnd.x + 1, wordEnd.y};
                     selection->pivot = selection->start;
+                }
+                else if (selection->blockSelection)
+                {
+                    auto singleColumn = selection->start.x + 1 == selection->end.x;
+                    auto pivotAtBottom = selection->pivot.y == selection->end.y;
+                    auto pivotAtRight = selection->pivot.x == selection->end.x;
+
+                    if (pivotAtBottom)
+                    {
+                        if (singleColumn || pivotAtRight)
+                        {
+                            selection->start = { wordEnd.x, selection->start.y };
+                            selection->pivot = selection->end;
+                        }
+                        else
+                        {
+                            if (wordEnd.x < selection->pivot.x)
+                            {
+                                auto newEndX = selection->start.x + 1;
+                                selection->start = { wordEnd.x, selection->start.y };
+                                selection->end = { newEndX, selection->pivot.y };
+                                selection->pivot = selection->end;
+                            }
+                            else
+                            {
+                                selection->end = { wordEnd.x + 1, selection->end.y };
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (singleColumn || pivotAtRight)
+                        {
+                            selection->start = { wordEnd.x, selection->start.y };
+                            selection->pivot = { selection->end.x, selection->start.y };
+                        }
+                        else
+                        {
+                            if (wordEnd.x < selection->pivot.x)
+                            {
+                                selection->start = { wordEnd.x, selection->start.y };
+                                selection->end = { selection->pivot.x + 1, selection->end.y };
+                                selection->pivot = { selection->end.x, selection->start.y };
+                            }
+                            else
+                            {
+                                //selection->start = { wordEnd.x, selection->start.y };
+                                selection->end = { wordEnd.x + 1, selection->end.y };
+                                selection->pivot = selection->start;
+                            }
+                        }
+                    }
                 }
                 else if (isSingleCell)
                 {
@@ -1246,21 +1354,74 @@ namespace vim
             const bool pivotAtEnd = (selection->end == selection->pivot);
 
             auto lastPoint = _getLastNonSpaceChar(terminal);
+            auto vimCursor = terminal.GetVimCursor();
             auto startPoint = selection->end;
-            if (isSingleCell || pivotAtEnd)
+            if (isSingleCell || pivotAtEnd && !selection->blockSelection)
             {
                 startPoint = { selection->start.x + 1, selection->start.y };
             }
+            startPoint = vimCursor.back().end;
 
             // Helper lambda to update the selection based on the word's end point.
             auto updateSelection = [&](til::point wordEnd) {
-                if (!isVisual)
+                if (selection->blockSelection)
+                {
+                    auto singleColumn = selection->start.x + 1 == selection->end.x;
+                    auto pivotAtBottom = selection->pivot.y == selection->end.y;
+                    auto pivotAtRight = selection->pivot.x > selection->start.x;
+
+                    if (pivotAtBottom)
+                    {
+                        if (pivotAtRight && !singleColumn)
+                        {
+                            if (wordEnd.x > selection->pivot.x && !singleColumn)
+                            {
+                                selection->start= { selection->pivot.x - 1, selection->start.y };
+                                selection->end = { wordEnd.x, selection->end.y };
+                                selection->pivot = { selection->start.x, selection->end.y };
+                            }
+                            else
+                            {
+                                selection->start = { wordEnd.x - 1, selection->start.y };
+                                selection->pivot = { selection->end.x, selection->end.y };
+                            }
+                        }
+                        else
+                        {
+                            selection->end = { wordEnd.x, selection->end.y };
+                            selection->pivot = { selection->start.x, selection->end.y };
+                        }
+                    }
+                    else
+                    {
+                        if (pivotAtRight && !singleColumn)
+                        {
+                            if (wordEnd.x > selection->pivot.x && !singleColumn)
+                            {
+                                selection->start= { selection->pivot.x - 1, selection->start.y };
+                                selection->end = { wordEnd.x, selection->end.y };
+                                selection->pivot = selection->start;
+                            }
+                            else
+                            {
+                                selection->start = { wordEnd.x - 1, selection->start.y };
+                                selection->pivot = { selection->end.x, selection->start.y };
+                            }
+                        }
+                        else
+                        {
+                            selection->end = { wordEnd.x, selection->end.y };
+                            selection->pivot = { selection->start.x, selection->start.y };
+                        }
+                    }
+                }
+                else if (!isVisual)
                 {
                     selection->start = { wordEnd.x - 1, wordEnd.y };
                     selection->end = wordEnd;
                     selection->pivot = selection->end;
                 }
-                else if (isSingleCell || pivotAtStart)
+                else if (isSingleCell || pivotAtStart || selection->blockSelection)
                 {
                     selection->end = wordEnd;
                     selection->pivot = selection->start;
