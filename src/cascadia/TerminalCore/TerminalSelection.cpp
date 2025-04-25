@@ -704,6 +704,48 @@ til::generational<Terminal::SelectionInfo> Terminal::GetSelectionAnchors()
     return _selection;
 }
 
+Terminal::VimSelectionInfo Terminal::GetVimSelectionAnchors()
+{
+    return { _selection->start, _selection->end, _selection->pivot, _selection->blockSelection };
+}
+
+void Terminal::SetVimSelectionAnchors(VimSelectionInfo* val)
+{
+    const auto endMovingDown = val->end.y > _selection->end.y;
+    const auto startMovingDown = val->start.y > _selection->start.y;
+    const auto startMovingUp = val->start.y < _selection->start.y;
+    const auto endMovingUp = val->end.y < _selection->end.y;
+    auto selection{ _selection.write() };
+    selection->start = val->start;
+    selection->end = val->end;
+    selection->pivot = val->pivot;
+    selection->active = true;
+
+    til::point point;
+    if (endMovingDown)
+    {
+        const auto bottom{ GetTextBuffer().GetLastNonSpaceCharacter().y };
+        point = til::point{ _selection->end.x, std::min(_selection->end.y + 5, bottom)};
+        _ScrollToPoint(point);
+    }
+    else if (startMovingDown)
+    {
+        const auto bottom{ GetTextBuffer().GetLastNonSpaceCharacter().y };
+        point = til::point{ _selection->start.x, std::min(_selection->start.y + 5, bottom)};
+        _ScrollToPoint(point);
+    }
+    else if (startMovingUp)
+    {
+        point = til::point{ _selection->start.x, _selection->start.y - 5};
+        _ScrollToPoint(point);
+    }
+    else if (endMovingUp)
+    {
+        point = til::point{ _selection->end.x, _selection->end.y - 5};
+        _ScrollToPoint(point);
+    }
+}
+
 void Terminal::SetSelectionAnchors(SelectionInfo* val)
 {
     const auto endMovingDown = val->end.y > _selection->end.y;

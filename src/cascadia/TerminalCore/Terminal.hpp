@@ -513,8 +513,17 @@ private:
     std::vector<til::point_span> _quickSelectHighlights;
 
 public:
+    struct VimSelectionInfo
+    {
+        til::point start;
+        til::point end;
+        til::point pivot;
+        bool blockSelection;
+    };
     til::generational<SelectionInfo> GetSelectionAnchors();
+    VimSelectionInfo GetVimSelectionAnchors();
     void SetSelectionAnchors(SelectionInfo* val);
+    void SetVimSelectionAnchors(VimSelectionInfo* val);
     void SetQuickSelectHandler(std::shared_ptr<QuickSelectAlphabet> val);
     int32_t NumberOfVisibleSearchSelections();
     std::optional<std::tuple<til::point, til::point>> GetViewportSelectionAtIndex(int32_t index);

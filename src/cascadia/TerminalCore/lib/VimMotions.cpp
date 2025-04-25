@@ -1,6 +1,11 @@
 #include "pch.h"
 #include "VimMotions.hpp"
 
+#include "../Terminal.hpp"
+#include "../Terminal.hpp"
+#include "../Terminal.hpp"
+#include "../Terminal.hpp"
+
 namespace vim
 {
     namespace motions
@@ -450,6 +455,7 @@ namespace vim
 
         bool _FindCharBack(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view vkey, bool isTil, til::point& target)
         {
+            auto cursor = GetVimCursor(terminal);
             auto selection = terminal.GetSelectionAnchors();
             const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
             const bool pivotAtStart = (selection->start == selection->pivot);
@@ -457,6 +463,10 @@ namespace vim
             if (!isSingleCell && pivotAtStart)
             {
                 startPoint = selection->end;
+            }
+            if (cursor.IsBlock)
+            {
+                startPoint = cursor.Span.start;
             }
 
             startPoint.x--;
@@ -510,6 +520,7 @@ namespace vim
 
         bool _FindChar(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view vkey, bool isTil, til::point& target)
         {
+            auto cursor = GetVimCursor(terminal);
             const auto selection = terminal.GetSelectionAnchors();
             const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
             const bool pivotAtStart = (selection->start == selection->pivot);
@@ -518,6 +529,10 @@ namespace vim
             if (!isSingleCell && pivotAtStart)
             {
                 startPoint = selection->end;
+            }
+            if (cursor.IsBlock)
+            {
+                startPoint = cursor.Span.start;
             }
 
             startPoint.x++;
@@ -660,6 +675,57 @@ namespace vim
             SelectPoint(terminal, lastNonSpaceChar);
         }
 
+        void _moveToStartOfNextLineBlock(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection)
+        {
+            auto cursor = GetVimCursor(terminal, selection);
+            if (cursor.BlockHorizontalPosition == Right || cursor.BlockHorizontalPosition == SingleColumn)
+            {
+                selection->end = { 1, cursor.Span.start.y + 1 };
+                selection->pivot = selection->start;
+            }
+            else
+            {
+                selection->start = { 0, cursor.Span.start.y + 1 };
+                selection->pivot = selection->start;
+            }
+        }
+
+        void _moveLeftBlock(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection)
+        {
+            if (selection->blockSelection)
+            {
+                auto cursor = GetVimCursor(terminal, selection);
+                //auto singleColumn = selection->start.x + 1 == selection->end.x;
+                //auto pivotAtBottom = selection->pivot.y == selection->end.y;
+                //auto pivotAtRight = selection->end.x == selection->pivot.x;
+
+                if (cursor.BlockVerticalPosition == Top)
+                {
+                    if (cursor.BlockHorizontalPosition == SingleColumn || cursor.BlockHorizontalPosition == Left)
+                    {
+                        selection->start = { selection->start.x - 1, selection->start.y };
+                        selection->pivot = { selection->end.x, selection->end.y };
+                    }
+                    else
+                    {
+                        selection->end = { selection->end.x - 1, selection->end.y };
+                    }
+                }
+                else
+                {
+                    if (cursor.BlockHorizontalPosition == Left || cursor.BlockHorizontalPosition == SingleColumn)
+                    {
+                        selection->start = { selection->start.x - 1, selection->start.y };
+                        selection->pivot = { selection->end.x, selection->start.y };
+                    }
+                    else
+                    {
+                        selection->end = { selection->end.x - 1, selection->end.y };
+                    }
+                }
+            }
+        }
+
         void MoveLeft(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
@@ -672,37 +738,42 @@ namespace vim
                     selection->start.x--;
                     selection->end.x--;
                     selection->pivot = selection->start;
+                    terminal.SetSelectionAnchors(selection);
                 }
             }
             else if (selection->blockSelection)
             {
-                auto singleColumn = selection->start.x + 1 == selection->end.x;
-                auto pivotAtBottom = selection->pivot.y == selection->end.y;
-                auto pivotAtRight = selection->end.x == selection->pivot.x;
+                auto vimSelection = terminal.GetVimSelectionAnchors();
+                _moveLeftBlock(terminal, &vimSelection);
+                terminal.SetVimSelectionAnchors(&vimSelection);
+                //auto singleColumn = selection->start.x + 1 == selection->end.x;
+                //auto pivotAtBottom = selection->pivot.y == selection->end.y;
+                //auto pivotAtRight = selection->end.x == selection->pivot.x;
 
-                if (pivotAtBottom)
-                {
-                    if (singleColumn || pivotAtRight)
-                    {
-                        selection->start = { selection->start.x - 1, selection->start.y };
-                    }
-                    else
-                    {
-                        selection->end = { selection->end.x - 1, selection->end.y };
-                    }
-                }
-                else
-                {
-                    if (pivotAtRight || singleColumn)
-                    {
-                        selection->start = { selection->start.x - 1, selection->start.y };
-                        selection->pivot = { selection->end.x, selection->start.y };
-                    }
-                    else
-                    {
-                        selection->end = { selection->end.x - 1, selection->end.y };
-                    }
-                }
+                //if (pivotAtBottom)
+                //{
+                //    if (singleColumn || pivotAtRight)
+                //    {
+                //        selection->start = { selection->start.x - 1, selection->start.y };
+                //        selection->pivot = { selection->end.x, selection->end.y };
+                //    }
+                //    else
+                //    {
+                //        selection->end = { selection->end.x - 1, selection->end.y };
+                //    }
+                //}
+                //else
+                //{
+                //    if (pivotAtRight || singleColumn)
+                //    {
+                //        selection->start = { selection->start.x - 1, selection->start.y };
+                //        selection->pivot = { selection->end.x, selection->start.y };
+                //    }
+                //    else
+                //    {
+                //        selection->end = { selection->end.x - 1, selection->end.y };
+                //    }
+                //}
             }
             else
             {
@@ -736,54 +807,111 @@ namespace vim
                         }
                     }
                 }
+                terminal.SetSelectionAnchors(selection);
             }
-
-            terminal.SetSelectionAnchors(selection);
         }
 
-        void MoveRight(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        void _moveRightVisualBlock(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
+            auto cursor = GetVimCursor(terminal, selection);
 
             if (selectionAnchors->end.x >= terminal.GetTextBuffer().GetLineWidth(selectionAnchors->end.y))
             {
                 return;
             }
-            const auto selection{ selectionAnchors.write() };
-            if (!isVisual)
-            {
-                selection->start.x++;
-                selection->end = {selection->start.x + 1, selection->start.y};
-                selection->pivot = selection->start;
-            }
-            else if (selection->blockSelection)
-            {
-                auto singleColumn = selection->start.x + 1 == selection->end.x;
-                auto pivotAtBottom = selection->pivot.y == selection->end.y;
-                auto pivotAtRight = selection->end.x == selection->pivot.x;
-
-                if (pivotAtBottom)
+            //if (selection->blockSelection)
+            //{
+                if (cursor.BlockVerticalPosition == Top)
                 {
-                    if (!singleColumn && pivotAtRight)
+                    if (cursor.BlockHorizontalPosition != SingleColumn && cursor.BlockHorizontalPosition == Left)
                     {
                         selection->start = { selection->start.x + 1, selection->start.y };
                     }
                     else
                     {
                         selection->end = { selection->end.x + 1, selection->end.y };
+                        selection->pivot = { selection->start.x, selection->end.y };
                     }
                 }
                 else
                 {
-                    if (!singleColumn && pivotAtRight)
+                    if (cursor.BlockHorizontalPosition == SingleColumn || cursor.BlockHorizontalPosition == Right)
+                    {
+                        selection->end = { selection->end.x + 1, selection->end.y };
+                        selection->pivot = selection->start;
+                    }
+                    else if(cursor.BlockHorizontalPosition == Left)
                     {
                         selection->start = { selection->start.x + 1, selection->start.y };
                     }
-                    else
-                    {
-                        selection->end = { selection->end.x + 1, selection->end.y };
-                    }
+                    //if (!singleColumn && pivotAtRight)
+                    //{
+                    //}
+                    //else
+                    //{
+                    //    selection->end = { selection->end.x + 1, selection->end.y };
+                    //}
                 }
+            //}
+
+            //terminal.SetSelectionAnchors(selection);
+        }
+
+        void MoveRight(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        {
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+            auto cursor = GetVimCursor(terminal);
+
+            if (selectionAnchors->end.x >= terminal.GetTextBuffer().GetLineWidth(selectionAnchors->end.y))
+            {
+                return;
+            }
+            //const auto selection{ selectionAnchors.write() };
+            auto selection = terminal.GetVimSelectionAnchors();
+            if (!isVisual)
+            {
+                selection.start.x++;
+                selection.end = {selection.start.x + 1, selection.start.y};
+                selection.pivot = selection.start;
+                terminal.SetVimSelectionAnchors(&selection);
+            }
+            else if (selection.blockSelection)
+            {
+                _moveRightVisualBlock(terminal, &selection);
+                terminal.SetVimSelectionAnchors(&selection);
+
+                //if (cursor.BlockVerticalPosition == Top)
+                //{
+                //    if (cursor.BlockHorizontalPosition != SingleColumn && cursor.BlockHorizontalPosition == Left)
+                //    {
+                //        selection->start = { selection->start.x + 1, selection->start.y };
+                //    }
+                //    else
+                //    {
+                //        selection->end = { selection->end.x + 1, selection->end.y };
+                //        selection->pivot = { selection->start.x, selection->end.y };
+                //    }
+                //}
+                //else
+                //{
+                //    if (cursor.BlockHorizontalPosition == SingleColumn || cursor.BlockHorizontalPosition == Right)
+                //    {
+                //        selection->end = { selection->end.x + 1, selection->end.y };
+                //        selection->pivot = selection->start;
+                //    }
+                //    else if(cursor.BlockHorizontalPosition == Left)
+                //    {
+                //        selection->start = { selection->start.x + 1, selection->start.y };
+                //    }
+                //    //if (!singleColumn && pivotAtRight)
+                //    //{
+                //    //}
+                //    //else
+                //    //{
+                //    //    selection->end = { selection->end.x + 1, selection->end.y };
+                //    //}
+                //}
             }
             else
             {
@@ -791,22 +919,60 @@ namespace vim
                                    selectionAnchors->end.x - 1 == selectionAnchors->start.x);
                 if (singleCell)
                 {
-                    selection->end.x++;
-                    selection->pivot = selection->start;
+                    selection.end.x++;
+                    selection.pivot = selection.start;
                 }
-                else if (selection->end > selection->pivot)
+                else if (selection.end > selection.pivot)
                 {
-                    selection->end.x++;
-                    selection->pivot = selection->start;
+                    selection.end.x++;
+                    selection.pivot = selection.start;
                 }
                 else
                 {
-                    selection->start.x++;
-                    selection->pivot = selection->end;
+                    selection.start.x++;
+                    selection.pivot = selection.end;
+                }
+                terminal.SetVimSelectionAnchors(&selection);
+            }
+        }
+
+        void _moveDown(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection)
+        {
+            auto lastY = _getLastNonSpaceChar(terminal).y;
+            auto cursor = GetVimCursor(terminal, selection);
+            auto point = cursor.Span.start;
+
+            if (point.y + 1 <= lastY)
+            {
+                if (cursor.IsBlock)
+                {
+                    if (cursor.BlockVerticalPosition == SingleRow || cursor.BlockVerticalPosition == Bottom)
+                    {
+                        selection->end = { selection->end.x, cursor.Span.end.y + 1 };
+                        if (cursor.BlockHorizontalPosition == Left || cursor.BlockHorizontalPosition == SingleColumn)
+                        {
+                            selection->pivot = { selection->end.x, selection->start.y };
+                        }
+                        else
+                        {
+                            selection->pivot = { selection->start.x, selection->start.y };
+                        }
+                    }
+                    else
+                    {
+                        if (cursor.BlockHorizontalPosition == Left)
+                        {
+                            selection->start = { selection->start.x, selection->start.y + 1 };
+                            selection->pivot = selection->end;
+                        }
+                        else
+                        {
+                            selection->start = { selection->start.x, selection->start.y + 1 };
+                            selection->pivot = { selection->start.x, selection->end.y };
+                        }
+                    }
                 }
             }
-
-            terminal.SetSelectionAnchors(selection);
         }
 
         void MoveDown(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
@@ -825,7 +991,15 @@ namespace vim
 
             if (point.y + 1 <= lastY)
             {
+                auto cursor = GetVimCursor(terminal);
                 point.y++;
+                if (cursor.IsBlock)
+                {
+                    auto vimSelection = terminal.GetVimSelectionAnchors();
+                    _moveDown(terminal, &vimSelection);
+                    terminal.SetVimSelectionAnchors(&vimSelection);
+                    return;
+                }
                 if (!isVisual)
                 {
                     selection->start = { point.x, point.y };
@@ -863,6 +1037,274 @@ namespace vim
             }
         }
 
+        VimCursor GetVimCursor(Microsoft::Terminal::Core::Terminal &/*terminal*/, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection) noexcept
+        {
+            VimCursorPosition position = {};
+            BlockVimCursorHorizontalPosition blockVimCursorHorizontalPosition = {};
+            BlockVimCursorVerticalPosition blockVimCursorVerticalPosition = {};
+            auto isBlock = selection->blockSelection;
+            if (isBlock)
+            {
+                if (selection->start.y == selection->end.y)
+                {
+                    blockVimCursorVerticalPosition = SingleRow;
+                }
+                else if (selection->start.y == selection->pivot.y)
+                {
+                    blockVimCursorVerticalPosition = Bottom;
+                }
+                else
+                {
+                    blockVimCursorVerticalPosition = Top;
+                }
+
+                if (selection->start.x + 1 == selection->end.x)
+                {
+                    blockVimCursorHorizontalPosition = SingleColumn;
+                }
+                else if (selection->start.x == selection->pivot.x)
+                {
+                    blockVimCursorHorizontalPosition = Right;
+                }
+                else
+                {
+                    blockVimCursorHorizontalPosition = Left;
+                }
+            }
+            else
+            {
+                if (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y)
+                {
+                    position = SingleCell;
+                }
+                else if (selection->start == selection->pivot)
+                {
+                    position = End;
+                }
+                else
+                {
+                    position = Start;
+                }
+            }
+
+            til::point start;
+            til::point end;
+
+            if (selection->blockSelection)
+            {
+                if (blockVimCursorHorizontalPosition == SingleColumn)
+                {
+                    if (blockVimCursorVerticalPosition == SingleRow)
+                    {
+                        start = selection->start;
+                        end = selection->end;
+                    }
+                    else if (blockVimCursorVerticalPosition == Top)
+                    {
+                        start = selection->start;
+                        end = { selection->start.x + 1, selection->start.y };
+                    }
+                    else if (blockVimCursorVerticalPosition == Bottom)
+                    {
+                        start = { selection->end.x - 1, selection->end.y };
+                        end = selection->end;
+                    }
+                }
+                else if (blockVimCursorHorizontalPosition == Left)
+                {
+                    if (blockVimCursorVerticalPosition == SingleRow || blockVimCursorVerticalPosition == Top)
+                    {
+                        start = selection->start;
+                        end = { selection->start.x + 1, selection->start.y };
+                    }
+                    else if (blockVimCursorVerticalPosition == Bottom)
+                    {
+                        start = { selection->start.x, selection->end.y };
+                        end = { selection->start.x + 1, selection->end.y };
+                    }
+                }
+                else if (blockVimCursorHorizontalPosition == Right)
+                {
+                    if (blockVimCursorVerticalPosition == SingleRow || blockVimCursorVerticalPosition == Top)
+                    {
+                        start = { selection->end.x - 1, selection->start.y };
+                        end = { selection->end.x, selection->start.y };
+                    }
+                    else if (blockVimCursorVerticalPosition == Bottom)
+                    {
+                        start = { selection->end.x - 1, selection->end.y };
+                        end = { selection->end.x, selection->end.y };
+                    }
+                }
+            }
+            else if (position == SingleCell)
+            {
+                start = selection->start;
+                end = selection->end;
+            }
+            else if (position == End)
+            {
+                start = { selection->end.x - 1, selection->end.y };
+                end = selection->end;
+            }
+            else
+            {
+                start = selection->start;
+                end = { selection->start.x + 1, selection->start.y };
+            }
+
+            return VimCursor{ isBlock,  position, blockVimCursorHorizontalPosition, blockVimCursorVerticalPosition, til::point_span{ start, end } };
+        }
+
+        VimCursor GetVimCursor(Microsoft::Terminal::Core::Terminal &terminal) noexcept
+        {
+            auto selection = terminal.GetVimSelectionAnchors();
+
+            VimCursorPosition position = {};
+            BlockVimCursorHorizontalPosition blockVimCursorHorizontalPosition = {};
+            BlockVimCursorVerticalPosition blockVimCursorVerticalPosition = {};
+            auto isBlock = selection.blockSelection;
+            if (isBlock)
+            {
+                if (selection.start.y == selection.end.y)
+                {
+                    blockVimCursorVerticalPosition = SingleRow;
+                }
+                else if (selection.start.y == selection.pivot.y)
+                {
+                    blockVimCursorVerticalPosition = Bottom;
+                }
+                else
+                {
+                    blockVimCursorVerticalPosition = Top;
+                }
+
+                if (selection.start.x + 1 == selection.end.x)
+                {
+                    blockVimCursorHorizontalPosition = SingleColumn;
+                }
+                else if (selection.start.x == selection.pivot.x)
+                {
+                    blockVimCursorHorizontalPosition = Right;
+                }
+                else
+                {
+                    blockVimCursorHorizontalPosition = Left;
+                }
+            }
+            else
+            {
+                if (selection.end.x - 1 == selection.start.x && selection.start.y == selection.end.y)
+                {
+                    position = SingleCell;
+                }
+                else if (selection.start == selection.pivot)
+                {
+                    position = End;
+                }
+                else
+                {
+                    position = Start;
+                }
+            }
+
+            til::point start;
+            til::point end;
+
+            if (selection.blockSelection)
+            {
+                if (blockVimCursorHorizontalPosition == SingleColumn)
+                {
+                    if (blockVimCursorVerticalPosition == SingleRow)
+                    {
+                        start = selection.start;
+                        end = selection.end;
+                    }
+                    else if (blockVimCursorVerticalPosition == Top)
+                    {
+                        start = selection.start;
+                        end = { selection.start.x + 1, selection.start.y };
+                    }
+                    else if (blockVimCursorVerticalPosition == Bottom)
+                    {
+                        start = { selection.end.x - 1, selection.end.y };
+                        end = selection.end;
+                    }
+                }
+                else if (blockVimCursorHorizontalPosition == Left)
+                {
+                    if (blockVimCursorVerticalPosition == SingleRow || blockVimCursorVerticalPosition == Top)
+                    {
+                        start = selection.start;
+                        end = { selection.start.x + 1, selection.start.y };
+                    }
+                    else if (blockVimCursorVerticalPosition == Bottom)
+                    {
+                        start = { selection.start.x, selection.end.y };
+                        end = { selection.start.x + 1, selection.end.y };
+                    }
+                }
+                else if (blockVimCursorHorizontalPosition == Right)
+                {
+                    if (blockVimCursorVerticalPosition == SingleRow || blockVimCursorVerticalPosition == Top)
+                    {
+                        start = { selection.end.x - 1, selection.start.y };
+                        end = { selection.end.x, selection.start.y };
+                    }
+                    else if (blockVimCursorVerticalPosition == Bottom)
+                    {
+                        start = { selection.end.x - 1, selection.end.y };
+                        end = { selection.end.x, selection.end.y };
+                    }
+                }
+            }
+            else if (position == SingleCell)
+            {
+                start = selection.start;
+                end = selection.end;
+            }
+            else if (position == End)
+            {
+                start = { selection.end.x - 1, selection.end.y };
+                end = selection.end;
+            }
+            else
+            {
+                start = selection.start;
+                end = { selection.start.x + 1, selection.start.y };
+            }
+
+            return VimCursor{ isBlock,  position, blockVimCursorHorizontalPosition, blockVimCursorVerticalPosition, til::point_span{ start, end } };
+        }
+
+        void _moveUpBlock(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection)
+        {
+            auto cursor = GetVimCursor(terminal, selection);
+            if (cursor.Span.start.y - 1 >= 0)
+            {
+                if (cursor.IsBlock)
+                {
+                    if (cursor.BlockVerticalPosition == SingleRow || cursor.BlockVerticalPosition == Top)
+                    {
+                        selection->start = { selection->start.x, cursor.Span.start.y - 1 };
+                        if (cursor.BlockHorizontalPosition == Left || cursor.BlockHorizontalPosition == SingleColumn)
+                        {
+                            selection->pivot = { selection->end.x, selection->end.y };
+                        }
+                        else
+                        {
+                            selection->pivot = { selection->start.x, selection->end.y };
+                        }
+                    }
+                    else
+                    {
+                        selection->end = { selection->end.x, cursor.Span.end.y - 1 };
+                        selection->pivot = { selection->pivot.x, selection->start.y };
+                    }
+                }
+            }
+        }
+
         void MoveUp(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
             auto selectionAnchors = terminal.GetSelectionAnchors();
@@ -877,10 +1319,17 @@ namespace vim
                 point = selection->end;
             }
 
-            if (point.y - 1 >= 0)
+            point.y--;
+            auto cursor = GetVimCursor(terminal);
+            if (cursor.Span.start.y - 1 >= 0)
             {
-                point.y--;
-                if (!isVisual)
+                if (cursor.IsBlock)
+                {
+                    auto vimSelection = terminal.GetVimSelectionAnchors();
+                    _moveUpBlock(terminal, &vimSelection);
+                    terminal.SetVimSelectionAnchors(&vimSelection);
+                }
+                else if (!isVisual)
                 {
                     selection->start = { point.x, point.y };
                     selection->end = { point.x + 1, point.y };
@@ -929,7 +1378,15 @@ namespace vim
             auto startLine = _getStartLineOfRow(terminal.GetTextBuffer(), y);
             if (terminal.IsBlockSelection())
             {
-                startLine = selection->start.y == selection->pivot.y ? selection->end.y : selection->start.y;
+                auto cursor = GetVimCursor(terminal);
+                auto vimSelection = terminal.GetVimSelectionAnchors();
+                for (auto i = cursor.Span.start.x; i > 0; i--)
+                {
+                    _moveLeftBlock(terminal, &vimSelection);
+                }
+                terminal.SetVimSelectionAnchors(&vimSelection);
+                return;
+                //startLine = selection->start.y == selection->pivot.y ? selection->end.y : selection->start.y;
             }
             auto startOfLine = til::point{ 0, startLine };
 
@@ -973,6 +1430,8 @@ namespace vim
             const auto selection{ selectionAnchors.write() };
             if (terminal.IsBlockSelection())
             {
+                auto cursor = GetVimCursor(terminal);
+                auto vimSelection = terminal.GetVimSelectionAnchors();
                 auto maxNonSpaceChar = 0;
                 for (auto i = selection->start.y; i <= selection->end.y; i++)
                 {
@@ -982,9 +1441,15 @@ namespace vim
                         maxNonSpaceChar = lastNonSpaceColumn;
                     }
                 }
-                auto s = til::point{ maxNonSpaceChar + 1, selection->end.y };
-                selection->end = s;
-                terminal.SetSelectionAnchors(selection);
+                for (auto i = cursor.Span.start.x; i < maxNonSpaceChar; i++)
+                {
+                    _moveRightVisualBlock(terminal, &vimSelection);
+                }
+                terminal.SetVimSelectionAnchors(&vimSelection);
+
+                //auto s = til::point{ maxNonSpaceChar + 1, selection->end.y };
+                //selection->end = s;
+                //terminal.SetSelectionAnchors(selection);
             }
             else
             {
@@ -1040,6 +1505,21 @@ namespace vim
         void TilChar(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view vkey, bool isVisual)
         {
             til::point target;
+            auto cursor = GetVimCursor(terminal);
+            if (cursor.IsBlock)
+            {
+                auto vimSelection = terminal.GetVimSelectionAnchors();
+                if (_FindChar(terminal, vkey, true, target))
+                {
+                    for (auto i = cursor.Span.start.x; i < target.x; i++)
+                    {
+                        _moveRightVisualBlock(terminal, &vimSelection);
+                    }
+                }
+                terminal.SetVimSelectionAnchors(&vimSelection);
+                return;
+            }
+
             if (_FindChar(terminal, vkey, true, target))
             {
                 auto selectionAnchors = terminal.GetSelectionAnchors();
@@ -1074,6 +1554,22 @@ namespace vim
         void TilCharBackwards(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view vkey, bool isVisual)
         {
             til::point target;
+            auto cursor = GetVimCursor(terminal);
+            if (cursor.IsBlock)
+            {
+                if (_FindCharBack(terminal, vkey,true, target))
+                {
+                    auto vimSelection = terminal.GetVimSelectionAnchors();
+                    for (auto i = cursor.Span.start.x; i > target.x; i--)
+                    {
+                        _moveLeftBlock(terminal, &vimSelection);
+                    }
+                    terminal.SetVimSelectionAnchors(&vimSelection);
+                }
+                return;
+            }
+
+
             if (_FindCharBack(terminal, vkey, true, target))
             {
                 auto selectionAnchors = terminal.GetSelectionAnchors();
@@ -1115,7 +1611,24 @@ namespace vim
 
         void FindChar(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view vkey, bool isVisual)
         {
+            auto cursor = GetVimCursor(terminal);
             til::point target;
+            if (cursor.IsBlock)
+            {
+                target = { cursor.Span.start };
+                if (_FindChar(terminal, vkey, false, target))
+                {
+                    auto vimSelection = terminal.GetVimSelectionAnchors();
+                    for (auto i = cursor.Span.start.x; i < target.x; i++)
+                    {
+                        _moveRightVisualBlock(terminal, &vimSelection);
+                    }
+                    terminal.SetVimSelectionAnchors(&vimSelection);
+                }
+
+                return;
+            }
+
             if (_FindChar(terminal, vkey, false, target))
             {
                 auto selectionAnchors = terminal.GetSelectionAnchors();
@@ -1158,6 +1671,20 @@ namespace vim
         void FindCharBackwards(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view vkey, bool isVisual)
         {
             til::point target;
+            auto cursor = GetVimCursor(terminal);
+            if (cursor.IsBlock)
+            {
+                if (_FindCharBack(terminal, vkey, false, target))
+                {
+                    auto vimSelection = terminal.GetVimSelectionAnchors();
+                    for (auto i = cursor.Span.start.x; i > target.x; i--)
+                    {
+                        _moveLeftBlock(terminal, &vimSelection);
+                    }
+                    terminal.SetVimSelectionAnchors(&vimSelection);
+                }
+                return;
+            }
             if (_FindCharBack(terminal, vkey, false, target))
             {
                 auto selectionAnchors = terminal.GetSelectionAnchors();
@@ -1488,8 +2015,55 @@ namespace vim
             {
                 startPoint = selection->end;
             }
+            auto cursor = GetVimCursor(terminal);
+            if (cursor.IsBlock)
+            {
+                startPoint = cursor.Span.start;
+            }
 
             auto start = _GetStartOfNextWord(terminal, startPoint, delimiters);
+
+            if (cursor.IsBlock)
+            {
+                auto vimSelection = terminal.GetVimSelectionAnchors();
+                if (!start.second)
+                {
+                    //auto lastNonSpaceChar = _getLastNonSpaceChar(terminal);
+                    //auto yToMove = startPoint.y;
+                    //if (yToMove + 1 <= lastNonSpaceChar.y)
+                    //{
+                    //    yToMove++;
+                    //    auto startOfNextLine = til::point{ 0, yToMove };
+                    //    start = _GetLineFirstNonBlankChar(terminal, startOfNextLine);
+                    //    if (start.second)
+                    //    {
+                    //        //if (isVisual)
+                    //        //{
+                    //        //    selection->end = { firstNonSpaceChar.first.x + 1, firstNonSpaceChar.first.y };
+                    //        //    selection->pivot = selection->start;
+                    //        //}
+                    //        //else
+                    //        //{
+                    //        //    selection->start = firstNonSpaceChar.first;
+                    //        //    selection->end = { firstNonSpaceChar.first.x + 1, firstNonSpaceChar.first.y };
+                    //        //    selection->pivot = selection->start;
+                    //        //}
+                    //    }
+                    //    else
+                    //    {
+                            _moveToStartOfNextLineBlock(terminal, &vimSelection);
+                            terminal.SetVimSelectionAnchors(&vimSelection);
+                            return;
+                    //    }
+                    //}
+                }
+                for (auto i = cursor.Span.start.x; i < start.first.x; i++)
+                {
+                    _moveRightVisualBlock(terminal, &vimSelection);
+                }
+                terminal.SetVimSelectionAnchors(&vimSelection);
+                return;
+            }
 
             if (start.second)
             {
@@ -1774,6 +2348,8 @@ namespace vim
 
             if (terminal.IsBlockSelection())
             {
+                auto cursor = GetVimCursor(terminal);
+
                 auto maxNonSpaceChar = 0;
                 for (auto i = selection->start.y; i <= selection->end.y; i++)
                 {
@@ -1789,10 +2365,17 @@ namespace vim
                         maxNonSpaceChar = lastNonSpaceColumn;
                     }
                 }
-                auto s = til::point{ maxNonSpaceChar, selection->start.y };
-                selection->start = s;
-                selection->pivot = selection->end;
-                terminal.SetSelectionAnchors(selection);
+
+                auto selection = terminal.GetVimSelectionAnchors();
+                for (auto i = cursor.Span.start.x; i > maxNonSpaceChar; i--)
+                {
+                    _moveLeftBlock(terminal, &selection);
+                }
+                terminal.SetVimSelectionAnchors(&selection);
+                //auto s = til::point{ maxNonSpaceChar, selection->start.y };
+                //selection->start = s;
+                //selection->pivot = selection->end;
+                //terminal.SetSelectionAnchors(selection);
                 return;
             }
             auto startOfLine = til::point{ 0, startLine };
@@ -1889,13 +2472,26 @@ namespace vim
             const auto bufferSize{ terminal.GetTextBuffer().GetSize() };
             const auto startIsPivot = selection->start.y == selection->pivot.y && selection->start.x == selection->pivot.x;
             const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
+            auto cursor = GetVimCursor(terminal);
+            const auto viewportHeight = terminal.GetViewport().Height();
+            if (cursor.IsBlock)
+            {
+                auto rowsToMoveUp = viewportHeight / 2;
+                auto vimSelection = terminal.GetVimSelectionAnchors();
+                for (auto i = 0; i < rowsToMoveUp; i++)
+                {
+                    _moveUpBlock(terminal, &vimSelection);
+                }
+                terminal.SetVimSelectionAnchors(&vimSelection);
+                return;
+            }
+
             auto targetPos = selection->start;
             if (startIsPivot && !isSingleCell)
             {
                 targetPos = selection->end;
             }
 
-            const auto viewportHeight = terminal.GetViewport().Height();
             const auto newY = targetPos.y - viewportHeight / 2;
             const auto y = newY < bufferSize.Top() ? 0 : newY;
             const til::CoordType x = targetPos.x;
@@ -1972,6 +2568,21 @@ namespace vim
             const auto viewportHeight{ terminal.GetViewport().Height() };
             const auto lastRow = _getLastNonSpaceChar(terminal).y;
             const auto startIsPivot = selection->start.y == selection->pivot.y && selection->start.x == selection->pivot.x;
+            auto cursor = GetVimCursor(terminal);
+
+            if (cursor.IsBlock)
+            {
+                auto rowsToMoveDown = cursor.Span.start.y + viewportHeight / 2;
+                auto vimSelection = terminal.GetVimSelectionAnchors();
+                for (auto i = 0; i < rowsToMoveDown; i++)
+                {
+                    _moveDown(terminal, &vimSelection);
+                }
+                terminal.SetVimSelectionAnchors(&vimSelection);
+
+                return;
+            }
+
             if (entireLine)
             {
                 const auto pos = startIsPivot ? selection->end : selection->start;

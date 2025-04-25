@@ -559,7 +559,16 @@ bool VimModeProxy::_executeVimSelection(
         break;
     case VimActionType::enterBlockSelectionMode:
         _vimMode = _terminal->IsBlockSelection() ? VimMode::normal : VimMode::visual;
-        _controlCore->ToggleBlockSelection();
+        if (_terminal->IsBlockSelection())
+        {
+            auto cursor = vim::motions::GetVimCursor(*_terminal);
+            _terminal->SetBlockSelection(false);
+            vim::motions::SelectPoint(*_terminal, cursor.Span.start);
+        }
+        else
+        {
+            _controlCore->ToggleBlockSelection();
+        }
         break;
     case VimActionType::exit:
         exitAfter = true;

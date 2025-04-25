@@ -1,11 +1,42 @@
 #pragma once
 
+#include "../Terminal.hpp"
 #include "..\terminal.hpp"
 
 namespace vim
 {
     namespace motions
     {
+        enum VimCursorPosition
+        {
+            SingleCell,
+            Start,
+            End
+        };
+
+        enum BlockVimCursorVerticalPosition
+        {
+            SingleRow,
+            Top,
+            Bottom
+        };
+
+        enum BlockVimCursorHorizontalPosition
+        {
+            SingleColumn,
+            Left,
+            Right
+        };
+
+        struct VimCursor
+        {
+            bool IsBlock;
+            VimCursorPosition Position;
+            BlockVimCursorHorizontalPosition BlockHorizontalPosition;
+            BlockVimCursorVerticalPosition BlockVerticalPosition;
+            til::point_span Span;
+        };
+
         void SelectLastNonSpaceChar(Microsoft::Terminal::Core::Terminal& terminal);
         void MoveLeft(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual);
         void MoveRight(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual);
@@ -36,5 +67,7 @@ namespace vim
         void MatchingChar(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual);
         void SelectPoint(Microsoft::Terminal::Core::Terminal& terminal, til::point point);
         void SelectCurrentChar(Microsoft::Terminal::Core::Terminal& terminal);
+        VimCursor GetVimCursor(Microsoft::Terminal::Core::Terminal& terminal) noexcept;
+        VimCursor GetVimCursor(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection) noexcept;
     }
 }
