@@ -3881,6 +3881,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await resume_foreground(Dispatcher());
         if (weakThis.get() && args)
         {
+            _updateRowNumbers();
             if (_core.HasSelection() && !args.ClearMarkers() && !_core.IsInQuickSelectMode() && !_core.IsInVimMode())
             {
                 // retrieve all of the necessary selection marker data
@@ -3951,8 +3952,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     displayMarker(movingEnd);
                     otherMarker.Visibility(Visibility::Collapsed);
                 }
-
-                _updateRowNumbers();
             }
             else
             {
