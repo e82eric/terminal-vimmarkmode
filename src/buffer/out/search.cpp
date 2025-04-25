@@ -63,7 +63,17 @@ bool Search::ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderDa
     _needle = needle;
     _lastMutationId = lastMutationId;
 
-    _results = _regexSearch(renderData, needle, caseInsensitive);
+    SearchFlag flags = SearchFlag::RegularExpression;
+    if (caseInsensitive)
+    {
+        flags = flags | SearchFlag::CaseInsensitive;
+    }
+    else
+    {
+        flags = flags & ~SearchFlag::CaseInsensitive;
+    }
+    auto result = textBuffer.SearchText(needle, flags);
+    _results = std::move(result).value_or(std::vector<til::point_span>{});
     _index = reverse ? gsl::narrow_cast<ptrdiff_t>(_results.size()) - 1 : 0;
     _step = reverse ? -1 : 1;
 
@@ -71,80 +81,23 @@ bool Search::ResetIfStaleRegex(Microsoft::Console::Render::IRenderData& renderDa
 }
 
 
-std::vector<til::point_span> Search::_regexSearch(const Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive)
-{
-    std::vector<til::point_span> results;
-    UErrorCode status = U_ZERO_ERROR;
-    uint32_t flags = 0;
-    WI_SetFlagIf(flags, UREGEX_CASE_INSENSITIVE, caseInsensitive);
-    const auto& textBuffer = renderData.GetTextBuffer();
-
-    const auto rowCount = textBuffer.GetLastNonSpaceCharacter().y + 1;
-
-    const auto regex = Microsoft::Console::ICU::CreateRegex(needle, flags, &status);
-    if (U_FAILURE(status))
-    {
-        return results;
-    }
-
-    const auto viewPortWidth = textBuffer.GetSize().Width();
-
-    for (int32_t i = 0; i < rowCount; i++)
-    {
-        auto startRow = i;
-        auto uText = Microsoft::Console::ICU::UTextForWrappableRow(textBuffer, i, i == rowCount - 1);
-
-        uregex_setUText(regex.get(), &uText, &status);
-        if (U_FAILURE(status))
-        {
-            return results;
-        }
-
-        if (uregex_find(regex.get(), -1, &status))
-        {
-            do
-            {
-                const int32_t icuStart = uregex_start(regex.get(), 0, &status);
-                int32_t icuEnd = uregex_end(regex.get(), 0, &status);
-                icuEnd--;
-
-                //Start of line is 0,0 and should be skipped (^)
-                if (icuEnd >= 0)
-                {
-                    const auto matchLength = utext_nativeLength(&uText);
-                    auto adjustedMatchStart = icuStart - 1 == matchLength ? icuStart - 1 : icuStart;
-                    auto adjustedMatchEnd = std::min(static_cast<int32_t>(matchLength), icuEnd);
-
-                    const size_t matchStartLine = (adjustedMatchStart / viewPortWidth) + startRow;
-                    const size_t matchEndLine = (adjustedMatchEnd / viewPortWidth) + startRow;
-
-                    if (matchStartLine > startRow)
-                    {
-                        adjustedMatchStart %= (matchStartLine - startRow) * viewPortWidth;
-                    }
-
-                    if (matchEndLine > startRow)
-                    {
-                        adjustedMatchEnd %= (matchEndLine - startRow) * viewPortWidth;
-                    }
-
-                    auto ps = til::point_span{};
-                    ps.start = til::point{ adjustedMatchStart, static_cast<int32_t>(matchStartLine) };
-                    ps.end = til::point{ adjustedMatchEnd, static_cast<int32_t>(matchEndLine) };
-                    results.emplace_back(ps);
-                }
-            } while (uregex_findNext(regex.get(), &status));
-        }
-    }
-    return results;
-}
-
 void Search::QuickSelectRegex(Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive)
 {
     _renderData = &renderData;
     _needle = needle;
 
-    _results = _regexSearch(renderData, needle, caseInsensitive);
+    auto &textBuffer = renderData.GetTextBuffer();
+    SearchFlag flags = SearchFlag::RegularExpression;
+    if (caseInsensitive)
+    {
+        flags = flags | SearchFlag::CaseInsensitive;
+    }
+    else
+    {
+        flags = flags & ~SearchFlag::CaseInsensitive;
+    }
+    auto result = textBuffer.SearchText(needle, flags);
+    _results = std::move(result).value_or(std::vector<til::point_span>{});
     _index = 0;
     _step = 1;
 }

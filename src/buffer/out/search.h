@@ -58,7 +58,6 @@ private:
     std::wstring _needle;
     SearchFlag _flags{};
     uint64_t _lastMutationId = 0;
-    static std::vector<til::point_span> _regexSearch(const Microsoft::Console::Render::IRenderData& renderData, const std::wstring_view& needle, bool caseInsensitive);
 
     bool _ok{ false };
     std::vector<til::point_span> _results;
