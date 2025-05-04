@@ -215,14 +215,14 @@ void VimModeProxy::_selectHalfPageDown(bool isVisual, bool entireLine)
     vim::motions::SelectHalfPageDown(*_terminal, isVisual, entireLine);
 }
 
-void VimModeProxy::_selectPageUp(bool isVisual)
+void VimModeProxy::_selectPageUp(bool /*isVisual*/)
 {
-    vim::motions::SelectPageUp(*_terminal, isVisual);
+    //vim::motions::SelectPageUp(*_terminal, isVisual);
 }
 
-void VimModeProxy::_selectPageDown(bool isVisual)
+void VimModeProxy::_selectPageDown(bool /*isVisual*/)
 {
-    vim::motions::SelectPageDown(*_terminal, isVisual);
+    //vim::motions::SelectPageDown(*_terminal, isVisual);
 }
 
 void VimModeProxy::_selectCharRight(bool isVisual)

@@ -112,7 +112,7 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 0, 1 }, {1, 1});
 
             vim::motions::MoveLeft(term, false);
-            ValidateLinearSelection(term, { 3, 0 }, {4, 0});
+            ValidateLinearSelection(term, { 4, 0 }, {5, 0});
         }
 
         TEST_METHOD(MoveLeft_Wrap_Visual_SingleCell)
@@ -130,7 +130,7 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 0, 1 }, {1, 1});
 
             vim::motions::MoveLeft(term, true);
-            ValidateLinearSelection(term, { 3, 0 }, {1, 1});
+            ValidateLinearSelection(term, { 4, 0 }, {1, 1});
         }
 
         TEST_METHOD(MoveLeft_Wrap_Visual_MultipleCells)
@@ -150,7 +150,7 @@ namespace VimMotionsTests
 
             vim::motions::MoveLeft(term, true);
             vim::motions::MoveLeft(term, true);
-            ValidateLinearSelection(term, { 3, 0 }, {2, 1});
+            ValidateLinearSelection(term, { 4, 0 }, {2, 1});
         }
 
         TEST_METHOD(MoveLeft_VisualExtension)
@@ -1971,7 +1971,7 @@ namespace VimMotionsTests
 
             vim::motions::MoveWordRight(term, false, false);
             vim::motions::MoveWordRight(term, false, false);
-            ValidateLinearSelection(term, { 6, 0 }, {7, 0}, {7, 0});
+            ValidateLinearSelection(term, { 6, 0 }, {7, 0}, {6, 0});
 
             vim::motions::MoveToEndOfLine(term, true);
             ValidateLinearSelection(term, { 6, 0 }, {textLength, 0}, {6, 0});
