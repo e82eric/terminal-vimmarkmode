@@ -97,6 +97,62 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 0, 0 }, {1, 0});
         }
 
+        TEST_METHOD(MoveLeft_Wrap)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"thisisatestline";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveDown(term, false);
+            ValidateLinearSelection(term, { 0, 1 }, {1, 1});
+
+            vim::motions::MoveLeft(term, false);
+            ValidateLinearSelection(term, { 3, 0 }, {4, 0});
+        }
+
+        TEST_METHOD(MoveLeft_Wrap_Visual_SingleCell)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"thisisatestline";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveDown(term, false);
+            ValidateLinearSelection(term, { 0, 1 }, {1, 1});
+
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 3, 0 }, {1, 1});
+        }
+
+        TEST_METHOD(MoveLeft_Wrap_Visual_MultipleCells)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"thisisatestline";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveDown(term, false);
+            vim::motions::MoveRight(term, false);
+            ValidateLinearSelection(term, { 1, 1 }, {2, 1});
+
+            vim::motions::MoveLeft(term, true);
+            vim::motions::MoveLeft(term, true);
+            ValidateLinearSelection(term, { 3, 0 }, {2, 1});
+        }
+
         TEST_METHOD(MoveLeft_VisualExtension)
         {
             Terminal term{ Terminal::TestDummyMarker{} };
@@ -144,6 +200,69 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { width - 1, 0 }, {width, 0});
             vim::motions::MoveRight(term, false);
             ValidateLinearSelection(term, { width - 1, 0 }, { width, 0 });
+        }
+
+        TEST_METHOD(MoveRight_Wrap)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"thisisatestline";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            ValidateLinearSelection(term, { 4, 0 }, {5, 0});
+
+            vim::motions::MoveRight(term, false);
+            ValidateLinearSelection(term, { 0, 1 }, { 1, 1 });
+        }
+
+        TEST_METHOD(MoveRight_Wrap_Visual_SingleCell)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"thisisatestline";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            ValidateLinearSelection(term, { 4, 0 }, {5, 0});
+
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 4, 0 }, { 1, 1 });
+        }
+
+        TEST_METHOD(MoveRight_Wrap_Visual_MultipleCells)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"thisisatestline";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 3, 0 }, {5, 0});
+
+            vim::motions::MoveRight(term, true);
+            ValidateLinearSelection(term, { 3, 0 }, { 1, 1 });
         }
 
         TEST_METHOD(MoveRight_VisualExtension)
@@ -1680,6 +1799,26 @@ namespace VimMotionsTests
             vim::motions::MoveToEndOfLine(term, false);
 
             ValidateLinearSelection(term, { textLength - 1, 0 }, {textLength, 0});
+        }
+
+        TEST_METHOD(MoveToEndOfLine_Wrap)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"this is a test line";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::SelectLastNonSpaceChar(term);
+            vim::motions::MoveToStartOfLine(term, false);
+
+            ValidateLinearSelection(term, { 0, 0 }, {1, 0});
+
+            vim::motions::MoveToEndOfLine(term, false);
+
+            ValidateLinearSelection(term, { 3, 3 }, {4, 3});
         }
 
         TEST_METHOD(MoveToEndOfLine_VisualBlock)
@@ -3450,7 +3589,7 @@ namespace VimMotionsTests
             vim::motions::MoveWordRight(term, false, false);
             term.SetBlockSelection(true);
             vim::motions::MoveDown(term, true);
-            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveToStartOfLine(term, true);
             ValidateLinearSelection(term, { 0, 0 }, {4, 1}, {4, 0});
 
             vim::motions::MoveWordStartRight(term, false, true);

@@ -695,9 +695,6 @@ namespace vim
             if (selection->blockSelection)
             {
                 auto cursor = GetVimCursor(terminal, selection);
-                //auto singleColumn = selection->start.x + 1 == selection->end.x;
-                //auto pivotAtBottom = selection->pivot.y == selection->end.y;
-                //auto pivotAtRight = selection->end.x == selection->pivot.x;
 
                 if (cursor.BlockVerticalPosition == Top)
                 {
@@ -726,217 +723,195 @@ namespace vim
             }
         }
 
-        void MoveLeft(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        void _moveLeftByCell(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection)
         {
-            auto selectionAnchors = terminal.GetSelectionAnchors();
-            auto selection{ selectionAnchors.write() };
+            auto cursor = GetVimCursor(terminal, selection);
+            auto startOfLine = _getStartLineOfRow(terminal.GetTextBuffer(), cursor.Span.start.y);
 
-            if (!isVisual)
+            if (selection->start.x > 0)
             {
+                selection->start.x--;
+                selection->end.x--;
+                selection->pivot = selection->start;
+            }
+            else if (startOfLine < cursor.Span.start.y)
+            {
+                auto previousRow = cursor.Span.start.y - 1;
+                const auto lastNonSpaceColumn = std::max(0, terminal.GetTextBuffer().GetRowByOffset(previousRow).GetLastNonSpaceColumn() - 1);
+                selection->end = { lastNonSpaceColumn, previousRow };
+                selection->start = { lastNonSpaceColumn - 1, previousRow };
+                selection->pivot = selection->start;
+            }
+        }
+
+        void _moveLeftVisual(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection)
+        {
+            auto cursor = GetVimCursor(terminal, selection);
+            auto startOfLine = _getStartLineOfRow(terminal.GetTextBuffer(), cursor.Span.start.y);
+
+            switch (cursor.Position)
+            {
+            case VimCursorPosition::Start:
+            case VimCursorPosition::SingleCell:
                 if (selection->start.x > 0)
-                {
-                    selection->start.x--;
-                    selection->end.x--;
-                    selection->pivot = selection->start;
-                    terminal.SetSelectionAnchors(selection);
-                }
-            }
-            else if (selection->blockSelection)
-            {
-                auto vimSelection = terminal.GetVimSelectionAnchors();
-                _moveLeftBlock(terminal, &vimSelection);
-                terminal.SetVimSelectionAnchors(&vimSelection);
-                //auto singleColumn = selection->start.x + 1 == selection->end.x;
-                //auto pivotAtBottom = selection->pivot.y == selection->end.y;
-                //auto pivotAtRight = selection->end.x == selection->pivot.x;
-
-                //if (pivotAtBottom)
-                //{
-                //    if (singleColumn || pivotAtRight)
-                //    {
-                //        selection->start = { selection->start.x - 1, selection->start.y };
-                //        selection->pivot = { selection->end.x, selection->end.y };
-                //    }
-                //    else
-                //    {
-                //        selection->end = { selection->end.x - 1, selection->end.y };
-                //    }
-                //}
-                //else
-                //{
-                //    if (pivotAtRight || singleColumn)
-                //    {
-                //        selection->start = { selection->start.x - 1, selection->start.y };
-                //        selection->pivot = { selection->end.x, selection->start.y };
-                //    }
-                //    else
-                //    {
-                //        selection->end = { selection->end.x - 1, selection->end.y };
-                //    }
-                //}
-            }
-            else
-            {
-                bool singleCell = (selectionAnchors->end.y == selectionAnchors->start.y &&
-                                   selectionAnchors->end.x - 1 == selectionAnchors->start.x);
-                const bool pivotAtStart = (selection->start == selection->pivot);
-                const bool pivotAtEnd = (selection->end == selection->pivot);
-
-                if (singleCell)
                 {
                     selection->start.x--;
                     selection->pivot = selection->end;
                 }
-                else if (pivotAtStart)
+                else if (cursor.Span.start.y > startOfLine)
                 {
-                    selection->end.x--;
+                    auto previousRow = cursor.Span.start.y - 1;
+                    const auto lastNonSpaceColumn = std::max(0, terminal.GetTextBuffer().GetRowByOffset(previousRow).GetLastNonSpaceColumn() - 1);
+                    selection->start = { lastNonSpaceColumn - 1, previousRow };
+                    selection->pivot = selection->end;
                 }
-                else if (pivotAtEnd)
-                {
-                    if (selection->end > selection->pivot)
-                    {
-                        selection->end.x--;
-                        selection->pivot = selection->start;
-                    }
-                    else
-                    {
-                        if (selection->start.x > 0)
-                        {
-                            selection->start.x--;
-                            selection->pivot = selection->end;
-                        }
-                    }
-                }
-                terminal.SetSelectionAnchors(selection);
+                break;
+            case VimCursorPosition::End:
+                selection->end.x--;
+                break;
             }
+        }
+
+        void _moveLeft(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection, bool isVisual)
+        {
+            if (!isVisual)
+            {
+                _moveLeftByCell(terminal, selection);
+            }
+            else if (selection->blockSelection)
+            {
+                _moveLeftBlock(terminal, selection);
+            }
+            else
+            {
+                _moveLeftVisual(terminal, selection);
+            }
+        }
+
+        void MoveLeft(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        {
+            auto vimSelection = terminal.GetVimSelectionAnchors();
+            if (!isVisual)
+            {
+                _moveLeftByCell(terminal, &vimSelection);
+            }
+            else if (vimSelection.blockSelection)
+            {
+                _moveLeftBlock(terminal, &vimSelection);
+            }
+            else
+            {
+                _moveLeftVisual(terminal, &vimSelection);
+            }
+            terminal.SetVimSelectionAnchors(&vimSelection);
         }
 
         void _moveRightVisualBlock(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection)
         {
-            auto selectionAnchors = terminal.GetSelectionAnchors();
             auto cursor = GetVimCursor(terminal, selection);
-
-            if (selectionAnchors->end.x >= terminal.GetTextBuffer().GetLineWidth(selectionAnchors->end.y))
+            auto lineEnd = terminal.GetTextBuffer().GetLineWidth(cursor.Span.start.y);
+            if (cursor.Span.end.x >= lineEnd)
             {
                 return;
             }
-            //if (selection->blockSelection)
-            //{
-                if (cursor.BlockVerticalPosition == Top)
+
+            if (cursor.BlockVerticalPosition == Top)
+            {
+                if (cursor.BlockHorizontalPosition != SingleColumn && cursor.BlockHorizontalPosition == Left)
                 {
-                    if (cursor.BlockHorizontalPosition != SingleColumn && cursor.BlockHorizontalPosition == Left)
-                    {
-                        selection->start = { selection->start.x + 1, selection->start.y };
-                    }
-                    else
-                    {
-                        selection->end = { selection->end.x + 1, selection->end.y };
-                        selection->pivot = { selection->start.x, selection->end.y };
-                    }
+                    selection->start = { selection->start.x + 1, selection->start.y };
                 }
                 else
                 {
-                    if (cursor.BlockHorizontalPosition == SingleColumn || cursor.BlockHorizontalPosition == Right)
+                    selection->end = { selection->end.x + 1, selection->end.y };
+                    selection->pivot = { selection->start.x, selection->end.y };
+                }
+            }
+            else
+            {
+                if (cursor.BlockHorizontalPosition == SingleColumn || cursor.BlockHorizontalPosition == Right)
+                {
+                    selection->end = { selection->end.x + 1, selection->end.y };
+                    selection->pivot = selection->start;
+                }
+                else if (cursor.BlockHorizontalPosition == Left)
+                {
+                    selection->start = { selection->start.x + 1, selection->start.y };
+                }
+            }
+        }
+
+        void _moveRightByCell(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection)
+        {
+            auto cursor = GetVimCursor(terminal, selection);
+            auto lineEnd = terminal.GetTextBuffer().GetLineWidth(cursor.Span.start.y);
+            if (cursor.Span.end.x + 1 > lineEnd)
+            {
+                auto wrapped = terminal.GetTextBuffer().GetRowByOffset(cursor.Span.start.y).WasWrapForced();
+                if (wrapped)
+                {
+                    selection->start = { 0, cursor.Span.start.y + 1 };
+                    selection->end = { 1, cursor.Span.start.y + 1};
+                    selection->pivot = selection->start;
+                }
+                return;
+            }
+            selection->start.x++;
+            selection->end = { selection->start.x + 1, selection->start.y };
+            selection->pivot = selection->start;
+        }
+
+        void _moveRightVisual(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection)
+        {
+            auto cursor = GetVimCursor(terminal, selection);
+            auto lineEnd = terminal.GetTextBuffer().GetLineWidth(cursor.Span.start.y);
+
+            if (cursor.Position == SingleCell || cursor.Position == VimCursorPosition::End)
+            {
+                if (cursor.Span.end.x >= lineEnd)
+                {
+                    auto wrapped = terminal.GetTextBuffer().GetRowByOffset(cursor.Span.start.y).WasWrapForced();
+                    if (wrapped)
                     {
-                        selection->end = { selection->end.x + 1, selection->end.y };
+                        selection->end = { 1, cursor.Span.start.y + 1 };
                         selection->pivot = selection->start;
                     }
-                    else if(cursor.BlockHorizontalPosition == Left)
-                    {
-                        selection->start = { selection->start.x + 1, selection->start.y };
-                    }
-                    //if (!singleColumn && pivotAtRight)
-                    //{
-                    //}
-                    //else
-                    //{
-                    //    selection->end = { selection->end.x + 1, selection->end.y };
-                    //}
+                    return;
                 }
-            //}
+                selection->end.x++;
+                selection->pivot = selection->start;
+            }
+            else
+            {
+                selection->start.x++;
+                selection->pivot = selection->end;
+            }
+        }
 
-            //terminal.SetSelectionAnchors(selection);
+        void _moveRight(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection, bool isVisual)
+        {
+            if (!isVisual)
+            {
+                _moveRightByCell(terminal, selection);
+            }
+            else if (selection->blockSelection)
+            {
+                _moveRightVisualBlock(terminal, selection);
+            }
+            else
+            {
+                _moveRightVisual(terminal, selection);
+            }
         }
 
         void MoveRight(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
-            auto selectionAnchors = terminal.GetSelectionAnchors();
-            auto cursor = GetVimCursor(terminal);
-
-            if (selectionAnchors->end.x >= terminal.GetTextBuffer().GetLineWidth(selectionAnchors->end.y))
-            {
-                return;
-            }
-            //const auto selection{ selectionAnchors.write() };
             auto selection = terminal.GetVimSelectionAnchors();
-            if (!isVisual)
-            {
-                selection.start.x++;
-                selection.end = {selection.start.x + 1, selection.start.y};
-                selection.pivot = selection.start;
-                terminal.SetVimSelectionAnchors(&selection);
-            }
-            else if (selection.blockSelection)
-            {
-                _moveRightVisualBlock(terminal, &selection);
-                terminal.SetVimSelectionAnchors(&selection);
-
-                //if (cursor.BlockVerticalPosition == Top)
-                //{
-                //    if (cursor.BlockHorizontalPosition != SingleColumn && cursor.BlockHorizontalPosition == Left)
-                //    {
-                //        selection->start = { selection->start.x + 1, selection->start.y };
-                //    }
-                //    else
-                //    {
-                //        selection->end = { selection->end.x + 1, selection->end.y };
-                //        selection->pivot = { selection->start.x, selection->end.y };
-                //    }
-                //}
-                //else
-                //{
-                //    if (cursor.BlockHorizontalPosition == SingleColumn || cursor.BlockHorizontalPosition == Right)
-                //    {
-                //        selection->end = { selection->end.x + 1, selection->end.y };
-                //        selection->pivot = selection->start;
-                //    }
-                //    else if(cursor.BlockHorizontalPosition == Left)
-                //    {
-                //        selection->start = { selection->start.x + 1, selection->start.y };
-                //    }
-                //    //if (!singleColumn && pivotAtRight)
-                //    //{
-                //    //}
-                //    //else
-                //    //{
-                //    //    selection->end = { selection->end.x + 1, selection->end.y };
-                //    //}
-                //}
-            }
-            else
-            {
-                bool singleCell = (selectionAnchors->end.y == selectionAnchors->start.y &&
-                                   selectionAnchors->end.x - 1 == selectionAnchors->start.x);
-                if (singleCell)
-                {
-                    selection.end.x++;
-                    selection.pivot = selection.start;
-                }
-                else if (selection.end > selection.pivot)
-                {
-                    selection.end.x++;
-                    selection.pivot = selection.start;
-                }
-                else
-                {
-                    selection.start.x++;
-                    selection.pivot = selection.end;
-                }
-                terminal.SetVimSelectionAnchors(&selection);
-            }
+            _moveRight(terminal, &selection, isVisual);
+            terminal.SetVimSelectionAnchors(&selection);
         }
 
-        void _moveDown(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection)
+        void _moveDownBlock(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection)
         {
             auto lastY = _getLastNonSpaceChar(terminal).y;
             auto cursor = GetVimCursor(terminal, selection);
@@ -975,66 +950,70 @@ namespace vim
             }
         }
 
-        void MoveDown(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        void _moveDownVisual(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection)
         {
+            auto cursor = GetVimCursor(terminal, selection);
             auto lastY = _getLastNonSpaceChar(terminal).y;
-            auto selectionAnchors = terminal.GetSelectionAnchors();
-            auto selection{ selectionAnchors.write() };
-            const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
-            const bool pivotAtStart = (selection->start == selection->pivot);
-            const bool pivotAtEnd = (selection->end == selection->pivot);
-            auto point = selection->start;
-            if (pivotAtStart && !isSingleCell)
-            {
-                point = selection->end;
-            }
+            auto newY = cursor.Span.start.y + 1;
 
-            if (point.y + 1 <= lastY)
+            if (newY <= lastY)
             {
-                auto cursor = GetVimCursor(terminal);
-                point.y++;
-                if (cursor.IsBlock)
+                switch (cursor.Position)
                 {
-                    auto vimSelection = terminal.GetVimSelectionAnchors();
-                    _moveDown(terminal, &vimSelection);
-                    terminal.SetVimSelectionAnchors(&vimSelection);
-                    return;
-                }
-                if (!isVisual)
-                {
-                    selection->start = { point.x, point.y };
-                    selection->end = { point.x + 1, point.y };
+                case VimCursorPosition::SingleCell:
+                    selection->end = { cursor.Span.end.x, cursor.Span.end.y + 1 };
                     selection->pivot = selection->start;
-                }
-                else
-                {
-                    if (isSingleCell)
+                    break;
+                case VimCursorPosition::Start:
+                    if (newY > selection->pivot.y)
                     {
-                        selection->end = { point.x + 1, point.y };
+                        selection->start = { selection->pivot.x - 1, selection->pivot.y };
+                        selection->end = { cursor.Span.end.x, cursor.Span.end.y + 1 };
                         selection->pivot = selection->start;
-                    }
-                    else if (pivotAtEnd)
-                    {
-                        if (point > selection->pivot)
-                        {
-                            selection->start = { selection->pivot.x - 1, selection->pivot.y };
-                            selection->end = { point.x + 1, point.y };
-                            selection->pivot = selection->start;
-                        }
-                        else
-                        {
-                            selection->start = point;
-                            selection->pivot = selection->end;
-                        }
                     }
                     else
                     {
-                        selection->end = { point.x, point.y };
-                        selection->pivot = selection->start;
+
+                        selection->start = {cursor.Span.start.x, newY};
+                        selection->pivot = selection->end;
                     }
+                    break;
+                case VimCursorPosition::End:
+                    selection->end = { cursor.Span.end.x, cursor.Span.end.y + 1 };
+                    selection->pivot = selection->start;
+                    break;
                 }
-                terminal.SetSelectionAnchors(selection);
             }
+        }
+
+        void _moveDown(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection)
+        {
+            auto cursor = GetVimCursor(terminal, selection);
+            til::point point = { cursor.Span.start };
+            point.y++;
+            selection->start = { point.x, point.y };
+            selection->end = { point.x + 1, point.y };
+            selection->pivot = selection->start;
+        }
+
+        void MoveDown(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        {
+            auto vimSelection = terminal.GetVimSelectionAnchors();
+            if (vimSelection.blockSelection)
+            {
+                _moveDownBlock(terminal, &vimSelection);
+                terminal.SetVimSelectionAnchors(&vimSelection);
+                return;
+            }
+            if (!isVisual)
+            {
+                _moveDown(terminal, &vimSelection);
+            }
+            else
+            {
+                _moveDownVisual(terminal, &vimSelection);
+            }
+            terminal.SetVimSelectionAnchors(&vimSelection);
         }
 
         VimCursor GetVimCursor(Microsoft::Terminal::Core::Terminal &/*terminal*/, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection) noexcept
@@ -1160,6 +1139,13 @@ namespace vim
         {
             auto selection = terminal.GetVimSelectionAnchors();
 
+            if (selection.start == selection.end)
+            {
+                selection.end = { selection.start.x + 1, selection.start.y };
+                selection.pivot = selection.start;
+                terminal.SetVimSelectionAnchors(&selection);
+            }
+
             VimCursorPosition position = {};
             BlockVimCursorHorizontalPosition blockVimCursorHorizontalPosition = {};
             BlockVimCursorVerticalPosition blockVimCursorVerticalPosition = {};
@@ -1261,7 +1247,7 @@ namespace vim
             else if (position == SingleCell)
             {
                 start = selection.start;
-                end = selection.end;
+                end = { selection.start.x + 1, selection.start.y };
             }
             else if (position == End)
             {
@@ -1305,135 +1291,84 @@ namespace vim
             }
         }
 
-        void MoveUp(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        void _moveUpCell(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection)
         {
-            auto selectionAnchors = terminal.GetSelectionAnchors();
-            auto selection { selectionAnchors.write() };
-            const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
-            const bool pivotAtStart = (selection->start == selection->pivot);
-            //const bool pivotAtEnd = (selection->end == selection->pivot);
+            auto cursor = GetVimCursor(terminal, selection);
+            auto newY = std::max(cursor.Span.start.y - 1, 0);
+            selection->start = { cursor.Span.start.x, newY };
+            selection->end = { cursor.Span.end.x, newY };
+            selection->pivot = selection->start;
+        }
 
-            auto point = selection->start;
-            if (pivotAtStart && !isSingleCell)
+        void _moveUpVisual(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection)
+        {
+            auto cursor = GetVimCursor(terminal, selection);
+            auto newY = std::max(cursor.Span.start.y - 1, 0);
+            if (cursor.Position == VimCursorPosition::End)
             {
-                point = selection->end;
-            }
-
-            point.y--;
-            auto cursor = GetVimCursor(terminal);
-            if (cursor.Span.start.y - 1 >= 0)
-            {
-                if (cursor.IsBlock)
+                if (til::point{cursor.Span.start.x, newY} <= selection->pivot)
                 {
-                    auto vimSelection = terminal.GetVimSelectionAnchors();
-                    _moveUpBlock(terminal, &vimSelection);
-                    terminal.SetVimSelectionAnchors(&vimSelection);
-                }
-                else if (!isVisual)
-                {
-                    selection->start = { point.x, point.y };
-                    selection->end = { point.x + 1, point.y };
-                    selection->pivot = selection->start;
-                    terminal.SetSelectionAnchors(selection);
+                    selection->start = { cursor.Span.start.x, newY };
+                    selection->end = { selection->pivot.x + 1, selection->pivot.y };
+                    selection->pivot = selection->end;
                 }
                 else
                 {
-                    if (pivotAtStart && !isSingleCell)
-                    {
-                        if (point < selection->pivot)
-                        {
-                            selection->start = { point.x - 1, point.y };
-                            selection->end = { selection->pivot.x + 1, selection->pivot.y };
-                            selection->pivot = selection->end;
-                        }
-                        else
-                        {
-                            selection->end = point;
-                            selection->pivot = selection->start;
-                        }
-                    }
-                    else
-                    {
-                        selection->start = { point.x, point.y };
-                        selection->pivot = selection->end;
-                    }
-
-                    terminal.SetSelectionAnchors(selection);
+                    selection->end = {selection->end.x, newY};
+                    selection->pivot = selection->start;
                 }
+            }
+            else
+            {
+                selection->start = { selection->start.x, newY };
+                selection->pivot = selection->end;
+            }
+        }
+
+        void MoveUp(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
+        {
+            auto cursor = GetVimCursor(terminal);
+            auto vimSelection = terminal.GetVimSelectionAnchors();
+            if (cursor.Span.start.y - 1 >= 0)
+            {
+                if (vimSelection.blockSelection)
+                {
+                    _moveUpBlock(terminal, &vimSelection);
+                }
+                else if (!isVisual)
+                {
+                    _moveUpCell(terminal, &vimSelection);
+                }
+                else
+                {
+                    _moveUpVisual(terminal, &vimSelection);
+                }
+                terminal.SetVimSelectionAnchors(&vimSelection);
             }
         }
 
         void MoveToStartOfLine(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
-            auto selectionAnchors = terminal.GetSelectionAnchors();
-            auto selection{ selectionAnchors.write() };
-            const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
-            const bool pivotAtStart = (selection->start == selection->pivot);
-            auto y = selection->start.y;
-            if (!isSingleCell && pivotAtStart)
+            auto cursor = GetVimCursor(terminal);
+            auto startOfLine = _getStartLineOfRow(terminal.GetTextBuffer(), cursor.Span.start.y);
+            auto vimSelection = terminal.GetVimSelectionAnchors();
+            while (cursor.Span.start != til::point{ 0, startOfLine })
             {
-                y = selection->end.y;
+                _moveLeft(terminal, &vimSelection, isVisual);
+                cursor = GetVimCursor(terminal, &vimSelection);
             }
-
-            auto startLine = _getStartLineOfRow(terminal.GetTextBuffer(), y);
-            if (terminal.IsBlockSelection())
-            {
-                auto cursor = GetVimCursor(terminal);
-                auto vimSelection = terminal.GetVimSelectionAnchors();
-                for (auto i = cursor.Span.start.x; i > 0; i--)
-                {
-                    _moveLeftBlock(terminal, &vimSelection);
-                }
-                terminal.SetVimSelectionAnchors(&vimSelection);
-                return;
-                //startLine = selection->start.y == selection->pivot.y ? selection->end.y : selection->start.y;
-            }
-            auto startOfLine = til::point{ 0, startLine };
-
-            if (!isVisual)
-            {
-                selection->start = startOfLine;
-                selection->end = til::point{ 1, startLine };
-                selection->pivot = selection->start;
-            }
-            else
-            {
-                //const bool pivotAtEnd = (selection->end == selection->pivot);
-
-                if (pivotAtStart && !isSingleCell)
-                {
-                    startLine = _getStartLineOfRow(terminal.GetTextBuffer(), selection->end.y);
-                    if (startOfLine < selection->pivot)
-                    {
-                        selection->end = { selection->pivot.x + 1, selection->pivot.y };
-                        selection->start = { 0, startLine };
-                        selection->pivot = selection->end;
-                    }
-                    else
-                    {
-                        selection->end = til::point{ 1, startLine };
-                        selection->pivot = selection->start;
-                    }
-                }
-                else
-                {
-                    selection->start = startOfLine;
-                    selection->pivot = selection->end;
-                }
-            }
-            terminal.SetSelectionAnchors(selection);
+            terminal.SetVimSelectionAnchors(&vimSelection);
         }
 
         void MoveToEndOfLine(Microsoft::Terminal::Core::Terminal& terminal, bool isvisual)
         {
-            auto selectionAnchors = terminal.GetSelectionAnchors();
-            const auto selection{ selectionAnchors.write() };
+            auto cursor = GetVimCursor(terminal);
+            auto vimSelection = terminal.GetVimSelectionAnchors();
+            til::point target;
             if (terminal.IsBlockSelection())
             {
-                auto cursor = GetVimCursor(terminal);
-                auto vimSelection = terminal.GetVimSelectionAnchors();
                 auto maxNonSpaceChar = 0;
-                for (auto i = selection->start.y; i <= selection->end.y; i++)
+                for (auto i = vimSelection.start.y; i <= vimSelection.end.y; i++)
                 {
                     const auto lastNonSpaceColumn = std::max(0, terminal.GetTextBuffer().GetRowByOffset(i).GetLastNonSpaceColumn() - 1);
                     if (lastNonSpaceColumn > maxNonSpaceChar)
@@ -1441,21 +1376,12 @@ namespace vim
                         maxNonSpaceChar = lastNonSpaceColumn;
                     }
                 }
-                for (auto i = cursor.Span.start.x; i < maxNonSpaceChar; i++)
-                {
-                    _moveRightVisualBlock(terminal, &vimSelection);
-                }
-                terminal.SetVimSelectionAnchors(&vimSelection);
-
-                //auto s = til::point{ maxNonSpaceChar + 1, selection->end.y };
-                //selection->end = s;
-                //terminal.SetSelectionAnchors(selection);
+                target = { maxNonSpaceChar, cursor.Span.start.y };
             }
             else
             {
-                const auto pos = selection->pivot == selection->start ? selection->end : selection->start;
-                auto lastRowWithChars = pos.y;
-                til::CoordType endLine = pos.y;
+                auto lastRowWithChars = cursor.Span.start.y;
+                til::CoordType endLine = lastRowWithChars;
                 while (terminal.GetTextBuffer().GetRowByOffset(endLine).WasWrapForced())
                 {
                     endLine++;
@@ -1466,49 +1392,24 @@ namespace vim
                 }
 
                 const auto lastNonSpaceColumn = std::max(0, terminal.GetTextBuffer().GetRowByOffset(lastRowWithChars).GetLastNonSpaceColumn() - 1);
-                auto s = til::point{ lastNonSpaceColumn, lastRowWithChars };
-                if (!isvisual)
-                {
-                    selection->start = s;
-                    selection->end = til::point{ s.x + 1, s.y };
-                    selection->pivot = selection->end;
-                    terminal.SetSelectionAnchors(selection);
-                }
-                else
-                {
-                    const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
-                    //const bool pivotAtStart = (selection->start == selection->pivot);
-                    //const bool pivotAtEnd = (selection->end == selection->pivot);
-
-                    if (isSingleCell)
-                    {
-                        selection->start = {selection->start.x, selection->pivot.y};
-                        selection->end = til::point{ s.x + 1, s.y };
-                        selection->pivot = selection->start;
-                    }
-                    else if (selection->pivot == selection->end)
-                    {
-                        selection->start = {selection->pivot.x - 1, selection->pivot.y};
-                        selection->end = til::point{ s.x + 1, s.y };
-                        selection->pivot = selection->start;
-                    }
-                    else
-                    {
-                        selection->end = til::point{ s.x + 1, s.y };
-                        selection->pivot = selection->start;
-                    }
-                    terminal.SetSelectionAnchors(selection);
-                }
+                target = til::point{ lastNonSpaceColumn, lastRowWithChars };
             }
+
+            while (cursor.Span.start != target)
+            {
+                _moveRight(terminal, &vimSelection, isvisual);
+                cursor = GetVimCursor(terminal, &vimSelection);
+            }
+            terminal.SetVimSelectionAnchors(&vimSelection);
         }
 
         void TilChar(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view vkey, bool isVisual)
         {
             til::point target;
             auto cursor = GetVimCursor(terminal);
+            auto vimSelection = terminal.GetVimSelectionAnchors();
             if (cursor.IsBlock)
             {
-                auto vimSelection = terminal.GetVimSelectionAnchors();
                 if (_FindChar(terminal, vkey, true, target))
                 {
                     for (auto i = cursor.Span.start.x; i < target.x; i++)
@@ -1522,32 +1423,12 @@ namespace vim
 
             if (_FindChar(terminal, vkey, true, target))
             {
-                auto selectionAnchors = terminal.GetSelectionAnchors();
-                auto selection{ selectionAnchors.write() };
-                if (isVisual)
+                while (cursor.Span.start != target)
                 {
-                    const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
-                    const bool pivotAtStart = (selection->start == selection->pivot);
-                    const bool pivotAtEnd = (selection->end == selection->pivot);
-
-                    if (isSingleCell || pivotAtStart)
-                    {
-                        selection->end = { target.x + 1, target.y };
-                        selection->pivot = selection->start;
-                    }
-                    else if (pivotAtEnd)
-                    {
-                        selection->start = { selection->pivot.x - 1, selection->pivot.y };
-                        selection->end = { target.x + 1, target.y };
-                        selection->pivot = selection->start;
-                    }
-
-                    terminal.SetSelectionAnchors(selection);
+                    _moveRight(terminal, &vimSelection, isVisual);
+                    cursor = GetVimCursor(terminal, &vimSelection);
                 }
-                else
-                {
-                    _UpdateSelection(terminal, isVisual, target);
-                }
+                terminal.SetVimSelectionAnchors(&vimSelection);
             }
         }
 
@@ -2576,7 +2457,7 @@ namespace vim
                 auto vimSelection = terminal.GetVimSelectionAnchors();
                 for (auto i = 0; i < rowsToMoveDown; i++)
                 {
-                    _moveDown(terminal, &vimSelection);
+                    _moveDownBlock(terminal, &vimSelection);
                 }
                 terminal.SetVimSelectionAnchors(&vimSelection);
 
