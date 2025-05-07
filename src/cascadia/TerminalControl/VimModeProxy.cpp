@@ -421,9 +421,8 @@ bool VimModeProxy::_executeVimSelection(
                 break;
             case VimMotionType::pageDown:
                 _selectPageDown(true);
-            case VimMotionType::selectCurrentLine:
-                _selectLineLeft(false);
-                _selectLineRight(true);
+        case VimMotionType::selectCurrentLine:
+                vim::motions::SelectEntireLine(*_terminal);
                 break;
             }
             break;
@@ -555,7 +554,7 @@ bool VimModeProxy::_executeVimSelection(
         break;
     }
     case VimActionType::toggleVisualOn:
-        _terminal->SetPivot();
+        //_terminal->SetPivot();
         break;
     case VimActionType::enterBlockSelectionMode:
         _vimMode = _terminal->IsBlockSelection() ? VimMode::normal : VimMode::visual;

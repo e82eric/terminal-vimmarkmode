@@ -65,6 +65,7 @@ namespace vim
         void MatchingChar(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual);
         void SelectPoint(Microsoft::Terminal::Core::Terminal& terminal, til::point point);
         void SelectCurrentChar(Microsoft::Terminal::Core::Terminal& terminal);
+        void SelectEntireLine(Microsoft::Terminal::Core::Terminal& terminal);
         VimCursor GetVimCursor(Microsoft::Terminal::Core::Terminal& terminal) noexcept;
         VimCursor GetVimCursor(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection) noexcept;
     }

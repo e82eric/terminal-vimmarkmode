@@ -4215,6 +4215,32 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 0, 0 }, {11, 2},{0,0});
         }
 
+        TEST_METHOD(SelectLineDown_FromShortLineToLongLine)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            const std::wstring_view text2 = L"test";
+            const std::wstring_view text3 = L"test line 3";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 1 });
+            term.Write(text2);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 2 });
+            term.Write(text3);
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveDown(term, false);
+            vim::motions::SelectEntireLine(term);
+            ValidateLinearSelection(term, { 0, 1 }, {4, 1}, {0,1});
+
+            vim::motions::SelectLineDown(term);
+            ValidateLinearSelection(term, { 0, 1 }, {11, 2},{0,1});
+        }
+
         TEST_METHOD(SelectLineDown_ThenSelectUp_AcrossPivot)
         {
             Terminal term{ Terminal::TestDummyMarker{} };
@@ -4469,7 +4495,7 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 2, 3 }, {3, 3}, {2,3});
 
             vim::motions::SelectHalfPageUp(term, true, false);
-            ValidateLinearSelection(term, { 1, 0 }, {3, 3}, {3,3});
+            ValidateLinearSelection(term, { 2, 0 }, {3, 3}, {3,3});
         }
 
         TEST_METHOD(HalfPageUp_BlockVisual_AfterMovingRightAndDown)
@@ -4587,7 +4613,7 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 0, 2 }, {1, 2}, {0,2});
 
             vim::motions::SelectTop(term, true, true);
-            ValidateLinearSelection(term, { 0, 0 }, {11, 2}, {11,2});
+            ValidateLinearSelection(term, { 0, 0 }, {11, 2}, {0,2});
         }
 
         TEST_METHOD(SelectTop_EntireLine_AcrossPivot_Visual)
@@ -4617,7 +4643,7 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 0, 1 }, {11, 3}, {0,1});
 
             vim::motions::SelectTop(term, true, true);
-            ValidateLinearSelection(term, { 0, 0 }, {11, 1}, {11,1});
+            ValidateLinearSelection(term, { 0, 0 }, {11, 1}, {0,1});
         }
 
         TEST_METHOD(SelectTop_AcrossPivot_Visual)
@@ -4734,6 +4760,7 @@ namespace VimMotionsTests
             vim::motions::MoveRight(term, false);
             ValidateLinearSelection(term, { 2, 0 }, {3, 0}, {2,0});
 
+            vim::motions::SelectEntireLine(term);
             vim::motions::SelectBottom(term, true, true);
             ValidateLinearSelection(term, { 0, 0 }, {11, 3}, {0,0});
         }
@@ -4792,10 +4819,86 @@ namespace VimMotionsTests
             vim::motions::MoveDown(term, false);
             vim::motions::MoveDown(term, false);
             vim::motions::SelectTop(term, false, true);
-            ValidateLinearSelection(term, { 0, 0 }, {11, 2}, {11,2});
+            ValidateLinearSelection(term, { 0, 0 }, {11, 2}, {0,2});
 
             vim::motions::SelectBottom(term, true, true);
             ValidateLinearSelection(term, { 0, 2 }, {11, 3}, {0,2});
+        }
+
+        TEST_METHOD(SelectEntireLineFromStart)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            ValidateLinearSelection(term, { 0, 0 }, {1, 0}, {0,0});
+
+            vim::motions::SelectEntireLine(term);
+            ValidateLinearSelection(term, { 0, 0 }, {11, 0}, {0,0});
+        }
+
+        TEST_METHOD(SelectEntireLineFromMiddle)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            ValidateLinearSelection(term, { 2, 0 }, {3, 0}, {2,0});
+
+            vim::motions::SelectEntireLine(term);
+            ValidateLinearSelection(term, { 0, 0 }, {11, 0}, {0,0});
+        }
+
+        TEST_METHOD(SelectEntireLineFromMiddle_Wrap)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 10";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            ValidateLinearSelection(term, { 2, 0 }, {3, 0}, {2,0});
+
+            vim::motions::SelectEntireLine(term);
+            ValidateLinearSelection(term, { 0, 0 }, {2, 2}, {0,0});
+        }
+
+        TEST_METHOD(SelectEntireLineFromEnd)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text1 = L"test line 1";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text1);
+
+            vim::motions::SelectTop(term, false, false);
+            vim::motions::MoveToEndOfLine(term, false);
+            ValidateLinearSelection(term, { 10, 0 }, {11, 0}, {10,0});
+
+            vim::motions::SelectEntireLine(term);
+            ValidateLinearSelection(term, { 0, 0 }, {11, 0}, {0,0});
         }
     };
 }
