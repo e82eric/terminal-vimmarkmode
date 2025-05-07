@@ -30,6 +30,20 @@ namespace winrt::Microsoft::Terminal::Settings::Model
     std::filesystem::path GetBaseSettingsPath()
     {
         static auto baseSettingsPath = []() {
+            wchar_t* up = nullptr;
+            size_t len = 0;
+            if (_wdupenv_s(&up, &len, L"USERPROFILE") == 0 && up)
+            {
+                std::filesystem::path userProfile{ up };
+                std::filesystem::path wtdDir = userProfile / L".wtd";
+                std::filesystem::path settingsFile = wtdDir / L"settings.json";
+
+                if (std::filesystem::exists(settingsFile))
+                {
+                    return wtdDir;
+                }
+            }
+
             if (!IsPackaged() && IsPortableMode())
             {
                 std::filesystem::path modulePath{ wil::GetModuleFileNameW<std::wstring>(wil::GetModuleInstanceHandle()) };
