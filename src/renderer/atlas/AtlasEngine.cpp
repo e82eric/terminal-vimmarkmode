@@ -362,6 +362,18 @@ CATCH_RETURN()
             pm->yankSelectionColor = misc->yankSelectionColor;
             pm->yankSelectionForeground = misc->yankSelectionForeground;
         }
+
+        const u32 newVimCursorColor{ static_cast<COLORREF>(info.vimCursorBackgroundColor) | 0xff000000 };
+        if (_api.s->misc->vimCursorColor != newVimCursorColor)
+        {
+            auto misc = _api.s.write()->misc.write();
+            misc->vimCursorColor = newVimCursorColor;
+
+            // We copied the selection colors into _p during StartPaint, which happened just before PrepareRenderInfo
+            // This keeps their generations in sync.
+            auto pm = _p.s.write()->misc.write();
+            pm->vimCursorColor = misc->vimCursorColor;
+        }
     }
 
     return S_OK;
@@ -576,11 +588,11 @@ try
     RETURN_IF_FAILED(_drawHighlighted(_api.searchHighlights, y, x, columnEnd, highlightFg, highlightBg));
     RETURN_IF_FAILED(_drawHighlighted(_api.searchHighlightFocused, y, x, columnEnd, highlightFocusFg, highlightFocusBg));
     RETURN_IF_FAILED(_drawHighlighted(_api.selectionSpans, y, x, columnEnd, _p.s->misc->selectionForeground, _p.s->misc->selectionColor));
-    RETURN_IF_FAILED(_drawHighlighted(_api.yankSelectionSpans, y, x, columnEnd, _p.s->misc->yankSelectionForeground, _p.s->misc->yankSelectionColor));
     if (_api.vimCursorSpans.has_value())
     {
-        RETURN_IF_FAILED(_drawHighlightedSingle(*_api.vimCursorSpans, y, _p.s->misc->yankSelectionForeground, _p.s->misc->yankSelectionColor));
+        RETURN_IF_FAILED(_drawHighlightedSingle(*_api.vimCursorSpans, y, _p.s->misc->yankSelectionForeground, _p.s->misc->vimCursorColor));
     }
+    RETURN_IF_FAILED(_drawHighlighted(_api.yankSelectionSpans, y, x, columnEnd, _p.s->misc->yankSelectionForeground, _p.s->misc->yankSelectionColor));
 
     _api.lastPaintBufferLineCoord = { x, y };
     return S_OK;

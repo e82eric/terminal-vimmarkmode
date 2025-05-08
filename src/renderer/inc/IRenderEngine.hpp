@@ -37,6 +37,7 @@ namespace Microsoft::Console::Render
         std::optional<til::point_span> vimCursorSpans;
         til::color selectionBackground;
         til::color yankSelectionBackground;
+        til::color vimCursorBackgroundColor;
     };
 
     enum class GridLines

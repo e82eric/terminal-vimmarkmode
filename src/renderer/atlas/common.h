@@ -393,6 +393,7 @@ namespace Microsoft::Console::Render::Atlas
     struct MiscellaneousSettings
     {
         u32 backgroundColor = 0;
+        u32 vimCursorColor = 0x7ffe8019;
         u32 yankSelectionColor = 0x7ffe8019;
         u32 yankSelectionForeground = 0xff000000;
         u32 foregroundColor = 0;

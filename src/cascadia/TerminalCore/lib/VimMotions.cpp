@@ -357,7 +357,6 @@ namespace vim
             auto result = target;
             bool found = false;
             DelimiterClass previousClass;
-            bufferSize.DecrementInBounds(result);
 
             while (result.x > 0)
             {
@@ -383,7 +382,7 @@ namespace vim
 
         std::optional<til::point> _GetEndOfPreviousWord(Microsoft::Terminal::Core::Terminal &terminal, const til::point target, const std::wstring_view wordDelimiters)
         {
-            auto wordStart = _GetStartOfWord(terminal, target, wordDelimiters);
+            auto wordStart = _GetStartOfWord(terminal, { std::max(0, target.x - 1), target.y }, wordDelimiters);
 
             if (!wordStart.has_value())
             {
@@ -478,9 +477,9 @@ namespace vim
             auto selection = terminal.GetVimSelectionAnchors();
             if (startPair.has_value() && endPair.has_value())
             {
-                selection.end = { endPair.value().x + 1, endPair.value().y };
-                selection.pivot = selection.end;
                 selection.start = startPair.value();
+                selection.end = { endPair.value().x + 1, endPair.value().y };
+                selection.pivot = selection.start;
             }
             terminal.SetVimSelectionAnchors(&selection);
         }
@@ -1345,26 +1344,34 @@ namespace vim
             auto cursor = GetVimCursor(terminal, &selection);
             auto delimiters = isLargeWord ? L"" : _getVimDelimiters();
 
-            auto endPair = _GetStartOfWord(terminal, cursor.Span.start, delimiters);
-            if (endPair.has_value())
+            if (cursor.Span.start.x > 0)
             {
-                _moveLeftToPoint(terminal, &selection, *endPair, isVisual, true);
-                return;
+                auto pos = til::point{ std::max(cursor.Span.start.x, 0) - 1, cursor.Span.start.y };
+                auto endPair = _GetStartOfWord(terminal, pos, delimiters);
+                if (endPair.has_value())
+                {
+                    _moveLeftToPoint(terminal, &selection, *endPair, isVisual, true);
+                    return;
+                }
             }
 
             auto yToMove = cursor.Span.start.y;
-            while (yToMove - 1 >= 0)
+            if (cursor.Span.start.y > 0)
             {
                 --yToMove;
                 auto startOfNextLine = til::point{ 0, yToMove };
                 auto startOfNextLinePair = _GetLineEnd(terminal, startOfNextLine);
-                endPair = _GetStartOfWord(terminal, startOfNextLinePair, delimiters);
+                auto endPair = _GetStartOfWord(terminal, { std::max(0, startOfNextLinePair.x - 1), startOfNextLinePair.y }, delimiters);
                 if (endPair.has_value())
                 {
                     _moveLeftToPoint(terminal, &selection, endPair.value(), isVisual, true);
                     return;
                 }
+                _moveLeftToPoint(terminal, &selection, startOfNextLine, isVisual, true);
+                return;
             }
+                
+            _moveLeftToPoint(terminal, &selection, { 0, 0 }, isVisual, true);
         }
 
         void MoveWordRight(Microsoft::Terminal::Core::Terminal& terminal, bool isLargeWord, bool isVisual)

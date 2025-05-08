@@ -3908,7 +3908,25 @@ namespace VimMotionsTests
 
             vim::motions::SelectInWord(term, false);
 
-            ValidateLinearSelection(term, { 3, 0 }, {11, 0});
+            ValidateLinearSelection(term, { 3, 0 }, {11, 0}, {3, 0});
+        }
+
+        TEST_METHOD(InWord_StartOfWord)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"this tests inword";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveWordStartRight(term, false, false);
+            ValidateLinearSelection(term, { 5, 0 }, {6, 0}, {5, 0});
+
+            vim::motions::SelectInWord(term, false);
+            ValidateLinearSelection(term, { 5, 0 }, {10, 0}, {5, 0});
         }
 
         TEST_METHOD(InWord_InsideOfWord)
@@ -3928,7 +3946,7 @@ namespace VimMotionsTests
 
             vim::motions::SelectInWord(term, false);
 
-            ValidateLinearSelection(term, { 3, 0 }, {11, 0});
+            ValidateLinearSelection(term, { 3, 0 }, {11, 0}, {3, 0});
         }
 
         TEST_METHOD(InWord_StartOfLiine)
@@ -3945,7 +3963,7 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 0, 0 }, {1, 0}, {0, 0});
 
             vim::motions::SelectInWord(term, false);
-            ValidateLinearSelection(term, { 0, 0 }, {4, 0});
+            ValidateLinearSelection(term, { 0, 0 }, {4, 0}, {0, 0});
         }
 
         TEST_METHOD(InSingleQuotes_Inside)
