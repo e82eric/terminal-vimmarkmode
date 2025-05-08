@@ -315,9 +315,23 @@ CATCH_RETURN()
             }
         }
 
+        _api.vimCursorSpans = std::nullopt;
+        if (info.vimCursorSpans)
+        {
+            const auto& s = *info.vimCursorSpans;
+
+            const bool verticalOverlap = !(s.end.y < dr.top || s.start.y > dr.bottom);
+
+            const bool horizontalOverlap = s.start.y != s.end.y || !(s.end.x < dr.left || s.start.x >= dr.right);
+
+            if (verticalOverlap && horizontalOverlap)
+            {
+                _api.vimCursorSpans = s;
+            }
+        }
+
         _api.selectionSpans = til::point_span_subspan_within_rect(info.selectionSpans, dr);
         _api.yankSelectionSpans = til::point_span_subspan_within_rect(info.yankSelectionSpans, dr);
-        _api.vimCursorSpans = til::point_span_subspan_within_rect(info.vimCursorSpans, dr);
 
         const u32 newSelectionColor{ static_cast<COLORREF>(info.selectionBackground) | 0xff000000 };
         if (_api.s->misc->selectionColor != newSelectionColor)
@@ -403,6 +417,32 @@ void AtlasEngine::_fillColorBitmap(const size_t y, const size_t x1, const size_t
         end += _p.colorBitmapDepthStride;
     }
 }
+
+[[nodiscard]] HRESULT AtlasEngine::_drawHighlightedSingle(
+    til::point_span& highlight,
+    const u16 row,
+    const u32 fgColor,
+    const u32 bgColor) noexcept
+try
+{
+    const auto offset = til::point{ _api.viewportOffset.x, _api.viewportOffset.y };
+
+    const auto hiStart = highlight.start - offset;
+    const auto hiEnd   = highlight.end   - offset;
+
+    if (row < hiStart.y || row > hiEnd.y)
+    {
+        return S_OK;
+    }
+    _fillColorBitmap(row,
+                     hiStart.x,
+                     static_cast<size_t>(hiEnd.x),
+                     fgColor,
+                     bgColor);
+
+    return S_OK;
+}
+CATCH_RETURN();
 
 // Method Description:
 // - Applies the given highlighting colors to the columns in the highlighted regions within a given range.
@@ -537,7 +577,10 @@ try
     RETURN_IF_FAILED(_drawHighlighted(_api.searchHighlightFocused, y, x, columnEnd, highlightFocusFg, highlightFocusBg));
     RETURN_IF_FAILED(_drawHighlighted(_api.selectionSpans, y, x, columnEnd, _p.s->misc->selectionForeground, _p.s->misc->selectionColor));
     RETURN_IF_FAILED(_drawHighlighted(_api.yankSelectionSpans, y, x, columnEnd, _p.s->misc->yankSelectionForeground, _p.s->misc->yankSelectionColor));
-    RETURN_IF_FAILED(_drawHighlighted(_api.vimCursorSpans, y, x, columnEnd, _p.s->misc->yankSelectionForeground, _p.s->misc->yankSelectionColor));
+    if (_api.vimCursorSpans.has_value())
+    {
+        RETURN_IF_FAILED(_drawHighlightedSingle(*_api.vimCursorSpans, y, _p.s->misc->yankSelectionForeground, _p.s->misc->yankSelectionColor));
+    }
 
     _api.lastPaintBufferLineCoord = { x, y };
     return S_OK;

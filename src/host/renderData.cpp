@@ -76,7 +76,7 @@ std::span<const til::point_span> RenderData::GetYankSelectionRects() noexcept
     return Selection::Instance().GetSelectionSpans();
 }
 
-std::span<const til::point_span> RenderData::GetVimCursor() const noexcept
+std::optional<til::point_span> RenderData::GetVimCursor() const noexcept
 {
     return {};
 }

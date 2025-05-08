@@ -34,7 +34,7 @@ namespace Microsoft::Console::Render
         const til::point_span* searchHighlightFocused;
         std::span<const til::point_span> selectionSpans;
         std::span<const til::point_span> yankSelectionSpans;
-        std::span<const til::point_span> vimCursorSpans;
+        std::optional<til::point_span> vimCursorSpans;
         til::color selectionBackground;
         til::color yankSelectionBackground;
     };

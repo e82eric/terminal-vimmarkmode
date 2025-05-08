@@ -135,6 +135,7 @@ try
 {
     if (_selection.generation() != _lastSelectionGeneration)
     {
+        _lastVimCursor = _GetVimCursor();
         _lastSelectionSpans = _GetSelectionSpans();
         _lastSelectionGeneration = _selection.generation();
     }
@@ -164,7 +165,7 @@ catch (...)
     return {};
 }
 
-std::span<const til::point_span> Terminal::GetVimCursor() const noexcept
+std::optional<til::point_span> Terminal::_GetVimCursor() const noexcept
 {
     auto selection = _selection;
     const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
@@ -181,7 +182,7 @@ std::span<const til::point_span> Terminal::GetVimCursor() const noexcept
     {
         auto singleColumn = selection->start.x + 1 == selection->end.x;
         auto pivotAtBottom = selection->pivot.y == selection->end.y;
-        
+
         if (pivotAtBottom)
         {
             auto movingLeft = selection->end.x == selection->pivot.x;
@@ -190,11 +191,6 @@ std::span<const til::point_span> Terminal::GetVimCursor() const noexcept
                 start = selection->start;
                 end = { selection->start.x + 1, selection->start.y };
             }
-            //else if (movingLeft)
-            //{
-            //    start = selection->start;
-            //    end = { selection->start.x + 1, selection->start.y };
-            //}
             else
             {
                 start = { selection->end.x - 1, selection->start.y };
@@ -209,11 +205,6 @@ std::span<const til::point_span> Terminal::GetVimCursor() const noexcept
                 start = { selection->end.x - 1, selection->end.y };
                 end = selection->end;
             }
-            //else if (movingLeft)
-            //{
-            //    start = selection->start;
-            //    end = { selection->start.x + 1, selection->start.y };
-            //}
             else
             {
                 start = { selection->start.x, selection->end.y };
@@ -233,11 +224,15 @@ std::span<const til::point_span> Terminal::GetVimCursor() const noexcept
     }
     else
     {
-        start =  selection->start;
-        end = {selection->start.x + 1, selection->start.y };
+        start = selection->start;
+        end = { selection->start.x + 1, selection->start.y };
     }
+    return til::point_span{ start, end };
+}
 
-    _lastVimCursor = _activeBuffer().GetTextSpans(start, end, false, false);
+std::optional<til::point_span> Terminal::GetVimCursor() const noexcept
+{
+    _assertLocked();
     return _lastVimCursor;
 }
 

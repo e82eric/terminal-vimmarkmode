@@ -138,10 +138,6 @@ namespace Microsoft::Console::Render
         til::point_span _lastYankSelectionPaintSpan{};
         size_t _lastYankSelectionPaintSize{};
         std::vector<til::rect> _lastYankSelectionRectsByViewport{};
-
-        til::point_span _lastVimCursorPaintSpan{};
-        size_t _lastVimCursorPaintSize{};
-        std::vector<til::rect> _lastVimCursorRectsByViewport{};
         // Ordered last, so that it gets destroyed first.
         // This ensures that the render thread stops accessing us.
         RenderThread _thread{ this };

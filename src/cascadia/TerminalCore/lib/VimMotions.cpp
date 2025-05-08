@@ -470,6 +470,10 @@ namespace vim
         {
             auto endPair = _GetEndOfWord(terminal, pos, delimiters);
             auto startPair = _GetStartOfWord(terminal, pos, delimiters);
+            if (!startPair.has_value())
+            {
+                startPair = { 0, pos.y };
+            }
 
             auto selection = terminal.GetVimSelectionAnchors();
             if (startPair.has_value() && endPair.has_value())
@@ -886,10 +890,9 @@ namespace vim
             }
         }
 
-        void _moveDownVisual(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection)
+        void _moveDownVisual(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection, til::CoordType lastY)
         {
             auto cursor = GetVimCursor(terminal, selection);
-            auto lastY = _getLastNonSpaceChar(terminal).y;
             auto newY = cursor.Span.start.y + 1;
 
             if (newY <= lastY)
@@ -951,7 +954,7 @@ namespace vim
             selection->pivot = selection->start;
         }
 
-        void _moveDown(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection, bool isVisual, bool entireLine)
+        void _moveDown(Microsoft::Terminal::Core::Terminal& terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo* selection, bool isVisual, bool entireLine, til::CoordType lastY)
         {
             auto cursor = GetVimCursor(terminal, selection);
             if (cursor.IsBlock)
@@ -960,7 +963,7 @@ namespace vim
             }
             else if (isVisual)
             {
-                _moveDownVisual(terminal, selection);
+                _moveDownVisual(terminal, selection, lastY);
             }
             else if (entireLine)
             {
@@ -975,9 +978,10 @@ namespace vim
         void _moveDownToPoint(Microsoft::Terminal::Core::Terminal &terminal, Microsoft::Terminal::Core::Terminal::VimSelectionInfo *selection, til::point point, bool isVisual, bool entireLine)
         {
             auto cursor = GetVimCursor(terminal, selection);
-            while (cursor.Span.start != point && cursor.Span.start.y <= point.y)
+            auto lastY = _getLastNonSpaceChar(terminal).y;
+            while (cursor.Span.start != point && cursor.Span.start.y < point.y)
             {
-                _moveDown(terminal, selection, isVisual, entireLine);
+                _moveDown(terminal, selection, isVisual, entireLine, lastY);
                 cursor = GetVimCursor(terminal, selection);
             }
             terminal.SetVimSelectionAnchors(selection);
@@ -998,7 +1002,9 @@ namespace vim
             }
             else
             {
-                _moveDownVisual(terminal, &vimSelection);
+
+                auto lastY = _getLastNonSpaceChar(terminal).y;
+                _moveDownVisual(terminal, &vimSelection, lastY);
             }
             terminal.SetVimSelectionAnchors(&vimSelection);
         }
@@ -1798,7 +1804,7 @@ namespace vim
                 return;
             }
             auto pos = til::point{ selection.start.x, 0 };
-            while (cursor.Span.start != pos && cursor.Span.start.y > -1)
+            while (cursor.Span.start != pos && cursor.Span.start.y > 0)
             {
                 if (isVisual)
                 {

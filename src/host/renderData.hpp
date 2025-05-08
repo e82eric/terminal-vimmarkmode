@@ -27,7 +27,7 @@ public:
 
     std::span<const til::point_span> GetYankSelectionRects() noexcept override;
     std::span<const til::point_span> GetSelectionSpans() const noexcept override;
-    std::span<const til::point_span> GetVimCursor() const noexcept override;
+    std::optional<til::point_span> GetVimCursor() const noexcept override;
 
     void LockConsole() noexcept override;
     void UnlockConsole() noexcept override;

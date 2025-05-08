@@ -3931,6 +3931,23 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 3, 0 }, {11, 0});
         }
 
+        TEST_METHOD(InWord_StartOfLiine)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"this is a test line";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            ValidateLinearSelection(term, { 0, 0 }, {1, 0}, {0, 0});
+
+            vim::motions::SelectInWord(term, false);
+            ValidateLinearSelection(term, { 0, 0 }, {4, 0});
+        }
+
         TEST_METHOD(InSingleQuotes_Inside)
         {
             Terminal term{ Terminal::TestDummyMarker{} };

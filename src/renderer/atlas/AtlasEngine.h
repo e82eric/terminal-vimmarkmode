@@ -92,6 +92,7 @@ namespace Microsoft::Console::Render::Atlas
         ATLAS_ATTR_COLD void _mapReplacementCharacter(u32 from, u32 to, ShapedRow& row);
         void _fillColorBitmap(const size_t y, const size_t x1, const size_t x2, const u32 fgColor, const u32 bgColor) noexcept;
         [[nodiscard]] HRESULT _drawHighlighted(std::span<const til::point_span>& highlights, const u16 row, const u16 begX, const u16 endX, const u32 fgColor, const u32 bgColor) noexcept;
+        [[nodiscard]] HRESULT _drawHighlightedSingle(til::point_span& highlight, const u16 row, const u32 fgColor, const u32 bgColor) noexcept;
 
         // AtlasEngine.api.cpp
         void _resolveTransparencySettings() noexcept;
@@ -173,7 +174,7 @@ namespace Microsoft::Console::Render::Atlas
             std::span<const til::point_span> searchHighlightFocused;
             std::span<const til::point_span> selectionSpans;
             std::span<const til::point_span> yankSelectionSpans;
-            std::span<const til::point_span> vimCursorSpans;
+            std::optional<til::point_span> vimCursorSpans;
 
             // dirtyRect is a computed value based on invalidatedRows.
             til::rect dirtyRect;

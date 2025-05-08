@@ -355,11 +355,9 @@ try
     }
 
     const auto spans = _pData->GetSelectionSpans();
-    const std::span<const til::point_span> cursorSpans = _pData->GetVimCursor();
     if (spans.size() != _lastSelectionPaintSize || (!spans.empty() && _lastSelectionPaintSpan != til::point_span{ spans.front().start, spans.back().end }))
     {
         std::vector<til::rect> newSelectionViewportRects;
-        std::vector<til::rect> newCursorViewportRects;
 
         _lastSelectionPaintSize = spans.size();
         if (_lastSelectionPaintSize)
@@ -379,16 +377,6 @@ try
                     newSelectionViewportRects.emplace_back(r.to_origin(vp));
                 });
             }
-            for (auto&& sp : cursorSpans)
-            {
-                sp.iterate_rows_exclusive(bufferWidth, [&](til::CoordType row, til::CoordType min, til::CoordType max) {
-                    const auto shift = buffer.GetLineRendition(row) != LineRendition::SingleWidth ? 1 : 0;
-                    min <<= shift;
-                    max <<= shift;
-                    til::rect r{ min, row, max, row + 1 };
-                    newCursorViewportRects.emplace_back(r.to_origin(vp));
-                });
-            }
         }
 
         FOREACH_ENGINE(pEngine)
@@ -398,7 +386,6 @@ try
         }
 
         std::exchange(_lastSelectionRectsByViewport, newSelectionViewportRects);
-        std::exchange(_lastVimCursorRectsByViewport, newCursorViewportRects);
 
         NotifyPaintFrame();
     }
