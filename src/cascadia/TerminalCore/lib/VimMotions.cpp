@@ -259,8 +259,20 @@ namespace vim
             bool found = false;
             bufferSize.IncrementInBounds(result);
 
-            while (result.x < bufferSize.RightInclusive())
+            auto currentLineIsWrapped = terminal.GetTextBuffer().GetRowByOffset(result.y).WasWrapForced();
+            while (true)
             {
+                if (result.x >= bufferSize.RightInclusive())
+                {
+                    if (!currentLineIsWrapped)
+                    {
+                        break;
+                    }
+
+                    result = { 0, result.y + 1 };
+                    currentLineIsWrapped = terminal.GetTextBuffer().GetRowByOffset(result.y).WasWrapForced();
+                }
+
                 DelimiterClass previousClass = terminal.GetTextBuffer().GetRowByOffset(result.y).DelimiterClassAt( result.x - 1, wordDelimiters);
                 bufferSize.IncrementInBounds(result);
                 auto classAt = terminal.GetTextBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x - 1, wordDelimiters);
@@ -358,8 +370,19 @@ namespace vim
             bool found = false;
             DelimiterClass previousClass;
 
-            while (result.x > 0)
+            auto previousLineWasWrapped = target.y > 0 && terminal.GetTextBuffer().GetRowByOffset(result.y - 1).WasWrapForced();
+            while (true)
             {
+                if (result.x == 0)
+                {
+                    if (!previousLineWasWrapped)
+                    {
+                        break;
+                    }
+                    result = _GetLineEnd(terminal, til::point{0, result.y - 1});
+                    previousLineWasWrapped = target.y > 0 && terminal.GetTextBuffer().GetRowByOffset(result.y - 1).WasWrapForced();
+                }
+
                 previousClass = terminal.GetTextBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, wordDelimiters);
                 bufferSize.DecrementInBounds(result);
                 auto classAt = terminal.GetTextBuffer().GetRowByOffset(result.y).DelimiterClassAt(result.x, wordDelimiters);
