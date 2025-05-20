@@ -1333,7 +1333,7 @@ void Renderer::_PaintCursor(_In_ IRenderEngine* const pEngine)
     info.vimCursorSpans = _pData->GetVimCursor();
     info.selectionBackground = _renderSettings.GetColorTableEntry(TextColor::SELECTION_BACKGROUND);
     info.yankSelectionBackground = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_CYAN);
-    info.vimCursorBackgroundColor = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_BLUE);
+    info.vimCursorBackgroundColor = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_YELLOW);
     return pEngine->PrepareRenderInfo(std::move(info));
 }
 
