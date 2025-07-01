@@ -65,18 +65,6 @@
                 <ImageBrush />
             </Grid.Background>
         </Grid>
-        <Border x:Name="FloatContent"
-                Visibility="Collapsed"
-                Grid.Row="2"
-                HorizontalAlignment="Stretch"
-                Margin="100"
-                Padding="4"
-                CornerRadius="4"
-                VerticalAlignment="Stretch"
-                Background ="#282828"
-                BorderBrush="#665c54"
-                BorderThickness="3">
-        </Border>
 
         <!--
             GH#12775 et. al: After switching to ControlsV2, it seems that
@@ -172,6 +160,21 @@
                      FontFamily="Cascadia Mono" />
             </TextBlock>
         </ContentDialog>
+
+        <Grid x:Name="FloatOverlay"
+            Visibility="Collapsed"
+            Background="Transparent"
+            Grid.Row="2"
+            PointerPressed="FloatOverlay_PointerPressed"
+            >
+            <Border x:Name="FloatContent"
+            Margin="100"
+            Padding="4"
+            CornerRadius="4"
+            Background="#282828"
+            BorderBrush="#665c54"
+            BorderThickness="3" />
+        </Grid>
 
         <local:CommandPalette x:Name="CommandPaletteElement"
                               Grid.Row="2"

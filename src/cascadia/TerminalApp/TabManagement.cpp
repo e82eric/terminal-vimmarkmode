@@ -221,11 +221,13 @@ namespace winrt::TerminalApp::implementation
     {
         if (!tab->FloatingPaneVisible())
         {
+            FloatOverlay().Visibility(Visibility::Collapsed);
             FloatContent().Visibility(Visibility::Collapsed);
             FloatContent().Child(nullptr);
         }
         else
         {
+            FloatOverlay().Visibility(Visibility::Visible);
             FloatContent().Visibility(Visibility::Visible);
             tab->SetFloatingPaneVisibility(true);
             FloatContent().Child(tab->GetFloatPane()->GetRootElement());

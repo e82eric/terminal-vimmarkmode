@@ -200,6 +200,11 @@ namespace winrt::TerminalApp::implementation
         WINRT_OBSERVABLE_PROPERTY(winrt::hstring, SavedActionKeyChord, PropertyChanged.raise, L"");
         WINRT_OBSERVABLE_PROPERTY(winrt::hstring, SavedActionCommandLine, PropertyChanged.raise, L"");
 
+        void FloatOverlay_PointerPressed(IInspectable const&, Windows::UI::Xaml::Input::PointerRoutedEventArgs const& e)
+        {
+            e.Handled(true);
+        }
+
     private:
         friend struct TerminalPageT<TerminalPage>; // for Xaml to bind events
         std::optional<HWND> _hostingHwnd;
