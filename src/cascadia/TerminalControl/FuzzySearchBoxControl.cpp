@@ -217,7 +217,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto lock = _terminal->LockForWriting();
 
         {
-            const auto& renderSettings = _terminal->GetRenderSettings();
+            auto& renderSettings = _terminal->GetRenderSettings();
             _fuzzySearchRenderData = std::make_unique<FuzzySearchRenderData>(_terminal.get());
             _renderer = std::make_unique<::Microsoft::Console::Render::Renderer>(renderSettings, _fuzzySearchRenderData.get());
         }

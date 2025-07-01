@@ -160,13 +160,6 @@ void AdaptDispatch::_WriteToBuffer(const std::wstring_view string)
         }
         const auto textPositionAfter = state.text.data();
 
-        // TODO: A row should not be marked as wrapped just because we wrote the last column.
-        // It should be marked whenever we write _past_ it (above, _DoLineFeed call). See GH#15602.
-        if (wrapAtEOL && state.columnEnd >= state.columnLimit)
-        {
-            textBuffer.SetWrapForced(cursorPosition.y, true);
-        }
-
         if (state.columnBeginDirty != state.columnEndDirty)
         {
             const til::rect changedRect{ state.columnBeginDirty, cursorPosition.y, state.columnEndDirty, cursorPosition.y + 1 };
@@ -1921,6 +1914,13 @@ void AdaptDispatch::_ModeParamsHelper(const DispatchTypes::ModeParams param, con
     case DispatchTypes::ModeParams::XTERM_BracketedPasteMode:
         _api.SetSystemMode(ITerminalApi::Mode::BracketedPaste, enable);
         break;
+    case DispatchTypes::ModeParams::SO_SynchronizedOutput:
+        _renderSettings.SetRenderMode(RenderSettings::Mode::SynchronizedOutput, enable);
+        if (_renderer)
+        {
+            _renderer->SynchronizedOutputChanged();
+        }
+        break;
     case DispatchTypes::ModeParams::GCM_GraphemeClusterMode:
         break;
     case DispatchTypes::ModeParams::W32IM_Win32InputMode:
@@ -2058,6 +2058,9 @@ void AdaptDispatch::RequestMode(const DispatchTypes::ModeParams param)
         break;
     case DispatchTypes::ModeParams::XTERM_BracketedPasteMode:
         state = mapTemp(_api.GetSystemMode(ITerminalApi::Mode::BracketedPaste));
+        break;
+    case DispatchTypes::ModeParams::SO_SynchronizedOutput:
+        state = mapTemp(_renderSettings.GetRenderMode(RenderSettings::Mode::SynchronizedOutput));
         break;
     case DispatchTypes::ModeParams::GCM_GraphemeClusterMode:
         state = mapPerm(CodepointWidthDetector::Singleton().GetMode() == TextMeasurementMode::Graphemes);
@@ -3044,6 +3047,7 @@ void AdaptDispatch::HardReset()
     if (_renderer)
     {
         _renderer->TriggerRedrawAll(true, true);
+        _renderer->SynchronizedOutputChanged();
     }
 
     // Cursor to 1,1 - the Soft Reset guarantees this is absolute

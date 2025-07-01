@@ -182,7 +182,9 @@
   </ItemGroup>
   <!-- ========================= Misc Files ======================== -->
   <ItemGroup>
-    <PRIResource Include="Resources\en-US\Resources.resw" />
+    <PRIResource Include="Resources\en-US\Resources.resw">
+      <SubType>Designer</SubType>
+    </PRIResource>
     <OCResourceDirectory Include="Resources" />
   </ItemGroup>
   <!-- ========================= Project References ======================== -->

@@ -150,6 +150,9 @@
                        DefaultButton="Primary">
             <TextBlock IsTextSelectionEnabled="True"
                        TextWrapping="WrapWholeWords">
+                <TextBlock.ContextFlyout>
+                    <mtu:TextMenuFlyout />
+                </TextBlock.ContextFlyout>
                 <Run x:Name="NoticeMessage" />
             </TextBlock>
         </ContentDialog>
@@ -161,6 +164,9 @@
                        DefaultButton="Primary">
             <TextBlock IsTextSelectionEnabled="True"
                        TextWrapping="WrapWholeWords">
+                <TextBlock.ContextFlyout>
+                    <mtu:TextMenuFlyout />
+                </TextBlock.ContextFlyout>
                 <Run x:Name="CouldNotOpenUriReason" /> <LineBreak />
                 <Run x:Name="UnopenedUri"
                      FontFamily="Cascadia Mono" />
@@ -204,7 +210,11 @@
                 <TextBox x:Name="WindowRenamerTextBox"
                          KeyDown="_WindowRenamerKeyDown"
                          KeyUp="_WindowRenamerKeyUp"
-                         Text="{x:Bind WindowProperties.WindowName, Mode=OneWay}" />
+                         Text="{x:Bind WindowProperties.WindowName, Mode=OneWay}">
+                    <TextBox.ContextFlyout>
+                        <mtu:TextMenuFlyout />
+                    </TextBox.ContextFlyout>
+                </TextBox>
             </mux:TeachingTip.Content>
         </mux:TeachingTip>
 

@@ -570,8 +570,13 @@ try
     {
         for (const auto& cluster : clusters)
         {
-            for (const auto& ch : cluster.GetText())
+            for (auto ch : cluster.GetText())
             {
+                // Render Unicode directional isolate characters (U+2066..U+2069) as zero-width spaces.
+                if (ch >= L'\u2066' && ch <= L'\u2069')
+                {
+                    ch = L'\u200B';
+                }
                 _api.bufferLine.emplace_back(ch);
                 _api.bufferLineColumn.emplace_back(columnEnd);
             }
@@ -733,7 +738,7 @@ try
     if (!isSettingDefaultBrushes)
     {
         auto attributes = FontRelevantAttributes::None;
-        WI_SetFlagIf(attributes, FontRelevantAttributes::Bold, textAttributes.IsIntense() && renderSettings.GetRenderMode(RenderSettings::Mode::IntenseIsBold));
+        WI_SetFlagIf(attributes, FontRelevantAttributes::Bold, textAttributes.IsBold(renderSettings.GetRenderMode(RenderSettings::Mode::IntenseIsBold)));
         WI_SetFlagIf(attributes, FontRelevantAttributes::Italic, textAttributes.IsItalic());
 
         if (_api.attributes != attributes)
