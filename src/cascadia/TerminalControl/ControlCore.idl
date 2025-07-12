@@ -69,6 +69,12 @@ namespace Microsoft.Terminal.Control
         Boolean SearchRegexInvalid;
     };
 
+    struct SuggestionSearchItem
+    {
+        String Row;
+        String Text;
+    };
+
     [default_interface] runtimeclass SelectionColor
     {
         SelectionColor();
@@ -82,6 +88,7 @@ namespace Microsoft.Terminal.Control
     {
         IVector<String> History { get; };
         String CurrentCommandline { get; };
+        String CurrentWordPrefix { get; };
         IVector<String> QuickFixes { get; };
     };
 
@@ -162,6 +169,8 @@ namespace Microsoft.Terminal.Control
 
         void EnterQuickSelectMode(String text, Boolean copy);
         FuzzySearchResult FuzzySearch(String text);
+        String GetLineText(Int32 row);
+        IVector<SuggestionSearchItem> SuggestionSearch(String needle);
         SearchResults Search(SearchRequest request);
         void ClearSearch();
 

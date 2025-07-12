@@ -20,12 +20,24 @@ using namespace winrt::Microsoft::Terminal::Settings::Model;
 
 namespace winrt::TerminalApp::implementation
 {
+    int32_t FilteredCommand::Ordinal()
+    {
+        return _ordinal;
+    }
+
+
+    FilteredCommand::FilteredCommand(const winrt::TerminalApp::PaletteItem& item) :
+        FilteredCommand(item, 0)
+    {
+    }
+
     // This class is a wrapper of PaletteItem, that is used as an item of a filterable list in CommandPalette.
     // It manages a highlighted text that is computed by matching search filter characters to item name
-    FilteredCommand::FilteredCommand(const winrt::TerminalApp::PaletteItem& item)
+    FilteredCommand::FilteredCommand(const winrt::TerminalApp::PaletteItem& item, int32_t ordinal)
     {
         // Actually implement the ctor in _constructFilteredCommand
         _constructFilteredCommand(item);
+        _ordinal = ordinal;
     }
 
     // We need to actually implement the ctor in a separate helper. This is
@@ -61,49 +73,75 @@ namespace winrt::TerminalApp::implementation
         }
     }
 
+    std::vector<winrt::TerminalApp::HighlightedTextSegment> _make_segments(const std::wstring_view& commandName, const fzf::matcher::MatchResult& matchResult)
+    {
+        std::vector<winrt::TerminalApp::HighlightedTextSegment> segments;
+        size_t lastPos = 0;
+        for (const auto& run : matchResult.Runs)
+        {
+            const auto& [start, end] = run;
+            if (start > lastPos)
+            {
+                hstring nonMatch{ til::safe_slice_abs(commandName, lastPos, start) };
+                segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(nonMatch, false));
+            }
+
+            hstring matchSeg{ til::safe_slice_abs(commandName, start, end + 1) };
+            segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(matchSeg, true));
+
+            lastPos = end + 1;
+        }
+
+        if (lastPos < commandName.size())
+        {
+            hstring tail{ til::safe_slice_abs(commandName, lastPos, SIZE_T_MAX) };
+            segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(tail, false));
+        }
+
+        return segments;
+    }
+
     void FilteredCommand::_update()
     {
         std::vector<winrt::TerminalApp::HighlightedTextSegment> segments;
+        std::vector<winrt::TerminalApp::HighlightedTextSegment> descriptionSegments;
         const auto commandName = _Item.Name();
+        auto description = _Item.as<ActionPaletteItem>().Command().Description();
         int32_t weight = 0;
 
         if (!_pattern || _pattern->terms.empty())
         {
             segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(commandName, false));
-        }
-        else if (auto match = fzf::matcher::Match(commandName, *_pattern.get()); !match)
-        {
-            segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(commandName, false));
+            descriptionSegments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(description, false));
         }
         else
         {
-            auto& matchResult = *match;
-            weight = matchResult.Score;
+            auto nameMatch = fzf::matcher::Match(commandName, *_pattern.get());
+            auto descriptionMatch = fzf::matcher::Match(description, *_pattern.get());
 
-            size_t lastPos = 0;
-            for (const auto& run : matchResult.Runs)
+            if (nameMatch)
             {
-                const auto& [start, end] = run;
-                if (start > lastPos)
-                {
-                    hstring nonMatch{ til::safe_slice_abs(commandName, lastPos, start) };
-                    segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(nonMatch, false));
-                }
-
-                hstring matchSeg{ til::safe_slice_abs(commandName, start, end + 1) };
-                segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(matchSeg, true));
-
-                lastPos = end + 1;
+                weight = nameMatch->Score;
+                segments = _make_segments(commandName, *nameMatch);
+            }
+            else
+            {
+                segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(commandName, false));
             }
 
-            if (lastPos < commandName.size())
+            if (descriptionMatch)
             {
-                hstring tail{ til::safe_slice_abs(commandName, lastPos, SIZE_T_MAX) };
-                segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(tail, false));
+                weight = descriptionMatch->Score - 1;
+                descriptionSegments = _make_segments(description, *descriptionMatch);
+            }
+            else
+            {
+                descriptionSegments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(description, false));
             }
         }
 
         HighlightedName(winrt::make<HighlightedText>(winrt::single_threaded_observable_vector(std::move(segments))));
+        HighlightedDescription(winrt::make<HighlightedText>(winrt::single_threaded_observable_vector(std::move(descriptionSegments))));
         Weight(weight);
     }
 
@@ -122,6 +160,10 @@ namespace winrt::TerminalApp::implementation
 
         if (firstWeight == secondWeight)
         {
+            if (first.Ordinal() != second.Ordinal())
+            {
+                return first.Ordinal() < second.Ordinal();
+            }
             const auto firstName = first.Item().Name();
             const auto secondName = second.Item().Name();
             return til::compare_linguistic_insensitive(firstName, secondName) < 0;

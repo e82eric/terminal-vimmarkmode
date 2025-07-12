@@ -77,6 +77,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         til::property<Windows::Foundation::Collections::IVector<winrt::hstring>> History;
         til::property<winrt::hstring> CurrentCommandline;
+        til::property<winrt::hstring> CurrentWordPrefix;
         til::property<Windows::Foundation::Collections::IVector<winrt::hstring>> QuickFixes;
 
         CommandHistoryContext(std::vector<winrt::hstring>&& history) :
@@ -242,6 +243,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SetSelectionAnchor(const til::point position);
         void SetEndSelectionPoint(const til::point position);
 
+        hstring GetLineText(int32_t rowNumber);
+        Windows::Foundation::Collections::IVector<SuggestionSearchItem> SuggestionSearch(hstring const& needle);
         SearchResults Search(SearchRequest request);
         const std::vector<til::point_span>& SearchResultRows() const noexcept;
         void ClearSearch();

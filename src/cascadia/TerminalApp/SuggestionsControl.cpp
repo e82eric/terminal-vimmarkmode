@@ -294,7 +294,7 @@ namespace winrt::TerminalApp::implementation
                     selected.SetValue(Automation::AutomationProperties::FullDescriptionProperty(), winrt::box_value(description));
                 }
 
-                if (!description.empty())
+                if (!description.empty() && true == false)
                 {
                     _openTooltip(cmd);
                 }
@@ -311,11 +311,7 @@ namespace winrt::TerminalApp::implementation
 
     void SuggestionsControl::_openTooltip(Command cmd)
     {
-        const auto description{ cmd.Description() };
-        if (description.empty())
-        {
-            return;
-        }
+        auto description{ cmd.Description() };
 
         // Build the contents of the "tooltip" based on the description
         //
@@ -815,35 +811,53 @@ namespace winrt::TerminalApp::implementation
 
         _updateFilteredActions();
 
-        if (const auto newSelectedIndex = _filteredActionsView().SelectedIndex();
-            newSelectedIndex == -1)
+        if (!_sortResults)
         {
-            // Make sure something stays selected
-            _scrollToIndex(lastSelectedIndex);
+            if (const auto newSelectedIndex = _filteredActionsView().SelectedIndex();
+                newSelectedIndex == -1)
+            {
+                // Make sure something stays selected
+                _scrollToIndex(lastSelectedIndex);
+            }
+            else
+            {
+                // BODGY: Calling ScrollIntoView on a ListView doesn't always work
+                // immediately after a change to the items. See:
+                // https://stackoverflow.com/questions/16942580/why-doesnt-listview-scrollintoview-ever-work
+                // The SelectionChanged thing we do (in _selectedCommandChanged),
+                // but because we're also not changing the actual selected item when
+                // the size of the list grows (it _stays_ selected, so it never
+                // _changes_), we never get a SelectionChanged.
+                //
+                // To mitigate, only in the case of totally clearing out the filter
+                // (like hitting `esc`), we want to briefly select the 0th item,
+                // then immediately select the one we want to make visible. That
+                // will make sure we get a SelectionChanged when the ListView is
+                // ready, and we can use that to scroll to the right item.
+                //
+                // If we do this on _every_ change, then the preview text flickers
+                // between the 0th item and the correct one.
+                if (_lastFilterTextWasEmpty)
+                {
+                    _filteredActionsView().SelectedIndex(0);
+                }
+                _scrollToIndex(newSelectedIndex);
+            }
         }
         else
         {
-            // BODGY: Calling ScrollIntoView on a ListView doesn't always work
-            // immediately after a change to the items. See:
-            // https://stackoverflow.com/questions/16942580/why-doesnt-listview-scrollintoview-ever-work
-            // The SelectionChanged thing we do (in _selectedCommandChanged),
-            // but because we're also not changing the actual selected item when
-            // the size of the list grows (it _stays_ selected, so it never
-            // _changes_), we never get a SelectionChanged.
-            //
-            // To mitigate, only in the case of totally clearing out the filter
-            // (like hitting `esc`), we want to briefly select the 0th item,
-            // then immediately select the one we want to make visible. That
-            // will make sure we get a SelectionChanged when the ListView is
-            // ready, and we can use that to scroll to the right item.
-            //
-            // If we do this on _every_ change, then the preview text flickers
-            // between the 0th item and the correct one.
-            if (_lastFilterTextWasEmpty)
+            if (_filteredActionsView().Items().Size() > 0)
             {
-                _filteredActionsView().SelectedIndex(0);
+                if (_direction == TerminalApp::SuggestionsDirection::BottomUp)
+                {
+                    const auto last = _filteredActionsView().Items().Size() - 1;
+                    _scrollToIndex(last);
+                }
+                else
+                {
+                    _scrollToIndex(0);
+                }
             }
-            _scrollToIndex(newSelectedIndex);
         }
 
         const auto currentNeedleHasResults{ _filteredActions.Size() > 0 };
@@ -872,12 +886,14 @@ namespace winrt::TerminalApp::implementation
     void SuggestionsControl::SetCommands(const Collections::IVector<Command>& actions)
     {
         _allCommands.Clear();
+        auto i = 0;
         for (const auto& action : actions)
         {
             // key chords aren't relevant in the suggestions control, so make the palette item with just the command and no keys
             auto actionPaletteItem{ winrt::make<winrt::TerminalApp::implementation::ActionPaletteItem>(action, winrt::hstring{}) };
-            auto filteredCommand{ winrt::make<FilteredCommand>(actionPaletteItem) };
+            auto filteredCommand{ winrt::make<FilteredCommand>(actionPaletteItem, i) };
             _allCommands.Append(filteredCommand);
+            i++;
         }
 
         if (Visibility() == Visibility::Visible)
@@ -929,45 +945,93 @@ namespace winrt::TerminalApp::implementation
     // - <none>
     std::vector<winrt::TerminalApp::FilteredCommand> SuggestionsControl::_collectFilteredActions()
     {
+
         std::vector<winrt::TerminalApp::FilteredCommand> actions;
-
         winrt::hstring searchText{ _getTrimmedInput() };
-
         auto commandsToFilter = _commandsToFilter();
 
         {
-            auto pattern = std::make_shared<fzf::matcher::Pattern>(fzf::matcher::ParsePattern(searchText));
+            auto isMoreSelective = !_searchText.empty() &&
+                searchText.size() > _searchText.size() &&
+                std::wstring_view(searchText).starts_with(_searchText);
+            _searchText = searchText;
+
+            auto pattern = std::make_shared<fzf::matcher::Pattern>(
+                fzf::matcher::ParsePattern(searchText));
 
             for (const auto& action : commandsToFilter)
             {
-                // Update filter for all commands
-                // This will modify the highlighting but will also lead to re-computation of weight (and consequently sorting).
-                // Pay attention that it already updates the highlighting in the UI
-                auto impl = winrt::get_self<implementation::FilteredCommand>(action);
-                impl->UpdateFilter(pattern);
-
-                // if there is active search we skip commands with 0 weight
-                if (searchText.empty() || action.Weight() > 0)
+                //If the search is more selective and the previous score is 0 we don't need to attempt to sore it again
+                if (!isMoreSelective || action.Weight() > 0)
                 {
-                    actions.push_back(action);
+                    // Update filter for all commands
+                    // This will modify the highlighting but will also lead to re-computation of weight (and consequently sorting).
+                    // Pay attention that it already updates the highlighting in the UI
+                    auto impl = winrt::get_self<implementation::FilteredCommand>(action);
+                    impl->UpdateFilter(pattern);
+
+                    // if there is active search we skip commands with 0 weight
+                    if (searchText.empty() || action.Weight() > 0)
+                    {
+                        actions.push_back(action);
+                    }
                 }
             }
         }
 
-        // No sorting in palette mode, so results are still filtered, but in the
-        // original order. This feels more right for something like
-        // recentCommands.
-        //
-        // This is in contrast to the Command Palette, which always sorts its
-        // actions.
-
-        // Adjust the order of the results depending on if we're top-down or
-        // bottom up. This way, the "first" / "best" match is always closest to
-        // the cursor.
-        if (_direction == TerminalApp::SuggestionsDirection::BottomUp)
+        if (!_sortResults)
         {
-            // Reverse the list
-            std::reverse(std::begin(actions), std::end(actions));
+            // No sorting in palette mode, so results are still filtered, but in the
+            // original order. This feels more right for something like
+            // recentCommands.
+            //
+            // This is in contrast to the Command Palette, which always sorts its
+            // actions.
+
+            // Adjust the order of the results depending on if we're top-down or
+            // bottom up. This way, the "first" / "best" match is always closest to
+            // the cursor.
+            if (_direction == TerminalApp::SuggestionsDirection::BottomUp)
+            {
+                // Reverse the list
+                std::reverse(std::begin(actions), std::end(actions));
+            }
+        }
+        else
+        {
+            constexpr std::size_t MaxResults = 100;
+            if (searchText.empty() && actions.size() > MaxResults)
+            {
+                actions.resize(MaxResults);
+            }
+            else
+            {
+                auto cmp = FilteredCommand::Compare;
+                if (_direction == TerminalApp::SuggestionsDirection::BottomUp)
+                {
+                    cmp = [](auto const& a, auto const& b) {
+                        return FilteredCommand::Compare(a, b);
+                    };
+                }
+
+                if (actions.size() > MaxResults)
+                {
+                    std::partial_sort(actions.begin(),
+                                      actions.begin() + MaxResults,
+                                      actions.end(),
+                                      cmp);
+                    actions.resize(MaxResults);
+                }
+                else
+                {
+                    std::sort(actions.begin(), actions.end(), cmp);
+                }
+
+                if (_direction == TerminalApp::SuggestionsDirection::BottomUp)
+                {
+                    std::reverse(actions.begin(), actions.end());
+                }
+            }
         }
 
         return actions;
@@ -983,39 +1047,45 @@ namespace winrt::TerminalApp::implementation
     void SuggestionsControl::_updateFilteredActions()
     {
         auto actions = _collectFilteredActions();
-
-        // Make _filteredActions look identical to actions, using only Insert and Remove.
-        // This allows WinUI to nicely animate the ListView as it changes.
-        for (uint32_t i = 0; i < _filteredActions.Size() && i < actions.size(); i++)
+        if (_sortResults)
         {
-            for (auto j = i; j < _filteredActions.Size(); j++)
+            _filteredActions.ReplaceAll(actions);
+        }
+        else
+        {
+            // Make _filteredActions look identical to actions, using only Insert and Remove.
+            // This allows WinUI to nicely animate the ListView as it changes.
+            for (uint32_t i = 0; i < _filteredActions.Size() && i < actions.size(); i++)
             {
-                if (_filteredActions.GetAt(j).Item() == actions[i].Item())
+                for (auto j = i; j < _filteredActions.Size(); j++)
                 {
-                    for (auto k = i; k < j; k++)
+                    if (_filteredActions.GetAt(j).Item() == actions[i].Item())
                     {
-                        _filteredActions.RemoveAt(i);
+                        for (auto k = i; k < j; k++)
+                        {
+                            _filteredActions.RemoveAt(i);
+                        }
+                        break;
                     }
-                    break;
+                }
+
+                if (_filteredActions.GetAt(i).Item() != actions[i].Item())
+                {
+                    _filteredActions.InsertAt(i, actions[i]);
                 }
             }
 
-            if (_filteredActions.GetAt(i).Item() != actions[i].Item())
+            // Remove any extra trailing items from the destination
+            while (_filteredActions.Size() > actions.size())
             {
-                _filteredActions.InsertAt(i, actions[i]);
+                _filteredActions.RemoveAtEnd();
             }
-        }
 
-        // Remove any extra trailing items from the destination
-        while (_filteredActions.Size() > actions.size())
-        {
-            _filteredActions.RemoveAtEnd();
-        }
-
-        // Add any extra trailing items from the source
-        while (_filteredActions.Size() < actions.size())
-        {
-            _filteredActions.Append(actions[_filteredActions.Size()]);
+            // Add any extra trailing items from the source
+            while (_filteredActions.Size() < actions.size())
+            {
+                _filteredActions.Append(actions[_filteredActions.Size()]);
+            }
         }
     }
 
@@ -1211,8 +1281,10 @@ namespace winrt::TerminalApp::implementation
                                   winrt::hstring filter,
                                   Windows::Foundation::Point anchor,
                                   Windows::Foundation::Size space,
-                                  float characterHeight)
+                                  float characterHeight,
+                                  bool sortResults)
     {
+        _searchBox().Text(filter);
         Mode(mode);
         SetCommands(commands);
 
@@ -1222,6 +1294,7 @@ namespace winrt::TerminalApp::implementation
 
         _anchor = anchor;
         _space = space;
+        _sortResults = sortResults;
 
         // Is there space in the window below the cursor to open the menu downwards?
         const bool canOpenDownwards = (_anchor.Y + characterHeight + ActualHeight()) < space.Height;
@@ -1246,8 +1319,6 @@ namespace winrt::TerminalApp::implementation
         Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(clampedX, 0, 0, 0));
         _recalculateTopMargin();
 
-        _searchBox().Text(filter);
-
         // If we're in bottom-up mode, make sure to re-select the _last_ item in
         // the list, so that it's like we're starting with the most recent one
         // selected.
@@ -1256,6 +1327,7 @@ namespace winrt::TerminalApp::implementation
             const auto last = _filteredActionsView().Items().Size() - 1;
             _scrollToIndex(last);
         }
+
         // Move the cursor to the very last position, so it starts immediately
         // after the text. This is apparently done by starting a 0-wide
         // selection starting at the end of the string.

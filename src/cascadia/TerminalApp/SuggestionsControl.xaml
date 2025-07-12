@@ -25,9 +25,19 @@
 
     <UserControl.Resources>
         <ResourceDictionary>
+            <Style x:Key="NoListViewItemTransitions"
+               TargetType="ListViewBase">
+                <Setter Property="ItemContainerTransitions">
+                    <Setter.Value>
+                        <!-- empty collection ⇒ no entrance / delete transitions -->
+                        <TransitionCollection/>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <DataTemplate x:Key="ListItemTemplate"
                           x:DataType="local:FilteredCommand">
-                <ListViewItem Height="32"
+                <ListViewItem Height="42"
                               MinHeight="0"
                               Padding="16,0,12,0"
                               HorizontalContentAlignment="Stretch"
@@ -50,6 +60,11 @@
                         <!--  gutter for scrollbar  -->
                     </Grid.ColumnDefinitions>
 
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="auto" />
+                        <RowDefinition Height="auto"/>
+                    </Grid.RowDefinitions>
+
                     <ContentPresenter Grid.Column="0"
                                       Width="16"
                                       Height="16"
@@ -58,6 +73,12 @@
                     <local:HighlightedTextControl Grid.Column="1"
                                                   HorizontalAlignment="Left"
                                                   Text="{x:Bind HighlightedName, Mode=OneWay}" />
+
+                    <local:HighlightedTextControl Grid.Column="1" Grid.Row="1"
+                              FontStyle="Italic"
+                              Foreground="LightGray"
+                              HorizontalAlignment="Left"
+                              Text="{x:Bind HighlightedDescription, Mode=OneWay}" />
 
                 </Grid>
             </DataTemplate>
@@ -106,7 +127,6 @@
                 Orientation="Vertical">
         <Grid x:Name="_backdrop"
               MinWidth="300"
-              MaxWidth="300"
               MaxHeight="300"
               Margin="0"
               Padding="0,8,0,0"
@@ -195,13 +215,12 @@
                       ItemsSource="{x:Bind FilteredActions}"
                       SelectionChanged="_listItemSelectionChanged"
                       SelectionMode="Single"
-                      Style="{StaticResource NoAnimationsPlease}" />
+                      Style="{StaticResource NoListViewItemTransitions}" />
 
 
         </Grid>
 
         <Grid x:Name="_descriptionsBackdrop"
-              MaxWidth="300"
               Margin="0,6,0,6"
               Padding="0,4,0,0"
               HorizontalAlignment="Stretch"

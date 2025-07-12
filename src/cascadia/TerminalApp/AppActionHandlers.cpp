@@ -1610,14 +1610,19 @@ namespace winrt::TerminalApp::implementation
         std::vector<Command> commandsCollection;
         Control::CommandHistoryContext context{ nullptr };
         winrt::hstring currentCommandline;
+        winrt::hstring currentWordPrefix;
         winrt::hstring currentWorkingDirectory;
+        winrt::hstring filter;
+
+        //We don't want to sort command history so that recent commands appear in the list first
+        bool sortResults = source != SuggestionsSource::QuickFixes;
 
         // If the user wanted to use the current commandline to filter results,
         //    OR they wanted command history (or some other source that
         //       requires context from the control)
         // then get that here.
         const bool shouldGetContext = realArgs.UseCommandline() ||
-                                      WI_IsAnyFlagSet(source, SuggestionsSource::CommandHistory | SuggestionsSource::QuickFixes);
+                                      WI_IsAnyFlagSet(source, SuggestionsSource::CommandHistory | SuggestionsSource::QuickFixes | SuggestionsSource::Scrollback);
         if (const auto& control{ _GetActiveControl() })
         {
             currentWorkingDirectory = control.CurrentWorkingDirectory();
@@ -1628,6 +1633,8 @@ namespace winrt::TerminalApp::implementation
                 if (context)
                 {
                     currentCommandline = context.CurrentCommandline();
+                    currentWordPrefix = context.CurrentWordPrefix();
+                    filter = source == SuggestionsSource::Scrollback ? currentWordPrefix : currentCommandline;
                 }
             }
         }
@@ -1672,13 +1679,33 @@ namespace winrt::TerminalApp::implementation
             }
         }
 
+        if (WI_IsFlagSet(source, SuggestionsSource::Scrollback))
+        {
+            if (const auto termControl{_GetActiveControl()})
+            {
+                const auto scrollBackResults = termControl.SuggestionSearch(realArgs.Regex());
+
+                std::unordered_set<winrt::hstring> seen;
+                for (auto r : scrollBackResults)
+                {
+                    winrt::hstring key = r.Text + L'#' + r.Row;
+                    if (seen.insert(key).second)
+                    {
+                        auto c = Command::ScrollBackSuggestionToCommand(r.Text, currentWordPrefix, r.Row);
+                        commandsCollection.push_back(c);
+                    }
+                }
+            }
+        }
+
         co_await wil::resume_foreground(Dispatcher());
 
         // Open the palette with all these commands in it.
         _OpenSuggestions(_GetActiveControl(),
                          winrt::single_threaded_vector<Command>(std::move(commandsCollection)),
                          SuggestionsMode::Palette,
-                         currentCommandline);
+                         filter,
+                         sortResults);
     }
 
     void TerminalPage::_HandleColorSelection(const IInspectable& /*sender*/,
