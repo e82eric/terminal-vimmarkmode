@@ -73,11 +73,11 @@ namespace winrt::TerminalApp::implementation
         }
     }
 
-    std::vector<winrt::TerminalApp::HighlightedTextSegment> _make_segments(const std::wstring_view& commandName, const fzf::matcher::MatchResult& matchResult)
+    std::vector<winrt::TerminalApp::HighlightedTextSegment> _make_segments(const std::wstring_view& commandName, const std::vector<fzf::matcher::TextRun>& runs)
     {
         std::vector<winrt::TerminalApp::HighlightedTextSegment> segments;
         size_t lastPos = 0;
-        for (const auto& run : matchResult.Runs)
+        for (const auto& run : runs)
         {
             const auto& [start, end] = run;
             if (start > lastPos)
@@ -106,7 +106,12 @@ namespace winrt::TerminalApp::implementation
         std::vector<winrt::TerminalApp::HighlightedTextSegment> segments;
         std::vector<winrt::TerminalApp::HighlightedTextSegment> descriptionSegments;
         const auto commandName = _Item.Name();
-        auto description = _Item.as<ActionPaletteItem>().Command().Description();
+        winrt::hstring description = L"";
+
+        if (auto paletteItem = _Item.try_as<ActionPaletteItem>())
+        {
+            description = paletteItem.Command().Description();
+        }
         int32_t weight = 0;
 
         if (!_pattern || _pattern->terms.empty())
@@ -116,28 +121,20 @@ namespace winrt::TerminalApp::implementation
         }
         else
         {
-            auto nameMatch = fzf::matcher::Match(commandName, *_pattern.get());
-            auto descriptionMatch = fzf::matcher::Match(description, *_pattern.get());
+            auto match = fzf::matcher::MatchTextAndName(description, commandName ,*_pattern.get());
 
-            if (nameMatch)
+            if (match)
             {
-                weight = nameMatch->Score;
-                segments = _make_segments(commandName, *nameMatch);
+                weight = match->Score;
+                segments = _make_segments(commandName, match->NameRuns);
+                descriptionSegments = _make_segments(description, match->Runs);
             }
             else
             {
                 segments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(commandName, false));
-            }
-
-            if (descriptionMatch)
-            {
-                weight = descriptionMatch->Score - 1;
-                descriptionSegments = _make_segments(description, *descriptionMatch);
-            }
-            else
-            {
                 descriptionSegments.emplace_back(winrt::TerminalApp::HighlightedTextSegment(description, false));
             }
+
         }
 
         HighlightedName(winrt::make<HighlightedText>(winrt::single_threaded_observable_vector(std::move(segments))));
