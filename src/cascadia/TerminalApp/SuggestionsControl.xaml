@@ -76,7 +76,6 @@
 
                     <local:HighlightedTextControl Grid.Column="1" Grid.Row="1"
                               FontStyle="Italic"
-                              Foreground="LightGray"
                               HorizontalAlignment="Left"
                               Text="{x:Bind HighlightedDescription, Mode=OneWay}" />
 
