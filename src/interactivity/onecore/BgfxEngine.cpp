@@ -150,6 +150,11 @@ CATCH_RETURN()
     return S_OK;
 }
 
+HRESULT BgfxEngine::PaintYankSelection(const til::rect& /*rect*/) noexcept
+{
+    return S_OK;
+}
+
 [[nodiscard]] HRESULT BgfxEngine::PaintCursor(const CursorOptions& options) noexcept
 try
 {
