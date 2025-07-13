@@ -77,6 +77,7 @@
                     <local:HighlightedTextControl Grid.Column="1" Grid.Row="1"
                               FontStyle="Italic"
                               HorizontalAlignment="Left"
+                              Foreground="{StaticResource CommandPaletteDescriptionForeground}"
                               Text="{x:Bind HighlightedDescription, Mode=OneWay}" />
 
                 </Grid>
