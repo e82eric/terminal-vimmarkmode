@@ -27,12 +27,12 @@
         <ResourceDictionary>
             <DataTemplate x:Key="ListItemTemplate"
                           x:DataType="local:FilteredCommand">
-                <ListViewItem Height="32"
+                <ListViewItem Height="45"
                               MinHeight="0"
                               Padding="16,0,12,0"
                               HorizontalContentAlignment="Stretch"
                               AutomationProperties.Name="{x:Bind Item.Name, Mode=OneWay}"
-                              FontSize="12" />
+                              FontSize="14" />
             </DataTemplate>
 
             <DataTemplate x:Key="GeneralItemTemplate"
@@ -50,16 +50,26 @@
                         <!--  gutter for scrollbar  -->
                     </Grid.ColumnDefinitions>
 
+                    <Grid.RowDefinitions>
+                        <RowDefinition/>
+                        <RowDefinition/>
+                    </Grid.RowDefinitions>
+
                     <ContentPresenter Grid.Column="0"
                                       Width="16"
                                       Height="16"
                                       Content="{x:Bind Item.ResolvedIcon, Mode=OneWay}" />
 
+                    <TextBlock Grid.Column="1"
+                               HorizontalAlignment="Left"
+                               FontWeight="Bold"
+                               Text="{x:Bind Item.Name, Mode=OneWay}" />
                     <local:HighlightedTextControl Grid.Column="1"
+                                                  Grid.Row="1"
                                                   HorizontalAlignment="Left"
+                                                  FontStyle="Italic"
                                                   HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
-                                                  Text="{x:Bind Item.Name, Mode=OneWay}" />
-
+                                                  Text="{x:Bind Description, Mode=OneWay}" />
                 </Grid>
             </DataTemplate>
 
@@ -108,7 +118,6 @@
                 Orientation="Vertical">
         <Grid x:Name="_backdrop"
               MinWidth="300"
-              MaxWidth="300"
               MaxHeight="300"
               Margin="0"
               Padding="0,8,0,0"
@@ -207,7 +216,6 @@
         </Grid>
 
         <Grid x:Name="_descriptionsBackdrop"
-              MaxWidth="300"
               Margin="0,6,0,6"
               Padding="0,4,0,0"
               HorizontalAlignment="Stretch"

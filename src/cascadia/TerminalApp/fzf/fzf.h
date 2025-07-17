@@ -19,10 +19,10 @@ namespace fzf::matcher
 
     struct Pattern
     {
-        std::wstring text;
         std::vector<std::vector<UChar32>> terms;
     };
 
     Pattern ParsePattern(std::wstring_view patternStr);
     std::optional<MatchResult> Match(std::wstring_view text, const Pattern& pattern);
+    std::optional<MatchResult> Match2(std::wstring_view text, std::wstring_view prefixCheck, const Pattern& pattern);
 }

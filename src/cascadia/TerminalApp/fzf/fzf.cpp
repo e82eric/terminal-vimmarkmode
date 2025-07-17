@@ -343,7 +343,6 @@ static int32_t fzfFuzzyMatchV2(const std::vector<UChar32>& text, const std::vect
 Pattern fzf::matcher::ParsePattern(const std::wstring_view patternStr)
 {
     Pattern patObj;
-    patObj.text = std::wstring{ patternStr };
     size_t pos = 0;
 
     while (true)
@@ -388,6 +387,80 @@ std::optional<MatchResult> fzf::matcher::Match(std::wstring_view text, const Pat
 
         totalScore += score;
         allUtf32Pos.insert(allUtf32Pos.end(), termPos.begin(), termPos.end());
+    }
+
+    std::ranges::sort(allUtf32Pos);
+    allUtf32Pos.erase(std::ranges::unique(allUtf32Pos).begin(), allUtf32Pos.end());
+
+    std::vector<TextRun> runs;
+    std::size_t nextCodePointPos = 0;
+    size_t utf16Offset = 0;
+
+    bool inRun = false;
+    size_t runStart = 0;
+
+    for (size_t cpIndex = 0; cpIndex < textCodePoints.size(); cpIndex++)
+    {
+        const auto cp = textCodePoints[cpIndex];
+        const size_t cpWidth = U16_LENGTH(cp);
+
+        const bool isMatch = (nextCodePointPos < allUtf32Pos.size() && allUtf32Pos[nextCodePointPos] == cpIndex);
+        if (isMatch)
+        {
+            if (!inRun)
+            {
+                runStart = utf16Offset;
+                inRun = true;
+            }
+            nextCodePointPos++;
+        }
+        else if (inRun)
+        {
+            runs.push_back({ runStart, utf16Offset - 1 });
+            inRun = false;
+        }
+
+        utf16Offset += cpWidth;
+    }
+
+    if (inRun)
+    {
+        runs.push_back({ runStart, utf16Offset - 1 });
+    }
+
+    return MatchResult{ totalScore, std::move(runs) };
+}
+
+std::optional<MatchResult> fzf::matcher::Match2(std::wstring_view text, std::wstring_view prefixCheck, const Pattern& pattern)
+{
+    if (pattern.terms.empty())
+    {
+        return MatchResult{};
+    }
+
+    const auto textCodePoints = utf16ToUtf32(text);
+
+    int32_t totalScore = 0;
+    std::vector<size_t> allUtf32Pos;
+
+    for (const auto& term : pattern.terms)
+    {
+        std::vector<size_t> termPos;
+        auto score = fzfFuzzyMatchV2(textCodePoints, term, &termPos);
+        if (score <= 0)
+        {
+            return std::nullopt;
+        }
+
+        totalScore += score;
+        allUtf32Pos.insert(allUtf32Pos.end(), termPos.begin(), termPos.end());
+    }
+
+    auto nameCodePoints = utf16ToUtf32(prefixCheck);
+    for (const auto& term : pattern.terms)
+    {
+        auto score = fzfFuzzyMatchV2(nameCodePoints, term, nullptr);
+        totalScore += score;
     }
 
     std::ranges::sort(allUtf32Pos);

@@ -4,6 +4,8 @@
 #include "pch.h"
 #include "CommandPalette.h"
 #include <LibraryResources.h>
+
+#include "CommandPaletteItems.h"
 #include "fzf/fzf.h"
 
 #include "FilteredCommand.g.cpp"
@@ -34,8 +36,8 @@ namespace winrt::TerminalApp::implementation
     FilteredCommand::FilteredCommand(const winrt::TerminalApp::IPaletteItem& item, int32_t ordinal)
     {
         // Actually implement the ctor in _constructFilteredCommand
-        _constructFilteredCommand(item);
         _ordinal = ordinal;
+        _constructFilteredCommand(item);
     }
 
     // We need to actually implement the ctor in a separate helper. This is
@@ -45,6 +47,11 @@ namespace winrt::TerminalApp::implementation
     // directly in the base class.
     void FilteredCommand::_constructFilteredCommand(const winrt::TerminalApp::IPaletteItem& item)
     {
+        if (auto cmd = item.try_as<ActionPaletteItem>())
+        {
+            Description(cmd->Command().Description());
+        }
+
         _Item = item;
         _Weight = 0;
 
@@ -71,14 +78,14 @@ namespace winrt::TerminalApp::implementation
         }
     }
 
-    static std::tuple<std::vector<winrt::TerminalApp::HighlightedRun>, int32_t> _matchedSegmentsAndWeight(const std::shared_ptr<fzf::matcher::Pattern>& pattern, const winrt::hstring& haystack)
+    static std::tuple<std::vector<winrt::TerminalApp::HighlightedRun>, int32_t> _matchedSegmentsAndWeight(const std::shared_ptr<fzf::matcher::Pattern>& pattern, const winrt::hstring& haystack, const winrt::hstring prefix)
     {
         std::vector<winrt::TerminalApp::HighlightedRun> segments;
         int32_t weight = 0;
 
         if (pattern && !pattern->terms.empty())
         {
-            if (auto match = fzf::matcher::Match(haystack, *pattern.get()); match)
+            if (auto match = fzf::matcher::Match2(haystack, prefix, *pattern.get()); match)
             {
                 auto& matchResult = *match;
                 weight = matchResult.Score;
@@ -93,7 +100,7 @@ namespace winrt::TerminalApp::implementation
 
     void FilteredCommand::_update()
     {
-        auto [segments, weight] = _matchedSegmentsAndWeight(_pattern, _Item.Name());
+        auto [segments, weight] = _matchedSegmentsAndWeight(_pattern, Description(), _Item.Name());
 
         if (segments.empty())
         {

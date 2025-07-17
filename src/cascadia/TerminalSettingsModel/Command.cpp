@@ -750,7 +750,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         auto command = winrt::make_self<Command>();
         command->_ActionAndArgs = actionAndArgs;
         command->_name = text;
-        //command->IconPath(L"\uE756");
+        command->IconPath(L"\uE756");
         command->_Description = rowText;
 
         return *command;
