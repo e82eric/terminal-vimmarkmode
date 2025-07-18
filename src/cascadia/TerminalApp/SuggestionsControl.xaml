@@ -64,11 +64,13 @@
                                HorizontalAlignment="Left"
                                FontWeight="Bold"
                                TextDecorations="Underline"
+                               Foreground="White"
                                Text="{x:Bind Item.Name, Mode=OneWay}" />
                     <local:HighlightedTextControl Grid.Column="1"
                                                   Grid.Row="1"
                                                   HorizontalAlignment="Left"
                                                   FontStyle="Italic"
+                                                  Foreground="White"
                                                   HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
                                                   HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Description, Mode=OneWay}" />
@@ -97,6 +99,7 @@
 
                     <local:HighlightedTextControl Grid.Column="1"
                                                   HorizontalAlignment="Left"
+                                                  Foreground="White"
                                                   HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
                                                   HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Item.Name, Mode=OneWay}" />
