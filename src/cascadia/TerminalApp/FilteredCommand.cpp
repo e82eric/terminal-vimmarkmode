@@ -27,16 +27,18 @@ namespace winrt::TerminalApp::implementation
     }
 
     FilteredCommand::FilteredCommand(const winrt::TerminalApp::IPaletteItem& item) :
-        FilteredCommand(item, 0)
+        FilteredCommand(item, 0, false)
     {
     }
 
     // This class is a wrapper of PaletteItem, that is used as an item of a filterable list in CommandPalette.
     // It manages a highlighted text that is computed by matching search filter characters to item name
-    FilteredCommand::FilteredCommand(const winrt::TerminalApp::IPaletteItem& item, int32_t ordinal)
+
+    FilteredCommand::FilteredCommand(const winrt::TerminalApp::IPaletteItem& item, int32_t ordinal, bool searchDescription)
     {
         // Actually implement the ctor in _constructFilteredCommand
         _ordinal = ordinal;
+        _searchDescription = searchDescription;
         _constructFilteredCommand(item);
     }
 
@@ -47,9 +49,12 @@ namespace winrt::TerminalApp::implementation
     // directly in the base class.
     void FilteredCommand::_constructFilteredCommand(const winrt::TerminalApp::IPaletteItem& item)
     {
-        if (auto cmd = item.try_as<ActionPaletteItem>())
+        if (_searchDescription)
         {
-            Description(cmd->Command().Description());
+            if (auto cmd = item.try_as<ActionPaletteItem>())
+            {
+                Description(cmd->Command().Description());
+            }
         }
 
         _Item = item;
@@ -100,7 +105,10 @@ namespace winrt::TerminalApp::implementation
 
     void FilteredCommand::_update()
     {
-        auto [segments, weight] = _matchedSegmentsAndWeight(_pattern, Description(), _Item.Name());
+        auto description = Description();
+        auto [segments, weight] = _searchDescription && !description.empty() ? 
+            _matchedSegmentsAndWeight(_pattern, description, _Item.Name()) :
+            _matchedSegmentsAndWeight(_pattern, _Item.Name(), L"");
 
         if (segments.empty())
         {

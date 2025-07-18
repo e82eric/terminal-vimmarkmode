@@ -19,7 +19,7 @@ namespace winrt::TerminalApp::implementation
     {
         FilteredCommand() = default;
         FilteredCommand(const winrt::TerminalApp::IPaletteItem& item);
-        FilteredCommand(const winrt::TerminalApp::IPaletteItem& item, int32_t ordinal);
+        FilteredCommand(const winrt::TerminalApp::IPaletteItem& item, int32_t ordinal, bool searchDescription);
 
         virtual void UpdateFilter(std::shared_ptr<fzf::matcher::Pattern> pattern);
 
@@ -43,6 +43,7 @@ namespace winrt::TerminalApp::implementation
         void _update();
         Windows::UI::Xaml::Data::INotifyPropertyChanged::PropertyChanged_revoker _itemChangedRevoker;
         int32_t _ordinal;
+        bool _searchDescription;
 
         friend class TerminalAppLocalTests::FilteredCommandTests;
     };

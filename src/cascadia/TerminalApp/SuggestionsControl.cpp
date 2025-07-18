@@ -902,7 +902,7 @@ namespace winrt::TerminalApp::implementation
         {
             // key chords aren't relevant in the suggestions control, so make the palette item with just the command and no keys
             auto actionPaletteItem{ winrt::make<winrt::TerminalApp::implementation::ActionPaletteItem>(actions.GetAt(i), winrt::hstring{}) };
-            auto filteredCommand{ winrt::make<FilteredCommand>(actionPaletteItem, i) };
+            auto filteredCommand{ winrt::make<FilteredCommand>(actionPaletteItem, i, true) };
             _allCommands.Append(filteredCommand);
         }
 
