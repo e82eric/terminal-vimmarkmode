@@ -14,7 +14,7 @@ namespace winrt::TerminalApp::implementation
         Windows::UI::Xaml::Controls::IconElement ResolvedIcon()
         {
             const auto icon{ static_cast<T*>(this)->Icon() };
-            if (!_resolvedIcon && !icon.empty())
+            if (!icon.empty())
             {
                 const auto resolvedIcon{ Microsoft::Terminal::UI::IconPathConverter::IconWUX(icon) };
                 resolvedIcon.Width(16);
