@@ -18,7 +18,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 {
     struct FuzzySearchBoxControl : FuzzySearchBoxControlT<FuzzySearchBoxControl>
     {
-        til::property_changed_event PropertyChanged;
+        winrt::event_token PropertyChanged(const winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler& handler);
+        void PropertyChanged(const winrt::event_token& token) noexcept;
+
+    private:
+        winrt::event<winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler> _propertyChangedEvent;
+
+    public:
         static Windows::UI::Xaml::DependencyProperty BorderColorProperty();
         static Windows::UI::Xaml::DependencyProperty HeaderTextColorProperty();
         static Windows::UI::Xaml::DependencyProperty BackgroundColorProperty();

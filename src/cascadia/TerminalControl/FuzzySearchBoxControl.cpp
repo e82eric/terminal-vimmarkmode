@@ -16,6 +16,16 @@ using namespace winrt::Windows::UI::Core;
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
+    winrt::event_token FuzzySearchBoxControl::PropertyChanged(const winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler& handler)
+    {
+        return _propertyChangedEvent.add(handler);
+    }
+
+    void FuzzySearchBoxControl::PropertyChanged(const winrt::event_token& token) noexcept
+    {
+        _propertyChangedEvent.remove(token);
+    }
+
     DependencyProperty FuzzySearchBoxControl::_borderColorProperty =
         DependencyProperty::Register(
             L"BorderColor",
@@ -80,7 +90,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (value != BackgroundColor())
         {
             SetValue(_BackgroundColorProperty, value);
-            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"BackgroundColor" });
+            _propertyChangedEvent(*this, PropertyChangedEventArgs{ L"BackgroundColor" });
         }
     }
 
@@ -99,7 +109,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (value != SelectedItemColor())
         {
             SetValue(_SelectedItemColorProperty, box_value(value));
-            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"SelectedItemColor" });
+            _propertyChangedEvent(*this, PropertyChangedEventArgs{ L"SelectedItemColor" });
         }
     }
 
@@ -118,7 +128,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (value != BorderColor())
         {
             SetValue(_borderColorProperty, value);
-            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"BorderColor" });
+            _propertyChangedEvent(*this, PropertyChangedEventArgs{ L"BorderColor" });
         }
     }
 
@@ -137,7 +147,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (value != HeaderTextColor())
         {
             SetValue(_headerTextColorProperty, value);
-            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"HeaderTextColor" });
+            _propertyChangedEvent(*this, PropertyChangedEventArgs{ L"HeaderTextColor" });
         }
     }
 
@@ -156,7 +166,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (value != InnerBorderThickness())
         {
             SetValue(_InnerBorderThicknessProperty, box_value(value));
-            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"InnerBorderThickness" });
+            _propertyChangedEvent(*this, PropertyChangedEventArgs{ L"InnerBorderThickness" });
         }
     }
 
@@ -170,7 +180,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (value != TextColor())
         {
             SetValue(_TextColorProperty, value);
-            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"TextColor" });
+            _propertyChangedEvent(*this, PropertyChangedEventArgs{ L"TextColor" });
         }
     }
 
@@ -189,7 +199,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (value != HighlightedTextColor())
         {
             SetValue(_HighlightedTextColorProperty, value);
-            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"HighlightedTextColor" });
+            _propertyChangedEvent(*this, PropertyChangedEventArgs{ L"HighlightedTextColor" });
         }
     }
 

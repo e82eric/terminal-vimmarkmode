@@ -113,12 +113,12 @@ class ::Microsoft::Console::VirtualTerminal::VtIoTests
         return true;
     }
 
-    std::wstring_view QuickSelectChars() override
+    std::wstring_view QuickSelectChars()
     {
         return {};
     }
 
-    bool InQuickSelectMode() override
+    bool InQuickSelectMode()
     {
         return false;
     }
@@ -128,7 +128,7 @@ class ::Microsoft::Console::VirtualTerminal::VtIoTests
         return {};
     }
 
-    void LockConsole() noexcept override
+    void LockConsole() noexcept
     {
     }
 

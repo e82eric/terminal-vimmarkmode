@@ -94,6 +94,11 @@ CATCH_RETURN()
     return S_FALSE;
 }
 
+[[nodiscard]] HRESULT BgfxEngine::InvalidateSelection(std::span<const til::rect> /*selections*/) noexcept
+{
+    return S_OK;
+}
+
 [[nodiscard]] HRESULT BgfxEngine::ScrollFrame() noexcept
 {
     return S_OK;
@@ -166,6 +171,11 @@ try
     return HRESULT_FROM_NT(Status);
 }
 CATCH_RETURN()
+
+[[nodiscard]] HRESULT BgfxEngine::PaintYankSelection(const til::rect& /*rect*/) noexcept
+{
+    return S_OK;
+}
 
 [[nodiscard]] HRESULT BgfxEngine::UpdateDrawingBrushes(const TextAttribute& textAttributes,
                                                        const RenderSettings& /*renderSettings*/,
