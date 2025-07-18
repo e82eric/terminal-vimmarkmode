@@ -63,12 +63,14 @@
                     <TextBlock Grid.Column="1"
                                HorizontalAlignment="Left"
                                FontWeight="Bold"
+                               TextDecorations="Underline"
                                Text="{x:Bind Item.Name, Mode=OneWay}" />
                     <local:HighlightedTextControl Grid.Column="1"
                                                   Grid.Row="1"
                                                   HorizontalAlignment="Left"
                                                   FontStyle="Italic"
                                                   HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
+                                                  HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Description, Mode=OneWay}" />
                 </Grid>
             </DataTemplate>
@@ -96,6 +98,7 @@
                     <local:HighlightedTextControl Grid.Column="1"
                                                   HorizontalAlignment="Left"
                                                   HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
+                                                  HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Item.Name, Mode=OneWay}" />
 
                     <FontIcon Grid.Column="2"
@@ -110,6 +113,11 @@
             <local:PaletteItemTemplateSelector x:Key="PaletteItemTemplateSelector"
                                                GeneralItemTemplate="{StaticResource GeneralItemTemplate}"
                                                NestedItemTemplate="{StaticResource NestedItemTemplate}" />
+
+            <Style x:Key="CustomHighlightedRunStyle" TargetType="Run">
+                <Setter Property="Foreground" Value="#FF2AAAFF"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+            </Style>
 
         </ResourceDictionary>
     </UserControl.Resources>
@@ -207,6 +215,13 @@
                       SelectionChanged="_listItemSelectionChanged"
                       SelectionMode="Single"
                       Style="{StaticResource NoAnimationsPlease}">
+                <ListView.Resources>
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#5C5C5C"/>
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#5C5C5C"/>
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#5C5C5C"/>
+                    <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="#5C5C5C"/>
+                    <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="#5C5C5C"/>
+                </ListView.Resources>
                 <ListView.ItemContainerTransitions>
                     <TransitionCollection/>
                 </ListView.ItemContainerTransitions>
