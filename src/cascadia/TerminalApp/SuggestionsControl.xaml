@@ -60,12 +60,13 @@
                                       Height="16"
                                       Content="{x:Bind Item.ResolvedIcon, Mode=OneWay}" />
 
-                    <TextBlock Grid.Column="1"
-                               HorizontalAlignment="Left"
-                               FontWeight="Bold"
-                               TextDecorations="Underline"
-                               Foreground="White"
-                               Text="{x:Bind Item.Name, Mode=OneWay}" />
+                    <local:HighlightedTextControl Grid.Column="1"
+                                                  HorizontalAlignment="Left"
+                                                  FontWeight="Bold"
+                                                  Foreground="White"
+                                                  HighlightedRuns="{x:Bind HighlightedSubName, Mode=OneWay}"
+                                                  HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
+                                                  Text="{x:Bind Item.Name, Mode=OneWay}" />
                     <local:HighlightedTextControl Grid.Column="1"
                                                   Grid.Row="1"
                                                   HorizontalAlignment="Left"
@@ -100,7 +101,7 @@
                     <local:HighlightedTextControl Grid.Column="1"
                                                   HorizontalAlignment="Left"
                                                   Foreground="White"
-                                                  HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
+                                                  HighlightedRuns="{x:Bind HighlightedSubName, Mode=OneWay}"
                                                   HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Item.Name, Mode=OneWay}" />
 

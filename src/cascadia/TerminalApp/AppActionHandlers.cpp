@@ -1689,7 +1689,9 @@ namespace winrt::TerminalApp::implementation
                 {
                     if (seen.insert(r.Text).second)
                     {
-                        auto c = Command::ScrollBackSuggestionToCommand(r.Text, filter, r.Row);
+                        // Use the new overload that accepts range directly
+                        Microsoft::Terminal::Settings::Model::ScrollbackRange range{ r.Range.Start, r.Range.End };
+                        auto c = Command::ScrollBackSuggestionToCommand(r.Text, filter, r.Row, range);
                         commandsCollection.push_back(c);
                     }
                 }

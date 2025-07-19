@@ -185,6 +185,7 @@
 
         <local:SuggestionsControl x:Name="SuggestionsElement"
                                   Grid.Row="2"
+                                  Margin="0,0,100,0"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Top"
                                   x:Load="False"

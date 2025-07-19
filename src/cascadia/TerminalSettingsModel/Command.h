@@ -85,11 +85,13 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                                                                                            bool directories,
                                                                                            hstring iconPath);
         static Model::Command ScrollBackSuggestionToCommand(winrt::hstring text, winrt::hstring currentWordPrefix, winrt::hstring rowText);
+        static Model::Command ScrollBackSuggestionToCommand(winrt::hstring text, winrt::hstring currentWordPrefix, winrt::hstring rowText, Model::ScrollbackRange range);
 
         WINRT_PROPERTY(ExpandCommandType, IterateOn, ExpandCommandType::None);
         WINRT_PROPERTY(Model::ActionAndArgs, ActionAndArgs);
         WINRT_PROPERTY(OriginTag, Origin);
         WINRT_PROPERTY(winrt::hstring, Description, L"");
+        WINRT_PROPERTY(Model::ScrollbackRange, Range, {});
 
     private:
         Json::Value _originalJson;

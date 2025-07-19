@@ -14,6 +14,7 @@ namespace TerminalApp
 
         IPaletteItem Item { get; };
         IVector<HighlightedRun> NameHighlights { get; };
+        IVector<HighlightedRun> HighlightedSubName { get; };
         Int32 Weight;
         Int32 Ordinal { get; };
         String Description { get; set; };
