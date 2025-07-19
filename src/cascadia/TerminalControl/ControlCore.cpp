@@ -1355,6 +1355,36 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return winrt::hstring{ result };
     }
 
+    std::pair<int32_t, int32_t> ControlCore::_calculateMatchRange(const auto& buffer, const auto& match, const winrt::hstring& matchText) const
+    {
+        // Find the first row of the logical line
+        int32_t firstRow = match.start.y;
+        while (firstRow > 0)
+        {
+            const auto& prev = buffer.GetRowByOffset(firstRow - 1);
+            if (!prev.WasWrapForced())
+            {
+                break;
+            }
+            --firstRow;
+        }
+
+        // Calculate the offset of the match start within the logical line
+        int32_t offsetInLogicalLine = 0;
+        for (int32_t r = firstRow; r < match.start.y; ++r)
+        {
+            const auto& row = buffer.GetRowByOffset(r);
+            offsetInLogicalLine += static_cast<int32_t>(row.GetText().size());
+        }
+        offsetInLogicalLine += match.start.x;
+
+        // Calculate the end position
+        const int32_t matchLength = static_cast<int32_t>(matchText.size());
+        const int32_t endOffset = offsetInLogicalLine + matchLength;
+
+        return { offsetInLogicalLine, endOffset };
+    }
+
     Windows::Foundation::Collections::IVector<SuggestionSearchItem> ControlCore::SuggestionScrollBackSearch(hstring const& needle)
     {
         auto _ = _terminal->LockForReading();
@@ -1365,7 +1395,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             results.reserve(searchResults->size());
             for (auto it = searchResults->rbegin(); it != searchResults->rend(); ++it)
             {
-                SuggestionSearchItem item = { _getLineText(it->start.y), winrt::hstring{ buffer.GetPlainText(it->start, it->end) } };
+                const auto rowText = _getLineText(it->start.y);
+                const auto matchText = winrt::hstring{ buffer.GetPlainText(it->start, it->end) };
+                const auto range = _calculateMatchRange(buffer, *it, matchText);
+                
+                SuggestionSearchItem item = { 
+                    rowText, 
+                    matchText,
+                    SuggestionSearchRange{ range.first, range.second }
+                };
                 results.emplace_back(item);
             }
 

@@ -386,6 +386,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         bool _clickedOnMark(const til::point& pos, bool (*filter)(const ::MarkExtents&));
         hstring _getLineText(int32_t rowNumber) const;
+        std::pair<int32_t, int32_t> _calculateMatchRange(const auto& buffer, const auto& match, const winrt::hstring& matchText) const;
 
         inline bool _IsClosing() const noexcept
         {

@@ -69,10 +69,17 @@ namespace Microsoft.Terminal.Control
         Boolean SearchRegexInvalid;
     };
 
+    struct SuggestionSearchRange
+    {
+        Int32 Start;
+        Int32 End;
+    };
+
     struct SuggestionSearchItem
     {
         String Row;
         String Text;
+        SuggestionSearchRange Range;
     };
 
     [default_interface] runtimeclass SelectionColor
