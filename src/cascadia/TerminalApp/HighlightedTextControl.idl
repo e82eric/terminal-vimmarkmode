@@ -24,5 +24,8 @@ namespace TerminalApp
 
         Windows.UI.Xaml.Style HighlightedRunStyle;
         Windows.UI.Xaml.DependencyProperty HighlightedRunStyleProperty { get; };
+
+        Windows.UI.Xaml.TextWrapping TextWrapping;
+        Windows.UI.Xaml.DependencyProperty TextWrappingProperty { get; };
     }
 }

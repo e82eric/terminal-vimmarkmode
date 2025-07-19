@@ -27,8 +27,8 @@
         <ResourceDictionary>
             <DataTemplate x:Key="ListItemTemplate"
                           x:DataType="local:FilteredCommand">
-                <ListViewItem Height="45"
-                              MinHeight="0"
+                <ListViewItem Height="Auto"
+                              MinHeight="45"
                               Padding="16,0,12,0"
                               HorizontalContentAlignment="Stretch"
                               AutomationProperties.Name="{x:Bind Item.Name, Mode=OneWay}"
@@ -42,17 +42,17 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="16" />
                         <!--  icon  -->
-                        <ColumnDefinition Width="Auto" />
-                        <!--  command label  -->
                         <ColumnDefinition Width="*" />
+                        <!--  command label  -->
+                        <ColumnDefinition Width="Auto" />
                         <!--  key chord  -->
                         <ColumnDefinition Width="16" />
                         <!--  gutter for scrollbar  -->
                     </Grid.ColumnDefinitions>
 
                     <Grid.RowDefinitions>
-                        <RowDefinition/>
-                        <RowDefinition/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <ContentPresenter Grid.Column="0"
@@ -64,6 +64,7 @@
                                                   HorizontalAlignment="Left"
                                                   FontWeight="Bold"
                                                   Foreground="White"
+                                                  TextWrapping="Wrap"
                                                   HighlightedRuns="{x:Bind HighlightedSubName, Mode=OneWay}"
                                                   HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Item.Name, Mode=OneWay}" />
@@ -72,6 +73,7 @@
                                                   HorizontalAlignment="Left"
                                                   FontStyle="Italic"
                                                   Foreground="White"
+                                                  TextWrapping="Wrap"
                                                   HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
                                                   HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Description, Mode=OneWay}" />
@@ -101,6 +103,7 @@
                     <local:HighlightedTextControl Grid.Column="1"
                                                   HorizontalAlignment="Left"
                                                   Foreground="White"
+                                                  TextWrapping="Wrap"
                                                   HighlightedRuns="{x:Bind HighlightedSubName, Mode=OneWay}"
                                                   HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Item.Name, Mode=OneWay}" />
@@ -129,7 +132,8 @@
     <StackPanel x:Name="_listAndDescriptionStack"
                 Orientation="Vertical">
         <Grid x:Name="_backdrop"
-              MinWidth="300"
+              MinWidth="800"
+              MaxWidth="800"
               MaxHeight="300"
               Margin="0"
               Padding="0,8,0,0"
