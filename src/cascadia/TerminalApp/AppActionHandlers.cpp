@@ -1687,7 +1687,7 @@ namespace winrt::TerminalApp::implementation
                 seen.reserve(scrollBackResults.Size());
                 for (auto r : scrollBackResults)
                 {
-                    if (seen.insert(r.Text).second)
+                    if (seen.insert(r.Text + L"#" + r.Row).second)
                     {
                         // Use the new overload that accepts range directly
                         Microsoft::Terminal::Settings::Model::ScrollbackRange range{ r.Range.Start, r.Range.End };
