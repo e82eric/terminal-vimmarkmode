@@ -21,7 +21,7 @@ namespace winrt::TerminalApp::implementation
         FilteredCommand(const winrt::TerminalApp::IPaletteItem& item);
         FilteredCommand(const winrt::TerminalApp::IPaletteItem& item, int32_t ordinal, bool searchDescription);
 
-        virtual void UpdateFilter(std::shared_ptr<fzf::matcher::Pattern> pattern);
+        void UpdateFilter(std::shared_ptr<fzf::matcher::Pattern> pattern);
 
         static int Compare(const winrt::TerminalApp::FilteredCommand& first, const winrt::TerminalApp::FilteredCommand& second);
 
@@ -35,9 +35,6 @@ namespace winrt::TerminalApp::implementation
 
     public:
         int32_t Ordinal();
-
-    protected:
-        void _constructFilteredCommand(const winrt::TerminalApp::IPaletteItem& item);
 
     private:
         std::shared_ptr<fzf::matcher::Pattern> _pattern;
