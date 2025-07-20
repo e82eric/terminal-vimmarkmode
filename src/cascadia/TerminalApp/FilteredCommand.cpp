@@ -139,7 +139,7 @@ namespace winrt::TerminalApp::implementation
                         if (offsetStart < itemNameLength)
                         {
                             auto end = std::min(offsetEnd, itemNameLength);
-                            weight += static_cast<int>(end - offsetStart + 1);
+                            weight += static_cast<int>((end - offsetStart) * 8);
                             intersectionHighlights.push_back({ 
                                 offsetStart, 
                                 std::min(offsetEnd, itemNameLength)
