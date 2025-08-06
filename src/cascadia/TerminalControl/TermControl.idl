@@ -110,6 +110,8 @@ namespace Microsoft.Terminal.Control
 
         void ScrollViewport(Int32 viewTop);
 
+        Windows.Foundation.IAsyncAction SuggestionScrollBackSearchAsync(String needle, SuggestionBatchHandler onBatch);
+
         IVector<SuggestionSearchItem> SuggestionScrollBackSearch(String needle);
         void CreateSearchBoxControl();
         void CreateFuzzySearchBoxControl(String searchString);
@@ -164,5 +166,8 @@ namespace Microsoft.Terminal.Control
         void ClearQuickFix();
 
         void Detach();
+        void SnapOnInput();
+        void SetSuggestionHighlights(IVector<SuggestionSearchItem> items, Int32 focused, Int32 scrollOffset);
+        Int32 GetViewportTop();
     }
 }

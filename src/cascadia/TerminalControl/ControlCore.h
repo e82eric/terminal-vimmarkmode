@@ -18,6 +18,7 @@
 #include "ControlCore.g.h"
 #include "SelectionColor.g.h"
 #include "CommandHistoryContext.g.h"
+#include "SuggestionBatch.g.h"
 
 #include "ControlSettings.h"
 #include "QuickSelectHandler.h"
@@ -84,6 +85,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             QuickFixes(winrt::single_threaded_vector<winrt::hstring>())
         {
             History(winrt::single_threaded_vector<winrt::hstring>(std::move(history)));
+        }
+    };
+    struct SuggestionBatch : SuggestionBatchT<SuggestionBatch>
+    {
+        til::property<Windows::Foundation::Collections::IVector<SuggestionSearchItem>> Items;
+
+        SuggestionBatch(std::vector<Control::SuggestionSearchItem>&& items) :
+            Items(winrt::single_threaded_vector<SuggestionSearchItem>())
+        {
+            Items(winrt::single_threaded_vector<SuggestionSearchItem>(std::move(items)));
         }
     };
 
@@ -387,6 +398,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _clickedOnMark(const til::point& pos, bool (*filter)(const ::MarkExtents&));
         hstring _getLineText(int32_t rowNumber) const;
         std::pair<int32_t, int32_t> _calculateMatchRange(const auto& buffer, const auto& match, const winrt::hstring& matchText) const;
+        hstring _getLineText(int32_t rowNumber, TextBuffer& buffer) const;
 
         inline bool _IsClosing() const noexcept
         {
@@ -504,6 +516,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         std::shared_ptr<VimModeProxy> _vimProxy;
         std::shared_ptr<FuzzySearcher> _fuzzySearch;
         std::unique_ptr<QuickSelectHandler> _quickSelectHandler;
+        std::vector<til::point_span> _suggestionHighlight {};
+
+    public:
+        Windows::Foundation::IAsyncAction SuggestionScrollBackSearchAsync( winrt::hstring needle, SuggestionBatchHandler const& onBatch);
+        void SnapToWindow();
+        void SetSuggestionHighlights(winrt::Windows::Foundation::Collections::IVector<SuggestionSearchItem> items, int32_t focused, int32_t scrollOffset);
+        int32_t GetViewportTop();
     };
 }
 

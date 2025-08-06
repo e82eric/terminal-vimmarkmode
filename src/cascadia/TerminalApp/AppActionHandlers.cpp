@@ -1684,20 +1684,31 @@ namespace winrt::TerminalApp::implementation
         {
             if (const auto termControl{_GetActiveControl()})
             {
-                const auto scrollBackResults = termControl.SuggestionScrollBackSearch(realArgs.Regex());
+                // Get cursor position and window dimensions for positioning
+                const auto cursorPos{ termControl.CursorPositionInDips() };
+                const auto controlTransform = termControl.TransformToVisual(this->Root());
+                const auto realCursorPos{ controlTransform.TransformPoint({ cursorPos.X, cursorPos.Y }) };
+                const Windows::Foundation::Size windowDimensions{ gsl::narrow_cast<float>(ActualWidth()), gsl::narrow_cast<float>(ActualHeight()) };
+                const auto characterHeight = termControl.CharacterDimensions().Height;
+                
+                // Show the StreamingSuggestions control and set focus
+                StreamingTest().Open(termControl, realArgs.Regex(), realCursorPos, windowDimensions, characterHeight, filter);
+                co_return;
 
-                std::unordered_set<winrt::hstring> seen;
-                seen.reserve(scrollBackResults.Size());
-                for (auto r : scrollBackResults)
-                {
-                    if (seen.insert(r.Text + L"#" + r.Row).second)
-                    {
-                        // Use the new overload that accepts range directly
-                        Microsoft::Terminal::Settings::Model::ScrollbackRange range{ r.Range.Start, r.Range.End };
-                        auto c = Command::ScrollBackSuggestionToCommand(r.Text, filter, r.Row, range);
-                        commandsCollection.push_back(c);
-                    }
-                }
+                //const auto scrollBackResults = termControl.SuggestionScrollBackSearch(realArgs.Regex());
+
+                //std::unordered_set<winrt::hstring> seen;
+                //seen.reserve(scrollBackResults.Size());
+                //for (auto r : scrollBackResults)
+                //{
+                //    if (seen.insert(r.Text + L"#" + r.Row).second)
+                //    {
+                //        // Use the new overload that accepts range directly
+                //        Microsoft::Terminal::Settings::Model::ScrollbackRange range{ r.Range.Start, r.Range.End };
+                //        auto c = Command::ScrollBackSuggestionToCommand(r.Text, filter, r.Row, range);
+                //        commandsCollection.push_back(c);
+                //    }
+                //}
             }
         }
 

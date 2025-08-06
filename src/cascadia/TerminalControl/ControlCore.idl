@@ -8,7 +8,6 @@ import "FuzzySearchTextSegment.idl";
 
 namespace Microsoft.Terminal.Control
 {
-
     // This is a mirror of
     // ::Microsoft::Console::VirtualTerminal::TerminalInput::MouseButtonState,
     // but projectable.
@@ -79,8 +78,15 @@ namespace Microsoft.Terminal.Control
     {
         String Row;
         String Text;
-        SuggestionSearchRange Range;
+        Int32 Ordinal;
+        Microsoft.Terminal.Core.Point StartPos;
+        Microsoft.Terminal.Core.Point EndPos;
     };
+
+    runtimeclass SuggestionBatch
+    {
+        IVector<SuggestionSearchItem> Items { get; };
+    }
 
     [default_interface] runtimeclass SelectionColor
     {
@@ -98,6 +104,8 @@ namespace Microsoft.Terminal.Control
         String CurrentWordPrefix { get; };
         IVector<String> QuickFixes { get; };
     };
+
+    delegate void SuggestionBatchHandler(Microsoft.Terminal.Control.SuggestionBatch batch);
 
     [default_interface] runtimeclass ControlCore : ICoreState
     {
@@ -252,5 +260,9 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, ShowFuzzySearchEventArgs> ShowFuzzySearch;
         event Windows.Foundation.TypedEventHandler<Object, StartVimSearchEventArgs> StartVimSearch;
         event Windows.Foundation.TypedEventHandler<Object, ToggleRowNumbersEventArgs> ToggleRowNumbers;
+        Windows.Foundation.IAsyncAction SuggestionScrollBackSearchAsync(String needle, SuggestionBatchHandler onBatch);
+        void SnapToWindow();
+        void SetSuggestionHighlights(IVector<SuggestionSearchItem> items, Int32 focusedIndex, Int32 scrollOffset);
+        Int32 GetViewportTop();
     };
 }

@@ -1,0 +1,30 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+
+import "HighlightedTextControl.idl";
+
+namespace TerminalApp
+{
+    runtimeclass FuzzyHighlightText : Windows.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        FuzzyHighlightText();
+        FuzzyHighlightText(String name, String description, Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end);
+        FuzzyHighlightText(IVector<HighlightedRun> nameHighlight, IVector<HighlightedRun> descriptionRun, String name, String description, Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end);
+
+        IVector<HighlightedRun> NameHighlights { get; };
+        IVector<HighlightedRun> DescriptionHighlights { get; };
+        String NameText { get; };
+        String DescriptionText { get; };
+        Microsoft.Terminal.Core.Point Start { get; };
+        Microsoft.Terminal.Core.Point End { get; };
+    }
+
+    [default_interface] runtimeclass StreamingSuggestions : Windows.UI.Xaml.Controls.UserControl, Windows.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        StreamingSuggestions();
+        
+        void Open(Microsoft.Terminal.Control.TermControl termControl, String needle, Windows.Foundation.Point anchor, Windows.Foundation.Size space, Single characterHeight, String currentWord);
+        
+        event Windows.Foundation.TypedEventHandler<StreamingSuggestions, Microsoft.Terminal.Settings.Model.Command> DispatchCommandRequested;
+    }
+}

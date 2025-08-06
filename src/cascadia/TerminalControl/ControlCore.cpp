@@ -1323,10 +1323,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _updateSelectionUI();
     }
 
-    winrt::hstring ControlCore::_getLineText(int32_t rowNumber) const
+    winrt::hstring ControlCore::_getLineText(int32_t rowNumber, TextBuffer& buffer) const
     {
-        auto lock = _terminal->LockForReading();
-        auto& buffer = _terminal->GetTextBuffer();
         const auto rowCount = buffer.TotalRowCount();
 
         int32_t firstRow = rowNumber;
@@ -1397,16 +1395,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             results.reserve(searchResults->size());
             for (auto it = searchResults->rbegin(); it != searchResults->rend(); ++it)
             {
-                const auto rowText = _getLineText(it->start.y);
-                const auto matchText = winrt::hstring{ buffer.GetPlainText(it->start, it->end) };
-                const auto range = _calculateMatchRange(buffer, *it, matchText);
-                
-                SuggestionSearchItem item = { 
-                    rowText, 
-                    matchText,
-                    SuggestionSearchRange{ range.first, range.second }
-                };
-                results.emplace_back(item);
+                //const auto rowText = _getLineText(it->start.y);
+                //const auto matchText = winrt::hstring{ buffer.GetPlainText(it->start, it->end) };
+                //const auto range = _calculateMatchRange(buffer, *it, matchText);
+
+                //SuggestionSearchItem item = {
+                //    rowText,
+                //    matchText,
+                //};
+                //SuggestionSearchItem item = { _getLineText(it->start.y, buffer), winrt::hstring{ buffer.GetPlainText(it->start, it->end) } };
+                //results.emplace_back(item);
             }
 
             return winrt::single_threaded_vector<SuggestionSearchItem>(std::move(results));
@@ -3339,5 +3337,117 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto lock = _terminal->LockForReading();
         _vimProxy->CommitSearch();
+    }
+
+    Windows::Foundation::IAsyncAction ControlCore::SuggestionScrollBackSearchAsync(winrt::hstring needle, SuggestionBatchHandler const& onBatch)
+    {
+        auto batchCb = winrt::make_agile(onBatch);
+
+        co_await resume_background();
+
+        til::CoordType realRowEndExclusive = 0;
+        {
+            auto readLock = _terminal->LockForReading();
+            auto& buffer = _terminal->GetTextBuffer();
+            realRowEndExclusive = buffer.GetCursor().GetPosition().y;
+        }
+
+        const til::CoordType rowBatchSize = 2500;
+        {
+            auto lock = _terminal->LockForReading();
+            auto viewport = _terminal->GetViewport();
+            if (viewport.Top() != 0)
+            {
+            }
+        }
+
+        std::unordered_set<winrt::hstring> seen;
+        auto ordinal = 0;
+        for (til::CoordType end = realRowEndExclusive; end > 0;)
+        {
+            const til::CoordType beg = std::max<til::CoordType>(0, end - rowBatchSize);
+            {
+                auto readLock = _terminal->LockForReading();
+                auto& buffer = _terminal->GetTextBuffer();
+
+                if (auto searchResults = buffer.SearchText(needle, SearchFlag::RegularExpression, beg, end))
+                {
+                    auto spans = searchResults.value();
+
+                    std::vector<SuggestionSearchItem> items;
+                    items.reserve(spans.size());
+                    for (auto it = spans.rbegin(); it != spans.rend(); ++it)
+                    {
+                        auto span = *it;
+                        auto rowText = _getLineText(span.start.y, buffer);
+                        auto text = buffer.GetPlainText(span.start, span.end);
+
+                        if (seen.insert(rowText + L"#" + text).second)
+                        {
+                            auto item = SuggestionSearchItem{
+                                hstring{ _getLineText(span.start.y, buffer) },
+                                hstring{ buffer.GetPlainText(span.start, span.end) },
+                                ordinal,
+                                Core::Point{ span.start.x, span.start.y },
+                                Core::Point{ span.end.x, span.end.y }
+                            };
+                            items.emplace_back(item);
+                            ordinal++;
+                        }
+                    }
+
+                    auto batch = winrt::make_self<SuggestionBatch>(std::move(items));
+                    if (auto cb = batchCb.get())
+                    {
+                        cb(*batch);
+                    }
+                }
+
+                end = beg;
+            }
+        }
+
+        co_return;
+    }
+
+    void ControlCore::SetSuggestionHighlights(winrt::Windows::Foundation::Collections::IVector<SuggestionSearchItem> items, int32_t focused, int32_t scrollOffset)
+    {
+        auto lock = _terminal->LockForWriting();
+        std::vector<til::point_span> highlights;
+        for (auto i : items)
+        {
+            highlights.emplace_back(til::point_span{ til::point{ i.StartPos.X, i.StartPos.Y }, { i.EndPos.X, i.EndPos.Y } });
+        }
+        auto oldHighlight = _suggestionHighlight;
+        _suggestionHighlight = highlights;
+        _terminal->SetSearchHighlights(_suggestionHighlight);
+        _terminal->SetSearchHighlightFocused(focused);
+        _renderer->TriggerSearchHighlight(oldHighlight);
+        auto viewPort = _terminal->GetViewport();
+        if (scrollOffset == 0)
+        {
+            _terminal->ScrollToSearchHighlight(scrollOffset * -1);
+        }
+        else
+        {
+            UserScrollViewport(GetViewportTop() - scrollOffset);
+        }
+    }
+
+    int32_t ControlCore::GetViewportTop()
+    {
+        auto lock = _terminal->LockForReading();
+        return _terminal->GetViewport().Top();
+    }
+
+    void ControlCore::SnapToWindow()
+    {
+        auto lock = _terminal->LockForReading();
+        auto oldHighlight = _suggestionHighlight;
+        _suggestionHighlight = {};
+        _terminal->SetSearchHighlights(_suggestionHighlight);
+        _terminal->SetSearchHighlightFocused(0);
+        _renderer->TriggerSearchHighlight(oldHighlight);
+        _terminal->TrySnapOnInput();
     }
 }

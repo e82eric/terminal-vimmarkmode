@@ -511,6 +511,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return *term;
     }
 
+    void TermControl::SnapOnInput()
+    {
+        _core.SnapToWindow();
+    }
+
+    void TermControl::SetSuggestionHighlights(winrt::Windows::Foundation::Collections::IVector<SuggestionSearchItem> items, int32_t focused, int32_t scrollOffset)
+    {
+        _core.SetSuggestionHighlights(items, focused, scrollOffset);
+    }
+
+    int32_t TermControl::GetViewportTop()
+    {
+        return _core.GetViewportTop();
+    }
+
     void TermControl::_initializeForAttach(const Microsoft::Terminal::Control::IKeyBindings& keyBindings)
     {
         _AttachDxgiSwapChainToXaml(reinterpret_cast<HANDLE>(_core.SwapChainHandle()));
@@ -4284,6 +4299,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::ColorSelection(Control::SelectionColor fg, Control::SelectionColor bg, Core::MatchMode matchMode)
     {
         _core.ColorSelection(fg, bg, matchMode);
+    }
+
+    Windows::Foundation::IAsyncAction TermControl::SuggestionScrollBackSearchAsync(winrt::hstring const& needle, SuggestionBatchHandler const& onBatch)
+    {
+        return _core.SuggestionScrollBackSearchAsync(needle, onBatch);
     }
 
     // Returns the text cursor's position relative to our origin, in DIPs.

@@ -87,6 +87,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void WindowVisibilityChanged(const bool showOrHide);
 
         void ColorSelection(Control::SelectionColor fg, Control::SelectionColor bg, Core::MatchMode matchMode);
+        Windows::Foundation::IAsyncAction SuggestionScrollBackSearchAsync( winrt::hstring const& needle, SuggestionBatchHandler const& onBatch);
+        void SnapOnInput();
+        void SetSuggestionHighlights(winrt::Windows::Foundation::Collections::IVector<SuggestionSearchItem> items, int32_t focused, int32_t scrollOffset);
+        int32_t GetViewportTop();
 
         void FuzzySearch_OnSelection(Control::FuzzySearchBoxControl const& sender, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args);
 
@@ -144,7 +148,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _RenderRetryButton_Click(const IInspectable& button, const IInspectable& args);
         safe_void_coroutine _RendererWarning(IInspectable sender,
                                              Control::RendererWarningArgs args);
-
 
         Windows::Foundation::Collections::IVector<SuggestionSearchItem> SuggestionScrollBackSearch(hstring const& needle);
         void CreateSearchBoxControl();
