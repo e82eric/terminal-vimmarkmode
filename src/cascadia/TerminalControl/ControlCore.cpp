@@ -1389,7 +1389,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto _ = _terminal->LockForReading();
         auto& buffer = _terminal->GetTextBuffer();
-        if (auto searchResults = buffer.SearchText(needle, SearchFlag::RegularExpression, 0, buffer.GetCursor().GetPosition().y))
+        auto end = buffer.GetCursor().GetPosition().y;
+        auto start = std::max(0, end - 12000);
+        if (auto searchResults = buffer.SearchText(needle, SearchFlag::RegularExpression, start, end))
         {
             auto results = std::vector<SuggestionSearchItem>();
             results.reserve(searchResults->size());

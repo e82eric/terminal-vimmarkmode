@@ -846,8 +846,15 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 // UI easier.
 
                 const auto escapedInput = til::visualize_nonspace_control_codes(std::wstring{ inputString });
-                const auto name = RS_fmt(L"SendInputCommandKey", escapedInput);
-                copy->Name(winrt::hstring{ name });
+                //const auto name = RS_fmt(L"SendInputCommandKey", escapedInput);
+                copy->Name(winrt::hstring{ escapedInput});
+                copy->Description(winrt::hstring{ inputString });
+            }
+            else
+            {
+                //const auto escapedInput = til::visualize_nonspace_control_codes(std::wstring{ inputString });
+                //const auto name = RS_fmt(L"SendInputCommandKey", escapedInput);
+                copy->Description(inputString);
             }
 
             return *copy;

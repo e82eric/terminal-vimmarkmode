@@ -64,7 +64,7 @@
                                                   HorizontalAlignment="Left"
                                                   FontWeight="Bold"
                                                   Foreground="White"
-                                                  TextWrapping="Wrap"
+                                                  TextWrapping="NoWrap"
                                                   HighlightedRuns="{x:Bind HighlightedSubName, Mode=OneWay}"
                                                   HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Item.Name, Mode=OneWay}" />

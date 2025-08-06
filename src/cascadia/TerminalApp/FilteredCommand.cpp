@@ -100,57 +100,59 @@ namespace winrt::TerminalApp::implementation
             _matchedSegmentsAndWeight(_pattern, description) :
             _matchedSegmentsAndWeight(_pattern, _Item.Name());
 
+        auto [nameSegments,nameWeight] = _matchedSegmentsAndWeight(_pattern, _Item.Name());
+
         // Calculate HighlightedSubName first (intersection of filter highlights and scrollback range)
-        std::vector<winrt::TerminalApp::HighlightedRun> intersectionHighlights;
-        if (_scrollbackRange.End > _scrollbackRange.Start && !segments.empty())
-        {
-            if (_searchDescription && !description.empty())
-            {
-                // When searching description, segments are relative to description (full row)
-                // so we can directly intersect with scrollback range
-                const auto rangeStart = static_cast<uint64_t>(_scrollbackRange.Start);
-                const auto rangeEnd = static_cast<uint64_t>(_scrollbackRange.End);
+        //std::vector<winrt::TerminalApp::HighlightedRun> intersectionHighlights;
+        //if (_scrollbackRange.End > _scrollbackRange.Start && !segments.empty())
+        //{
+        //    if (_searchDescription && !description.empty())
+        //    {
+        //        // When searching description, segments are relative to description (full row)
+        //        // so we can directly intersect with scrollback range
+        //        const auto rangeStart = static_cast<uint64_t>(_scrollbackRange.Start);
+        //        const auto rangeEnd = static_cast<uint64_t>(_scrollbackRange.End);
 
-                for (const auto& segment : segments)
-                {
-                    const auto intersectStart = std::max(segment.Start, rangeStart);
-                    const auto intersectEnd = std::min(segment.End, rangeEnd);
+        //        for (const auto& segment : segments)
+        //        {
+        //            const auto intersectStart = std::max(segment.Start, rangeStart);
+        //            const auto intersectEnd = std::min(segment.End, rangeEnd);
 
-                    if (intersectStart <= intersectEnd)
-                    {
-                        const auto offsetStart = intersectStart - rangeStart;
-                        const auto offsetEnd = intersectEnd - rangeStart;
+        //            if (intersectStart <= intersectEnd)
+        //            {
+        //                const auto offsetStart = intersectStart - rangeStart;
+        //                const auto offsetEnd = intersectEnd - rangeStart;
 
-                        const auto itemNameLength = static_cast<uint64_t>(_Item.Name().size());
-                        if (offsetStart < itemNameLength)
-                        {
-                            auto end = std::min(offsetEnd, itemNameLength);
-                            weight += static_cast<int>((end - offsetStart) * 8);
-                            intersectionHighlights.push_back({
-                                offsetStart,
-                                std::min(offsetEnd, itemNameLength)
-                            });
-                        }
-                    }
-                }
-            }
-            else
-            {
-                // When searching item name, segments are already relative to item name
-                // so we just use them directly (they're already within the scrollback range)
-                for (const auto& segment : segments)
-                {
-                    const auto itemNameLength = static_cast<uint64_t>(_Item.Name().size());
-                    if (segment.Start < itemNameLength)
-                    {
-                        intersectionHighlights.push_back({
-                            segment.Start,
-                            std::min(segment.End, itemNameLength)
-                        });
-                    }
-                }
-            }
-        }
+        //                const auto itemNameLength = static_cast<uint64_t>(_Item.Name().size());
+        //                if (offsetStart < itemNameLength)
+        //                {
+        //                    auto end = std::min(offsetEnd, itemNameLength);
+        //                    weight += static_cast<int>((end - offsetStart) * 8);
+        //                    intersectionHighlights.push_back({
+        //                        offsetStart,
+        //                        std::min(offsetEnd, itemNameLength)
+        //                    });
+        //                }
+        //            }
+        //        }
+        //    }
+        //    else
+        //    {
+        //        // When searching item name, segments are already relative to item name
+        //        // so we just use them directly (they're already within the scrollback range)
+        //        for (const auto& segment : segments)
+        //        {
+        //            const auto itemNameLength = static_cast<uint64_t>(_Item.Name().size());
+        //            if (segment.Start < itemNameLength)
+        //            {
+        //                intersectionHighlights.push_back({
+        //                    segment.Start,
+        //                    std::min(segment.End, itemNameLength)
+        //                });
+        //            }
+        //        }
+        //    }
+        //}
 
         // Set filter highlights (NameHighlights)
         if (segments.empty())
@@ -162,17 +164,18 @@ namespace winrt::TerminalApp::implementation
             NameHighlights(winrt::single_threaded_vector(std::move(segments)));
         }
 
+        HighlightedSubName(winrt::single_threaded_vector(std::move(nameSegments)));
         // Set HighlightedSubName
-        if (!intersectionHighlights.empty())
-        {
-            HighlightedSubName(winrt::single_threaded_vector(std::move(intersectionHighlights)));
-        }
-        else
-        {
-            HighlightedSubName(nullptr);
-        }
+        //if (!intersectionHighlights.empty())
+        //{
+        //    HighlightedSubName(winrt::single_threaded_vector(std::move(intersectionHighlights)));
+        //}
+        //else
+        //{
+        //    HighlightedSubName(nullptr);
+        //}
 
-        Weight(weight);
+        Weight(weight + nameWeight);
     }
 
     // Function Description:

@@ -1612,14 +1612,16 @@ namespace winrt::TerminalApp::implementation
         winrt::hstring currentWorkingDirectory;
         winrt::hstring filter;
 
-        bool sortResults = source == SuggestionsSource::Scrollback;
+        bool sortResults = source == SuggestionsSource::Scrollback || source == SuggestionsSource::Tasks;
 
         // If the user wanted to use the current commandline to filter results,
         //    OR they wanted command history (or some other source that
         //       requires context from the control)
         // then get that here.
-        const bool shouldGetContext = realArgs.UseCommandline() ||
-                                      WI_IsAnyFlagSet(source, SuggestionsSource::CommandHistory | SuggestionsSource::QuickFixes | SuggestionsSource::Scrollback);
+
+        const bool shouldGetContext = true;
+        //const bool shouldGetContext = realArgs.UseCommandline() ||
+        //                              WI_IsAnyFlagSet(source, SuggestionsSource::CommandHistory | SuggestionsSource::QuickFixes | SuggestionsSource::Scrollback);
         if (const auto& control{ _GetActiveControl() })
         {
             currentWorkingDirectory = control.CurrentWorkingDirectory();
@@ -1631,7 +1633,8 @@ namespace winrt::TerminalApp::implementation
                 {
                     winrt::hstring currentCommandline = context.CurrentCommandline();
                     winrt::hstring currentWordPrefix = context.CurrentWordPrefix();
-                    filter = source == SuggestionsSource::Scrollback ? currentWordPrefix : currentCommandline;
+                    //filter = source == SuggestionsSource::Scrollback ? currentWordPrefix : currentCommandline;
+                    filter = currentWordPrefix;
                 }
             }
         }
