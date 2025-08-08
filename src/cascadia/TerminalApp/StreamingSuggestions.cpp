@@ -149,8 +149,10 @@ namespace winrt::TerminalApp::implementation
         else if (e.Key() == Windows::System::VirtualKey::Enter ||
                  e.Key() == Windows::System::VirtualKey::Tab)
         {
+            const auto shiftState = Windows::UI::Core::CoreWindow::GetForCurrentThread().GetKeyState(Windows::System::VirtualKey::Shift);
+            const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
             _termControl.PreviewInput(L"");
-            _dispatchSelectedCommand();
+            _dispatchSelectedCommand(shiftDown);
             e.Handled(true);
         }
     }
@@ -238,32 +240,18 @@ namespace winrt::TerminalApp::implementation
             co_return;
         }
         
-        auto pattern = fzf::matcher::ParsePattern(searchTerm);
+        auto pattern = fzf::matcher::ParsePatternWithTypes(searchTerm);
         
         struct ScoredItem
         {
             Microsoft::Terminal::Control::SuggestionSearchItem item;
             int32_t score;
             std::optional<std::vector<fzf::matcher::TextRun>> runs;
-            std::vector<fzf::matcher::TextRun> descriptionRuns;
+            std::optional<std::vector<fzf::matcher::TextRun>> descriptionRuns;
             int32_t ordinal;
         };
-
-        const size_t n = std::count_if(searchTerm.begin(), searchTerm.end(),
-                               [](wchar_t ch){ return ch != L' '; });
-        auto maxScore = (n * 16) + ((n - 1) * 4);
-        auto minScore = 0;
-        if (searchTerm.length() < 3)
-        {
-            minScore = static_cast<int32_t>(maxScore * .90);
-        }
-        else
-        {
-            minScore = static_cast<int32_t>(maxScore * .70);
-        }
         
         std::vector<ScoredItem> scoredItems;
-        //auto terms = split_on_space(searchTerm);
         
         for (const auto& batch : batchesSnapshot)
         {
@@ -273,38 +261,37 @@ namespace winrt::TerminalApp::implementation
             }
             for (const auto& item : batch.Items())
             {
-                //if (version != _searchVersion)
-                //{
-                //    co_return;
-                //}
-                auto text = item.Text;
-                auto descriptionText = item.Row;
-                auto descriptionMatchResult = fzf::matcher::Match(descriptionText, pattern);
+                auto score = 0;
+                auto matchResult = fzf::matcher::MatchToken(item.Text, item.Row, pattern);
 
-                if (descriptionMatchResult.has_value())
+                std::optional<std::vector<fzf::matcher::TextRun>> tokenRuns = std::nullopt;
+                std::optional<std::vector<fzf::matcher::TextRun>> contextRuns = std::nullopt;
+                if (matchResult->ExpectsMatchOnToken)
                 {
-                    auto matchResult = fzf::matcher::Match(text, pattern);
-                    auto score = descriptionMatchResult.value().Score;
-                    auto containsFullSearchTerm = contains_ci(descriptionText, searchTerm);
-                    if (containsFullSearchTerm)
+                    if (matchResult->TokenResult.has_value())
                     {
-                        score = score * 2;
+                        score = score += matchResult->TokenResult.value().Score;
+                        tokenRuns = matchResult->TokenResult->Runs;
                     }
-                    std::optional<std::vector<fzf::matcher::TextRun>> runs = std::nullopt;
-                    auto tempScore = score;
-                    if (matchResult)
+                    else
                     {
-                        if (matchResult->Score > minScore)
-                        {
-                            score += matchResult.value().Score;
-                        }
-                        runs = matchResult.value().Runs;
-                    }
-                    if (tempScore > minScore)
-                    {
-                        scoredItems.push_back({ item, score, runs, descriptionMatchResult->Runs, item.Ordinal });
+                        continue;
                     }
                 }
+                if (matchResult->ExpectsMatchOnContext)
+                {
+                    if (matchResult->ContextResult.has_value())
+                    {
+                        score = score += matchResult->ContextResult.value().Score;
+                        contextRuns = matchResult->ContextResult->Runs;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                scoredItems.push_back({ item, score, tokenRuns, contextRuns, item.Ordinal });
             }
         }
 
@@ -347,10 +334,13 @@ namespace winrt::TerminalApp::implementation
                         return { run.Start, run.End };
                     });
                 }
-                descriptionSegments.resize(scoredItem.descriptionRuns.size());
-                std::transform(scoredItem.descriptionRuns.begin(), scoredItem.descriptionRuns.end(), descriptionSegments.begin(), [](auto&& run) -> winrt::TerminalApp::HighlightedRun {
-                    return { run.Start, run.End };
-                });
+                if (scoredItem.descriptionRuns)
+                {
+                    descriptionSegments.resize(scoredItem.descriptionRuns.value().size());
+                    std::transform(scoredItem.descriptionRuns.value().begin(), scoredItem.descriptionRuns.value().end(), descriptionSegments.begin(), [](auto&& run) -> winrt::TerminalApp::HighlightedRun {
+                        return { run.Start, run.End };
+                    });
+                }
                 auto highlight = winrt::make<FuzzyHighlightText>(
                     winrt::single_threaded_vector(std::move(segments)),
                     winrt::single_threaded_vector(std::move(descriptionSegments)),
@@ -369,7 +359,7 @@ namespace winrt::TerminalApp::implementation
         co_return;
     }
     
-    void StreamingSuggestions::_dispatchSelectedCommand()
+    void StreamingSuggestions::_dispatchSelectedCommand(bool selectRow)
     {
         const auto selectedIndex = TestListView().SelectedIndex();
         if (selectedIndex >= 0 && selectedIndex < static_cast<int32_t>(_filteredActions.Size()))
@@ -379,13 +369,19 @@ namespace winrt::TerminalApp::implementation
             
             if (!commandText.empty())
             {
-                auto cmd = Microsoft::Terminal::Settings::Model::Command::ScrollBackSuggestionToCommand(commandText, _currentWord, L"");
+                if (selectRow)
+                {
+                    _termControl.SelectRow(selectedItem.Start().Y, selectedItem.Start().X);
+                }
+                else
+                {
+                    auto cmd = Microsoft::Terminal::Settings::Model::Command::ScrollBackSuggestionToCommand(commandText, _currentWord, L"");
+                    DispatchCommandRequested.raise(*this, cmd);
+                }
                 
                 Visibility(Windows::UI::Xaml::Visibility::Collapsed);
                 _filteredActions.Clear();
                 SearchBox().Text(L"");
-                
-                DispatchCommandRequested.raise(*this, cmd);
             }
         }
     }

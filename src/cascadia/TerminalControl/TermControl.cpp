@@ -2993,6 +2993,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         CurrentSearchRowHighlight().Visibility(Visibility::Visible);
     }
 
+    void TermControl::SelectRow(int32_t row, int32_t col)
+    {
+        _core.SelectRow(row, col);
+    }
+
     bool TermControl::SwitchSelectionEndpoint()
     {
         return _core.SwitchSelectionEndpoint();

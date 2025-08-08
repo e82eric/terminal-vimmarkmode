@@ -63,7 +63,7 @@ namespace winrt::TerminalApp::implementation
         winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version);
         void _triggerSearch();
         void _recalculateTopMargin();
-        void _dispatchSelectedCommand();
+        void _dispatchSelectedCommand(bool selectRow);
         void _selectedCommandChanged(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         int32_t _willCoverSelectedHighlight();
     };

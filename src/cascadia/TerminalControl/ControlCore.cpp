@@ -3442,12 +3442,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void ControlCore::SnapToWindow()
     {
-        auto lock = _terminal->LockForReading();
-        auto oldHighlight = _suggestionHighlight;
-        _suggestionHighlight = {};
-        _terminal->SetSearchHighlights(_suggestionHighlight);
-        _terminal->SetSearchHighlightFocused(0);
-        _renderer->TriggerSearchHighlight(oldHighlight);
-        _terminal->TrySnapOnInput();
+        if (!IsInVimMode())
+        {
+            auto lock = _terminal->LockForReading();
+            auto oldHighlight = _suggestionHighlight;
+            _suggestionHighlight = {};
+            _terminal->SetSearchHighlights(_suggestionHighlight);
+            _terminal->SetSearchHighlightFocused(0);
+            _renderer->TriggerSearchHighlight(oldHighlight);
+            _terminal->TrySnapOnInput();
+        }
     }
 }

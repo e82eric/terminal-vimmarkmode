@@ -69,6 +69,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void ToggleMarkMode();
         void EnterVimModeWithSearch();
         void EnterVimMode();
+        void SelectRow(int32_t row, int32_t col);
         bool SwitchSelectionEndpoint();
         bool ExpandSelectionToWord();
         void RestoreFromPath(winrt::hstring path);
