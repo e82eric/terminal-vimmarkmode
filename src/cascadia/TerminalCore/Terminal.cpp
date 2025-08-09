@@ -1618,8 +1618,17 @@ std::wstring Terminal::CurrentWordPrefix() const
 {
     const auto& buffer = _activeBuffer();
     const auto cursorPos = buffer.GetCursor().GetPosition();
+    const auto wordDelimiters = L",<>";
 
-    const auto start = buffer.GetWordStart2({ std::max(0,cursorPos.x - 1), cursorPos.y }, L",", false);
+    til::point target = { std::max(0, cursorPos.x - 1), cursorPos.y };
+    auto& row = buffer.GetRowByOffset(target.y);
+    auto classAt = row.DelimiterClassAt(target.x, wordDelimiters);
+    if (classAt == DelimiterClass::DelimiterChar || classAt == DelimiterClass::ControlChar)
+    {
+        return {};
+    }
+
+    const auto start = buffer.GetWordStart(target, wordDelimiters, false);
 
     if (start == cursorPos)
     {
