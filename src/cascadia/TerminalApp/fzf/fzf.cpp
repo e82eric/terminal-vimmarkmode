@@ -10,10 +10,8 @@ constexpr int16_t ScoreMatch = 16;
 constexpr int16_t ScoreGapStart = -3;
 constexpr int16_t ScoreGapExtension = -1;
 constexpr int16_t BoundaryBonus = ScoreMatch / 2;
-//constexpr int16_t BoundaryBonus = 0;
 constexpr int16_t NonWordBonus = ScoreMatch / 2;
-//constexpr int16_t CamelCaseBonus = BoundaryBonus + ScoreGapExtension;
-constexpr int16_t CamelCaseBonus = 0;
+constexpr int16_t CamelCaseBonus = BoundaryBonus + ScoreGapExtension;
 constexpr int16_t BonusConsecutive = -(ScoreGapStart + ScoreGapExtension);
 constexpr int16_t BonusFirstCharMultiplier = 2;
 constexpr size_t npos = std::numeric_limits<size_t>::max();
@@ -88,8 +86,7 @@ static int16_t calculateBonus(CharClass prevClass, CharClass currentClass)
 {
     if (prevClass == CharClass::NonWord && currentClass != CharClass::NonWord)
     {
-        return 0;
-        //return BoundaryBonus;
+        return BoundaryBonus;
     }
     if ((prevClass == CharClass::CharLower && currentClass == CharClass::CharUpper) ||
         (prevClass != CharClass::Digit && currentClass == CharClass::Digit))
