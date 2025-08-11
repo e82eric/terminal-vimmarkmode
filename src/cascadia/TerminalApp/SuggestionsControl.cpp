@@ -425,14 +425,14 @@ namespace winrt::TerminalApp::implementation
         {
             // Dismiss the palette if the text is empty; otherwise, clear the
             // search string.
-            if (_searchBox().Text().empty())
-            {
+            //if (_searchBox().Text().empty())
+            //{
                 _dismissPalette();
-            }
-            else
-            {
-                _searchBox().Text(L"");
-            }
+            //}
+            //else
+            //{
+            //    _searchBox().Text(L"");
+            //}
 
             e.Handled(true);
         }
@@ -1312,15 +1312,15 @@ namespace winrt::TerminalApp::implementation
         // We want to align the left edge of the text within the control to the
         // cursor position. We'll need to scoot a little to the left, to align
         // text with cursor
-        const auto proposedX = gsl::narrow_cast<int>(_anchor.X - 40);
+        //const auto proposedX = gsl::narrow_cast<int>(_anchor.X - 40);
         // If the control is too wide to fit in the window, clamp it fit inside
         // the window.
-        const auto maxX = gsl::narrow_cast<int>(space.Width - ActualWidth());
-        const auto clampedX = std::clamp(proposedX, 0, maxX);
+        //const auto maxX = gsl::narrow_cast<int>(space.Width - ActualWidth());
+        //const auto clampedX = std::clamp(proposedX, 0, maxX);
 
         // Create a thickness for the new margins. This will set the left, then
         // we'll go update the top separately
-        Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(clampedX, 0, 0, 0));
+        //Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(clampedX, 0, 0, 0));
         _recalculateTopMargin();
 
         // If we're in bottom-up mode, make sure to re-select the _last_ item in

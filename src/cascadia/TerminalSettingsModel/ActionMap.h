@@ -87,6 +87,8 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
 
         winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::Collections::IVector<Model::Command>> FilterToSnippets(winrt::hstring currentCommandline, winrt::hstring currentWorkingDirectory);
 
+        void SaveSnippet(const winrt::hstring& input, const winrt::hstring& name);
+
     private:
         Model::Command _GetActionByID(const winrt::hstring& actionID) const;
         std::optional<winrt::hstring> _GetActionIdByKeyChordInternal(const Control::KeyChord& keys) const;

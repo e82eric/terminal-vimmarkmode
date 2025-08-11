@@ -8,6 +8,9 @@
 #include "AllShortcutActions.h"
 #include <LibraryResources.h>
 #include <til/io.h>
+#include <filesystem>
+#include <fstream>
+#include <til/string.h>
 
 #include "ActionMap.g.cpp"
 
@@ -960,6 +963,14 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         return result;
     }
 
+    std::filesystem::path _GetSnippetsFilePath()
+    {
+        const auto userProfile = wil::ExpandEnvironmentStringsW<std::wstring>(L"%USERPROFILE%");
+        const std::filesystem::path snippetsDir = std::filesystem::path(userProfile) / L".wtd";
+        const std::filesystem::path snippetsFile = snippetsDir / L".wt.json";
+        return snippetsFile;
+    }
+
     winrt::Windows::Foundation::IAsyncOperation<IVector<Model::Command>> ActionMap::FilterToSnippets(
         winrt::hstring currentCommandline,
         winrt::hstring currentWorkingDirectory)
@@ -967,6 +978,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         // enumerate all the parent directories we want to import snippets from
         std::filesystem::path directory{ std::wstring_view{ currentWorkingDirectory } };
         std::vector<std::filesystem::path> directories;
+
         while (!directory.empty())
         {
             directories.push_back(directory);
@@ -995,6 +1007,12 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                         localSnippetsMap.insert_or_assign(name, snippet);
                     }
                 }
+
+                const auto globalSnippetsPath = _GetSnippetsFilePath();
+                auto globalSnippets = _loadLocalSnippets(globalSnippetsPath.parent_path());
+                std::ranges::for_each(globalSnippets, [&localSnippetsMap](const auto& kvPair) {
+                    localSnippetsMap.insert_or_assign(kvPair.first, kvPair.second);
+                });
 
                 std::vector<Model::Command> localSnippets;
                 localSnippets.reserve(localSnippetsMap.size());
@@ -1039,6 +1057,12 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             }
         }
 
+        const auto globalSnippetsPath = _GetSnippetsFilePath();
+        auto globalSnippets = _loadLocalSnippets(globalSnippetsPath.parent_path());
+        std::ranges::for_each(globalSnippets, [&localSnippetsMap](const auto& kvPair) {
+            localSnippetsMap.insert_or_assign(kvPair.first, kvPair.second);
+        });
+
         std::vector<Model::Command> localSnippets;
         localSnippets.reserve(localSnippetsMap.size());
         std::ranges::transform(localSnippetsMap,
@@ -1047,6 +1071,76 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         co_return winrt::single_threaded_vector<Model::Command>(_filterToSnippets(NameMap(),
                                                                                   currentCommandline,
                                                                                   localSnippets));
+    }
+
+    Json::Value _ReadSnippetsFile(const std::filesystem::path& filePath)
+    {
+        try
+        {
+            if (std::filesystem::exists(filePath))
+            {
+                std::ifstream file(filePath);
+                if (file.is_open())
+                {
+                    Json::Value root;
+                    Json::CharReaderBuilder readerBuilder;
+                    std::string errs;
+                    
+                    if (Json::parseFromStream(readerBuilder, file, &root, &errs))
+                    {
+                        file.close();
+                        return root;
+                    }
+                    file.close();
+                }
+            }
+        }
+        catch (...)
+        {
+            // If file doesn't exist or can't be parsed, return empty object
+        }
+
+        // Return default structure
+        Json::Value defaultJson(Json::objectValue);
+        defaultJson["snippets"] = Json::Value(Json::arrayValue);
+        return defaultJson;
+    }
+
+    void _WriteSnippetsFile(const std::filesystem::path& filePath, const Json::Value& jsonObject)
+    {
+        const auto parentDir = filePath.parent_path();
+        std::filesystem::create_directories(parentDir);
+
+        Json::StreamWriterBuilder wbuilder;
+        wbuilder.settings_["enableYAMLCompatibility"] = true; // suppress spaces around colons
+        wbuilder.settings_["indentation"] = "    ";
+        wbuilder.settings_["precision"] = 6; // prevent values like 1.1000000000000001
+
+        std::ofstream file(filePath);
+        if (file.is_open())
+        {
+            file << Json::writeString(wbuilder, jsonObject);
+            file.close();
+        }
+        else
+        {
+            throw std::runtime_error("Failed to open file for writing");
+        }
+    }
+
+    void ActionMap::SaveSnippet(const winrt::hstring& input, const winrt::hstring& name)
+    {
+        const auto snippetsFilePath = _GetSnippetsFilePath();
+        
+        auto jsonObject = _ReadSnippetsFile(snippetsFilePath);
+        
+        Json::Value newSnippet(Json::objectValue);
+        newSnippet["input"] = til::u16u8(input);
+        newSnippet["name"] = til::u16u8(name);
+        
+        jsonObject["snippets"].append(newSnippet);
+        
+        _WriteSnippetsFile(snippetsFilePath, jsonObject);
     }
 #pragma endregion
 }

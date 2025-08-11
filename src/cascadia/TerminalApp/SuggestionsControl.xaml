@@ -132,8 +132,6 @@
     <StackPanel x:Name="_listAndDescriptionStack"
                 Orientation="Vertical">
         <Grid x:Name="_backdrop"
-              MinWidth="800"
-              MaxWidth="800"
               MaxHeight="300"
               Margin="0"
               Padding="0,8,0,0"

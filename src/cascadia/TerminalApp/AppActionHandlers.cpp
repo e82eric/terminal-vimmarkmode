@@ -10,6 +10,7 @@
 #include "../../types/inc/utils.hpp"
 #include "Utils.h"
 
+
 using namespace winrt::Windows::ApplicationModel::DataTransfer;
 using namespace winrt::Windows::UI::Xaml;
 using namespace winrt::Windows::UI::Text;
@@ -21,6 +22,7 @@ using namespace winrt::Microsoft::Terminal::Settings::Model;
 using namespace winrt::Microsoft::Terminal::Control;
 using namespace winrt::Microsoft::Terminal::TerminalConnection;
 using namespace ::TerminalApp;
+
 
 namespace winrt
 {
@@ -1395,6 +1397,8 @@ namespace winrt::TerminalApp::implementation
         }
     }
 
+    // Helper function to get the snippets JSON file path
+
     void TerminalPage::_HandleSaveSnippet(const IInspectable& /*sender*/,
                                           const ActionEventArgs& args)
     {
@@ -1429,20 +1433,20 @@ namespace winrt::TerminalApp::implementation
 
                 try
                 {
-                    KeyChord keyChord = nullptr;
-                    if (!realArgs.KeyChord().empty())
-                    {
-                        keyChord = KeyChordSerialization::FromString(winrt::to_hstring(realArgs.KeyChord()));
-                    }
-                    _settings.GlobalSettings().ActionMap().AddSendInputAction(realArgs.Name(), commandLine, keyChord);
-                    _settings.WriteSettingsToDisk();
-                    ActionSaved(commandLine, realArgs.Name(), realArgs.KeyChord());
+                    _settings.GlobalSettings().ActionMap().SaveSnippet(commandLine, realArgs.Name());
+                    
+                    ActionSaved(commandLine, realArgs.Name(), L"");
                 }
-                catch (const winrt::hresult_error& ex)
+                catch (const std::exception& ex)
                 {
-                    auto code = ex.code();
-                    auto message = ex.message();
+                    auto message = winrt::to_hstring(ex.what());
                     ActionSaveFailed(message);
+                    args.Handled(true);
+                    return;
+                }
+                catch (...)
+                {
+                    ActionSaveFailed(L"Failed to save snippet to file");
                     args.Handled(true);
                     return;
                 }
