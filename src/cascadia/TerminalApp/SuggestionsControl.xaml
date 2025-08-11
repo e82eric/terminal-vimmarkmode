@@ -73,7 +73,7 @@
                                                   HorizontalAlignment="Left"
                                                   FontStyle="Italic"
                                                   Foreground="White"
-                                                  TextWrapping="Wrap"
+                                                  TextWrapping="NoWrap"
                                                   HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
                                                   HighlightedRunStyle="{StaticResource CustomHighlightedRunStyle}"
                                                   Text="{x:Bind Description, Mode=OneWay}" />
