@@ -195,7 +195,7 @@
         <local:StreamingSuggestions x:Name="StreamingTest" 
                                     Grid.Row="2"
                                     HorizontalAlignment="Center"
-                                    VerticalAlignment="Top"
+                                    VerticalAlignment="Center"
                                     PreviewKeyDown="_KeyDownHandler"
                                     DispatchCommandRequested="_OnStreamingDispatchCommandRequested"
                                     Visibility="Collapsed" />
