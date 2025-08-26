@@ -102,7 +102,8 @@ COLORREF lightenColor(COLORREF color, float factor) {
         });
 
         const auto backgroundColor = _renderSettings.GetColorTableEntry(TextColor::DEFAULT_BACKGROUND);
-        _quickSelectNonMatch = lightenColor(backgroundColor, 1.8f);
+        _quickSelectNonMatch = lightenColor(backgroundColor, 1.0f);
+        _quickSelectOddRowBackground = lightenColor(backgroundColor, 1.4f);
         _quickSelectMatch = _renderSettings.GetColorTableEntry(TextColor::DEFAULT_FOREGROUND);
         _quickSelectSelectedHighlight = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_RED);
         _quickSelectHighlight = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_YELLOW);
@@ -990,6 +991,11 @@ void Renderer::_PaintBufferOutputHelper(_In_ IRenderEngine* const pEngine,
                     //Override all formating to make it easier to see whats selectable and not
                     origAttr.SetForeground(_quickSelectNonMatch);
                     origAttr.SetDefaultBackground();
+                    if (!highlights.empty() && (it.Pos().y & 1) != 0)
+                    {
+                        origAttr.SetBackground(_quickSelectOddRowBackground);
+                    }
+
                     if (isHighlight)
                     {
                         origAttr.SetForeground(_quickSelectMatch);

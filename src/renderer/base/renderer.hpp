@@ -130,6 +130,7 @@ namespace Microsoft::Console::Render
         bool _isSynchronizingOutput = false;
         bool _forceUpdateViewport = false;
         COLORREF _quickSelectNonMatch;
+        COLORREF _quickSelectOddRowBackground;
         COLORREF _quickSelectMatch;
         COLORREF _quickSelectHighlight;
         COLORREF _quickSelectSelectedHighlight;
