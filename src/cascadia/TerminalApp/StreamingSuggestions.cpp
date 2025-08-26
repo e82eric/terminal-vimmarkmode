@@ -391,59 +391,21 @@ namespace winrt::TerminalApp::implementation
         if (Visibility() == Visibility::Visible)
         {
             const auto selectedIndex = TestListView().SelectedIndex();
-            uint32_t newSelectedIndex = 0;
 
             if (selectedIndex >= 0 && selectedIndex < static_cast<int32_t>(_filteredActions.Size()))
             {
-                const auto selectedItem = _filteredActions.GetAt(selectedIndex);
-                
-                // Convert all filtered actions to SuggestionSearchItem vector and sort by coordinates
                 auto highlightVector = winrt::single_threaded_vector<Microsoft::Terminal::Control::SuggestionSearchItem>();
-                if (SearchBox().Text().size() < 2)
-                {
-                        auto suggestionItem = Microsoft::Terminal::Control::SuggestionSearchItem{};
-                        suggestionItem.Text = selectedItem.NameText();
-                        suggestionItem.Row = selectedItem.DescriptionText();
-                        suggestionItem.StartPos = selectedItem.Start();
-                        suggestionItem.EndPos = selectedItem.End();
-                        highlightVector.Append({ suggestionItem });
-                }
-                else
-                {
-                    std::vector<std::pair<Microsoft::Terminal::Control::SuggestionSearchItem, uint32_t>> itemsWithIndex;
-                    for (uint32_t i = 0; i < _filteredActions.Size(); ++i)
-                    {
-                        const auto item = _filteredActions.GetAt(i);
-                        auto suggestionItem = Microsoft::Terminal::Control::SuggestionSearchItem{};
-                        suggestionItem.Text = item.NameText();
-                        suggestionItem.Row = item.DescriptionText();
-                        suggestionItem.StartPos = item.Start();
-                        suggestionItem.EndPos = item.End();
-                        itemsWithIndex.push_back({ suggestionItem, i });
-                    }
-                    // Sort by Y coordinate first, then by X coordinate
-                    std::sort(itemsWithIndex.begin(), itemsWithIndex.end(), [](const auto& a, const auto& b) {
-                        if (a.first.StartPos.Y != b.first.StartPos.Y)
-                        {
-                            return a.first.StartPos.Y < b.first.StartPos.Y;
-                        }
-                        return a.first.StartPos.X < b.first.StartPos.X;
-                    });
-
-                    for (uint32_t i = 0; i < itemsWithIndex.size(); ++i)
-                    {
-                        highlightVector.Append(itemsWithIndex[i].first);
-                        if (itemsWithIndex[i].second == static_cast<uint32_t>(selectedIndex))
-                        {
-                            newSelectedIndex = i;
-                        }
-                    }
-                }
-                
+                const auto selectedItem = _filteredActions.GetAt(selectedIndex);
+                auto suggestionItem = Microsoft::Terminal::Control::SuggestionSearchItem{};
+                suggestionItem.Text = selectedItem.NameText();
+                suggestionItem.Row = selectedItem.DescriptionText();
+                suggestionItem.StartPos = selectedItem.Start();
+                suggestionItem.EndPos = selectedItem.End();
+                highlightVector.Append({ suggestionItem });
 
                 auto scrollOffset = _willCoverSelectedHighlight();
                 
-                _termControl.SetSuggestionHighlights(highlightVector, newSelectedIndex, scrollOffset);
+                _termControl.SetSuggestionHighlights(highlightVector, 0, scrollOffset);
 
                 auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
                 auto previewText = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, selectedItem.NameText()) };
