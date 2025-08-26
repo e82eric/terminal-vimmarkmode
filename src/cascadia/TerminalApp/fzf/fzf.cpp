@@ -9,11 +9,11 @@ using namespace fzf::matcher;
 constexpr int16_t ScoreMatch = 16;
 constexpr int16_t ScoreGapStart = -3;
 constexpr int16_t ScoreGapExtension = -1;
-constexpr int16_t BoundaryBonus = ScoreMatch / 2;
+constexpr int16_t BoundaryBonus = 0;
 constexpr int16_t NonWordBonus = ScoreMatch / 2;
 constexpr int16_t CamelCaseBonus = BoundaryBonus + ScoreGapExtension;
 constexpr int16_t BonusConsecutive = -(ScoreGapStart + ScoreGapExtension);
-constexpr int16_t BonusFirstCharMultiplier = 2;
+constexpr int16_t BonusFirstCharMultiplier = 0;
 constexpr size_t npos = std::numeric_limits<size_t>::max();
 
 enum class CharClass : uint8_t
@@ -111,9 +111,9 @@ static constexpr auto s_charClassLut = []() {
     return lut;
 }();
 
-static CharClass classOf(UChar32 ch)
+static CharClass classOf(UChar32 /*ch*/)
 {
-    return s_charClassLut[u_charType(ch)];
+    return CharClass::CharLower;
 }
 
 static int32_t fzfFuzzyMatchV2(const std::vector<UChar32>& text, const std::vector<UChar32>& pattern, std::vector<size_t>* pos)
