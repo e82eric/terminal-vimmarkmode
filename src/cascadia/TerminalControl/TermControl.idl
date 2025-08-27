@@ -117,6 +117,7 @@ namespace Microsoft.Terminal.Control
         void CreateSearchBoxControl();
         void CreateFuzzySearchBoxControl(String searchString);
         void StartSnippetSearch(IVector<String> snippets);
+        void StartAiPrompt();
         Boolean SearchBoxEditInFocus();
 
         void SearchMatch(Boolean goForward);

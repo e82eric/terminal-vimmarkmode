@@ -749,6 +749,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SnippetSearch().Show(snippets);
     }
 
+    void TermControl::StartAiPrompt()
+    {
+        // Get the last 200 lines from the terminal for context, including cursor line
+        const auto cursorContext = _core.GetLinesFromCursorWithContext(-200);  // Negative to get lines before cursor
+        
+        AiPrompt().Visibility(Visibility::Visible);
+        AiPrompt().ShowWithContext(cursorContext.Lines, cursorContext.CursorLine);
+    }
+
     // This is called when a Find Next/Previous Match action is triggered.
     void TermControl::SearchMatch(const bool goForward)
     {
@@ -892,6 +901,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::_OnReturnSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, hstring input)
     {
         SnippetSearch().Visibility(Visibility::Collapsed);
+        SendInput(input);
+        this->Focus(FocusState::Programmatic);
+    }
+
+    void TermControl::_CloseAiPromptControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, const Windows::UI::Xaml::RoutedEventArgs& /*args*/)
+    {
+        AiPrompt().Visibility(Visibility::Collapsed);
+    }
+
+    void TermControl::_OnReturnAiPromptControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, hstring input)
+    {
+        AiPrompt().Visibility(Visibility::Collapsed);
         SendInput(input);
         this->Focus(FocusState::Programmatic);
     }
@@ -1094,6 +1115,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SnippetSearch().TextColor(textColor);
         SnippetSearch().HighlightedTextColor(highlightColor);
         SnippetSearch().ResultFontSize(14);
+
+        AiPrompt().BorderColor(borderColor);
+        AiPrompt().HeaderTextColor(headerTextColor);
+        AiPrompt().BackgroundColor(backgroundColor);
+        AiPrompt().InnerBorderThickness(borderThickness);
 
         VimSearchBorder().BorderThickness(borderThickness);
         VimSearchBorder().BorderBrush(borderColor);
@@ -1719,6 +1745,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         if (SnippetSearch().ContainsFocus())
+        {
+            return;
+        }
+
+        if (AiPrompt().ContainsFocus())
         {
             return;
         }

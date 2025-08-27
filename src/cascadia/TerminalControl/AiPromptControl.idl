@@ -1,0 +1,27 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+
+import "ICoreState.idl";
+import "IControlSettings.idl";
+
+namespace Microsoft.Terminal.Control
+{
+
+    [default_interface] runtimeclass AiPromptControl : Windows.UI.Xaml.Controls.UserControl,Windows.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        AiPromptControl();
+        void Show();
+        void ShowWithContext(String terminalContext, String cursorLine);
+        Boolean ContainsFocus();
+        event Windows.Foundation.TypedEventHandler<AiPromptControl, Windows.UI.Xaml.RoutedEventArgs> Closed;
+        event Windows.Foundation.TypedEventHandler<AiPromptControl, String> OnReturn;
+        Windows.UI.Xaml.Media.Brush HeaderTextColor;
+        Windows.UI.Xaml.DependencyProperty HeaderTextColorProperty { get; };
+        Windows.UI.Xaml.Media.Brush BorderColor;
+        Windows.UI.Xaml.DependencyProperty BorderColorProperty { get; };
+        Windows.UI.Xaml.Media.Brush BackgroundColor;
+        Windows.UI.Xaml.DependencyProperty BackgroundColorProperty { get; };
+        Windows.UI.Xaml.Thickness InnerBorderThickness;
+        Windows.UI.Xaml.DependencyProperty InnerBorderThicknessProperty { get; };
+    }
+}

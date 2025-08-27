@@ -66,6 +66,9 @@
     <ClInclude Include="XamlLights.h">
       <DependentUpon>XamlLights.idl</DependentUpon>
     </ClInclude>
+    <ClInclude Include="AiPromptControl.h">
+      <DependentUpon>AiPromptControl.xaml</DependentUpon>
+    </ClInclude>
     <ClInclude Include="TermControl.h">
       <DependentUpon>TermControl.xaml</DependentUpon>
     </ClInclude>
@@ -121,6 +124,9 @@
     <ClCompile Include="XamlLights.cpp">
       <DependentUpon>XamlLights.idl</DependentUpon>
     </ClCompile>
+    <ClCompile Include="AiPromptControl.cpp">
+      <DependentUpon>AiPromptControl.xaml</DependentUpon>
+    </ClCompile>
     <ClCompile Include="TermControl.cpp">
       <DependentUpon>TermControl.xaml</DependentUpon>
     </ClCompile>
@@ -161,6 +167,9 @@
       <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
     </Midl>
     <Midl Include="XamlLights.idl" />
+    <Midl Include="AiPromptControl.idl">
+      <DependentUpon>AiPromptControl.xaml</DependentUpon>
+    </Midl>
     <Midl Include="TermControl.idl">
       <DependentUpon>TermControl.xaml</DependentUpon>
     </Midl>
@@ -176,6 +185,7 @@
     </Page>
     <Page Include="FuzzySearchBoxControl.xaml" />
     <Page Include="SnippetSearchControl.xaml" />
+    <Page Include="AiPromptControl.xaml" />
     <Page Include="TermControl.xaml">
       <SubType>Designer</SubType>
     </Page>
