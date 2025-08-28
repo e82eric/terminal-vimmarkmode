@@ -177,22 +177,58 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else if (e.OriginalKey() == Windows::System::VirtualKey::Tab)
         {
-            // Tab: Send result to terminal (alternative to Shift+Enter)
-            auto resultText = ResultTextBlock().Text();
-            if (!resultText.empty() && resultText != L"AI response will appear here...")
+            const auto shiftState = Windows::UI::Core::CoreWindow::GetForCurrentThread().GetKeyState(Windows::System::VirtualKey::Shift);
+            const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            
+            if (shiftDown)
             {
-                std::wstring backspaces(_originalCursorLineLength, L'\b');
-
-                auto finalText = backspaces + resultText.c_str();
-
-                _OnReturnHandlers(*this, hstring{ finalText });
-                _close();
+                // Shift+Tab: Cycle through modes
+                _cycleMode();
             }
             else
             {
-                _close();
+                // Tab: Send result to terminal (alternative to Shift+Enter)
+                auto resultText = ResultTextBlock().Text();
+                if (!resultText.empty() && resultText != L"AI response will appear here...")
+                {
+                    std::wstring backspaces(_originalCursorLineLength, L'\b');
+
+                    auto finalText = backspaces + resultText.c_str();
+
+                    _OnReturnHandlers(*this, hstring{ finalText });
+                    _close();
+                }
+                else
+                {
+                    _close();
+                }
             }
             e.Handled(true);
+        }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::C)
+        {
+            const auto ctrlState = Windows::UI::Core::CoreWindow::GetForCurrentThread().GetKeyState(Windows::System::VirtualKey::Control);
+            const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            
+            if (ctrlDown)
+            {
+                // Ctrl+C: Copy response text
+                try
+                {
+                    auto resultText = ResultTextBlock().Text();
+                    if (!resultText.empty() && resultText != L"AI response will appear here...")
+                    {
+                        auto dataPackage = winrt::Windows::ApplicationModel::DataTransfer::DataPackage();
+                        dataPackage.SetText(resultText);
+                        winrt::Windows::ApplicationModel::DataTransfer::Clipboard::SetContent(dataPackage);
+                    }
+                }
+                catch (...)
+                {
+                    // Clipboard operation failed, but don't crash the app
+                }
+                e.Handled(true);
+            }
         }
     }
 
@@ -210,8 +246,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _terminalContext = L"";
         _originalCursorLineLength = 0;
+        _currentMode = AiMode::CommandSuggestions;
         FuzzySearchTextBox().Text(L"");
         ResultTextBlock().Text(L"AI response will appear here...");
+        _updateModeDisplay();
 
         if (FuzzySearchTextBox())
         {
@@ -222,7 +260,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void AiPromptControl::ShowWithContext(const winrt::hstring& terminalContext, const winrt::hstring& cursorLine)
     {
         _terminalContext = terminalContext;
-
+        _currentMode = AiMode::CommandSuggestions;
         _originalCursorLineLength = cursorLine.size();
 
         if (!cursorLine.empty())
@@ -235,6 +273,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         ResultTextBlock().Text(L"AI response will appear here...");
+        _updateModeDisplay();
 
         if (FuzzySearchTextBox())
         {
@@ -304,17 +343,30 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             requestBody.SetNamedValue(L"model", JsonValue::CreateStringValue(L"gpt-4.1"));
             //requestBody.SetNamedValue(L"model", JsonValue::CreateStringValue(L"gpt-5"));
 
-            //std::wstring input = L"[SYSTEM]\n"
-            //                     L"Provide only the completed command(s) with no explanations.\n";
-
-            std::wstring input = L"[SYSTEM]\n"
-                                 L"Return EXACTLY ONE command on a single line.\n"
-                                 L"- You are inside of windows terminal,  use the context to understand the current shell \n"
-                                 L"- Always return a command that can be executed in a terminal"
-                                 L"- No explanations, comments, or prose.\n"
-                                 L"- Do not include multiple commands joined by &&, ;, |, or newline.\n"
-                                 L"- Do not wrap in code fences.\n"
-                                 L"[USER]\n";
+            std::wstring input;
+            
+            if (_currentMode == AiMode::CommandSuggestions)
+            {
+                input = L"[SYSTEM]\n"
+                        L"Return EXACTLY ONE command on a single line.\n"
+                        L"- You are inside of windows terminal, use the context to understand the current shell \n"
+                        L"- Always return a command that can be executed in a terminal"
+                        L"- No explanations, comments, or prose.\n"
+                        L"- Do not include multiple commands joined by &&, ;, |, or newline.\n"
+                        L"- Do not wrap in code fences.\n"
+                        L"[USER]\n";
+            }
+            else // Chat mode
+            {
+                input = L"[SYSTEM]\n"
+                        L"You are a helpful assistant within Windows Terminal.\n"
+                        L"- Provide helpful, conversational responses\n"
+                        L"- You can explain commands, concepts, and provide guidance\n"
+                        L"- Use the terminal context to understand the user's environment\n"
+                        L"- Format code with appropriate syntax highlighting hints when relevant\n"
+                        L"- Be concise but informative\n"
+                        L"[USER]\n";
+            }
 
             if (!_terminalContext.empty())
             {
@@ -432,9 +484,64 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         ResultScrollViewer().ScrollToVerticalOffset(0);
 
+        // Show copy button for chat mode
+        if (_currentMode == AiMode::Chat)
+        {
+            CopyButton().Visibility(Visibility::Visible);
+        }
+        else
+        {
+            CopyButton().Visibility(Visibility::Collapsed);
+        }
+
         if (FuzzySearchTextBox())
         {
             Input::FocusManager::TryFocusAsync(FuzzySearchTextBox(), FocusState::Keyboard);
+        }
+    }
+
+    void AiPromptControl::_cycleMode()
+    {
+        if (_currentMode == AiMode::CommandSuggestions)
+        {
+            _currentMode = AiMode::Chat;
+        }
+        else
+        {
+            _currentMode = AiMode::CommandSuggestions;
+        }
+        _updateModeDisplay();
+    }
+
+    void AiPromptControl::_updateModeDisplay()
+    {
+        if (_currentMode == AiMode::CommandSuggestions)
+        {
+            VimSearchHeaderTextBlock().Text(L"AI Prompt - Command Mode");
+            CopyButton().Visibility(Visibility::Collapsed);
+        }
+        else
+        {
+            VimSearchHeaderTextBlock().Text(L"AI Prompt - Chat Mode");
+            // Copy button visibility will be set when displaying results
+        }
+    }
+
+    void AiPromptControl::_CopyButtonClick(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
+    {
+        try
+        {
+            auto resultText = ResultTextBlock().Text();
+            if (!resultText.empty() && resultText != L"AI response will appear here...")
+            {
+                auto dataPackage = winrt::Windows::ApplicationModel::DataTransfer::DataPackage();
+                dataPackage.SetText(resultText);
+                winrt::Windows::ApplicationModel::DataTransfer::Clipboard::SetContent(dataPackage);
+            }
+        }
+        catch (...)
+        {
+            // Clipboard operation failed, but don't crash the app
         }
     }
 

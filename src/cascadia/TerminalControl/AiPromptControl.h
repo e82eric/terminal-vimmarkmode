@@ -7,10 +7,17 @@
 #include <winrt/Windows.Web.Http.Headers.h>
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Storage.Streams.h>
+#include <winrt/Windows.ApplicationModel.DataTransfer.h>
 #include <wincred.h>
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
+    enum class AiMode
+    {
+        CommandSuggestions,
+        Chat
+    };
+
     struct AiPromptControl : AiPromptControlT<AiPromptControl>
     {
     public:
@@ -40,6 +47,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void _TextBoxKeyDown(const winrt::Windows::Foundation::IInspectable& /*sender*/, const winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs& e);
         void _TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);
+        void _CopyButtonClick(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);
         
         TYPED_EVENT(Closed, Control::AiPromptControl, Windows::UI::Xaml::RoutedEventArgs);
         TYPED_EVENT(OnReturn, Control::AiPromptControl, hstring);
@@ -51,6 +59,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _showSpinner();
         void _hideSpinner();
         void _displayResult(const winrt::hstring& result);
+        void _cycleMode();
+        void _updateModeDisplay();
         std::wstring _getOpenAIApiKey();
         std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
         winrt::Windows::Web::Http::HttpClient _httpClient;
@@ -58,6 +68,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         uint32_t _requestCounter = 0;
         uint32_t _currentRequestId = 0;
         size_t _originalCursorLineLength = 0;
+        AiMode _currentMode = AiMode::CommandSuggestions;
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;

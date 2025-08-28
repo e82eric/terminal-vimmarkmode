@@ -24,7 +24,7 @@
     <Grid Margin="4" Padding="4,8" Background="{x:Bind BackgroundColor, Mode=OneWay}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0">
@@ -56,7 +56,7 @@
             <Border HorizontalAlignment="Center" VerticalAlignment="Top" Margin="100,0,100,0" Background="{x:Bind BackgroundColor, Mode=OneWay}">
                 <TextBlock
                     x:Name="VimSearchHeaderTextBlock"
-                    Text="AI Prompt"
+                    Text="AI Prompt - Command Mode"
                     FontSize="16"
                     FontWeight="Bold"
                     Foreground="{x:Bind HeaderTextColor, Mode=OneWay}"
@@ -66,19 +66,37 @@
         </Grid>
 
         <Border Grid.Row="1" BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" CornerRadius="4" Margin="0,0,0,8" Padding="2">
-            <ScrollViewer x:Name="ResultScrollViewer" 
-                          HorizontalScrollBarVisibility="Auto" 
-                          VerticalScrollBarVisibility="Auto" 
-                          MaxHeight="200"
-                          MinHeight="50">
-                <TextBlock x:Name="ResultTextBlock"
-                           TextWrapping="Wrap"
-                           IsTextSelectionEnabled="True"
-                           Foreground="{x:Bind HeaderTextColor, Mode=OneWay}"
-                           FontFamily="Consolas"
-                           Padding="8,4"
-                           Text="AI response will appear here..." />
-            </ScrollViewer>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <ScrollViewer x:Name="ResultScrollViewer" 
+                              Grid.Row="0"
+                              HorizontalScrollBarVisibility="Disabled" 
+                              VerticalScrollBarVisibility="Auto" 
+                              MinHeight="50">
+                    <TextBlock x:Name="ResultTextBlock"
+                               TextWrapping="Wrap"
+                               IsTextSelectionEnabled="True"
+                               Foreground="{x:Bind HeaderTextColor, Mode=OneWay}"
+                               FontFamily="Consolas"
+                               Padding="8,4"
+                               HorizontalAlignment="Stretch"
+                               Text="AI response will appear here..." />
+                </ScrollViewer>
+                
+                <Button x:Name="CopyButton"
+                        Grid.Row="1"
+                        Content="Copy"
+                        HorizontalAlignment="Right"
+                        Margin="4,4,8,4"
+                        Padding="8,2"
+                        FontSize="12"
+                        Click="_CopyButtonClick"
+                        Visibility="Collapsed" />
+            </Grid>
         </Border>
     </Grid>
 </UserControl>
