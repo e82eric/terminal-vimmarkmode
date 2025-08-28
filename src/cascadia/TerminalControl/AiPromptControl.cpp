@@ -124,6 +124,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         InitializeComponent();
         _focusableElements.insert(FuzzySearchTextBox());
+        _focusableElements.insert(ResultTextBox());
         _httpClient = HttpClient{};
         _httpClient.DefaultRequestHeaders().UserAgent().TryParseAdd(L"Windows-Terminal/1.0");
     }
@@ -149,7 +150,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (shiftDown)
             {
                 // Shift+Enter: Send result to terminal
-                auto resultText = ResultTextBlock().Text();
+                auto resultText = ResultTextBox().Text();
                 if (!resultText.empty() && resultText != L"AI response will appear here...")
                 {
                     std::wstring backspaces(_originalCursorLineLength, L'\b');
@@ -187,20 +188,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             else
             {
-                // Tab: Send result to terminal (alternative to Shift+Enter)
-                auto resultText = ResultTextBlock().Text();
-                if (!resultText.empty() && resultText != L"AI response will appear here...")
+                // Tab: Cycle focus between search box and result box
+                auto focusedElement = Input::FocusManager::GetFocusedElement(this->XamlRoot());
+                if (focusedElement == FuzzySearchTextBox())
                 {
-                    std::wstring backspaces(_originalCursorLineLength, L'\b');
-
-                    auto finalText = backspaces + resultText.c_str();
-
-                    _OnReturnHandlers(*this, hstring{ finalText });
-                    _close();
+                    Input::FocusManager::TryFocusAsync(ResultTextBox(), FocusState::Keyboard);
                 }
                 else
                 {
-                    _close();
+                    Input::FocusManager::TryFocusAsync(FuzzySearchTextBox(), FocusState::Keyboard);
                 }
             }
             e.Handled(true);
@@ -215,7 +211,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 // Ctrl+C: Copy response text
                 try
                 {
-                    auto resultText = ResultTextBlock().Text();
+                    auto resultText = ResultTextBox().Text();
                     if (!resultText.empty() && resultText != L"AI response will appear here...")
                     {
                         auto dataPackage = winrt::Windows::ApplicationModel::DataTransfer::DataPackage();
@@ -238,7 +234,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (currentText.empty())
         {
-            ResultTextBlock().Text(L"AI response will appear here...");
+            ResultTextBox().Text(L"AI response will appear here...");
         }
     }
 
@@ -248,7 +244,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _originalCursorLineLength = 0;
         _currentMode = AiMode::CommandSuggestions;
         FuzzySearchTextBox().Text(L"");
-        ResultTextBlock().Text(L"AI response will appear here...");
+        ResultTextBox().Text(L"AI response will appear here...");
         _updateModeDisplay();
 
         if (FuzzySearchTextBox())
@@ -272,7 +268,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             FuzzySearchTextBox().Text(L"");
         }
 
-        ResultTextBlock().Text(L"AI response will appear here...");
+        ResultTextBox().Text(L"AI response will appear here...");
         _updateModeDisplay();
 
         if (FuzzySearchTextBox())
@@ -480,9 +476,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void AiPromptControl::_displayResult(const winrt::hstring& result)
     {
-        ResultTextBlock().Text(result);
+        ResultTextBox().Text(result);
 
-        ResultScrollViewer().ScrollToVerticalOffset(0);
+        // Scroll to top of result text
+        ResultTextBox().SelectionStart(0);
+        ResultTextBox().SelectionLength(0);
 
         // Show copy button for chat mode
         if (_currentMode == AiMode::Chat)
@@ -527,11 +525,93 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
+    void AiPromptControl::_ResultTextBoxKeyDown(const Windows::Foundation::IInspectable& /*sender*/, const Input::KeyRoutedEventArgs& e)
+    {
+        if (e.OriginalKey() == Windows::System::VirtualKey::Escape)
+        {
+            _hideSpinner();
+            _close();
+            e.Handled(true);
+        }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::Tab)
+        {
+            const auto shiftState = Windows::UI::Core::CoreWindow::GetForCurrentThread().GetKeyState(Windows::System::VirtualKey::Shift);
+            const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            
+            if (shiftDown)
+            {
+                // Shift+Tab: Cycle through modes
+                _cycleMode();
+            }
+            else
+            {
+                // Tab: Cycle focus back to search box
+                Input::FocusManager::TryFocusAsync(FuzzySearchTextBox(), FocusState::Keyboard);
+            }
+            e.Handled(true);
+        }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::PageUp)
+        {
+            // Page Up: Scroll up in result text
+            auto currentPosition = ResultTextBox().SelectionStart();
+            if (currentPosition > 0)
+            {
+                // Move cursor up by approximately a page worth of lines
+                auto text = ResultTextBox().Text();
+                auto linesPerPage = 10; // Approximate lines per page
+                auto newPosition = std::max(0, static_cast<int>(currentPosition) - (80 * linesPerPage)); // 80 chars per line estimate
+                ResultTextBox().SelectionStart(newPosition);
+                ResultTextBox().SelectionLength(0);
+            }
+            e.Handled(true);
+        }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::PageDown)
+        {
+            // Page Down: Scroll down in result text
+            auto currentPosition = ResultTextBox().SelectionStart();
+            auto text = ResultTextBox().Text();
+            if (currentPosition < static_cast<int>(text.size()))
+            {
+                // Move cursor down by approximately a page worth of lines
+                auto linesPerPage = 10; // Approximate lines per page
+                auto newPosition = std::min(static_cast<int>(text.size()), static_cast<int>(currentPosition) + (80 * linesPerPage)); // 80 chars per line estimate
+                ResultTextBox().SelectionStart(newPosition);
+                ResultTextBox().SelectionLength(0);
+            }
+            e.Handled(true);
+        }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::C)
+        {
+            const auto ctrlState = Windows::UI::Core::CoreWindow::GetForCurrentThread().GetKeyState(Windows::System::VirtualKey::Control);
+            const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            
+            if (ctrlDown)
+            {
+                // Ctrl+C: Copy response text
+                try
+                {
+                    auto resultText = ResultTextBox().Text();
+                    if (!resultText.empty() && resultText != L"AI response will appear here...")
+                    {
+                        auto dataPackage = winrt::Windows::ApplicationModel::DataTransfer::DataPackage();
+                        dataPackage.SetText(resultText);
+                        winrt::Windows::ApplicationModel::DataTransfer::Clipboard::SetContent(dataPackage);
+                    }
+                }
+                catch (...)
+                {
+                    // Clipboard operation failed, but don't crash the app
+                }
+                e.Handled(true);
+            }
+        }
+    }
+
     void AiPromptControl::_CopyButtonClick(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
     {
         try
         {
-            auto resultText = ResultTextBlock().Text();
+            auto resultText = ResultTextBox().Text();
             if (!resultText.empty() && resultText != L"AI response will appear here...")
             {
                 auto dataPackage = winrt::Windows::ApplicationModel::DataTransfer::DataPackage();

@@ -72,20 +72,22 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 
-                <ScrollViewer x:Name="ResultScrollViewer" 
-                              Grid.Row="0"
-                              HorizontalScrollBarVisibility="Disabled" 
-                              VerticalScrollBarVisibility="Auto" 
-                              MinHeight="50">
-                    <TextBlock x:Name="ResultTextBlock"
-                               TextWrapping="Wrap"
-                               IsTextSelectionEnabled="True"
-                               Foreground="{x:Bind HeaderTextColor, Mode=OneWay}"
-                               FontFamily="Consolas"
-                               Padding="8,4"
-                               HorizontalAlignment="Stretch"
-                               Text="AI response will appear here..." />
-                </ScrollViewer>
+                <TextBox x:Name="ResultTextBox"
+                         Grid.Row="0"
+                         IsReadOnly="True"
+                         IsSpellCheckEnabled="False"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         Foreground="{x:Bind HeaderTextColor, Mode=OneWay}"
+                         FontFamily="Consolas"
+                         Padding="8,4"
+                         MinHeight="50"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         KeyDown="_ResultTextBoxKeyDown"
+                         Text="AI response will appear here..." />
                 
                 <Button x:Name="CopyButton"
                         Grid.Row="1"
