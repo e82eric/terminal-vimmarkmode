@@ -3499,7 +3499,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             realRowEndExclusive = buffer.GetCursor().GetPosition().y;
         }
 
-        const til::CoordType rowBatchSize = 2500;
+        const til::CoordType rowBatchSize = 1000;
         {
             auto lock = _terminal->LockForReading();
             auto viewport = _terminal->GetViewport();

@@ -201,6 +201,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             e.Handled(true);
         }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::M)
+        {
+            const auto window = Windows::UI::Core::CoreWindow::GetForCurrentThread();
+            const auto ctrlState = window.GetKeyState(Windows::System::VirtualKey::Control);
+            const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            //const auto shiftState = window.GetKeyState(Windows::System::VirtualKey::Shift);
+            //const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            
+            if (ctrlDown)
+            {
+                // Ctrl+Shift+1: Cycle between models
+                _cycleModel();
+            }
+            e.Handled(true);
+        }
         else if (e.OriginalKey() == Windows::System::VirtualKey::C)
         {
             const auto ctrlState = Windows::UI::Core::CoreWindow::GetForCurrentThread().GetKeyState(Windows::System::VirtualKey::Control);
@@ -246,6 +261,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         FuzzySearchTextBox().Text(L"");
         ResultTextBox().Text(L"AI response will appear here...");
         _updateModeDisplay();
+        _updateModelIndicator();
 
         if (FuzzySearchTextBox())
         {
@@ -270,6 +286,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         ResultTextBox().Text(L"AI response will appear here...");
         _updateModeDisplay();
+        _updateModelIndicator();
 
         if (FuzzySearchTextBox())
         {
@@ -336,8 +353,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
 
             JsonObject requestBody;
-            requestBody.SetNamedValue(L"model", JsonValue::CreateStringValue(L"gpt-4.1"));
-            //requestBody.SetNamedValue(L"model", JsonValue::CreateStringValue(L"gpt-5"));
+            requestBody.SetNamedValue(L"model", JsonValue::CreateStringValue(hstring{ _getModelString() }));
 
             std::wstring input;
             
@@ -359,7 +375,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         L"- Provide helpful, conversational responses\n"
                         L"- You can explain commands, concepts, and provide guidance\n"
                         L"- Use the terminal context to understand the user's environment\n"
-                        L"- Format code with appropriate syntax highlighting hints when relevant\n"
+                        L"- Don't Format code with syntax highlighting\n"
                         L"- Be concise but informative\n"
                         L"[USER]\n";
             }
@@ -503,12 +519,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_currentMode == AiMode::CommandSuggestions)
         {
             _currentMode = AiMode::Chat;
+            _currentModel = AiModel::GPT5; // Chat mode uses GPT-5
         }
         else
         {
             _currentMode = AiMode::CommandSuggestions;
+            _currentModel = AiModel::GPT4_1; // Command mode uses GPT-4.1
         }
         _updateModeDisplay();
+        _updateModelIndicator();
     }
 
     void AiPromptControl::_updateModeDisplay()
@@ -547,6 +566,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 // Tab: Cycle focus back to search box
                 Input::FocusManager::TryFocusAsync(FuzzySearchTextBox(), FocusState::Keyboard);
+            }
+            e.Handled(true);
+        }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::Number1)
+        {
+            const auto window = Windows::UI::Core::CoreWindow::GetForCurrentThread();
+            const auto ctrlState = window.GetKeyState(Windows::System::VirtualKey::Control);
+            const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            const auto shiftState = window.GetKeyState(Windows::System::VirtualKey::Shift);
+            const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            
+            if (ctrlDown && shiftDown)
+            {
+                // Ctrl+Shift+1: Cycle between models
+                _cycleModel();
             }
             e.Handled(true);
         }
@@ -675,5 +709,44 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 return v;
         }
         return L"";
+    }
+
+    void AiPromptControl::_cycleModel()
+    {
+        if (_currentModel == AiModel::GPT5)
+        {
+            _currentModel = AiModel::GPT4_1;
+        }
+        else
+        {
+            _currentModel = AiModel::GPT5;
+        }
+        _updateModelIndicator();
+    }
+
+    std::wstring AiPromptControl::_getModelString() const
+    {
+        switch (_currentModel)
+        {
+            case AiModel::GPT4_1:
+                return L"gpt-4.1";
+            case AiModel::GPT5:
+            default:
+                return L"gpt-5";
+        }
+    }
+
+    void AiPromptControl::_updateModelIndicator()
+    {
+        switch (_currentModel)
+        {
+            case AiModel::GPT4_1:
+                ModelIndicator().Text(L"GPT-4.1");
+                break;
+            case AiModel::GPT5:
+            default:
+                ModelIndicator().Text(L"GPT-5");
+                break;
+        }
     }
 }

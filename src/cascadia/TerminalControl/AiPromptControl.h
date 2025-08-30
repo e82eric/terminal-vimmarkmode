@@ -18,6 +18,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Chat
     };
 
+    enum class AiModel
+    {
+        GPT4_1,
+        GPT5
+    };
+
     struct AiPromptControl : AiPromptControlT<AiPromptControl>
     {
     public:
@@ -62,6 +68,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _displayResult(const winrt::hstring& result);
         void _cycleMode();
         void _updateModeDisplay();
+        void _cycleModel();
+        std::wstring _getModelString() const;
+        void _updateModelIndicator();
         std::wstring _getOpenAIApiKey();
         std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
         winrt::Windows::Web::Http::HttpClient _httpClient;
@@ -70,6 +79,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         uint32_t _currentRequestId = 0;
         size_t _originalCursorLineLength = 0;
         AiMode _currentMode = AiMode::CommandSuggestions;
+        AiModel _currentModel = AiModel::GPT4_1;
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;

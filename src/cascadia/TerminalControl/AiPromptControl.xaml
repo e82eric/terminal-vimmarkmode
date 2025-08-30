@@ -33,6 +33,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <TextBox x:Name="FuzzySearchTextBox"
@@ -43,11 +44,20 @@
                         TextChanged="_TextBoxTextChanged"
                         Grid.Column="0"/>
 
-                    <mux:ProgressRing x:Name="LoadingSpinner"
+                    <TextBlock x:Name="ModelIndicator"
                         Grid.Column="1"
+                        Text="GPT-4.1"
+                        FontSize="10"
+                        Foreground="{x:Bind HeaderTextColor, Mode=OneWay}"
+                        VerticalAlignment="Center"
+                        Margin="4,0,4,0"
+                        Opacity="0.7" />
+
+                    <mux:ProgressRing x:Name="LoadingSpinner"
+                        Grid.Column="2"
                         Width="16"
                         Height="16"
-                        Margin="8,0,4,0"
+                        Margin="4,0,4,0"
                         IsActive="False"
                         IsIndeterminate="True"
                         Visibility="Collapsed" />
