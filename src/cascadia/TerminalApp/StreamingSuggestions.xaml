@@ -34,9 +34,7 @@
         Shadow="{StaticResource SharedShadow}"
         BorderBrush="#928374"
         BorderThickness="3"
-        MaxHeight="250"
-        MinWidth="800"
-        MaxWidth="800">
+        MaxHeight="250" >
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
