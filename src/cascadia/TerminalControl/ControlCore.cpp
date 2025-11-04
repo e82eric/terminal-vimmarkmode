@@ -3486,38 +3486,58 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _vimProxy->CommitSearch();
     }
 
+    winrt::hstring ControlCore::GetCurrentWord()
+    {
+        auto lock = _terminal->LockForReading();
+        return winrt::hstring{ _terminal->CurrentWordPrefix() };
+    }
+
     Windows::Foundation::IAsyncAction ControlCore::SuggestionScrollBackSearchAsync(winrt::hstring needle, SuggestionBatchHandler const& onBatch)
     {
         auto batchCb = winrt::make_agile(onBatch);
 
-        co_await resume_background();
+        std::unique_ptr<TextBuffer> snapshotBuffer;
+        std::optional<std::vector<til::point_span>> searchResults;
 
-        til::CoordType realRowEndExclusive = 0;
-        {
-            auto readLock = _terminal->LockForReading();
-            auto& buffer = _terminal->GetTextBuffer();
-            realRowEndExclusive = buffer.GetCursor().GetPosition().y;
-        }
+        auto cursorY = 0;
 
-        const til::CoordType rowBatchSize = 1000;
+        // There has to be a more efficient way to do this
+        // Snapshot the buffer instead of using the terminals buffer directly
+        // so that we can hold the lock for as short of period of time.
+        // If not there will be a bunch of delays from StreamingSuggestions waiting
+        // on the main thread to show a batch which is waiting for (TabColor|Focus|Cursor)
+        // which is waiting on the terminal lock for regex to complete.  This gets better if the
+        // lock on the terminal is released each regex batch but the delay is still noticeable.
         {
             auto lock = _terminal->LockForReading();
-            auto viewport = _terminal->GetViewport();
-            if (viewport.Top() != 0)
+            auto& buffer = _terminal->GetTextBuffer();
+            cursorY = buffer.GetCursor().GetPosition().y;
+
+            const auto size = buffer.GetSize().Dimensions();
+            snapshotBuffer = std::make_unique<TextBuffer>(
+                size,
+                buffer.GetCurrentAttributes(),
+                0,
+                false,
+                nullptr);
+
+            for (til::CoordType y = 0; y <= cursorY; ++y)
             {
+                buffer.CopyRow(y, y, *snapshotBuffer);
             }
         }
 
-        std::unordered_set<winrt::hstring> seen;
+        co_await resume_background();
+
+        const til::CoordType rowBatchSize = 2500;
+
+        std::unordered_set<std::wstring> seen;
         auto ordinal = 0;
-        for (til::CoordType end = realRowEndExclusive; end > 0;)
+        for (til::CoordType end = cursorY; end > 0;)
         {
             const til::CoordType beg = std::max<til::CoordType>(0, end - rowBatchSize);
             {
-                auto readLock = _terminal->LockForReading();
-                auto& buffer = _terminal->GetTextBuffer();
-
-                if (auto searchResults = buffer.SearchText(needle, SearchFlag::RegularExpression, beg, end))
+                if (auto searchResults = snapshotBuffer->SearchText(needle, SearchFlag::RegularExpression, beg, end))
                 {
                     auto spans = searchResults.value();
 
@@ -3526,14 +3546,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     for (auto it = spans.rbegin(); it != spans.rend(); ++it)
                     {
                         auto span = *it;
-                        auto rowText = _getLineText(span.start.y, buffer);
-                        auto text = buffer.GetPlainText(span.start, span.end);
+                        auto text = snapshotBuffer->GetPlainText(span.start, span.end);
 
-                        if (seen.insert(rowText + L"#" + text).second)
+                        if (seen.insert(text).second)
                         {
                             auto item = SuggestionSearchItem{
-                                hstring{ _getLineText(span.start.y, buffer) },
-                                hstring{ buffer.GetPlainText(span.start, span.end) },
+                                hstring{ L"" },
+                                hstring{ snapshotBuffer->GetPlainText(span.start, span.end) },
                                 ordinal,
                                 Core::Point{ span.start.x, span.start.y },
                                 Core::Point{ span.end.x, span.end.y }

@@ -821,6 +821,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.ToggleRowNumberMode();
     }
 
+    winrt::hstring TermControl::GetCurrentWord()
+    {
+        return _core.GetCurrentWord();
+    }
+
     void TermControl::_FuzzySearch(const winrt::hstring& text)
     {
         const auto fuzzySearchResult = _core.FuzzySearch(text);

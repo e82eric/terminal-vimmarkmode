@@ -228,7 +228,7 @@ namespace Microsoft.Terminal.Control
         void ExitVimSearch();
         void CommitVimSearch();
 
-
+        String GetCurrentWord();
         void OpenCWD();
 
         void ClearQuickFix();

@@ -112,6 +112,7 @@ namespace Microsoft.Terminal.Control
 
         Windows.Foundation.IAsyncAction SuggestionScrollBackSearchAsync(String needle, SuggestionBatchHandler onBatch);
         void SelectRow(Int32 row, Int32 col);
+        String GetCurrentWord();
 
         IVector<SuggestionSearchItem> SuggestionScrollBackSearch(String needle);
         void CreateSearchBoxControl();

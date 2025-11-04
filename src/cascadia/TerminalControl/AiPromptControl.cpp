@@ -213,8 +213,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 // Ctrl+Shift+1: Cycle between models
                 _cycleModel();
+                e.Handled(true);
             }
-            e.Handled(true);
         }
         else if (e.OriginalKey() == Windows::System::VirtualKey::C)
         {

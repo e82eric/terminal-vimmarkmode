@@ -507,6 +507,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void VimSearch(std::wstring_view searchString);
         void ExitVimSearch();
         void CommitVimSearch();
+        winrt::hstring GetCurrentWord();
 
         TYPED_EVENT(StartVimSearch, IInspectable, Control::StartVimSearchEventArgs);
         TYPED_EVENT(ShowFuzzySearch, IInspectable, Control::ShowFuzzySearchEventArgs);

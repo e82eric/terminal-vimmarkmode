@@ -30,60 +30,49 @@
     <Grid
         x:Name="RootGrid"
         Background="{ThemeResource FlyoutPresenterBackground}"
+        BorderBrush="{ThemeResource FlyoutBorderThemeBrush}"
+        BorderThickness="{ThemeResource FlyoutBorderThemeThickness}"
         CornerRadius="{ThemeResource OverlayCornerRadius}"
         Shadow="{StaticResource SharedShadow}"
-        BorderBrush="#928374"
-        BorderThickness="3"
-        MaxHeight="250" >
+        MaxHeight="250"
+        MinWidth="800"
+        MaxWidth="800">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         
-        <TextBox x:Name="SearchBox" 
-                 Grid.Row="0"
-                 PlaceholderText="Search..."
-                 Margin="8,8,8,4"
-                 TextChanged="SearchBox_TextChanged" />
-        
-        <ListView x:Name="TestListView" 
-                  Grid.Row="1"
-                  Style="{StaticResource NoAnimationsPlease}"
-                  IsItemClickEnabled="True"
-                  >
-            <ListView.ItemTemplate>
+        <Grid Grid.Row="1">
+            <ListView x:Name="TestListView" 
+                      Style="{StaticResource NoAnimationsPlease}"
+                      IsItemClickEnabled="True"
+                      >
+                <ListView.ItemTemplate>
 
-            <DataTemplate x:DataType="local:FuzzyHighlightText">
-                <Grid HorizontalAlignment="Stretch"
-                      ColumnSpacing="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition/>
-                        <RowDefinition/>
-                    </Grid.RowDefinitions>
+                <DataTemplate x:DataType="local:FuzzyHighlightText">
+                    <Grid HorizontalAlignment="Stretch"
+                          ColumnSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
 
-                    <local:HighlightedTextControl Grid.Column="0"
-                                                  Grid.Row="0"
-                                                  FontWeight="Bold"
-                                                  HorizontalAlignment="Left"
-                                                  HighlightedRunStyle="{StaticResource highlightedNameStyle}"
-                                                  HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
-                                                  Text="{x:Bind NameText, Mode=OneWay}" />
+                        <local:HighlightedTextControl Grid.Column="0"
+                                                      Grid.Row="0"
+                                                      FontWeight="Bold"
+                                                      HorizontalAlignment="Left"
+                                                      HighlightedRunStyle="{StaticResource highlightedNameStyle}"
+                                                      HighlightedRuns="{x:Bind NameHighlights, Mode=OneWay}"
+                                                      Text="{x:Bind NameText, Mode=OneWay}" />
+                    </Grid>
+                </DataTemplate>
+                    
+                </ListView.ItemTemplate>
 
-                    <local:HighlightedTextControl Grid.Column="0"
-                                                  Grid.Row="1"
-                                                  HorizontalAlignment="Left"
-                                                  HighlightedRunStyle="{StaticResource highlightedNameStyle}"
-                                                  FontStyle="Italic"
-                                                  HighlightedRuns="{x:Bind DescriptionHighlights, Mode=OneWay}"
-                                                  Text="{x:Bind DescriptionText, Mode=OneWay}" />
-                </Grid>
-            </DataTemplate>
-                
-            </ListView.ItemTemplate>
-
-                <ListView.ItemContainerTransitions>
-                    <TransitionCollection/>
-                </ListView.ItemContainerTransitions>
-        </ListView>
+                    <ListView.ItemContainerTransitions>
+                        <TransitionCollection/>
+                    </ListView.ItemContainerTransitions>
+            </ListView>
+        </Grid>
     </Grid>
 </UserControl>

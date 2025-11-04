@@ -46,6 +46,7 @@ namespace winrt::TerminalApp::implementation
         til::property_changed_event PropertyChanged;
         til::typed_event<winrt::TerminalApp::StreamingSuggestions, Microsoft::Terminal::Settings::Model::Command> DispatchCommandRequested;
         float _characterHeight;
+        bool _isOpenedUpward;
 
     private:
         Microsoft::Terminal::Control::TermControl _termControl{ nullptr };
@@ -55,9 +56,13 @@ namespace winrt::TerminalApp::implementation
         std::atomic<std::uint64_t> _searchVersion{ 0 };
         std::wstring _currentSearchTerm;
         std::mutex _searchTermMutex;
+        std::atomic<bool> _allItemsLoaded{ false };
+        std::atomic<bool> _allItemsSearched{ false };
+        std::atomic<bool> _controlShown{ false };
         Windows::Foundation::Point _anchor{};
         Windows::Foundation::Size _space{};
         winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
+        winrt::Microsoft::Terminal::Control::TermControl::KeySent_revoker _keySentRevoker;
         winrt::hstring _currentWord;
 
         winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version);
@@ -65,7 +70,9 @@ namespace winrt::TerminalApp::implementation
         void _recalculateTopMargin();
         void _dispatchSelectedCommand(bool selectRow);
         void _selectedCommandChanged(const Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
+        void _setDirection(bool openUpward);
         int32_t _willCoverSelectedHighlight();
+        void _updateNoItemsVisibility();
     };
 }
 

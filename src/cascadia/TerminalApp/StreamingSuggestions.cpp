@@ -73,18 +73,43 @@ namespace winrt::TerminalApp::implementation
         _currentWord = currentWord;
         _currentSearchTerm = currentWord;
         _filteredActions.Clear();
+
+        // Subscribe to key events from the TermControl
+        _keySentRevoker = _termControl.KeySent(winrt::auto_revoke,
+            [weakThis = get_weak()](auto const&, Microsoft::Terminal::Control::KeySentEventArgs const&) {
+                if (auto self = weakThis.get())
+                {
+                    if (self->Visibility() == Visibility::Visible)
+                    {
+                        // Get the current word from the terminal
+                        auto newWord = self->_termControl.GetCurrentWord();
+
+                        // Update the current word and search term
+                        self->_currentWord = newWord;
+                        {
+                            std::lock_guard lock(self->_searchTermMutex);
+                            self->_currentSearchTerm = newWord;
+                        }
+
+                        // Trigger the search
+                        self->_triggerSearch();
+                    }
+                }
+            });
         
         _anchor = anchor;
         _space = space;
         _searchVersion = 0;
+        _allItemsLoaded = false;
+        _allItemsSearched = false;
+        _controlShown = false;
         
-        Visibility(Visibility::Visible);
         TestListView().ItemsSource(_filteredActions);
         FocusSearchBox();
-        SearchBox().Text(_currentWord);
-        SearchBox().Select(currentWord.size(), 0);
+        //SearchBox().Text(_currentWord);
+        //SearchBox().Select(currentWord.size(), 0);
         
-        _recalculateTopMargin();
+        //_recalculateTopMargin();
 
         {
             std::lock_guard<std::mutex> lock(_batchesMutex);
@@ -97,29 +122,40 @@ namespace winrt::TerminalApp::implementation
                 [weakThis = get_weak()](Microsoft::Terminal::Control::SuggestionBatch const& batch) {
                     if (auto self = weakThis.get())
                     {
-                        {
-                            std::lock_guard<std::mutex> lock(self->_batchesMutex);
-                            self->_batches.push_back(batch);
-                        }
+                        std::lock_guard<std::mutex> lock(self->_batchesMutex);
+                        self->_batches.push_back(batch);
+                        
                         self->_triggerSearch();
                     }
                 } });
+
+        op.Completed([weakThis = get_weak()](auto const&, auto const&) -> winrt::fire_and_forget {
+            if (auto self = weakThis.get())
+            {
+                self->_allItemsLoaded = true;
+                co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
+                self->_updateNoItemsVisibility();  
+            }
+        });
     }
 
     void StreamingSuggestions::SearchBox_TextChanged(Windows::Foundation::IInspectable const&, Windows::UI::Xaml::Controls::TextChangedEventArgs const&)
     {
-        {
-            const std::wstring searchTerm{ SearchBox().Text() };
-            std::lock_guard lock(_searchTermMutex);
-            _currentSearchTerm = searchTerm;
-        }
+        //{
+        //    const std::wstring searchTerm{ SearchBox().Text() };
+        //    std::lock_guard lock(_searchTermMutex);
+        //    _currentSearchTerm = searchTerm;
+        //}
 
-        _triggerSearch();
+        //if (Visibility() == Visibility::Visible)
+        //{
+        //    _triggerSearch();
+        //}
     }
     
     void StreamingSuggestions::FocusSearchBox()
     {
-        SearchBox().Focus(Windows::UI::Xaml::FocusState::Keyboard);
+        //SearchBox().Focus(Windows::UI::Xaml::FocusState::Keyboard);
     }
 
     void StreamingSuggestions::UserControl_KeyUp(const IInspectable& /*sender*/, const Windows::UI::Xaml::Input::KeyRoutedEventArgs& /*e*/)
@@ -131,8 +167,9 @@ namespace winrt::TerminalApp::implementation
         if (e.Key() == Windows::System::VirtualKey::Escape)
         {
             _filteredActions.Clear();
+            _updateNoItemsVisibility();
             _termControl.PreviewInput(L"");
-            SearchBox().Text(L"");
+            //SearchBox().Text(L"");
             Visibility(Windows::UI::Xaml::Visibility::Collapsed);
             e.Handled(true);
         }
@@ -231,10 +268,16 @@ namespace winrt::TerminalApp::implementation
             if (version == _searchVersion)
             {
                 _filteredActions.ReplaceAll(allItems);
+                _allItemsSearched = true;
+                _updateNoItemsVisibility();
                 if (!allItems.empty() && TestListView().SelectedIndex() == -1)
                 {
                     TestListView().SelectedIndex(0);
                 }
+
+                Visibility(Visibility::Visible);
+                //FocusSearchBox();
+                //_recalculateTopMargin();
             }
             
             co_return;
@@ -350,10 +393,16 @@ namespace winrt::TerminalApp::implementation
                     scoredItem.item.EndPos);
                 _filteredActions.Append(highlight);
             }
+            _allItemsSearched = true;
+            _updateNoItemsVisibility();
             if (!scoredItems.empty() && TestListView().SelectedIndex() == -1)
             {
                 TestListView().SelectedIndex(0);
             }
+
+            Visibility(Visibility::Visible);
+            FocusSearchBox();
+            //_recalculateTopMargin();
         //}
         
         co_return;
@@ -381,7 +430,8 @@ namespace winrt::TerminalApp::implementation
                 
                 Visibility(Windows::UI::Xaml::Visibility::Collapsed);
                 _filteredActions.Clear();
-                SearchBox().Text(L"");
+                _updateNoItemsVisibility();
+                //SearchBox().Text(L"");
             }
         }
     }
@@ -394,46 +444,63 @@ namespace winrt::TerminalApp::implementation
 
             if (selectedIndex >= 0 && selectedIndex < static_cast<int32_t>(_filteredActions.Size()))
             {
-                auto highlightVector = winrt::single_threaded_vector<Microsoft::Terminal::Control::SuggestionSearchItem>();
-                const auto selectedItem = _filteredActions.GetAt(selectedIndex);
-                auto suggestionItem = Microsoft::Terminal::Control::SuggestionSearchItem{};
-                suggestionItem.Text = selectedItem.NameText();
-                suggestionItem.Row = selectedItem.DescriptionText();
-                suggestionItem.StartPos = selectedItem.Start();
-                suggestionItem.EndPos = selectedItem.End();
-                highlightVector.Append({ suggestionItem });
-
-                auto scrollOffset = _willCoverSelectedHighlight();
-                
-                _termControl.SetSuggestionHighlights(highlightVector, 0, scrollOffset);
-
-                auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
-                auto previewText = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, selectedItem.NameText()) };
-                _termControl.PreviewInput(previewText);
+                //const auto selectedItem = _filteredActions.GetAt(selectedIndex);
+                //auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
+                //auto previewText = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, selectedItem.NameText()) };
+                //_termControl.PreviewInput(previewText);
             }
         }
     }
 
-    void StreamingSuggestions::_recalculateTopMargin()
+    void StreamingSuggestions::_setDirection(bool openUpward)
     {
+        // Call Measure() on the descriptions backdrop, so that it gets it's new
+        // DesiredSize for this new description text.
+        //
+        // If you forget this, then we _probably_ weren't laid out since
+        // updating that text, and the ActualHeight will be the _last_
+        // description's height.
+        RootGrid().Measure({
+            static_cast<float>(ActualWidth()),
+            static_cast<float>(ActualHeight()),
+        });
+
         auto currentMargin = Margin();
-        
-        // Calculate vertical position - prefer below the text, fallback to top of screen
-        const auto controlHeight = 250;
-        const auto spaceBelow = _space.Height - _anchor.Y;
-        
-        double finalY;
-        if (spaceBelow >= controlHeight)
+        _isOpenedUpward = openUpward;
+
+        if (openUpward)
         {
-            finalY = _anchor.Y + _characterHeight;
+            //Windows::UI::Xaml::Controls::Grid::SetRow(SearchBox(), 2);
+            // Bottom Up.
+
+            // This is wackier, because we need to calculate the offset upwards
+            // from our anchor. So we need to get the size of our elements:
+            const auto backdropHeight = RootGrid().ActualHeight();
+
+            const auto marginTop = (_anchor.Y - backdropHeight);
+
+            currentMargin.Top = marginTop;
         }
         else
         {
-            finalY = 100;
+            //Windows::UI::Xaml::Controls::Grid::SetRow(SearchBox(), 0);
+            currentMargin.Top = (_anchor.Y);
         }
-        
-        currentMargin.Top = finalY;
+
         Margin(currentMargin);
+    }
+
+    void StreamingSuggestions::_recalculateTopMargin()
+    {
+        const auto controlHeight = 250;
+        const auto spaceBelow = _space.Height - _anchor.Y;
+
+        auto openUpward = true;
+        if (spaceBelow >= controlHeight)
+        {
+            openUpward = false;
+        }
+        _setDirection(openUpward);
     }
 
     int32_t StreamingSuggestions::_willCoverSelectedHighlight()
@@ -470,5 +537,12 @@ namespace winrt::TerminalApp::implementation
         }
         int32_t lines = static_cast<int32_t>((controlBottom - highlightTopY) / fontSize + 1);
         return lines;
+    }
+
+    void StreamingSuggestions::_updateNoItemsVisibility()
+    {
+        //const bool hasItems = _filteredActions.Size() > 0;
+        //const bool shouldShowNoItems = !hasItems && _allItemsLoaded && _allItemsSearched;
+        //NoItemsMessage().Visibility(shouldShowNoItems ? Visibility::Visible : Visibility::Collapsed);
     }
 }
