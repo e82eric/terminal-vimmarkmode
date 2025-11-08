@@ -1,0 +1,57 @@
+<UserControl x:Class="Microsoft.Terminal.Control.StreamingSuggestionsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="using:Microsoft.Terminal.Control"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             x:Name="Root"
+             HorizontalAlignment="Left"
+             VerticalAlignment="Stretch"
+             d:DesignHeight="55"
+             d:DesignWidth="285"
+             Opacity="1"
+             TabNavigation="Cycle"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style x:Key="ClearTextBoxStyle" TargetType="TextBox">
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid x:Name="RootGrid"
+        MaxHeight="250"
+        MinWidth="400" >
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" CornerRadius="4" >
+            <ListView x:Name="ListBox" Background="{x:Bind BackgroundColor, Mode=OneWay}" VerticalAlignment="Stretch" DataContext="{x:Bind}">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:FuzzySearchTextLine">
+                        <local:FuzzySearchTextControl
+                            Text="{x:Bind}"
+                            HorizontalAlignment="Left"
+                            TextColor="{Binding DataContext.TextColor, Mode=OneWay, ElementName=ListBox}"
+                            HighlightedTextColor="{Binding DataContext.HighlightedTextColor, Mode=OneWay, ElementName=ListBox}" />
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+                <ListView.Resources>
+                    <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="{x:Bind SelectedItemColor, Mode=OneWay}" />
+                </ListView.Resources>
+            </ListView>
+        </Border>
+
+        <TextBlock
+            Padding="10"
+            x:Name="NoItemsPlaceholder"
+            Text="No items found"
+            Foreground="{x:Bind TextColor, Mode=OneWay}"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Visibility="Collapsed"
+            FontSize="24"
+            Opacity="0.6" />
+    </Grid>
+</UserControl>

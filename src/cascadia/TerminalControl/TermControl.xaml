@@ -1385,6 +1385,13 @@
                     Closed="_CloseAiPromptControl"
                     OnReturn="_OnReturnAiPromptControl"
                     Visibility="Collapsed"/>
+                <local:StreamingSuggestionsControl
+                    x:Name="StreamingSuggestions"
+                                    MaxHeight="250"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Canvas.ZIndex="100"
+                    Visibility="Collapsed"/>
 
 <StackPanel 
     x:Name="VimSearchContainer"

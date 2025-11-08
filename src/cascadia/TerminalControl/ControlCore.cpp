@@ -3492,6 +3492,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return winrt::hstring{ _terminal->CurrentWordPrefix() };
     }
 
+    winrt::hstring ControlCore::GetCurrentLine()
+    {
+        auto lock = _terminal->LockForReading();
+        auto& buffer = _terminal->GetTextBuffer();
+        auto& cursor = buffer.GetCursor();
+        auto rowNumber = cursor.GetPosition().y;
+        auto& row = buffer.GetRowByOffset(rowNumber);
+        return winrt::hstring{ row.GetText() };
+    }
+
     Windows::Foundation::IAsyncAction ControlCore::SuggestionScrollBackSearchAsync(winrt::hstring needle, SuggestionBatchHandler const& onBatch)
     {
         auto batchCb = winrt::make_agile(onBatch);
@@ -3551,11 +3561,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         if (seen.insert(text).second)
                         {
                             auto item = SuggestionSearchItem{
-                                hstring{ L"" },
                                 hstring{ snapshotBuffer->GetPlainText(span.start, span.end) },
-                                ordinal,
-                                Core::Point{ span.start.x, span.start.y },
-                                Core::Point{ span.end.x, span.end.y }
+                                ordinal
                             };
                             items.emplace_back(item);
                             ordinal++;
@@ -3576,47 +3583,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_return;
     }
 
-    void ControlCore::SetSuggestionHighlights(winrt::Windows::Foundation::Collections::IVector<SuggestionSearchItem> items, int32_t focused, int32_t scrollOffset)
-    {
-        auto lock = _terminal->LockForWriting();
-        std::vector<til::point_span> highlights;
-        for (auto i : items)
-        {
-            highlights.emplace_back(til::point_span{ til::point{ i.StartPos.X, i.StartPos.Y }, { i.EndPos.X, i.EndPos.Y } });
-        }
-        auto oldHighlight = _suggestionHighlight;
-        _suggestionHighlight = highlights;
-        _terminal->SetSearchHighlights(_suggestionHighlight);
-        _terminal->SetSearchHighlightFocused(focused);
-        _renderer->TriggerSearchHighlight(oldHighlight);
-        auto viewPort = _terminal->GetViewport();
-        if (scrollOffset == 0)
-        {
-            _terminal->ScrollToSearchHighlight(scrollOffset * -1);
-        }
-        else
-        {
-            UserScrollViewport(GetViewportTop() - scrollOffset);
-        }
-    }
-
     int32_t ControlCore::GetViewportTop()
     {
         auto lock = _terminal->LockForReading();
         return _terminal->GetViewport().Top();
-    }
-
-    void ControlCore::SnapToWindow()
-    {
-        if (!IsInVimMode())
-        {
-            auto lock = _terminal->LockForReading();
-            auto oldHighlight = _suggestionHighlight;
-            _suggestionHighlight = {};
-            _terminal->SetSearchHighlights(_suggestionHighlight);
-            _terminal->SetSearchHighlightFocused(0);
-            _renderer->TriggerSearchHighlight(oldHighlight);
-            _terminal->TrySnapOnInput();
-        }
     }
 }

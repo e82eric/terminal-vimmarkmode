@@ -59,6 +59,9 @@
     <ClInclude Include="FuzzySearchBoxControl.h">
       <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClInclude>
+    <ClInclude Include="StreamingSuggestionsControl.h">
+      <DependentUpon>StreamingSuggestionsControl.xaml</DependentUpon>
+    </ClInclude>
     <ClInclude Include="SnippetSearchControl.h">
       <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
     </ClInclude>
@@ -117,6 +120,9 @@
     <ClCompile Include="FuzzySearchBoxControl.cpp">
       <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClCompile>
+    <ClCompile Include="StreamingSuggestionsControl.cpp">
+      <DependentUpon>StreamingSuggestionsControl.xaml</DependentUpon>
+    </ClCompile>
     <ClCompile Include="SnippetSearchControl.cpp">
       <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
     </ClCompile>
@@ -163,6 +169,9 @@
     <Midl Include="FuzzySearchBoxControl.idl">
       <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </Midl>
+    <Midl Include="StreamingSuggestionsControl.idl">
+      <DependentUpon>StreamingSuggestionsControl.xaml</DependentUpon>
+    </Midl>
     <Midl Include="SnippetSearchControl.idl">
       <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
     </Midl>
@@ -184,6 +193,7 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="FuzzySearchBoxControl.xaml" />
+    <Page Include="StreamingSuggestionsControl.xaml" />
     <Page Include="SnippetSearchControl.xaml" />
     <Page Include="AiPromptControl.xaml" />
     <Page Include="TermControl.xaml">
@@ -202,6 +212,9 @@
     <ProjectReference Include="$(OpenConsoleDir)src\audio\midi\lib\midi.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\buffer\out\lib\bufferout.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\buffer\fzf\fzf.vcxproj" />
+    <ProjectReference Include="$(OpenConsoleDir)fzfcpp\fzfcpp.vcxproj">
+      <Project>{1BB51CFB-F06F-4E8C-95FD-DF0925DABB92}</Project>
+    </ProjectReference>
     <ProjectReference Include="$(OpenConsoleDir)src\cascadia\TerminalCore\lib\TerminalCore-lib.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\renderer\atlas\atlas.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\renderer\base\lib\base.vcxproj" />

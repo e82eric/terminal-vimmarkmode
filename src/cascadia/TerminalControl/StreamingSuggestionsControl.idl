@@ -1,0 +1,30 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+
+import "FuzzySearchTextSegment.idl";
+import "TermControl.idl";
+
+namespace Microsoft.Terminal.Control
+{
+    [default_interface] runtimeclass StreamingSuggestionsControl : Windows.UI.Xaml.Controls.UserControl, Windows.UI.Xaml.Data.INotifyPropertyChanged
+    {
+        StreamingSuggestionsControl();
+        void Open(Microsoft.Terminal.Control.TermControl termControl, String needle, Windows.Foundation.Point anchor, Windows.Foundation.Size space, String currentWord, Single prefixWidth, Int32 cursorX);
+        void SetCurrentWord(String value, Int32 cursorX);
+        Boolean HandleKeyPress(UInt16 vkey, UInt16 scanCode, Microsoft.Terminal.Core.ControlKeyStates modifiers, Boolean keyDown);
+        Windows.UI.Xaml.Media.Brush HeaderTextColor;
+        Windows.UI.Xaml.DependencyProperty HeaderTextColorProperty { get; };
+        Windows.UI.Xaml.Media.Brush BorderColor;
+        Windows.UI.Xaml.DependencyProperty BorderColorProperty { get; };
+        Windows.UI.Xaml.Media.Brush BackgroundColor;
+        Windows.UI.Xaml.DependencyProperty BackgroundColorProperty { get; };
+        Windows.UI.Color SelectedItemColor;
+        Windows.UI.Xaml.DependencyProperty SelectedItemColorProperty { get; };
+        Windows.UI.Xaml.Thickness InnerBorderThickness;
+        Windows.UI.Xaml.DependencyProperty InnerBorderThicknessProperty { get; };
+        Windows.UI.Xaml.Media.Brush TextColor;
+        Windows.UI.Xaml.DependencyProperty TextColorProperty { get; };
+        Windows.UI.Xaml.Media.Brush HighlightedTextColor;
+        Windows.UI.Xaml.DependencyProperty HighlightedTextColorProperty { get; };
+    }
+}

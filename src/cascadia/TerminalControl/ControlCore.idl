@@ -68,19 +68,10 @@ namespace Microsoft.Terminal.Control
         Boolean SearchRegexInvalid;
     };
 
-    struct SuggestionSearchRange
-    {
-        Int32 Start;
-        Int32 End;
-    };
-
     struct SuggestionSearchItem
     {
-        String Row;
         String Text;
         Int32 Ordinal;
-        Microsoft.Terminal.Core.Point StartPos;
-        Microsoft.Terminal.Core.Point EndPos;
     };
 
     runtimeclass SuggestionBatch
@@ -229,6 +220,7 @@ namespace Microsoft.Terminal.Control
         void CommitVimSearch();
 
         String GetCurrentWord();
+        String GetCurrentLine();
         void OpenCWD();
 
         void ClearQuickFix();
@@ -269,8 +261,6 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, StartVimSearchEventArgs> StartVimSearch;
         event Windows.Foundation.TypedEventHandler<Object, ToggleRowNumbersEventArgs> ToggleRowNumbers;
         Windows.Foundation.IAsyncAction SuggestionScrollBackSearchAsync(String needle, SuggestionBatchHandler onBatch);
-        void SnapToWindow();
-        void SetSuggestionHighlights(IVector<SuggestionSearchItem> items, Int32 focusedIndex, Int32 scrollOffset);
         Int32 GetViewportTop();
     };
 }

@@ -37,17 +37,18 @@
 
         <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" CornerRadius="4" Margin="0,0,0,8" Grid.Row="1" Padding="2">
             <ListBox
-                x:Name="ListBox"       
+                x:Name="ListBox"
                 SelectionChanged="_OnListBoxSelectionChanged"
                 Background="{x:Bind BackgroundColor, Mode=OneWay}"
-                VerticalAlignment="Stretch">
+                VerticalAlignment="Stretch"
+                DataContext="{x:Bind}">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="local:FuzzySearchTextLine">
                         <local:FuzzySearchTextControl
                             Text="{x:Bind}"
                             HorizontalAlignment="Stretch"
-                            TextColor="{Binding TextColor, Mode=OneWay, ElementName='Root'}"
-                            HighlightedTextColor="{Binding HighlightedTextColor, Mode=OneWay, ElementName='Root'}" />
+                            TextColor="{Binding DataContext.TextColor, Mode=OneWay, ElementName=ListBox}"
+                            HighlightedTextColor="{Binding DataContext.HighlightedTextColor, Mode=OneWay, ElementName=ListBox}" />
                     </DataTemplate>
                 </ListBox.ItemTemplate>
 

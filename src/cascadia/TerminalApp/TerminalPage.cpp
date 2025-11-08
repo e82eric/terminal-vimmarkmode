@@ -67,17 +67,6 @@ namespace winrt::TerminalApp::implementation
     {
         InitializeComponent();
 
-        StreamingTest().RegisterPropertyChangedCallback(UIElement::VisibilityProperty(), [this](auto&&, auto&&) {
-            if (StreamingTest().Visibility() == Visibility::Collapsed)
-            {
-                _FocusActiveControl(nullptr, nullptr);
-                if (auto focusedControl{ _GetActiveControl() })
-                {
-                    focusedControl.SnapOnInput();
-                }
-            }
-        });
-
         _WindowProperties.PropertyChanged({ get_weak(), &TerminalPage::_windowPropertyChanged });
     }
 

@@ -511,21 +511,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return *term;
     }
 
-    void TermControl::SnapOnInput()
-    {
-        _core.SnapToWindow();
-    }
-
-    void TermControl::SetSuggestionHighlights(winrt::Windows::Foundation::Collections::IVector<SuggestionSearchItem> items, int32_t focused, int32_t scrollOffset)
-    {
-        _core.SetSuggestionHighlights(items, focused, scrollOffset);
-    }
-
-    int32_t TermControl::GetViewportTop()
-    {
-        return _core.GetViewportTop();
-    }
-
     void TermControl::_initializeForAttach(const Microsoft::Terminal::Control::IKeyBindings& keyBindings)
     {
         _AttachDxgiSwapChainToXaml(reinterpret_cast<HANDLE>(_core.SwapChainHandle()));
@@ -1139,6 +1124,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _fuzzySearchBox.InnerBorderThickness(borderThickness);
         _fuzzySearchBox.TextColor(textColor);
         _fuzzySearchBox.HighlightedTextColor(highlightColor);
+
+        StreamingSuggestions().BorderColor(borderColor);
+        StreamingSuggestions().HeaderTextColor(headerTextColor);
+        StreamingSuggestions().BackgroundColor(backgroundColor);
+        StreamingSuggestions().SelectedItemColor(selectionColor.Color());
+        StreamingSuggestions().InnerBorderThickness(borderThickness);
+        StreamingSuggestions().TextColor(textColor);
+        StreamingSuggestions().HighlightedTextColor(highlightColor);
     }
 
     // Method Description:
@@ -1791,6 +1784,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto vkey = gsl::narrow_cast<WORD>(e.OriginalKey());
         const auto scanCode = gsl::narrow_cast<WORD>(keyStatus.ScanCode);
         auto modifiers = _GetPressedModifierKeys();
+
+        if (StreamingSuggestions().Visibility() == Visibility::Visible)
+        {
+            if(StreamingSuggestions().HandleKeyPress(vkey, scanCode, modifiers, keyDown))
+            {
+                e.Handled(true);
+                return;
+            }
+        }
 
         if (keyStatus.IsExtendedKey)
         {
@@ -3512,6 +3514,32 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return std::pow(cursorDistanceFromBorder, 2.0) / 25.0 + 2.0;
     }
 
+    void TermControl::OpenStreamingSuggestions(winrt::hstring needle)
+    {
+        auto cursorPosition = _core.CursorPosition();
+        auto y = cursorPosition.Y;
+        auto x = cursorPosition.X;
+        const auto displayInfo = DisplayInformation::GetForCurrentView();
+        const auto scaleFactor = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
+        const auto xScaleFactor = _core.FontSize().Width / displayInfo.RawPixelsPerViewPixel();
+
+        auto cursorYPixel = y * scaleFactor;
+        auto cursorXPixel = x * xScaleFactor;
+
+        const auto cursorPos{ CursorPositionInDips() };
+        const Windows::Foundation::Size termControlDimensions{
+            gsl::narrow_cast<float>(ActualWidth()),
+            gsl::narrow_cast<float>(ActualHeight())
+        };
+        const auto characterDimensions = CharacterDimensions();
+        const auto characterWidth = characterDimensions.Width;
+
+        auto currentWord = _core.GetCurrentWord();
+        const auto prefixWidth = currentWord.size() * characterWidth;
+
+        StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x);
+    }
+
     // Method Description:
     // - Async handler for the "Drop" event. If a file was dropped onto our
     //   root, we'll try to get the path of the file dropped onto us, and write
@@ -4285,6 +4313,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::_coreOutputIdle(const IInspectable& /*sender*/, const IInspectable& /*args*/)
     {
         _refreshSearch();
+
+        // If StreamingSuggestions is visible, check cursor position
+        if (StreamingSuggestions().Visibility() == Visibility::Visible)
+        {
+            const auto currentWord = _core.GetCurrentLine();
+            const auto cursorPos = _core.CursorPosition();
+            StreamingSuggestions().SetCurrentWord(currentWord, cursorPos.X);
+        }
     }
 
     void TermControl::OwningHwnd(uint64_t owner)
@@ -4351,6 +4387,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     Windows::Foundation::Point TermControl::CursorPositionInDips()
     {
         const auto cursorPos{ _core.CursorPosition() };
+        const auto viewportTop{ _core.GetViewportTop() };
 
         // CharacterDimensions returns a font size in pixels.
         const auto fontSize{ CharacterDimensions() };
@@ -4358,11 +4395,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // Account for the margins, which are in DIPs
         auto padding{ GetPadding() };
 
-        // Convert text buffer cursor position to client coordinate position
+        // Convert text buffer cursor position to viewport-relative client coordinate position
         // within the window. This point is in _pixels_
         return {
             cursorPos.X * fontSize.Width + static_cast<float>(padding.Left),
-            cursorPos.Y * fontSize.Height + static_cast<float>(padding.Top),
+            (cursorPos.Y - viewportTop) * fontSize.Height + static_cast<float>(padding.Top),
         };
     }
 

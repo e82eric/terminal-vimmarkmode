@@ -508,6 +508,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void ExitVimSearch();
         void CommitVimSearch();
         winrt::hstring GetCurrentWord();
+        winrt::hstring GetCurrentLine();
 
         TYPED_EVENT(StartVimSearch, IInspectable, Control::StartVimSearchEventArgs);
         TYPED_EVENT(ShowFuzzySearch, IInspectable, Control::ShowFuzzySearchEventArgs);
@@ -523,8 +524,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     public:
         Windows::Foundation::IAsyncAction SuggestionScrollBackSearchAsync( winrt::hstring needle, SuggestionBatchHandler const& onBatch);
-        void SnapToWindow();
-        void SetSuggestionHighlights(winrt::Windows::Foundation::Collections::IVector<SuggestionSearchItem> items, int32_t focused, int32_t scrollOffset);
         int32_t GetViewportTop();
     };
 }
