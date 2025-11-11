@@ -728,10 +728,30 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void TermControl::StartSnippetSearch(Windows::Foundation::Collections::IVector<hstring> snippets)
+    void TermControl::StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets)
     {
-        SnippetSearch().Visibility(Visibility::Visible);
-        SnippetSearch().Show(snippets);
+        auto cursorPosition = _core.CursorPosition();
+        auto y = cursorPosition.Y;
+        auto x = cursorPosition.X;
+        const auto displayInfo = DisplayInformation::GetForCurrentView();
+        const auto scaleFactor = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
+        const auto xScaleFactor = _core.FontSize().Width / displayInfo.RawPixelsPerViewPixel();
+
+        auto cursorYPixel = y * scaleFactor;
+        auto cursorXPixel = x * xScaleFactor;
+
+        const auto cursorPos{ CursorPositionInDips() };
+        const Windows::Foundation::Size termControlDimensions{
+            gsl::narrow_cast<float>(ActualWidth()),
+            gsl::narrow_cast<float>(ActualHeight())
+        };
+        const auto characterDimensions = CharacterDimensions();
+        const auto characterWidth = characterDimensions.Width;
+
+        auto currentWord = _core.GetCurrentWord();
+        const auto prefixWidth = currentWord.size() * characterWidth;
+
+        SnippetSearch().Show(snippets, *this, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x);
     }
 
     void TermControl::StartAiPrompt()
@@ -1788,6 +1808,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (StreamingSuggestions().Visibility() == Visibility::Visible)
         {
             if(StreamingSuggestions().HandleKeyPress(vkey, scanCode, modifiers, keyDown))
+            {
+                e.Handled(true);
+                return;
+            }
+        }
+
+        if (SnippetSearch().Visibility() == Visibility::Visible)
+        {
+            if(SnippetSearch().HandleKeyPress(vkey, scanCode, modifiers, keyDown))
             {
                 e.Handled(true);
                 return;
@@ -4314,12 +4343,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _refreshSearch();
 
-        // If StreamingSuggestions is visible, check cursor position
         if (StreamingSuggestions().Visibility() == Visibility::Visible)
         {
             const auto currentWord = _core.GetCurrentLine();
             const auto cursorPos = _core.CursorPosition();
             StreamingSuggestions().SetCurrentWord(currentWord, cursorPos.X);
+        }
+        if (SnippetSearch().Visibility() == Visibility::Visible)
+        {
+            const auto currentWord = _core.GetCurrentLine();
+            const auto cursorPos = _core.CursorPosition();
+            SnippetSearch().SetCurrentWord(currentWord, cursorPos.X);
         }
     }
 

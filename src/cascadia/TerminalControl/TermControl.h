@@ -150,7 +150,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Windows::Foundation::Collections::IVector<SuggestionSearchItem> SuggestionScrollBackSearch(hstring const& needle);
         void CreateSearchBoxControl();
         void CreateFuzzySearchBoxControl(std::wstring_view searchString) const;
-        void StartSnippetSearch(Windows::Foundation::Collections::IVector<hstring> snippets);
+        void StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets);
         void StartAiPrompt();
         void OpenStreamingSuggestions(winrt::hstring needle);
 

@@ -47,8 +47,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         double ResultFontSize();
         void ResultFontSize(double const& value);
 
-        void Show(Windows::Foundation::Collections::IVector<hstring> snippets);
+        void Show(
+            Windows::Foundation::Collections::IVector<Control::SnippetSearchItem> snippets,
+            Microsoft::Terminal::Control::TermControl const& termControl,
+            Windows::Foundation::Point anchor,
+            Windows::Foundation::Size space,
+            winrt::hstring currentWord,
+            float prefixWidth,
+            int32_t cursorX);
+        bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
+        void SetCurrentWord(const winrt::hstring& value, int32_t cursorX);
+
         bool ContainsFocus();
+        void _recalculateTopMargin();
+        void _setDirection(bool openUpward);
 
         void _TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);
         void _TextBoxKeyDown(const winrt::Windows::Foundation::IInspectable& /*sender*/, const winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs& e);
@@ -56,18 +68,30 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         TYPED_EVENT(OnReturn, Control::SnippetSearchControl, hstring);
 
         private:
+        winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
+        int32_t _cursorX;
+        hstring _currentWord;
+        Microsoft::Terminal::Control::TermControl _termControl{ nullptr };
+        float _prefixWidth;
+        Windows::Foundation::Point _anchor;
+        Windows::Foundation::Size _space;
+
         struct SnippetSearchResultRow
         {
             std::vector<int32_t> positions;
             hstring input;
+            hstring description;
         };
 
-        void _appendItem(SnippetSearchResultRow& fuzzyMatch);
         void _selectFirstItem();
         void _populateForEmptySearch();
+        void _appendItem(Windows::Foundation::Collections::IObservableVector<Control::FuzzySearchTextSegment> segments,
+                         Windows::Foundation::Collections::IObservableVector<Control::FuzzySearchTextSegment> descriptionSegments,
+                         const hstring& input);
+        void _performFuzzySearch();
         void _close();
         std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
-        Windows::Foundation::Collections::IVector<hstring> _snippets;
+        std::vector<SnippetSearchItem> _snippets;
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;

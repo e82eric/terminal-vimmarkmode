@@ -1658,12 +1658,28 @@ namespace winrt::TerminalApp::implementation
         // their settings file. Ask the ActionMap for those.
         if (WI_IsFlagSet(source, SuggestionsSource::Tasks))
         {
-            const auto tasks = co_await _settings.GlobalSettings().ActionMap().FilterToSnippets(filter, currentWorkingDirectory);
-            // ----- we may be on a background thread here -----
-            for (const auto& t : tasks)
+            if (const auto termControl{ _GetActiveControl() })
             {
-                commandsCollection.push_back(t);
+                const auto toSearch = winrt::single_threaded_observable_vector<SnippetSearchItem>();
+                const auto snippets = co_await _settings.GlobalSettings().ActionMap().FilterToSnippets(winrt::hstring{}, winrt::hstring{});
+                for (const auto& task : snippets)
+                {
+                    auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
+                    auto input = sendInputArgs.Input();
+
+                    auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
+                    toSearch.Append(searchItem);
+                }
+                termControl.StartSnippetSearch(toSearch);
             }
+            co_return;
+
+            //const auto tasks = co_await _settings.GlobalSettings().ActionMap().FilterToSnippets(filter, currentWorkingDirectory);
+            //// ----- we may be on a background thread here -----
+            //for (const auto& t : tasks)
+            //{
+            //    commandsCollection.push_back(t);
+            //}
         }
 
         // Command History comes from the commands in the buffer,
@@ -1766,25 +1782,28 @@ namespace winrt::TerminalApp::implementation
     }
 
 
-    winrt::fire_and_forget TerminalPage::_doSearchSnippets(const IInspectable& sender, ActionEventArgs realArgs)
+    winrt::fire_and_forget TerminalPage::_doSearchSnippets(const IInspectable& sender, ActionEventArgs /*realArgs*/)
     {
         if (const auto activeTab{ _senderOrFocusedTab(sender) })
         {
             _SetFocusedTab(*activeTab);
             if (const auto& control{ activeTab->GetActiveTerminalControl() })
             {
-                const auto toSearch = winrt::single_threaded_observable_vector<hstring>();
-                const auto snippets = co_await _settings.GlobalSettings().ActionMap().FilterToSnippets(winrt::hstring{}, winrt::hstring{});
-                for (const auto& task : snippets)
-                {
-                    auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
-                    auto input = sendInputArgs.Input();
-                    toSearch.Append(input);
-                }
+                //const auto toSearch = winrt::single_threaded_observable_vector<SnippetSearchItem>();
+                //const auto snippets = co_await _settings.GlobalSettings().ActionMap().FilterToSnippets(winrt::hstring{}, winrt::hstring{});
+                //for (const auto& task : snippets)
+                //{
+                //    auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
+                //    auto input = sendInputArgs.Input();
+
+                //    auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
+                //    toSearch.Append(searchItem);
+                //}
                 control.StartAiPrompt();
                 //control.StartSnippetSearch(toSearch);
             }
         }
+        co_return;
     }
 
     void TerminalPage::_HandleOpenScratchpad(const IInspectable& sender,

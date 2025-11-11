@@ -3562,7 +3562,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         {
                             auto item = SuggestionSearchItem{
                                 hstring{ snapshotBuffer->GetPlainText(span.start, span.end) },
-                                ordinal
+                                ordinal,
+                                span.start.to_core_point(),
+                                span.end.to_core_point()
                             };
                             items.emplace_back(item);
                             ordinal++;

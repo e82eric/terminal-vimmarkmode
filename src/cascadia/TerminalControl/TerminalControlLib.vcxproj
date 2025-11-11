@@ -175,6 +175,7 @@
     <Midl Include="SnippetSearchControl.idl">
       <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
     </Midl>
+    <Midl Include="SnippetSearchTypes.idl" />
     <Midl Include="XamlLights.idl" />
     <Midl Include="AiPromptControl.idl">
       <DependentUpon>AiPromptControl.xaml</DependentUpon>

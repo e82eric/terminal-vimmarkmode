@@ -4,14 +4,17 @@
 import "ICoreState.idl";
 import "IControlSettings.idl";
 import "FuzzySearchTextSegment.idl";
+import "SnippetSearchTypes.idl";
+import "TermControl.idl";
 
 namespace Microsoft.Terminal.Control
 {
-
     [default_interface] runtimeclass SnippetSearchControl : Windows.UI.Xaml.Controls.UserControl,Windows.UI.Xaml.Data.INotifyPropertyChanged
     {
         SnippetSearchControl();
-        void Show(IVector<String> snippets);
+        void Show(IVector<SnippetSearchItem> snippets, Microsoft.Terminal.Control.TermControl termControl, Windows.Foundation.Point anchor, Windows.Foundation.Size space, String currentWord, Single prefixWidth, Int32 cursorX);
+        void SetCurrentWord(String value, Int32 cursorX);
+        Boolean HandleKeyPress(UInt16 vkey, UInt16 scanCode, Microsoft.Terminal.Core.ControlKeyStates modifiers, Boolean keyDown);
         Boolean ContainsFocus();
         event Windows.Foundation.TypedEventHandler<SnippetSearchControl, Windows.UI.Xaml.RoutedEventArgs> Closed;
         event Windows.Foundation.TypedEventHandler<SnippetSearchControl, String> OnReturn;

@@ -56,6 +56,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
 
         private:
+            enum StreamingSuggestionsMode
+            {
+                Normal,
+                WordSplit
+            };
+
+            StreamingSuggestionsMode _mode = StreamingSuggestionsMode::Normal;
             int32_t _cursorX;
             void _selectFirstItem();
             void _close();
@@ -85,7 +92,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
         void _triggerSearch();
             winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version);
-            void _recalculateTopMargin();
+        void _enterWordSplitMode();
+        void _recalculateTopMargin();
             void _setDirection(bool openUpward);
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;

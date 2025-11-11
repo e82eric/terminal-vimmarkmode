@@ -8,6 +8,7 @@ import "EventArgs.idl";
 import "ICoreState.idl";
 import "ControlCore.idl";
 import "FuzzySearchTextSegment.idl";
+import "SnippetSearchTypes.idl";
 
 namespace Microsoft.Terminal.Control
 {
@@ -117,7 +118,7 @@ namespace Microsoft.Terminal.Control
         IVector<SuggestionSearchItem> SuggestionScrollBackSearch(String needle);
         void CreateSearchBoxControl();
         void CreateFuzzySearchBoxControl(String searchString);
-        void StartSnippetSearch(IVector<String> snippets);
+        void StartSnippetSearch(IVector<SnippetSearchItem> snippets);
         void StartAiPrompt();
         Boolean SearchBoxEditInFocus();
 

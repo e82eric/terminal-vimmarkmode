@@ -5,6 +5,7 @@
 #include "SnippetSearchControl.h"
 #include "SnippetSearchControl.g.cpp"
 #include "FuzzySearchTextSegment.h"
+#include "../fzfcpp/fzf.h"
 
 using namespace winrt::Windows::UI::Xaml::Media;
 
@@ -225,46 +226,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     SnippetSearchControl::SnippetSearchControl()
     {
         InitializeComponent();
-        _focusableElements.insert(FuzzySearchTextBox());
-
-        FuzzySearchTextBox().KeyUp([this](const IInspectable& sender, Input::KeyRoutedEventArgs const& e) {
-            auto textBox{ sender.try_as<Controls::TextBox>() };
-
-            if (e.OriginalKey() == winrt::Windows::System::VirtualKey::Enter)
+        _sizeChangedRevoker = ListBox().SizeChanged(winrt::auto_revoke, [this](auto /*s*/, auto /*e*/) {
+            if (Visibility() == Visibility::Visible)
             {
-                if (const auto selectedItem = ListBox().SelectedItem())
-                {
-                    if (const auto listBoxItem = selectedItem.try_as<Controls::ListBoxItem>())
-                    {
-                        if (const auto fuzzyMatch = listBoxItem.DataContext().try_as<hstring>())
-                        {
-                            _close();
-                            _OnReturnHandlers(*this, fuzzyMatch.value());
-                            e.Handled(true);
-                        }
-                    }
-                }
-            }
-            else if (e.OriginalKey() == winrt::Windows::System::VirtualKey::Down || e.OriginalKey() == winrt::Windows::System::VirtualKey::Up)
-            {
-                auto selectedIndex = ListBox().SelectedIndex();
-
-                if (e.OriginalKey() == winrt::Windows::System::VirtualKey::Down)
-                {
-                    selectedIndex++;
-                }
-                else if (e.OriginalKey() == winrt::Windows::System::VirtualKey::Up)
-                {
-                    selectedIndex--;
-                }
-
-                if (selectedIndex >= 0 && selectedIndex < static_cast<int32_t>(ListBox().Items().Size()))
-                {
-                    ListBox().SelectedIndex(selectedIndex);
-                    ListBox().ScrollIntoView(ListBox().SelectedItem());
-                }
-
-                e.Handled(true);
+                this->_recalculateTopMargin();
             }
         });
     }
@@ -280,118 +245,172 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void SnippetSearchControl::_populateForEmptySearch()
     {
         ListBox().Items().Clear();
-        for (const auto input : _snippets)
+        for (const auto& snippet : _snippets)
         {
-            auto row = SnippetSearchResultRow{
-                {},
-                input
-            };
-            _appendItem(row);
+            auto runs = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
+            auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(snippet.EscapedInput, false);
+            runs.Append(textSegment);
+
+            auto descriptionRuns = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
+            auto descriptionTextSegment = winrt::make<implementation::FuzzySearchTextSegment>(snippet.Description, false);
+            descriptionRuns.Append(descriptionTextSegment);
+
+            _appendItem( runs, descriptionRuns, snippet.EscapedInput);
         }
         ListBox().SelectedIndex(0);
     }
 
-    void SnippetSearchControl::_TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
+    void SnippetSearchControl::_appendItem(
+        Windows::Foundation::Collections::IObservableVector<Control::FuzzySearchTextSegment> segments,
+        Windows::Foundation::Collections::IObservableVector<Control::FuzzySearchTextSegment> descriptionSegments,
+        const hstring& input)
     {
-        if (FuzzySearchTextBox().Text().empty())
+        const auto descriptionLine = winrt::make<FuzzySearchTextLine>(descriptionSegments, 0, 0);
+        const auto inputLine = winrt::make<FuzzySearchTextLine>(segments, 0, 0);
+
+        const auto container = Controls::StackPanel{};
+        container.Orientation(Controls::Orientation::Vertical);
+        container.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Stretch);
+
+        const auto descriptionControl = Control::FuzzySearchTextControl{};
+        descriptionControl.TextColor(TextColor());
+        descriptionControl.HighlightedTextColor(HighlightedTextColor());
+        descriptionControl.FontWeight(Windows::UI::Text::FontWeights::Bold());
+        descriptionControl.FontSize(FontSize() + 1);
+        descriptionControl.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Stretch);
+        descriptionControl.Text(descriptionLine);
+        container.Children().Append(descriptionControl);
+
+        const auto inputControl = Control::FuzzySearchTextControl{};
+        inputControl.TextColor(TextColor());
+        inputControl.HighlightedTextColor(HighlightedTextColor());
+        inputControl.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Stretch);
+        inputControl.Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(0, 4, 0, 0));
+        inputControl.Text(inputLine);
+        container.Children().Append(inputControl);
+
+        auto lbi = Controls::ListBoxItem();
+        lbi.DataContext(box_value(input));
+        lbi.Content(container);
+        ListBox().Items().Append(lbi);
+    }
+
+    void SnippetSearchControl::_performFuzzySearch()
+    {
+        if (_currentWord.empty())
         {
             _populateForEmptySearch();
             return;
         }
 
-        struct RowResult
+        struct ScoredItem
         {
-            UText *text;
-            int score;
-            long long length;
-            hstring input;
+            SnippetSearchItem item;
+            int32_t score;
+            std::optional<std::vector<fzfcpp::matcher::TextRun>> runs;
+            std::optional<std::vector<fzfcpp::matcher::TextRun>> descriptionRuns;
         };
 
-        auto searchResults = std::vector<SnippetSearchResultRow>();
-        const UChar* uPattern = reinterpret_cast<const UChar*>(FuzzySearchTextBox().Text().data());
-        ufzf_pattern_t* fzfPattern = ufzf_parse_pattern(CaseSmart, false, uPattern, true);
-        auto rowResults = std::vector<RowResult>();
-        int minScore = 1;
-        constexpr int32_t maxResults = 100;
-
-        for (auto input : _snippets)
+        std::vector<ScoredItem> scoredItems;
+        auto pattern = fzfcpp::matcher::ParsePatternWithTypes(_currentWord);
+        for (auto item : _snippets)
         {
-            if (input.size() > 0)
+            auto text = item.EscapedInput;
+            auto description = item.Description;
+            auto textMatchResult = fzfcpp::matcher::Match(text, pattern);
+            auto descriptionMatchResult = fzfcpp::matcher::Match(description, pattern);
+
+            if (textMatchResult || descriptionMatchResult)
             {
-                const UChar* uInput = reinterpret_cast<const UChar*>(input.c_str());
-                UErrorCode status = U_ZERO_ERROR;
-                auto utInput = utext_openUChars(nullptr, uInput, input.size(), &status);
-                int icuRowScore = ufzf_get_score(utInput, fzfPattern, _fzfSlab);
-                if (icuRowScore >= minScore)
+                auto descriptionRuns = std::vector<fzfcpp::matcher::TextRun>{};
+                auto descriptionScore = 0;
+                auto textRuns = std::vector<fzfcpp::matcher::TextRun>{};
+                auto textScore = 0;
+
+                if (descriptionMatchResult.has_value())
                 {
-                    auto rowResult = RowResult{};
-                    //I think this is small enough to copy
-                    rowResult.text = utInput;
-                    rowResult.score = icuRowScore;
-                    rowResult.length = input.size();
-                    rowResult.input = input;
-                    rowResults.push_back(rowResult);
+                    descriptionRuns = descriptionMatchResult.value().Runs;
+                    descriptionScore = descriptionMatchResult.value().Score;
                 }
-                else
+                if (textMatchResult.has_value())
                 {
-                    utext_close(utInput);
+                    textRuns = textMatchResult.value().Runs;
+                    textScore = textMatchResult.value().Score;
                 }
+
+                auto score = std::max(textScore, descriptionScore);
+                scoredItems.push_back(ScoredItem { item, score, textRuns, descriptionRuns });
             }
         }
 
-        //sort so the highest scores and shortest lengths are first
-        std::ranges::sort(rowResults, [](const auto& a, const auto& b) {
-            if (a.score != b.score)
-            {
-                return a.score > b.score;
-            }
-            return a.length < b.length;
-        });
-
-        for (size_t rank = 0; rank < rowResults.size(); rank++)
-        {
-            const auto rowResult = rowResults[rank];
-            if (rank <= maxResults)
-            {
-                fzf_position_t* fzfPositions = ufzf_get_positions(rowResult.text, fzfPattern, _fzfSlab);
-
-                //This is likely the result of an inverse search that didn't have any positions
-                //We want to return it in the results.  It just won't have any highlights
-                if (!fzfPositions || fzfPositions->size == 0)
-                {
-                    searchResults.emplace_back(SnippetSearchResultRow{  {}, rowResult.input });
-                    fzf_free_positions(fzfPositions);
-                }
-                else
-                {
-                    std::vector<int32_t> vec;
-                    vec.reserve(fzfPositions->size);
-
-                    for (size_t i = 0; i < fzfPositions->size; ++i)
-                    {
-                        vec.push_back(static_cast<int32_t>(fzfPositions->data[i]));
-                    }
-
-                    searchResults.emplace_back(SnippetSearchResultRow{  vec, rowResult.input });
-                    fzf_free_positions(fzfPositions);
-                }
-            }
-        }
-
-        for (const auto rowResult : rowResults)
-        {
-            utext_close(rowResult.text);
-        }
-
-        ufzf_free_pattern(fzfPattern);
+        std::ranges::sort(scoredItems, std::greater<>{}, &ScoredItem::score);
 
         ListBox().Items().Clear();
-        for (auto fuzzyMatch : searchResults)
+        for (const auto& scoredItem : scoredItems)
         {
-            _appendItem(fuzzyMatch);
+            auto segments = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
+            auto descriptionSegments = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
+            if (scoredItem.runs)
+            {
+                size_t cursor = 0;
+                for (auto run : scoredItem.runs.value())
+                {
+                    if (cursor < run.Start)
+                    {
+                        const hstring nonMatch{ til::safe_slice_abs(scoredItem.item.EscapedInput, cursor, run.Start) };
+                        auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(nonMatch, false);
+                        segments.Append(textSegment);
+                    }
+                    const hstring matchSeg{ til::safe_slice_abs(scoredItem.item.EscapedInput, run.Start, run.End + 1) };
+                    auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(matchSeg, true);
+                    segments.Append(textSegment);
+                    cursor = run.End + 1;
+                }
+
+                if (cursor < scoredItem.item.EscapedInput.size())
+                {
+                    const hstring matchSeg{ til::safe_slice_abs(scoredItem.item.EscapedInput, cursor, scoredItem.item.EscapedInput.size()) };
+                    auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(matchSeg, false);
+                    segments.Append(textSegment);
+                }
+
+                cursor = 0;
+                for (auto run : scoredItem.descriptionRuns.value())
+                {
+                    if (cursor < run.Start)
+                    {
+                        const hstring nonMatch{ til::safe_slice_abs(scoredItem.item.Description, cursor, run.Start) };
+                        auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(nonMatch, false);
+                        segments.Append(textSegment);
+                    }
+                    const hstring matchSeg{ til::safe_slice_abs(scoredItem.item.Description, run.Start, run.End + 1) };
+                    auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(matchSeg, true);
+                    descriptionSegments.Append(textSegment);
+                    cursor = run.End + 1;
+                }
+
+                if (cursor < scoredItem.item.Description.size())
+                {
+                    const hstring matchSeg{ til::safe_slice_abs(scoredItem.item.Description, cursor, scoredItem.item.Description.size()) };
+                    auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(matchSeg, false);
+                    descriptionSegments.Append(textSegment);
+                }
+
+                auto input = scoredItem.item.EscapedInput;
+                _appendItem(segments, descriptionSegments, input);
+            }
         }
 
-        ListBox().SelectedIndex(0);
+        if (!scoredItems.empty() && ListBox().SelectedIndex() == -1)
+        {
+            ListBox().SelectedIndex(0);
+        }
+
+        NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
+    }
+
+    void SnippetSearchControl::_TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
+    {
     }
 
     void SnippetSearchControl::_close()
@@ -424,103 +443,132 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void SnippetSearchControl::_appendItem(SnippetSearchResultRow& fuzzyMatch)
+    void SnippetSearchControl::Show(
+            Windows::Foundation::Collections::IVector<Control::SnippetSearchItem> snippets,
+            Microsoft::Terminal::Control::TermControl const& termControl,
+            Windows::Foundation::Point anchor,
+            Windows::Foundation::Size space,
+            winrt::hstring currentWord,
+            float prefixWidth,
+            int32_t cursorX)
     {
-        //sort the positions descending so that it is easier to create text segments from them
-        std::ranges::sort(fuzzyMatch.positions, [](int32_t a, int32_t b) {
-            return a < b;
-        });
+        _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
+        _currentWord = currentWord;
+        _termControl = termControl;
+        _anchor = anchor;
+        _space = space;
+        _prefixWidth = prefixWidth;
 
-        ////Covert row text to text runs
-        const auto runs = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
-        std::wstring currentRun;
-        bool isCurrentRunHighlighted = false;
-        size_t highlightIndex = 0;
+        const auto proposedX = gsl::narrow_cast<int>(anchor.X - prefixWidth);
+        const auto maxX = gsl::narrow_cast<int>(space.Width - ActualWidth());
+        const auto clampedX = std::clamp(proposedX, 0, maxX);
+        Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(clampedX, 0, 0, 0));
 
-        for (auto i = 0; i < static_cast<int32_t>(fuzzyMatch.input.size()); ++i)
+        _snippets.clear();
+
+        const auto size = snippets.Size();
+        _snippets.reserve(size);
+        for (uint32_t i = 0; i < size; i++)
         {
-            if (highlightIndex < fuzzyMatch.positions.size() && i == fuzzyMatch.positions[highlightIndex])
-            {
-                if (!isCurrentRunHighlighted)
-                {
-                    if (!currentRun.empty())
-                    {
-                        auto textSegmentHString = hstring(currentRun);
-                        auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, false);
-                        runs.Append(textSegment);
-                        currentRun.clear();
-                    }
-                    isCurrentRunHighlighted = true;
-                }
-                highlightIndex++;
-            }
-            else
-            {
-                if (isCurrentRunHighlighted)
-                {
-                    if (!currentRun.empty())
-                    {
-                        hstring textSegmentHString = hstring(currentRun);
-                        auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, true);
-                        runs.Append(textSegment);
-                        currentRun.clear();
-                    }
-                    isCurrentRunHighlighted = false;
-                }
-            }
-            currentRun += fuzzyMatch.input[i];
+            const auto item = snippets.GetAt(i);
+            _snippets.push_back({ item.Input, item.Description, item.EscapedInput });
         }
 
-        if (!currentRun.empty())
-        {
-            auto textSegmentHString = hstring(currentRun);
-            const auto textSegment = winrt::make<FuzzySearchTextSegment>(textSegmentHString, isCurrentRunHighlighted);
-            runs.Append(textSegment);
-        }
-
-        const auto line = winrt::make<FuzzySearchTextLine>(runs, 0, 0);
-
-        const auto control = Controls::TextBlock{};
-        control.TextWrapping(TextWrapping::Wrap);
-        const auto inlinesCollection = control.Inlines();
-        inlinesCollection.Clear();
-
-        for (const auto& match : line.Segments())
-        {
-            const auto matchText = match.TextSegment();
-            const auto fontWeight = match.IsHighlighted() ? Windows::UI::Text::FontWeights::Bold() : Windows::UI::Text::FontWeights::Normal();
-
-            Documents::Run run;
-
-            if (match.IsHighlighted())
-            {
-                run.Foreground(HighlightedTextColor());
-            }
-            else
-            {
-                run.Foreground(TextColor());
-            }
-
-            run.Text(matchText);
-            run.FontWeight(fontWeight);
-            run.FontSize(ResultFontSize());
-            inlinesCollection.Append(run);
-        }
-        const auto lbi = Controls::ListBoxItem();
-        lbi.DataContext(box_value(fuzzyMatch.input));
-        lbi.Content(control);
-        ListBox().Items().Append(lbi);
+        _performFuzzySearch();
+        Visibility(Visibility::Visible);
+        _recalculateTopMargin();
     }
 
-    void SnippetSearchControl::Show(Windows::Foundation::Collections::IVector<hstring> snippets)
+    bool SnippetSearchControl::HandleKeyPress(WORD vkey, WORD /*scanCode*/, Core::ControlKeyStates modifiers, bool keyDown)
     {
-        FuzzySearchTextBox().Text(L"");
-        _snippets = snippets;
-        if (FuzzySearchTextBox())
+        const auto itemCount = ListBox().Items().Size();
+        if (itemCount == 0)
         {
-            Input::FocusManager::TryFocusAsync(FuzzySearchTextBox(), FocusState::Keyboard);
+            return false;
         }
-        _populateForEmptySearch();
+
+        switch (vkey)
+        {
+        case VK_UP:
+        {
+
+            if (keyDown)
+            {
+                const auto currentIndex = ListBox().SelectedIndex();
+                if (currentIndex > 0)
+                {
+                    ListBox().SelectedIndex(currentIndex - 1);
+                    ListBox().ScrollIntoView(ListBox().SelectedItem());
+                }
+            }
+            return true;
+        }
+        case VK_DOWN:
+        {
+            if (keyDown)
+            {
+                const auto currentIndex = ListBox().SelectedIndex();
+                if (currentIndex < static_cast<int32_t>(itemCount) - 1)
+                {
+                    ListBox().SelectedIndex(currentIndex + 1);
+                    ListBox().ScrollIntoView(ListBox().SelectedItem());
+                }
+            }
+            return true;
+        }
+        case VK_ESCAPE:
+        {
+            _close();
+            return true;
+        }
+        case VK_TAB:
+        case VK_RETURN:
+        {
+            auto selectedItem = ListBox().SelectedItem();
+            if (selectedItem)
+            {
+                auto castedItem = selectedItem.try_as<Controls::ListBoxItem>();
+                if (castedItem)
+                {
+                    auto input = castedItem.DataContext().try_as<hstring>();
+                    if (input)
+                    {
+                        auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
+
+                        auto text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, std::wstring_view{ input->c_str() }) };
+
+                        const auto shiftPressed = WI_IsFlagSet(modifiers.Value, SHIFT_PRESSED);
+                        if (shiftPressed)
+                        {
+                            _termControl.SendInput(backspaces);
+                        }
+                        else
+                        {
+                            _termControl.SendInput(text);
+                        }
+                    }
+                }
+            }
+
+            _close();
+            return true;
+        }
+        default:
+            return false;
+        }
+    }
+
+    void SnippetSearchControl::SetCurrentWord(const winrt::hstring& value, int32_t cursorX)
+    {
+        if (cursorX < _cursorX)
+        {
+            _close();
+            return;
+        }
+
+        auto betweenCursors = til::safe_slice_abs(value, _cursorX, cursorX);
+        _currentWord = betweenCursors;
+        _performFuzzySearch();
     }
 
     bool SnippetSearchControl::ContainsFocus()
@@ -532,6 +580,48 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         return false;
+    }
+
+    void SnippetSearchControl::_recalculateTopMargin()
+    {
+        const auto controlHeight = 500;
+        const auto spaceBelow = _space.Height - _anchor.Y;
+
+        auto openUpward = true;
+        if (spaceBelow >= controlHeight)
+        {
+            openUpward = false;
+        }
+        _setDirection(openUpward);
+    }
+
+    void SnippetSearchControl::_setDirection(bool openUpward)
+    {
+        RootGrid().Measure({
+            static_cast<float>(ActualWidth()),
+            static_cast<float>(ActualHeight()),
+        });
+
+        auto currentMargin = Margin();
+
+        const auto controlWidth = ActualWidth();
+        const auto controlHeight = ActualHeight();
+
+        const auto proposedX = gsl::narrow_cast<int>(_anchor.X - _prefixWidth - 5.0f);
+        const auto maxX = gsl::narrow_cast<int>(_space.Width - controlWidth);
+        const auto clampedX = std::clamp(proposedX, 0, maxX);
+        currentMargin.Left = clampedX;
+
+        if (openUpward)
+        {
+            const auto marginTop = (_anchor.Y - controlHeight);
+            currentMargin.Top = marginTop;
+        }
+        else
+        {
+            currentMargin.Top = (_anchor.Y + 20);
+        }
+        Margin(currentMargin);
     }
 
     SnippetSearchControl::~SnippetSearchControl()

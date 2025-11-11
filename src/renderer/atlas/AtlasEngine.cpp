@@ -595,7 +595,7 @@ try
     RETURN_IF_FAILED(_drawHighlighted(_api.selectionSpans, y, x, columnEnd, _p.s->misc->selectionForeground, _p.s->misc->selectionColor));
     if (_api.vimCursorSpans.has_value())
     {
-        RETURN_IF_FAILED(_drawHighlightedSingle(*_api.vimCursorSpans, y, _p.s->misc->yankSelectionForeground, _p.s->misc->vimCursorColor));
+        RETURN_IF_FAILED(_drawHighlightedSingle(*_api.vimCursorSpans, y, _p.s->misc->yankSelectionForeground, highlightFocusBg));
     }
     RETURN_IF_FAILED(_drawHighlighted(_api.yankSelectionSpans, y, x, columnEnd, _p.s->misc->yankSelectionForeground, _p.s->misc->yankSelectionColor));
 

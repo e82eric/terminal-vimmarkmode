@@ -72,6 +72,8 @@ namespace Microsoft.Terminal.Control
     {
         String Text;
         Int32 Ordinal;
+        Microsoft.Terminal.Core.Point StartPos;
+        Microsoft.Terminal.Core.Point EndPos;
     };
 
     runtimeclass SuggestionBatch
