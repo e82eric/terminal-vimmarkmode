@@ -1485,6 +1485,9 @@ void VimModeProxy::ResetVimModeForSizeChange(bool selectLastChar)
 
 void VimModeProxy::SelectRow(int32_t row, int32_t col)
 {
+    auto viewStart = _terminal->GetScrollOffset();
+    auto viewEnd = viewStart + _terminal->GetViewport().Height();
+
     EnterVimMode(false);
     if (_terminal->SelectionMode() != ::Microsoft::Terminal::Core::Terminal::SelectionInteractionMode::Mark)
     {
@@ -1500,7 +1503,16 @@ void VimModeProxy::SelectRow(int32_t row, int32_t col)
     }
 
     _terminal->SelectChar(til::point{ col, row });
-    _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
+
+    if (row <= viewStart || row >= viewEnd)
+    {
+        _vimScrollScreenPosition(VimTextObjectType::centerOfScreen);
+    }
+    else
+    {
+        _terminal->UserScrollViewport(viewStart);
+    }
+
     _controlCore->UpdateSelectionFromVim();
 }
 

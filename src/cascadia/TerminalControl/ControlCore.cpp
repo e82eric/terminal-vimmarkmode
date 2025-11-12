@@ -3585,6 +3585,50 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_return;
     }
 
+    void ControlCore::HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan)
+    {
+        auto span = til::point_span{ til::point{ start.X, start.Y }, til::point{ end.X, end.Y } };
+        std::vector spanVec{ span };
+        auto lock = _terminal->LockForWriting();
+        auto oldHighlights = _terminal->GetSearchHighlights();
+        std::vector<til::point_span> oldVec{ oldHighlights.begin(), oldHighlights.end() };
+        _terminal->SetSearchHighlights(spanVec);
+        _renderer->TriggerSearchHighlight(oldVec);
+        _renderer->TriggerSearchHighlight(spanVec);
+        _renderer->NotifyPaintFrame();
+
+        const auto viewport = _terminal->GetViewport();
+        const auto scrollOffset = _terminal->GetViewport().Top();
+
+        if (!scrollToSpan)
+        {
+            return;
+        }
+
+        const auto visibleTop = scrollOffset;
+        const auto visibleBottom = scrollOffset + viewport.Height();
+
+        if (start.Y < visibleTop || start.Y >= visibleBottom)
+        {
+            const auto newY = std::max(0, start.Y - 5);
+            _terminal->UserScrollViewport(newY);
+        }
+    }
+
+    void ControlCore::ClearHighlights(bool scrollToCursor)
+    {
+        auto lock = _terminal->LockForWriting();
+        auto oldHighlights = _terminal->GetSearchHighlights();
+        std::vector<til::point_span> oldVec{ oldHighlights.begin(), oldHighlights.end() };
+        _terminal->SetSearchHighlights(std::vector<til::point_span>{});
+        _renderer->TriggerSearchHighlight(oldVec);
+        _renderer->NotifyPaintFrame();
+        if (scrollToCursor)
+        {
+            _terminal->TrySnapOnInput();
+        }
+    }
+
     int32_t ControlCore::GetViewportTop()
     {
         auto lock = _terminal->LockForReading();

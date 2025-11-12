@@ -3,6 +3,7 @@
 #pragma once
 
 #include "StreamingSuggestionsControl.g.h"
+#include "../fzfcpp/fzf.h"
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
@@ -52,49 +53,61 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             winrt::hstring currentWord,
             float prefixWidth,
             int32_t cursorX);
+        std::optional<SuggestionSearchItem> _TryGetSelectedSuggestion();
 
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
 
-        private:
-            enum StreamingSuggestionsMode
-            {
-                Normal,
-                WordSplit
-            };
+    private:
+        enum StreamingSuggestionsMode
+        {
+            Normal,
+            WordSplit
+        };
 
-            StreamingSuggestionsMode _mode = StreamingSuggestionsMode::Normal;
-            int32_t _cursorX;
-            void _selectFirstItem();
-            void _close();
-            winrt::handle _lastSwapChainHandle{ nullptr };
-            std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
-            til::size _fontSize;
-            winrt::Windows::System::DispatcherQueue _dispatcher{ nullptr };
-            bool _initialized = false;
-            float _panelWidth{ 0 };
-            float _panelHeight{ 0 };
-            float _compositionScale{ 0 };
-            winrt::event<winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler> _propertyChangedEvent;
-            float _characterHeight;
-            Microsoft::Terminal::Control::TermControl _termControl{ nullptr };
-            hstring _currentWord;
-            hstring _currentSearchTerm;
-            float _prefixWidth;
-            Windows::Foundation::Point _anchor;
-            Windows::Foundation::Size _space;
-            int _searchVersion;
-            bool _allItemsLoaded;
-            bool _allItemsSearched;
-            bool _controlShown;
-            std::vector<Microsoft::Terminal::Control::SuggestionBatch> _batches;
-            std::mutex _batchesMutex;
-            std::mutex _searchTermMutex;
+        StreamingSuggestionsMode _mode = StreamingSuggestionsMode::Normal;
+        int32_t _cursorX;
+        void _selectFirstItem();
+        void _close(bool scrollToCursor);
+        winrt::handle _lastSwapChainHandle{ nullptr };
+        std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
+        til::size _fontSize;
+        winrt::Windows::System::DispatcherQueue _dispatcher{ nullptr };
+        bool _initialized = false;
+        float _panelWidth{ 0 };
+        float _panelHeight{ 0 };
+        float _compositionScale{ 0 };
+        winrt::event<winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler> _propertyChangedEvent;
+        float _characterHeight;
+        Microsoft::Terminal::Control::TermControl _termControl{ nullptr };
+        bool _scrollToSpan = false;
+        hstring _currentWord;
+        hstring _currentSearchTerm;
+        float _prefixWidth;
+        Windows::Foundation::Point _anchor;
+        Windows::Foundation::Size _space;
+        int _searchVersion;
+        bool _allItemsLoaded;
+        bool _allItemsSearched;
+        bool _controlShown;
+        std::vector<Microsoft::Terminal::Control::SuggestionBatch> _batches;
+        std::mutex _batchesMutex;
+        std::mutex _searchTermMutex;
         winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
         void _triggerSearch();
-            winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version);
+        void _selectItem(int32_t index);
+        winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version);
+        Windows::UI::Xaml::Controls::ListViewItem _makeListViewItem(Control::FuzzySearchTextLine const& line,
+                                                                    winrt::Windows::Foundation::IInspectable const&
+                                                                    dataContext);
+
+        Control::FuzzySearchTextLine _BuildLine(hstring const& text,
+                                                                             int32_t row,
+                                                                             int32_t col,
+                                                                             std::optional<std::vector<fzfcpp::matcher::TextRun>> const& runs);
+
         void _enterWordSplitMode();
         void _recalculateTopMargin();
-            void _setDirection(bool openUpward);
+        void _setDirection(bool openUpward);
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;

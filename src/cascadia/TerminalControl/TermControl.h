@@ -153,6 +153,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets);
         void StartAiPrompt();
         void OpenStreamingSuggestions(winrt::hstring needle);
+        void HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan);
+        void ClearHighlights(bool scrollToCursor);
 
         void SearchMatch(const bool goForward);
 

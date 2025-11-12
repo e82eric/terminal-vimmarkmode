@@ -3569,6 +3569,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x);
     }
 
+    void TermControl::HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan)
+    {
+        _core.HighlightPointSpan(start, end, scrollToSpan);
+    }
+
+    void TermControl::ClearHighlights(bool scrollToCursor)
+    {
+        _core.ClearHighlights(scrollToCursor);
+    }
+
     // Method Description:
     // - Async handler for the "Drop" event. If a file was dropped onto our
     //   root, we'll try to get the path of the file dropped onto us, and write

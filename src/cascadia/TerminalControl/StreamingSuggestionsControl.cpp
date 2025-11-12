@@ -6,7 +6,8 @@
 #include "StreamingSuggestionsControl.h"
 #include "StreamingSuggestionsControl.g.cpp"
 #include <LibraryResources.h>
-#include "../fzfcpp/fzf.h"
+
+#include "IInputEvent.hpp"
 
 using namespace winrt::Windows::UI::Xaml::Media;
 
@@ -219,7 +220,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         if (cursorX < _cursorX)
         {
-            _close();
+            _close(true);
             return;
         }
 
@@ -238,7 +239,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return _HighlightedTextColorProperty;
     }
 
-
     void StreamingSuggestionsControl::_selectFirstItem()
     {
         if (ListBox().Items().Size() > 0)
@@ -247,11 +247,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void StreamingSuggestionsControl::_close()
+    void StreamingSuggestionsControl::_close(bool scrollToCursor)
     {
-        _termControl.PreviewInput(L"");
         ListBox().Items().Clear();
         Visibility(Windows::UI::Xaml::Visibility::Collapsed);
+        _termControl.ClearHighlights(scrollToCursor);
     }
 
     void StreamingSuggestionsControl::Open(
@@ -263,6 +263,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float prefixWidth,
         int32_t cursorX)
     {
+        _scrollToSpan = false;
         _mode = StreamingSuggestionsMode::Normal;
         _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
         _termControl = termControl;
@@ -307,9 +308,27 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 self->_allItemsLoaded = true;
                 co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
-                //self->_updateNoItemsVisibility();
             }
         });
+    }
+
+    std::optional<SuggestionSearchItem> StreamingSuggestionsControl::_TryGetSelectedSuggestion()
+    {
+        auto selected = ListBox().SelectedItem();
+        if (!selected)
+        {
+            return std::nullopt;
+        }
+
+        Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
+        Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
+
+        if (auto suggestion = data.try_as<SuggestionSearchItem>())
+        {
+            return suggestion;
+        }
+
+        return std::nullopt;
     }
 
     bool StreamingSuggestionsControl::HandleKeyPress(WORD vkey, WORD /*scanCode*/, Core::ControlKeyStates modifiers, bool keyDown)
@@ -329,8 +348,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 const auto currentIndex = ListBox().SelectedIndex();
                 if (currentIndex > 0)
                 {
-                    ListBox().SelectedIndex(currentIndex - 1);
-                    ListBox().ScrollIntoView(ListBox().SelectedItem());
+                    _selectItem(currentIndex - 1);
                 }
             }
             return true;
@@ -342,8 +360,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 const auto currentIndex = ListBox().SelectedIndex();
                 if (currentIndex < static_cast<int32_t>(itemCount) - 1)
                 {
-                    ListBox().SelectedIndex(currentIndex + 1);
-                    ListBox().ScrollIntoView(ListBox().SelectedItem());
+                    _selectItem(currentIndex + 1);
                 }
             }
             return true;
@@ -359,7 +376,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
                 else
                 {
-                    _close();
+                    _close(true);
                 }
             }
             return true;
@@ -368,63 +385,62 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (keyDown)
             {
-                _enterWordSplitMode();
+                const auto ctrlPressed = WI_IsFlagSet(modifiers.Value, LEFT_CTRL_PRESSED);
+                if (ctrlPressed)
+                {
+                    _scrollToSpan = !_scrollToSpan;
+                    auto selectedIndex = ListBox().SelectedIndex();
+                    _selectItem(selectedIndex);
+                }
+                else
+                {
+                    _enterWordSplitMode();
+                }
             }
             return true;
         }
         case VK_RETURN:
         {
-            auto selectedItem = ListBox().SelectedItem();
-            if (selectedItem)
+            hstring combined = L"";
+            auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
+            switch (_mode)
             {
-                auto castedItem = selectedItem.try_as<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
-                if (castedItem)
+            case StreamingSuggestionsMode::Normal:
+            {
+                if (auto castedDc = _TryGetSelectedSuggestion())
                 {
-                    auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
-
-                    auto segs = castedItem.Segments();
-                    std::wstring combined;
-
-                    // Pre-size to avoid repeated reallocations
-                    size_t total = 0;
-                    for (auto const& s : segs)
-                    {
-                        total += s.TextSegment().size();
-                    }
-                    combined.reserve(total);
-
-                    for (auto const& s : segs)
-                    {
-                        auto const& hs = s.TextSegment();
-                        combined.append(hs.c_str(), hs.size());
-                    }
-
-                    // Remove trailing spaces
-                    //auto pos = combined.find_last_not_of(L' ');
-                    //if (pos != std::wstring::npos)
-                    //{
-                    //    combined.erase(pos + 1);
-                    //}
-                    //else
-                    //{
-                    //    combined.clear();
-                    //}
-
-                    auto text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, combined) };
-
                     const auto shiftPressed = WI_IsFlagSet(modifiers.Value, SHIFT_PRESSED);
                     if (shiftPressed)
                     {
                         _termControl.SendInput(backspaces);
-                        _termControl.SelectRow(castedItem.Row(), castedItem.FirstPosition());
+                        _termControl.SelectRow(castedDc->StartPos.Y, castedDc->StartPos.X);
+                        _close(false);
+                        return true;
                     }
-                    else
-                    {
-                        _termControl.SendInput(text);
-                    }
-                    _close();
+
+                    combined = castedDc->Text;
                 }
+                break;
             }
+            case StreamingSuggestionsMode::WordSplit:
+            {
+                if (auto selected = ListBox().SelectedItem())
+                {
+                    Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
+                    Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
+
+                    if (auto word = data.try_as<hstring>())
+                    {
+                        combined = word.value();
+                    }
+                }
+                break;
+            }
+            }
+
+            auto text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, combined) };
+            _termControl.SendInput(text);
+            _close(true);
 
             return true;
         }
@@ -440,13 +456,77 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::lock_guard lock(_searchTermMutex);
             term = _currentSearchTerm;
         }
+
         const std::uint64_t myVersion = ++_searchVersion;
 
         _performFuzzySearch(term, myVersion);
     }
 
+    void StreamingSuggestionsControl::_selectItem(int32_t index)
+    {
+        const auto size = gsl::narrow_cast<int32_t>(ListBox().Items().Size());
+        if (index < 0 || index >= size)
+        {
+            return;
+        }
+
+        ListBox().SelectedIndex(index);
+        ListBox().ScrollIntoView(ListBox().SelectedItem());
+
+        if (_mode != StreamingSuggestionsMode::Normal)
+        {
+            return;
+        }
+
+        if (auto selectedItem = _TryGetSelectedSuggestion())
+        {
+            _termControl.HighlightPointSpan(selectedItem.value().StartPos, selectedItem.value().EndPos, _scrollToSpan);
+        }
+    }
+
+    Control::FuzzySearchTextLine StreamingSuggestionsControl::_BuildLine(hstring const& text,
+                                                                        int32_t row,
+                                                                        int32_t col,
+                                                                        std::optional<std::vector<fzfcpp::matcher::TextRun>> const& runs)
+    {
+        auto segments = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
+        if (runs && !runs->empty())
+        {
+            size_t cursor = 0;
+            for (const auto& r : *runs)
+            {
+                if (cursor < r.Start)
+                {
+                    const hstring nonMatch{ til::safe_slice_abs(text, cursor, static_cast<size_t>(r.Start)) };
+                    segments.Append(winrt::make<implementation::FuzzySearchTextSegment>(nonMatch, false));
+                }
+                const hstring matchSeg{ til::safe_slice_abs(text, static_cast<size_t>(r.Start), static_cast<size_t>(r.End + 1)) };
+                segments.Append(winrt::make<implementation::FuzzySearchTextSegment>(matchSeg, true));
+                cursor = r.End + 1;
+            }
+            if (cursor < text.size())
+            {
+                const hstring tail{ til::safe_slice_abs(text, cursor, text.size()) };
+                segments.Append(winrt::make<implementation::FuzzySearchTextSegment>(tail, false));
+            }
+        }
+        else
+        {
+            segments.Append(winrt::make<implementation::FuzzySearchTextSegment>(text, false));
+        }
+        return winrt::make<implementation::FuzzySearchTextLine>(segments, row, col);
+    }
+
     winrt::Windows::Foundation::IAsyncAction StreamingSuggestionsControl::_performFuzzySearch(std::wstring searchTerm, uint64_t version)
     {
+        struct ScoredItem
+        {
+            Microsoft::Terminal::Control::SuggestionSearchItem item;
+            int32_t score;
+            std::optional<std::vector<fzfcpp::matcher::TextRun>> runs;
+            int32_t ordinal;
+        };
+
         co_await winrt::resume_background();
         using namespace std::chrono_literals;
         if (_searchVersion > 1)
@@ -466,61 +546,38 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (searchTerm.empty())
         {
-            auto searchResults = winrt::single_threaded_observable_vector<Control::FuzzySearchTextLine>();
-
+            co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
+            ListBox().Items().Clear();
             for (const auto& batch : batchesSnapshot)
             {
                 for (auto item : batch.Items())
                 {
-                    auto runs = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
-                    auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(item.Text, false);
-                    runs.Append(textSegment);
-                    auto line = winrt::make<implementation::FuzzySearchTextLine>(runs, item.StartPos.Y, item.StartPos.X);
+                    auto line = _BuildLine(item.Text, item.StartPos.Y, item.StartPos.X, {});
+                    auto lbi = _makeListViewItem(line, box_value(item));
+                    ListBox().Items().Append(lbi);
 
-                    searchResults.Append(line);
-
-                    if (searchResults.Size() >= 1000)
+                    if (ListBox().Items().Size() >= 1000)
                     {
                         break;
                     }
                 }
             }
 
-            co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
-            if (version == _searchVersion)
-            {
-                ListBox().Items().Clear();
-                for (auto a : searchResults)
-                {
-                    ListBox().Items().Append(a);
-                }
-
-                InvalidateMeasure();
-
-                Visibility(Visibility::Visible);
-                _recalculateTopMargin();
-            }
-
+            Visibility(Visibility::Visible);
+            _recalculateTopMargin();
 
             if (ListBox().SelectedIndex() == -1)
             {
-                ListBox().SelectedIndex(0);
+                _selectItem(0);
             }
 
             NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
+            InvalidateMeasure();
 
             co_return;
         }
 
         auto pattern = fzfcpp::matcher::ParsePatternWithTypes(searchTerm);
-
-        struct ScoredItem
-        {
-            Microsoft::Terminal::Control::SuggestionSearchItem item;
-            int32_t score;
-            std::optional<std::vector<fzfcpp::matcher::TextRun>> runs;
-            int32_t ordinal;
-        };
 
         std::vector<ScoredItem> scoredItems;
 
@@ -569,45 +626,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         ListBox().Items().Clear();
         for (const auto& scoredItem : scoredItems)
         {
-            auto segments = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
-            if (scoredItem.runs)
-            {
-                size_t cursor = 0;
-                for (auto run : scoredItem.runs.value())
-                {
-                    if (cursor < run.Start)
-                    {
-                        const hstring nonMatch{ til::safe_slice_abs(scoredItem.item.Text, cursor, static_cast<size_t>(run.Start)) };
-                        auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(nonMatch, false);
-                        segments.Append(textSegment);
-                    }
-                    const hstring matchSeg{ til::safe_slice_abs(scoredItem.item.Text, static_cast<size_t>(run.Start), static_cast<size_t>(run.End + 1)) };
-                    auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(matchSeg, true);
-                    segments.Append(textSegment);
-                    cursor = run.End + 1;
-                }
-
-                if (cursor < scoredItem.item.Text.size())
-                {
-                    const hstring matchSeg{ til::safe_slice_abs(scoredItem.item.Text, cursor, scoredItem.item.Text.size()) };
-                    auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(matchSeg, false);
-                    segments.Append(textSegment);
-                }
-            }
-
-            auto line = winrt::make<implementation::FuzzySearchTextLine>(segments, scoredItem.item.StartPos.Y, scoredItem.item.StartPos.X);
-            ListBox().Items().Append(line);
+            auto line = _BuildLine(scoredItem.item.Text, scoredItem.item.StartPos.Y, scoredItem.item.StartPos.X, scoredItem.runs);
+            auto lbi = _makeListViewItem(line, box_value(scoredItem.item));
+            ListBox().Items().Append(lbi);
         }
-
-        InvalidateMeasure();
 
         _allItemsSearched = true;
         if (!scoredItems.empty() && ListBox().SelectedIndex() == -1)
         {
-            ListBox().SelectedIndex(0);
+            _selectItem(0);
         }
 
         Visibility(Visibility::Visible);
+
+        InvalidateMeasure();
         _recalculateTopMargin();
 
         NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
@@ -649,62 +681,45 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return out;
     }
 
+    Controls::ListViewItem StreamingSuggestionsControl::_makeListViewItem(Control::FuzzySearchTextLine const& line, winrt::Windows::Foundation::IInspectable const& dataContext)
+    {
+        const auto input = Control::FuzzySearchTextControl{};
+        input.TextColor(TextColor());
+        input.HighlightedTextColor(HighlightedTextColor());
+        input.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Left);
+        input.Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(0, 0, 0, 0));
+        input.Text(line);
+
+        auto lbi = winrt::Windows::UI::Xaml::Controls::ListViewItem{};
+        lbi.Content(input);
+        if (dataContext)
+        {
+            lbi.DataContext(dataContext);
+        }
+        return lbi;
+    }
 
     void StreamingSuggestionsControl::_enterWordSplitMode()
     {
         _mode = StreamingSuggestionsMode::WordSplit;
 
-        auto selectedItem = ListBox().SelectedItem();
-        if (selectedItem)
+        if (auto suggestionSearchItem = _TryGetSelectedSuggestion())
         {
-            auto castedItem = selectedItem.try_as<winrt::Microsoft::Terminal::Control::FuzzySearchTextLine>();
-            if (castedItem)
+            auto combined = suggestionSearchItem->Text;
+            auto words = SplitWordsLongerThan5(hstring{ combined });
+
+            ListBox().Items().Clear();
+            for (auto word : words)
             {
-                auto segs = castedItem.Segments();
-                std::wstring combined;
-
-                size_t total = 0;
-                for (auto const& s : segs)
-                {
-                    total += s.TextSegment().size();
-                }
-                combined.reserve(total);
-
-                for (auto const& s : segs)
-                {
-                    auto const& hs = s.TextSegment();
-                    combined.append(hs.c_str(), hs.size());
-                }
-
-                auto pos = combined.find_last_not_of(L' ');
-                if (pos != std::wstring::npos)
-                {
-                    combined.erase(pos + 1);
-                }
-                else
-                {
-                    combined.clear();
-                }
-
-                auto words = SplitWordsLongerThan5(hstring{combined});
-
-                ListBox().Items().Clear();
-                for (auto word : words)
-                {
-                    auto runs = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
-                    auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(word, false);
-                    runs.Append(textSegment);
-                    auto line = winrt::make<implementation::FuzzySearchTextLine>(runs, 0, 0);
-                    ListBox().Items().Append(line);
-                }
-
-                if (ListBox().SelectedIndex() == -1)
-                {
-                    ListBox().SelectedIndex(0);
-                }
-
-                //ListBox().SelectedIndex(0);
+                auto runs = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
+                auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(word, false);
+                runs.Append(textSegment);
+                auto line = winrt::make<implementation::FuzzySearchTextLine>(runs, 0, 0);
+                auto lbi = _makeListViewItem(line, box_value(word));
+                ListBox().Items().Append(lbi);
             }
+
+            _selectItem(0);
         }
     }
 

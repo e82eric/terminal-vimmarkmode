@@ -264,5 +264,7 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, ToggleRowNumbersEventArgs> ToggleRowNumbers;
         Windows.Foundation.IAsyncAction SuggestionScrollBackSearchAsync(String needle, SuggestionBatchHandler onBatch);
         Int32 GetViewportTop();
+        void HighlightPointSpan(Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end, Boolean scrollToSpan);
+        void ClearHighlights(Boolean scrollToCursor);
     };
 }

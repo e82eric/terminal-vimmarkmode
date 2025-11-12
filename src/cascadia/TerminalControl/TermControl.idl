@@ -123,6 +123,8 @@ namespace Microsoft.Terminal.Control
         Boolean SearchBoxEditInFocus();
 
         void OpenStreamingSuggestions(String needle);
+        void HighlightPointSpan(Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end, Boolean scrollToSpan);
+        void ClearHighlights(Boolean scrollToCursor);
 
         void SearchMatch(Boolean goForward);
         void RegexSearch(String needle, Boolean copy);

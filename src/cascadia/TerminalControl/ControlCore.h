@@ -524,6 +524,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     public:
         Windows::Foundation::IAsyncAction SuggestionScrollBackSearchAsync( winrt::hstring needle, SuggestionBatchHandler const& onBatch);
+        void HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan);
+        void ClearHighlights(bool scrollToCursor);
         int32_t GetViewportTop();
     };
 }

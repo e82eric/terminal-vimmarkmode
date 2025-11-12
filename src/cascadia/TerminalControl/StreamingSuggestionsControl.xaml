@@ -28,7 +28,7 @@
 
         <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" CornerRadius="4" >
             <ListView x:Name="ListBox" Background="{x:Bind BackgroundColor, Mode=OneWay}" VerticalAlignment="Stretch" DataContext="{x:Bind}">
-                <ListView.ItemTemplate>
+                <!--<ListView.ItemTemplate>
                     <DataTemplate x:DataType="local:FuzzySearchTextLine">
                         <local:FuzzySearchTextControl
                             Text="{x:Bind}"
@@ -36,7 +36,7 @@
                             TextColor="{Binding DataContext.TextColor, Mode=OneWay, ElementName=ListBox}"
                             HighlightedTextColor="{Binding DataContext.HighlightedTextColor, Mode=OneWay, ElementName=ListBox}" />
                     </DataTemplate>
-                </ListView.ItemTemplate>
+                </ListView.ItemTemplate>-->
                 <ListView.Resources>
                     <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="{x:Bind SelectedItemColor, Mode=OneWay}" />
                 </ListView.Resources>
