@@ -150,7 +150,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Windows::Foundation::Collections::IVector<SuggestionSearchItem> SuggestionScrollBackSearch(hstring const& needle);
         void CreateSearchBoxControl();
         void CreateFuzzySearchBoxControl(std::wstring_view searchString) const;
-        void StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets);
+        void SetSnippets(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets);
+        void StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, bool autoCompleteMode);
         void StartAiPrompt();
         void OpenStreamingSuggestions(winrt::hstring needle);
         void HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan);
@@ -234,6 +235,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         til::typed_event<IInspectable, Control::StringSentEventArgs> StringSent;
         til::typed_event<IInspectable, Control::SearchMissingCommandEventArgs> SearchMissingCommand;
         til::typed_event<IInspectable, Control::WindowSizeChangedEventArgs> WindowSizeChanged;
+        WORD _lastVKey;
 
         // UNDER NO CIRCUMSTANCES SHOULD YOU ADD A (PROJECTED_)FORWARDED_TYPED_EVENT HERE
         // Those attach the handler to the core directly, and will explode if

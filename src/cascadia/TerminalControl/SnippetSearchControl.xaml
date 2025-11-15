@@ -5,13 +5,14 @@
              xmlns:local="using:Microsoft.Terminal.Control"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              x:Name="Root"
-             HorizontalAlignment="Stretch"
+             HorizontalAlignment="Left"
              VerticalAlignment="Top"
              d:DesignHeight="55"
              d:DesignWidth="285"
              Background="Black"
              Opacity="1"
              TabNavigation="Cycle"
+             MinWidth="400"
              mc:Ignorable="d">
 
     <UserControl.Resources>

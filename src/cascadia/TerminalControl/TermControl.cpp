@@ -728,7 +728,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void TermControl::StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets)
+    void TermControl::SetSnippets(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets)
+    {
+        SnippetSearch().SetSnippets(snippets);
+    }
+
+    void TermControl::StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, bool autoCompleteMode)
     {
         auto cursorPosition = _core.CursorPosition();
         auto y = cursorPosition.Y;
@@ -751,7 +756,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto currentWord = _core.GetCurrentWord();
         const auto prefixWidth = currentWord.size() * characterWidth;
 
-        SnippetSearch().Show(snippets, *this, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x);
+        SnippetSearch().Show(snippets, *this, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x, autoCompleteMode);
     }
 
     void TermControl::StartAiPrompt()
@@ -2061,6 +2066,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (_TrySendKeyEvent(vkey, scanCode, modifiers, keyDown))
         {
+            _lastVKey = vkey;
             return true;
         }
 
@@ -4351,8 +4357,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::_coreOutputIdle(const IInspectable& /*sender*/, const IInspectable& /*args*/)
     {
+        if (_lastVKey == VK_RETURN)
+        {
+            const auto cursorPos = _core.CursorPosition();
+            wchar_t buf[128];
+            swprintf_s(buf, L"[CURSOR POSITION CAPTURE] Cursor X=%d Y=%d\n", cursorPos.X, cursorPos.Y);
+            OutputDebugStringW(buf);
+        }
+
         _refreshSearch();
 
+        if (StreamingSuggestions().Visibility() == Visibility::Collapsed && SnippetSearch().HasPrefixMatch(_core.GetCurrentWord()))
+        {
+            StartSnippetSearch(nullptr, true);
+        }
         if (StreamingSuggestions().Visibility() == Visibility::Visible)
         {
             const auto currentWord = _core.GetCurrentLine();
@@ -4431,7 +4449,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     Windows::Foundation::Point TermControl::CursorPositionInDips()
     {
         const auto cursorPos{ _core.CursorPosition() };
-        const auto viewportTop{ _core.GetViewportTop() };
 
         // CharacterDimensions returns a font size in pixels.
         const auto fontSize{ CharacterDimensions() };
@@ -4439,11 +4456,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // Account for the margins, which are in DIPs
         auto padding{ GetPadding() };
 
-        // Convert text buffer cursor position to viewport-relative client coordinate position
+        // Convert text buffer cursor position to client coordinate position
         // within the window. This point is in _pixels_
         return {
             cursorPos.X * fontSize.Width + static_cast<float>(padding.Left),
-            (cursorPos.Y - viewportTop) * fontSize.Height + static_cast<float>(padding.Top),
+            cursorPos.Y * fontSize.Height + static_cast<float>(padding.Top),
         };
     }
 

@@ -1436,6 +1436,22 @@ namespace winrt::TerminalApp::implementation
                     }
                     _settings.GlobalSettings().ActionMap().AddSendInputAction(realArgs.Name(), commandLine, keyChord);
                     _settings.WriteSettingsToDisk();
+
+                    if (const auto termControl{ _GetActiveControl() })
+                    {
+
+                        const auto toSearch = winrt::single_threaded_observable_vector<SnippetSearchItem>();
+                        const auto snippets = _settings.GlobalSettings().ActionMap().FilterToSnippets(winrt::hstring{}, winrt::hstring{}).GetResults();
+                        for (const auto& task : snippets)
+                        {
+                            auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
+                            auto input = sendInputArgs.Input();
+
+                            auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
+                            toSearch.Append(searchItem);
+                        }
+                        termControl.SetSnippets(toSearch);
+                    }
                     ActionSaved(commandLine, realArgs.Name(), realArgs.KeyChord());
                 }
                 catch (const winrt::hresult_error& ex)
@@ -1612,8 +1628,6 @@ namespace winrt::TerminalApp::implementation
         winrt::hstring currentWorkingDirectory;
         winrt::hstring filter;
 
-        bool sortResults = source == SuggestionsSource::Scrollback || source == SuggestionsSource::Tasks;
-
         // If the user wanted to use the current commandline to filter results,
         //    OR they wanted command history (or some other source that
         //       requires context from the control)
@@ -1670,7 +1684,7 @@ namespace winrt::TerminalApp::implementation
                     auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
                     toSearch.Append(searchItem);
                 }
-                termControl.StartSnippetSearch(toSearch);
+                termControl.StartSnippetSearch(toSearch, false);
             }
             co_return;
 
@@ -1711,8 +1725,7 @@ namespace winrt::TerminalApp::implementation
         _OpenSuggestions(_GetActiveControl(),
                          winrt::single_threaded_vector<Command>(std::move(commandsCollection)),
                          SuggestionsMode::Palette,
-                         filter,
-                         sortResults);
+                         filter);
     }
 
     void TerminalPage::_HandleColorSelection(const IInspectable& /*sender*/,
@@ -1789,18 +1802,7 @@ namespace winrt::TerminalApp::implementation
             _SetFocusedTab(*activeTab);
             if (const auto& control{ activeTab->GetActiveTerminalControl() })
             {
-                //const auto toSearch = winrt::single_threaded_observable_vector<SnippetSearchItem>();
-                //const auto snippets = co_await _settings.GlobalSettings().ActionMap().FilterToSnippets(winrt::hstring{}, winrt::hstring{});
-                //for (const auto& task : snippets)
-                //{
-                //    auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
-                //    auto input = sendInputArgs.Input();
-
-                //    auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
-                //    toSearch.Append(searchItem);
-                //}
                 control.StartAiPrompt();
-                //control.StartSnippetSearch(toSearch);
             }
         }
         co_return;

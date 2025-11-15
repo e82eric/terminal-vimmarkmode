@@ -245,7 +245,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void SnippetSearchControl::_populateForEmptySearch()
     {
         ListBox().Items().Clear();
-        for (const auto& snippet : _snippets)
+        for (const auto& snippet : _items)
         {
             auto runs = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
             auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(snippet.EscapedInput, false);
@@ -255,7 +255,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto descriptionTextSegment = winrt::make<implementation::FuzzySearchTextSegment>(snippet.Description, false);
             descriptionRuns.Append(descriptionTextSegment);
 
-            _appendItem( runs, descriptionRuns, snippet.EscapedInput);
+            _appendItem( runs, descriptionRuns, snippet.Input);
         }
         ListBox().SelectedIndex(0);
     }
@@ -270,26 +270,27 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const auto container = Controls::StackPanel{};
         container.Orientation(Controls::Orientation::Vertical);
-        container.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Stretch);
+        container.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Left);
 
         const auto descriptionControl = Control::FuzzySearchTextControl{};
         descriptionControl.TextColor(TextColor());
         descriptionControl.HighlightedTextColor(HighlightedTextColor());
         descriptionControl.FontWeight(Windows::UI::Text::FontWeights::Bold());
         descriptionControl.FontSize(FontSize() + 1);
-        descriptionControl.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Stretch);
+        descriptionControl.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Left);
         descriptionControl.Text(descriptionLine);
         container.Children().Append(descriptionControl);
 
         const auto inputControl = Control::FuzzySearchTextControl{};
         inputControl.TextColor(TextColor());
         inputControl.HighlightedTextColor(HighlightedTextColor());
-        inputControl.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Stretch);
-        inputControl.Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(0, 4, 0, 0));
+        inputControl.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Left);
+        inputControl.Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(0, 0, 0, 0));
         inputControl.Text(inputLine);
         container.Children().Append(inputControl);
+        container.Padding(ThicknessHelper::FromUniformLength(8));
 
-        auto lbi = Controls::ListBoxItem();
+        auto lbi = Controls::ListViewItem();
         lbi.DataContext(box_value(input));
         lbi.Content(container);
         ListBox().Items().Append(lbi);
@@ -297,6 +298,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::_performFuzzySearch()
     {
+        if (_autoCompleteMode && _currentWord.size() < 1)
+        {
+            _close();
+            return;
+        }
+
+        const size_t nonSpace = std::count_if(_currentWord.begin(), _currentWord.end(), [](wchar_t ch){ return ch != L' '; });
+        int minScore = _autoCompleteMode ? static_cast<int>(nonSpace) * 15 : 0;
+
         if (_currentWord.empty())
         {
             _populateForEmptySearch();
@@ -313,7 +323,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         std::vector<ScoredItem> scoredItems;
         auto pattern = fzfcpp::matcher::ParsePatternWithTypes(_currentWord);
-        for (auto item : _snippets)
+        for (auto item : _items)
         {
             auto text = item.EscapedInput;
             auto description = item.Description;
@@ -339,7 +349,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
 
                 auto score = std::max(textScore, descriptionScore);
-                scoredItems.push_back(ScoredItem { item, score, textRuns, descriptionRuns });
+                if (score >= minScore)
+                {
+                    scoredItems.push_back(ScoredItem{ item, score, textRuns, descriptionRuns });
+                }
             }
         }
 
@@ -381,7 +394,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     {
                         const hstring nonMatch{ til::safe_slice_abs(scoredItem.item.Description, cursor, run.Start) };
                         auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(nonMatch, false);
-                        segments.Append(textSegment);
+                        descriptionSegments.Append(textSegment);
                     }
                     const hstring matchSeg{ til::safe_slice_abs(scoredItem.item.Description, run.Start, run.End + 1) };
                     auto textSegment = winrt::make<implementation::FuzzySearchTextSegment>(matchSeg, true);
@@ -396,7 +409,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     descriptionSegments.Append(textSegment);
                 }
 
-                auto input = scoredItem.item.EscapedInput;
+                auto input = scoredItem.item.Input;
                 _appendItem(segments, descriptionSegments, input);
             }
         }
@@ -404,6 +417,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (!scoredItems.empty() && ListBox().SelectedIndex() == -1)
         {
             ListBox().SelectedIndex(0);
+        }
+
+        if (ListBox().Items().Size() == 0 && _autoCompleteMode)
+        {
+            _close();
+            return;
         }
 
         NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
@@ -430,7 +449,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             if (const auto selectedItem = ListBox().SelectedItem())
             {
-                if (const auto listBoxItem = selectedItem.try_as<Controls::ListBoxItem>())
+                if (const auto listBoxItem = selectedItem.try_as<Controls::ListViewItem>())
                 {
                     if (const auto fuzzyMatch = listBoxItem.DataContext().try_as<hstring>())
                     {
@@ -443,15 +462,82 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
+    winrt::hstring ToLowerFold(winrt::hstring const& s)
+    {
+        UErrorCode ec = U_ZERO_ERROR;
+        auto src = reinterpret_cast<const UChar*>(s.c_str());
+        int32_t srcLen = static_cast<int32_t>(s.size());
+
+        int32_t needed = u_strToLower(nullptr, 0, src, srcLen, nullptr, &ec);
+        if (ec != U_BUFFER_OVERFLOW_ERROR)
+        {
+            return s;
+        }
+        ec = U_ZERO_ERROR;
+
+        std::u16string out(needed, u'\0');
+        u_strToLower(reinterpret_cast<UChar*>(out.data()), needed, src, srcLen, nullptr, &ec);
+        if (U_FAILURE(ec))
+        {
+            return s;
+        }
+
+        return winrt::hstring{ reinterpret_cast<const wchar_t*>(out.c_str()), static_cast<uint32_t>(out.size()) };
+    }
+
+    void SnippetSearchControl::SetSnippets(Windows::Foundation::Collections::IVector<Control::SnippetSearchItem> items)
+    {
+        _items.assign(items.begin(), items.end());
+        _lowerInputs.clear();
+        for (auto item : items)
+        {
+            auto lower = ToLowerFold(item.Input);
+            _lowerInputs.emplace_back(lower);
+        }
+
+        std::sort(_lowerInputs.begin(), _lowerInputs.end(), [](auto const& a, auto const& b) {
+            return std::wstring_view{ a } < std::wstring_view{ b };
+        });
+    }
+
+    bool SnippetSearchControl::HasPrefixMatch(const hstring prefix)
+    {
+        if (_commitFlag)
+        {
+            _commitFlag = false;
+            return false;
+        }
+
+        if (prefix.size() < 2)
+        {
+            return false;
+        }
+
+        auto lowerPrefix = ToLowerFold(prefix);
+
+        auto it = std::lower_bound(_lowerInputs.begin(), _lowerInputs.end(), lowerPrefix, [](hstring const& el, std::wstring_view key) {
+            return std::wstring_view{ el.c_str(), el.size() } < key;
+        });
+
+        if (it == _lowerInputs.end())
+        {
+            return false;
+        }
+
+        return std::wstring_view{it->c_str(), it->size() }.starts_with(lowerPrefix);
+    }
+
     void SnippetSearchControl::Show(
-            Windows::Foundation::Collections::IVector<Control::SnippetSearchItem> snippets,
+            Windows::Foundation::Collections::IVector<Control::SnippetSearchItem> /*snippets*/,
             Microsoft::Terminal::Control::TermControl const& termControl,
             Windows::Foundation::Point anchor,
             Windows::Foundation::Size space,
             winrt::hstring currentWord,
             float prefixWidth,
-            int32_t cursorX)
+            int32_t cursorX,
+            bool autoCompleteMode)
     {
+        _autoCompleteMode = autoCompleteMode;
         _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
         _currentWord = currentWord;
         _termControl = termControl;
@@ -463,16 +549,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto maxX = gsl::narrow_cast<int>(space.Width - ActualWidth());
         const auto clampedX = std::clamp(proposedX, 0, maxX);
         Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(clampedX, 0, 0, 0));
-
-        _snippets.clear();
-
-        const auto size = snippets.Size();
-        _snippets.reserve(size);
-        for (uint32_t i = 0; i < size; i++)
-        {
-            const auto item = snippets.GetAt(i);
-            _snippets.push_back({ item.Input, item.Description, item.EscapedInput });
-        }
 
         _performFuzzySearch();
         Visibility(Visibility::Visible);
@@ -491,7 +567,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
         case VK_UP:
         {
-
             if (keyDown)
             {
                 const auto currentIndex = ListBox().SelectedIndex();
@@ -527,7 +602,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             auto selectedItem = ListBox().SelectedItem();
             if (selectedItem)
             {
-                auto castedItem = selectedItem.try_as<Controls::ListBoxItem>();
+                auto castedItem = selectedItem.try_as<Controls::ListViewItem>();
                 if (castedItem)
                 {
                     auto input = castedItem.DataContext().try_as<hstring>();
@@ -545,6 +620,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         else
                         {
                             _termControl.SendInput(text);
+                            _commitFlag = true;
                         }
                     }
                 }

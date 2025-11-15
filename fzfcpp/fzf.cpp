@@ -507,7 +507,7 @@ Pattern fzfcpp::matcher::ParsePatternWithTypes(const std::wstring_view patternSt
             word = word.substr(1);
         }
         
-        if (!word.empty() && word[0] == L'!')
+        if (true == false && !word.empty() && word[0] == L'!')
         {
             term.type = MatchType::NotContains;
             word = word.substr(1);

@@ -3300,6 +3300,18 @@ namespace winrt::TerminalApp::implementation
         }
 
         _RegisterTerminalEvents(term);
+        const auto toSearch = winrt::single_threaded_observable_vector<SnippetSearchItem>();
+        const auto snippets = _settings.GlobalSettings().ActionMap().FilterToSnippets(winrt::hstring{}, winrt::hstring{}).GetResults();
+        for (const auto& task : snippets)
+        {
+            auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
+            auto input = sendInputArgs.Input();
+
+            auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
+            toSearch.Append(searchItem);
+        }
+        term.SetSnippets(toSearch);
+
         return term;
     }
 
@@ -4921,7 +4933,7 @@ namespace winrt::TerminalApp::implementation
                 if (const auto& page{ weakThis.get() })
                 {
                     // Open the Suggestions UI with the commands from the control
-                    page->_OpenSuggestions(sender.try_as<TermControl>(), commandsCollection, SuggestionsMode::Menu, L"", false);
+                    page->_OpenSuggestions(sender.try_as<TermControl>(), commandsCollection, SuggestionsMode::Menu, L"");
                 }
             });
         }
@@ -4932,8 +4944,7 @@ namespace winrt::TerminalApp::implementation
         const TermControl& sender,
         IVector<Command> commandsCollection,
         winrt::TerminalApp::SuggestionsMode mode,
-        winrt::hstring filterText,
-        bool sortResults)
+        winrt::hstring filterText)
 
     {
         // ON THE UI THREAD
@@ -4972,8 +4983,7 @@ namespace winrt::TerminalApp::implementation
                    filterText,
                    realCursorPos,
                    windowDimensions,
-                   characterSize.Height,
-                   sortResults);
+                   characterSize.Height);
     }
 
     void TerminalPage::_PopulateContextMenu(const TermControl& control,

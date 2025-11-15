@@ -118,7 +118,8 @@ namespace Microsoft.Terminal.Control
         IVector<SuggestionSearchItem> SuggestionScrollBackSearch(String needle);
         void CreateSearchBoxControl();
         void CreateFuzzySearchBoxControl(String searchString);
-        void StartSnippetSearch(IVector<SnippetSearchItem> snippets);
+        void StartSnippetSearch(IVector<SnippetSearchItem> snippets, Boolean autoCompleteMode);
+        void SetSnippets(IVector<SnippetSearchItem> snippets);
         void StartAiPrompt();
         Boolean SearchBoxEditInFocus();
 

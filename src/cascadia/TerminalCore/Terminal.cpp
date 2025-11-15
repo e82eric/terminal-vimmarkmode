@@ -1618,7 +1618,7 @@ std::wstring Terminal::CurrentWordPrefix() const
 {
     const auto& buffer = _activeBuffer();
     const auto cursorPos = buffer.GetCursor().GetPosition();
-    const auto wordDelimiters = _wordDelimiters;
+    const auto wordDelimiters = L",";
 
     til::point target = { std::max(0, cursorPos.x - 1), cursorPos.y };
     auto& row = buffer.GetRowByOffset(target.y);

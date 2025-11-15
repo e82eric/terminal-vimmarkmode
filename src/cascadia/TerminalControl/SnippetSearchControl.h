@@ -54,7 +54,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Windows::Foundation::Size space,
             winrt::hstring currentWord,
             float prefixWidth,
-            int32_t cursorX);
+            int32_t cursorX,
+            bool autoCompleteMode);
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
         void SetCurrentWord(const winrt::hstring& value, int32_t cursorX);
 
@@ -64,10 +65,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void _TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);
         void _TextBoxKeyDown(const winrt::Windows::Foundation::IInspectable& /*sender*/, const winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs& e);
+        void SetSnippets(Windows::Foundation::Collections::IVector<Control::SnippetSearchItem> items);
+        bool HasPrefixMatch(hstring prefix);
         TYPED_EVENT(Closed, Control::SnippetSearchControl, Windows::UI::Xaml::RoutedEventArgs);
         TYPED_EVENT(OnReturn, Control::SnippetSearchControl, hstring);
 
         private:
+        bool _autoCompleteMode;
         winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
         int32_t _cursorX;
         hstring _currentWord;
@@ -75,6 +79,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _prefixWidth;
         Windows::Foundation::Point _anchor;
         Windows::Foundation::Size _space;
+        std::vector<SnippetSearchItem> _items;
+        std::vector<hstring> _lowerInputs;
+        bool _commitFlag = false;
 
         struct SnippetSearchResultRow
         {
@@ -91,7 +98,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _performFuzzySearch();
         void _close();
         std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
-        std::vector<SnippetSearchItem> _snippets;
+        //std::vector<SnippetSearchItem> _snippets;
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;
