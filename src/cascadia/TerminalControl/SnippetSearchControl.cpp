@@ -304,6 +304,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return;
         }
 
+        if (_autoCompleteMode && _currentWord.back() == L' ')
+        {
+            _close();
+            return;
+        }
+
         const size_t nonSpace = std::count_if(_currentWord.begin(), _currentWord.end(), [](wchar_t ch){ return ch != L' '; });
         int minScore = _autoCompleteMode ? static_cast<int>(nonSpace) * 15 : 0;
 
@@ -322,7 +328,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         };
 
         std::vector<ScoredItem> scoredItems;
-        auto pattern = fzfcpp::matcher::ParsePatternWithTypes(_currentWord);
+        auto patternStr = _autoCompleteMode ? L"^" + _currentWord : _currentWord;
+        auto pattern = fzfcpp::matcher::ParsePatternWithTypes(patternStr);
         for (auto item : _items)
         {
             auto text = item.EscapedInput;
@@ -502,6 +509,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     bool SnippetSearchControl::HasPrefixMatch(const hstring prefix)
     {
+        if (!_autoCompleteEnabled)
+        {
+            return false;
+        }
+
         if (_commitFlag)
         {
             _commitFlag = false;
@@ -645,6 +657,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto betweenCursors = til::safe_slice_abs(value, _cursorX, cursorX);
         _currentWord = betweenCursors;
         _performFuzzySearch();
+    }
+
+    void SnippetSearchControl::ToggleAutoComplete()
+    {
+        _autoCompleteEnabled = !_autoCompleteEnabled;
     }
 
     bool SnippetSearchControl::ContainsFocus()

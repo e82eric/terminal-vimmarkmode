@@ -633,6 +633,10 @@
     <value>Toggle Row Numbers</value>
     <comment>A command that will toggle "relative row numbers".</comment>
   </data>
+  <data name="ToggleSnippetAutoCompleteKey" xml:space="preserve">
+    <value>Toggle Snippet Auto Complete</value>
+    <comment>A command that will toggle snippet auto complete.</comment>
+  </data>
   <data name="VimSearchKey" xml:space="preserve">
     <value>Toggle vim search mode</value>
     <comment>A command that will toggle "vim search".</comment>

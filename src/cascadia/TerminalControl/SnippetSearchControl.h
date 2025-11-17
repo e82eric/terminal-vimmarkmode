@@ -58,6 +58,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             bool autoCompleteMode);
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
         void SetCurrentWord(const winrt::hstring& value, int32_t cursorX);
+        void ToggleAutoComplete();
 
         bool ContainsFocus();
         void _recalculateTopMargin();
@@ -71,6 +72,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         TYPED_EVENT(OnReturn, Control::SnippetSearchControl, hstring);
 
         private:
+        bool _autoCompleteEnabled = true;
         bool _autoCompleteMode;
         winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
         int32_t _cursorX;

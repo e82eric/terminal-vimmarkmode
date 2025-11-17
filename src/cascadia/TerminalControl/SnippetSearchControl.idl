@@ -15,6 +15,7 @@ namespace Microsoft.Terminal.Control
         void Show(IVector<SnippetSearchItem> snippets, Microsoft.Terminal.Control.TermControl termControl, Windows.Foundation.Point anchor, Windows.Foundation.Size space, String currentWord, Single prefixWidth, Int32 cursorX, Boolean autoCompleteMode);
         void SetSnippets(IVector<SnippetSearchItem> snippets);
         void SetCurrentWord(String value, Int32 cursorX);
+        void ToggleAutoComplete();
         Boolean HasPrefixMatch(String prefix);
         Boolean HandleKeyPress(UInt16 vkey, UInt16 scanCode, Microsoft.Terminal.Core.ControlKeyStates modifiers, Boolean keyDown);
         Boolean ContainsFocus();

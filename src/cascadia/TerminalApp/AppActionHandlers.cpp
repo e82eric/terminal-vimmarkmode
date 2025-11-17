@@ -1439,7 +1439,6 @@ namespace winrt::TerminalApp::implementation
 
                     if (const auto termControl{ _GetActiveControl() })
                     {
-
                         const auto toSearch = winrt::single_threaded_observable_vector<SnippetSearchItem>();
                         const auto snippets = _settings.GlobalSettings().ActionMap().FilterToSnippets(winrt::hstring{}, winrt::hstring{}).GetResults();
                         for (const auto& task : snippets)
@@ -1450,7 +1449,6 @@ namespace winrt::TerminalApp::implementation
                             auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
                             toSearch.Append(searchItem);
                         }
-                        termControl.SetSnippets(toSearch);
                     }
                     ActionSaved(commandLine, realArgs.Name(), realArgs.KeyChord());
                 }
@@ -1573,6 +1571,16 @@ namespace winrt::TerminalApp::implementation
         if (const auto& control{ _senderOrActiveControl(sender) })
         {
             control.ToggleRowNumberMode();
+            args.Handled(true);
+        }
+    }
+
+    void TerminalPage::_HandleToggleSnippetAutoComplete(const IInspectable& sender,
+                                       const ActionEventArgs& args)
+    {
+        if (const auto& control{ _senderOrActiveControl(sender) })
+        {
+            control.ToggleSnippetAutoComplete();
             args.Handled(true);
         }
     }

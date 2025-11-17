@@ -321,7 +321,7 @@ namespace winrt::TerminalApp::implementation
 
                 const auto modifiedBasename = std::filesystem::path{ fileModified }.filename();
 
-                if (modifiedBasename == settingsBasename)
+                if (modifiedBasename == settingsBasename || modifiedBasename == L".wt.json")
                 {
                     _reloadSettings->Run();
                 }

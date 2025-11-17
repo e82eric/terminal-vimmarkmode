@@ -112,6 +112,7 @@
     ON_ALL_ACTIONS(SearchSnippets)          \
     ON_ALL_ACTIONS(VimSearch)               \
     ON_ALL_ACTIONS(ToggleRowNumbers)        \
+    ON_ALL_ACTIONS(ToggleSnippetAutoComplete)        \
     ON_ALL_ACTIONS(ToggleBlockSelection)    \
     ON_ALL_ACTIONS(SwitchSelectionEndpoint) \
     ON_ALL_ACTIONS(Suggestions)             \

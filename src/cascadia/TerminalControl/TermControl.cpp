@@ -831,6 +831,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.ToggleRowNumberMode();
     }
 
+    void TermControl::ToggleSnippetAutoComplete()
+    {
+        SnippetSearch().ToggleAutoComplete();
+    }
+
     winrt::hstring TermControl::GetCurrentWord()
     {
         return _core.GetCurrentWord();

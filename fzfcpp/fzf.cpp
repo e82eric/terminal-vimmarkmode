@@ -512,7 +512,7 @@ Pattern fzfcpp::matcher::ParsePatternWithTypes(const std::wstring_view patternSt
             term.type = MatchType::NotContains;
             word = word.substr(1);
         }
-        else if (!word.empty() && word[0] == L'$')
+        else if (!word.empty() && word[0] == L'^')
         {
             term.type = MatchType::Prefix;
             word = word.substr(1);

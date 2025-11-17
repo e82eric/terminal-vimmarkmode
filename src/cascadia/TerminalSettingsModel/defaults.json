@@ -470,6 +470,7 @@
         // Application-level Keys
         { "command": "vimMode" },
         { "command": "toggleRowNumbers" },
+        { "command": "toggleSnippetAutoComplete" },
         { "command": "toggleFloatingPane" },
         { "command": "movePaneToFloatingPane" },
         { "command": "vimSearch" },

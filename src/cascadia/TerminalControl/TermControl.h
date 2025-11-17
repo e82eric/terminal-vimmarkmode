@@ -216,6 +216,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void RegexSearch(const winrt::hstring& text, bool copy);
         void ToggleRowNumberMode();
+        void ToggleSnippetAutoComplete();
         winrt::hstring GetCurrentWord();
 
         // -------------------------------- WinRT Events ---------------------------------
