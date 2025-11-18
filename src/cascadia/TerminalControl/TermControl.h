@@ -4,7 +4,6 @@
 #pragma once
 
 #include "SearchBoxControl.h"
-#include "FuzzySearchBoxControl.h"
 #include "FuzzySearchTextSegment.h"
 #include "TermControl.g.h"
 #include "../../buffer/out/search.h"
@@ -90,8 +89,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void ColorSelection(Control::SelectionColor fg, Control::SelectionColor bg, Core::MatchMode matchMode);
         Windows::Foundation::IAsyncAction SuggestionScrollBackSearchAsync( winrt::hstring const& needle, SuggestionBatchHandler const& onBatch);
 
-        void FuzzySearch_OnSelection(Control::FuzzySearchBoxControl const& sender, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args);
-
 #pragma region ICoreState
         const uint64_t TaskbarState() const noexcept;
         const uint64_t TaskbarProgress() const noexcept;
@@ -147,9 +144,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         safe_void_coroutine _RendererWarning(IInspectable sender,
                                              Control::RendererWarningArgs args);
 
-        Windows::Foundation::Collections::IVector<SuggestionSearchItem> SuggestionScrollBackSearch(hstring const& needle);
         void CreateSearchBoxControl();
-        void CreateFuzzySearchBoxControl(std::wstring_view searchString) const;
         void SetSnippets(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets);
         void StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, bool autoCompleteMode);
         void StartAiPrompt();
@@ -273,7 +268,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Control::ControlCore _core{ nullptr };
         TsfDataProvider _tsfDataProvider{ this };
         winrt::com_ptr<SearchBoxControl> _searchBox;
-        Control::FuzzySearchBoxControl _fuzzySearchBox{nullptr};
 
         enum class AltNumpadEncoding
         {
@@ -421,7 +415,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void _showRowNumbers();
         winrt::fire_and_forget _ExitVimMode(const IInspectable& sender, const Control::ExitVimModeEventArgs args);
-        winrt::fire_and_forget _ShowFuzzySearch(const IInspectable& sender, const Control::ShowFuzzySearchEventArgs args);
         winrt::fire_and_forget _StartVimSearch(const IInspectable& sender, const Control::StartVimSearchEventArgs args);
         winrt::fire_and_forget _ToggleRowNumbers(const IInspectable& sender, const Control::ToggleRowNumbersEventArgs args);
         void _updateRowNumbers();
@@ -445,8 +438,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         double _GetAutoScrollSpeed(double cursorDistanceFromBorder) const;
 
-        void _FuzzySearch(const winrt::hstring& text);
-        void _CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _CloseSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _OnReturnSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, hstring);
         void _CloseAiPromptControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
@@ -525,7 +516,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Control::ControlInteractivity::ContextMenuRequested_revoker ContextMenuRequested;
 
             Control::ControlCore::ExitVimMode_revoker ExitVimMode;
-            Control::ControlCore::ShowFuzzySearch_revoker ShowFuzzySearch;
             Control::ControlCore::StartVimSearch_revoker StartVimSearch;
             Control::ControlCore::ToggleRowNumbers_revoker ToggleRowNumbers;
         } _revokers{};

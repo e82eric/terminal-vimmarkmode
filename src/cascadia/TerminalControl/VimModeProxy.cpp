@@ -496,13 +496,6 @@ bool VimModeProxy::_executeVimSelection(
     case VimActionType::scroll:
         _vimScrollScreenPosition(_textObject);
         break;
-    case VimActionType::fuzzyFind:
-    {
-        const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
-        auto searchString = bufferData.plainText;
-        _controlCore->StartFuzzySearch(searchString);
-        break;
-    }
     case VimActionType::commitSearch:
     {
         auto results = _searcher->Results();
@@ -877,7 +870,6 @@ bool VimModeProxy::TryVimModeKeyBinding(
         //Ooes this work?
         if (_leaderSequence)
         {
-            _action = VimActionType::fuzzyFind;
         }
         else if (mods.IsShiftPressed())
         {
@@ -1103,11 +1095,11 @@ bool VimModeProxy::TryVimModeKeyBinding(
     }
     else if (vkey == L'S')
     {
-        if (_leaderSequence && _action == VimActionType::fuzzyFind)
-        {
-            _textObject = VimTextObjectType::inWord;
-            sequenceCompleted = true;
-        }
+        //if (_leaderSequence && _action == VimActionType::fuzzyFind)
+        //{
+        //    _textObject = VimTextObjectType::inWord;
+        //    sequenceCompleted = true;
+        //}
     }
     else if (vkey == L'Z')
     {

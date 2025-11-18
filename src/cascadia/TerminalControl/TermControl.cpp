@@ -281,17 +281,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         InitializeComponent();
 
         _core = _interactivity.Core();
-        _fuzzySearchBox = _interactivity.FuzzySearchBoxControl();
-
-        RootGrid().Children().Append(_fuzzySearchBox);
-        Controls::Grid::SetRow(_fuzzySearchBox, 0);
-        _fuzzySearchBox.Margin(Thickness{ 25, 25, 25, 25 });
-        _fuzzySearchBox.Visibility(::Visibility::Collapsed);
-        _fuzzySearchBox.VerticalAlignment(::VerticalAlignment::Stretch);
-        _fuzzySearchBox.HorizontalAlignment(::HorizontalAlignment::Stretch);
-        _fuzzySearchBox.Search({ this, &TermControl::_FuzzySearch });
-        _fuzzySearchBox.Closed({ this, &TermControl::_CloseFuzzySearchBoxControl });
-        _fuzzySearchBox.OnReturn({ this, &TermControl::FuzzySearch_OnSelection });
 
         // If high contrast mode was changed, update the appearance appropriately.
         _core.SetHighContrastMode(_GetAccessibilitySettings().HighContrast());
@@ -331,7 +320,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _revokers.ContextMenuRequested = _interactivity.ContextMenuRequested(winrt::auto_revoke, { get_weak(), &TermControl::_contextMenuHandler });
 
         _revokers.ExitVimMode = _core.ExitVimMode(winrt::auto_revoke, { get_weak(), &TermControl::_ExitVimMode });
-        _revokers.ShowFuzzySearch = _core.ShowFuzzySearch(winrt::auto_revoke, { get_weak(), &TermControl::_ShowFuzzySearch });
         _revokers.StartVimSearch = _core.StartVimSearch(winrt::auto_revoke, { get_weak(), &TermControl::_StartVimSearch });
         _revokers.ToggleRowNumbers= _core.ToggleRowNumbers(winrt::auto_revoke, { get_weak(), &TermControl::_ToggleRowNumbers });
 
@@ -714,20 +702,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void TermControl::CreateFuzzySearchBoxControl(std::wstring_view searchString) const
-    {
-        _fuzzySearchBox.Visibility(Visibility::Visible);
-        _fuzzySearchBox.Show(searchString);
-        _core.CursorOn(false);
-
-        if (_blinkTimer)
-        {
-            _cursorTimer.Stop();
-            _blinkTimer.Stop();
-            _core.CursorOn(false);
-        }
-    }
-
     void TermControl::SetSnippets(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets)
     {
         SnippetSearch().SetSnippets(snippets);
@@ -841,17 +815,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return _core.GetCurrentWord();
     }
 
-    void TermControl::_FuzzySearch(const winrt::hstring& text)
-    {
-        const auto fuzzySearchResult = _core.FuzzySearch(text);
-        _fuzzySearchBox.SetSearchResult(std::move(fuzzySearchResult));
-    }
-
-    void TermControl::FuzzySearch_OnSelection(Control::FuzzySearchBoxControl const& /*sender*/, winrt::Microsoft::Terminal::Control::FuzzySearchTextLine const& args)
-    {
-        _core.SelectRow(args.Row(), args.FirstPosition());
-    }
-
     // Method Description:
     // - The handler for the "search criteria changed" event. Initiates a new search.
     // Arguments:
@@ -903,13 +866,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         // Set focus back to terminal control
-        this->Focus(FocusState::Programmatic);
-    }
-
-    void TermControl::_CloseFuzzySearchBoxControl(const winrt::Windows::Foundation::IInspectable& /*sender*/,
-                                                  const RoutedEventArgs& /*args*/)
-    {
-        _fuzzySearchBox.Visibility(Visibility::Collapsed);
         this->Focus(FocusState::Programmatic);
     }
 
@@ -1146,14 +1102,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         VimSearchBorder().Background(backgroundColor);
         VimSearchHeaderTextBlock().Foreground(headerTextColor);
         VimSearchHeaderTextBorder().Background(backgroundColor);
-
-        _fuzzySearchBox.BorderColor(borderColor);
-        _fuzzySearchBox.HeaderTextColor(headerTextColor);
-        _fuzzySearchBox.BackgroundColor(backgroundColor);
-        _fuzzySearchBox.SelectedItemColor(selectionColor.Color());
-        _fuzzySearchBox.InnerBorderThickness(borderThickness);
-        _fuzzySearchBox.TextColor(textColor);
-        _fuzzySearchBox.HighlightedTextColor(highlightColor);
 
         StreamingSuggestions().BorderColor(borderColor);
         StreamingSuggestions().HeaderTextColor(headerTextColor);
@@ -1520,11 +1468,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         control->RaiseNotice.raise(*control, std::move(noticeArgs));
     }
 
-    Windows::Foundation::Collections::IVector<SuggestionSearchItem> TermControl::SuggestionScrollBackSearch(hstring const& needle)
-    {
-        return _core.SuggestionScrollBackSearch(needle);
-    }
-
     void TermControl::_AttachDxgiSwapChainToXaml(HANDLE swapChainHandle)
     {
         auto nativePanel = SwapChainPanel().as<ISwapChainPanelNative2>();
@@ -1802,11 +1745,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 return;
             }
             _core.VimSearch(VimSearchStringTextBox().Text());
-            return;
-        }
-
-        if (_fuzzySearchBox && _fuzzySearchBox.Visibility() == ::Visibility::Visible)
-        {
             return;
         }
 
@@ -2905,14 +2843,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _updateRowNumbers();
         RefreshQuickFixMenu();
-    }
-
-    winrt::fire_and_forget TermControl::_ShowFuzzySearch(const IInspectable& /*sender*/,
-                                                         const Control::ShowFuzzySearchEventArgs args)
-    {
-        co_await wil::resume_foreground(Dispatcher());
-
-        CreateFuzzySearchBoxControl(args.SearchString());
     }
 
     void TermControl::VimSearchTextBox_OnPointerPressed(IInspectable const& /*sender*/, PointerRoutedEventArgs const& e)
@@ -4157,7 +4087,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto fontFamily = Windows::UI::Xaml::Media::FontFamily(_core.Settings().FontFace());
         auto fontSize = _core.Settings().FontSize() * 1.2;
 
-        _fuzzySearchBox.SetFontSize(args.Width(), args.Height());
         _setRowNumberFontSize(directXHeight, fontSize, fontFamily);
         CurrentSearchRowHighlight().Height(directXHeight);
 

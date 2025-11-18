@@ -262,9 +262,6 @@
   <data name="FindPrevCommandKey" xml:space="preserve">
     <value>Find previous search match</value>
   </data>
-  <data name="FuzzyFindCommandKey" xml:space="preserve">
-    <value>Fuzzy Find</value>
-  </data>
   <data name="QuickSelectCommandKey" xml:space="preserve">
     <value>Quick Select</value>
   </data>

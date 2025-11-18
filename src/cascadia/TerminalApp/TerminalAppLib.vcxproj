@@ -428,7 +428,6 @@
     <ProjectReference Include="$(OpenConsoleDir)src\cascadia\UIHelpers\UIHelpers.vcxproj">
       <Project>{6515F03F-E56D-4DB4-B23D-AC4FB80DB36F}</Project>
     </ProjectReference>
-    <ProjectReference Include="$(OpenConsoleDir)src\buffer\fzf\fzf.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\cascadia\UIMarkdown\UIMarkdown.vcxproj">
       <Project>{7615F03F-E56D-4DB4-B23D-BD4FB80DB36F}</Project>
       <Private>true</Private>

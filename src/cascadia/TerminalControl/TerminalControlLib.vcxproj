@@ -29,7 +29,6 @@
   <Import Project="$(OpenConsoleDir)src\cppwinrt.build.pre.props" />
   <!-- ========================= Headers ======================== -->
   <ItemGroup>
-    <ClInclude Include="FuzzySearcher.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="ControlCore.h">
       <DependentUpon>ControlCore.idl</DependentUpon>
@@ -55,9 +54,6 @@
     </ClInclude>
     <ClInclude Include="SearchBoxControl.h">
       <DependentUpon>SearchBoxControl.xaml</DependentUpon>
-    </ClInclude>
-    <ClInclude Include="FuzzySearchBoxControl.h">
-      <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClInclude>
     <ClInclude Include="StreamingSuggestionsControl.h">
       <DependentUpon>StreamingSuggestionsControl.xaml</DependentUpon>
@@ -87,7 +83,6 @@
   </ItemGroup>
   <!-- ========================= Cpp Files ======================== -->
   <ItemGroup>
-    <ClCompile Include="FuzzySearcher.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -116,9 +111,6 @@
     </ClCompile>
     <ClCompile Include="SearchBoxControl.cpp">
       <DependentUpon>SearchBoxControl.xaml</DependentUpon>
-    </ClCompile>
-    <ClCompile Include="FuzzySearchBoxControl.cpp">
-      <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
     </ClCompile>
     <ClCompile Include="StreamingSuggestionsControl.cpp">
       <DependentUpon>StreamingSuggestionsControl.xaml</DependentUpon>
@@ -166,9 +158,6 @@
     <Midl Include="SearchBoxControl.idl">
       <DependentUpon>SearchBoxControl.xaml</DependentUpon>
     </Midl>
-    <Midl Include="FuzzySearchBoxControl.idl">
-      <DependentUpon>FuzzySearchBoxControl.xaml</DependentUpon>
-    </Midl>
     <Midl Include="StreamingSuggestionsControl.idl">
       <DependentUpon>StreamingSuggestionsControl.xaml</DependentUpon>
     </Midl>
@@ -193,7 +182,6 @@
     <Page Include="SearchBoxControl.xaml">
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="FuzzySearchBoxControl.xaml" />
     <Page Include="StreamingSuggestionsControl.xaml" />
     <Page Include="SnippetSearchControl.xaml" />
     <Page Include="AiPromptControl.xaml" />
@@ -212,7 +200,6 @@
   <ItemGroup>
     <ProjectReference Include="$(OpenConsoleDir)src\audio\midi\lib\midi.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)src\buffer\out\lib\bufferout.vcxproj" />
-    <ProjectReference Include="$(OpenConsoleDir)src\buffer\fzf\fzf.vcxproj" />
     <ProjectReference Include="$(OpenConsoleDir)fzfcpp\fzfcpp.vcxproj">
       <Project>{1BB51CFB-F06F-4E8C-95FD-DF0925DABB92}</Project>
     </ProjectReference>

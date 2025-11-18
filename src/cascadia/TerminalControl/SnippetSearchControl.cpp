@@ -716,9 +716,4 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         Margin(currentMargin);
     }
-
-    SnippetSearchControl::~SnippetSearchControl()
-    {
-        fzf_free_slab(_fzfSlab);
-    }
 }

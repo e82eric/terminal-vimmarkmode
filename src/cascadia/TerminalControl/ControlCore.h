@@ -25,11 +25,9 @@
 #include "../../audio/midi/MidiAudio.hpp"
 #include "../../buffer/out/search.h"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
-#include "../../cascadia/TerminalCore/FuzzySearchRenderData.hpp"
 #include "../buffer/out/search.h"
 #include "../buffer/out/TextColor.h"
 #include "VimModeProxy.h"
-#include "FuzzySearcher.h"
 #include "../../renderer/inc/FontInfoDesired.hpp"
 
 namespace Microsoft::Console::Render::Atlas
@@ -101,10 +99,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     struct ControlCore : ControlCoreT<ControlCore>
     {
     public:
-        ControlCore(Control::IControlSettings settings,
-                             Control::IControlAppearance unfocusedAppearance,
-                             TerminalConnection::ITerminalConnection connection,
-                             std::shared_ptr<::Microsoft::Terminal::Core::Terminal> terminal);
         ControlCore(Control::IControlSettings settings,
                     Control::IControlAppearance unfocusedAppearance,
                     TerminalConnection::ITerminalConnection connection);
@@ -255,7 +249,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SetSelectionAnchor(const til::point position);
         void SetEndSelectionPoint(const til::point position);
 
-        Windows::Foundation::Collections::IVector<SuggestionSearchItem> SuggestionScrollBackSearch(hstring const& needle);
         SearchResults Search(SearchRequest request);
         const std::vector<til::point_span>& SearchResultRows() const noexcept;
         void ClearSearch();
@@ -398,7 +391,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         bool _clickedOnMark(const til::point& pos, bool (*filter)(const ::MarkExtents&));
         hstring _getLineText(int32_t rowNumber) const;
-        std::pair<int32_t, int32_t> _calculateMatchRange(const auto& buffer, const auto& match, const winrt::hstring& matchText) const;
 
         inline bool _IsClosing() const noexcept
         {
@@ -486,9 +478,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         //my stuff
     public:
         void SelectRow(int32_t row, int32_t col);
-        void StartFuzzySearch(std::wstring_view needle);
         void StartVimSearch(bool isReverse);
-        Control::FuzzySearchResult FuzzySearch(const winrt::hstring& text);
         void ExitVim();
         void EnterVimModeWithSearch();
         void EnterVimMode();
@@ -509,14 +499,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::hstring GetCurrentLine();
 
         TYPED_EVENT(StartVimSearch, IInspectable, Control::StartVimSearchEventArgs);
-        TYPED_EVENT(ShowFuzzySearch, IInspectable, Control::ShowFuzzySearchEventArgs);
         TYPED_EVENT(ExitVimMode, IInspectable, Control::ExitVimModeEventArgs);
         TYPED_EVENT(ToggleRowNumbers, IInspectable, Control::ToggleRowNumbersEventArgs);
 
     private:
         bool _selectionClearedFromErase();
         std::shared_ptr<VimModeProxy> _vimProxy;
-        std::shared_ptr<FuzzySearcher> _fuzzySearch;
         std::unique_ptr<QuickSelectHandler> _quickSelectHandler;
         std::vector<til::point_span> _suggestionHighlight {};
 

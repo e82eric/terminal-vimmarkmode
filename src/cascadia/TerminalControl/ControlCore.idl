@@ -183,8 +183,6 @@ namespace Microsoft.Terminal.Control
         void BlinkAttributeTick();
 
         void EnterQuickSelectMode(String text, Boolean copy);
-        FuzzySearchResult FuzzySearch(String text);
-        IVector<SuggestionSearchItem> SuggestionScrollBackSearch(String needle);
         SearchResults Search(SearchRequest request);
         void ClearSearch();
 
@@ -258,7 +256,6 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, CompletionsChangedEventArgs> CompletionsChanged;
 
         event Windows.Foundation.TypedEventHandler<Object, ExitVimModeEventArgs> ExitVimMode;
-        event Windows.Foundation.TypedEventHandler<Object, ShowFuzzySearchEventArgs> ShowFuzzySearch;
         event Windows.Foundation.TypedEventHandler<Object, StartVimSearchEventArgs> StartVimSearch;
         event Windows.Foundation.TypedEventHandler<Object, ToggleRowNumbersEventArgs> ToggleRowNumbers;
         Windows.Foundation.IAsyncAction SuggestionScrollBackSearchAsync(String needle, SuggestionBatchHandler onBatch);

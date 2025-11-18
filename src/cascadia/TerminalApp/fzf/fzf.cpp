@@ -9,11 +9,11 @@ using namespace fzf::matcher;
 constexpr int16_t ScoreMatch = 16;
 constexpr int16_t ScoreGapStart = -3;
 constexpr int16_t ScoreGapExtension = -1;
-constexpr int16_t BoundaryBonus = 0;
+constexpr int16_t BoundaryBonus = ScoreMatch / 2;
 constexpr int16_t NonWordBonus = ScoreMatch / 2;
 constexpr int16_t CamelCaseBonus = BoundaryBonus + ScoreGapExtension;
 constexpr int16_t BonusConsecutive = -(ScoreGapStart + ScoreGapExtension);
-constexpr int16_t BonusFirstCharMultiplier = 0;
+constexpr int16_t BonusFirstCharMultiplier = 2;
 constexpr size_t npos = std::numeric_limits<size_t>::max();
 
 enum class CharClass : uint8_t
@@ -111,9 +111,9 @@ static constexpr auto s_charClassLut = []() {
     return lut;
 }();
 
-static CharClass classOf(UChar32 /*ch*/)
+static CharClass classOf(UChar32 ch)
 {
-    return CharClass::CharLower;
+    return s_charClassLut[u_charType(ch)];
 }
 
 static int32_t fzfFuzzyMatchV2(const std::vector<UChar32>& text, const std::vector<UChar32>& pattern, std::vector<size_t>* pos)
@@ -340,120 +340,6 @@ static int32_t fzfFuzzyMatchV2(const std::vector<UChar32>& text, const std::vect
     return maxScore;
 }
 
-static int32_t suffixMatch(const std::vector<UChar32>& text, const std::vector<UChar32>& pattern, std::vector<size_t>* pos)
-{
-    if (pattern.size() == 0)
-    {
-        return 0;
-    }
-
-    auto foldedText = text;
-    foldStringUtf32(foldedText);
-
-    while (!foldedText.empty() && foldedText.back() == U' ')
-    {
-        foldedText.pop_back();
-    }
-
-    if (pattern.size() > foldedText.size())
-    {
-        return 0;
-    }
-
-    const size_t startPos = foldedText.size() - pattern.size();
-    bool matches = true;
-    
-    for (size_t i = 0; i < pattern.size(); ++i)
-    {
-        if (foldedText[startPos + i] != pattern[i])
-        {
-            matches = false;
-            break;
-        }
-    }
-
-    if (!matches)
-    {
-        return 0;
-    }
-
-    int32_t score = ScoreMatch * static_cast<int32_t>(pattern.size());
-    
-    if (pos)
-    {
-        for (size_t i = 0; i < pattern.size(); ++i)
-        {
-            pos->push_back(startPos + i);
-        }
-    }
-
-    return score;
-}
-
-static bool containsFolded(const std::vector<UChar32>& text, const std::vector<UChar32>& pattern)
-{
-    //This should never happen.  The pattern parser would not create a empty term
-    if (pattern.empty())
-    {
-        return true;
-    }
-
-    if (pattern.size() > text.size())
-    {
-        return false;
-    }
-
-    auto t = text;
-    foldStringUtf32(t);
-
-    auto it = std::ranges::search(t, pattern).begin();
-
-    return it != t.end();
-}
-
-static int32_t prefixMatch(const std::vector<UChar32>& text, const std::vector<UChar32>& pattern, std::vector<size_t>* pos)
-{
-    if (pattern.size() == 0)
-    {
-        return 0;
-    }
-
-    auto foldedText = text;
-    foldStringUtf32(foldedText);
-
-    if (pattern.size() > foldedText.size())
-    {
-        return 0;
-    }
-
-    bool matches = true;
-    for (size_t i = 0; i < pattern.size(); ++i)
-    {
-        if (foldedText[i] != pattern[i])
-        {
-            matches = false;
-            break;
-        }
-    }
-
-    if (!matches)
-    {
-        return 0;
-    }
-
-    int32_t score = ScoreMatch * static_cast<int32_t>(pattern.size());
-
-    if (pos)
-    {
-        for (size_t i = 0; i < pattern.size(); ++i)
-        {
-            pos->push_back(i);
-        }
-    }
-
-    return score;
-}
-
 Pattern fzf::matcher::ParsePattern(const std::wstring_view patternStr)
 {
     Pattern patObj;
@@ -464,7 +350,7 @@ Pattern fzf::matcher::ParsePattern(const std::wstring_view patternStr)
         const auto beg = patternStr.find_first_not_of(L' ', pos);
         if (beg == std::wstring_view::npos)
         {
-            break;
+            break; // No more non-space characters
         }
 
         const auto end = std::min(patternStr.size(), patternStr.find_first_of(L' ', beg));
@@ -478,63 +364,9 @@ Pattern fzf::matcher::ParsePattern(const std::wstring_view patternStr)
     return patObj;
 }
 
-Pattern fzf::matcher::ParsePatternWithTypes(const std::wstring_view patternStr)
-{
-    Pattern patObj;
-    size_t pos = 0;
-
-    while (true)
-    {
-        const auto beg = patternStr.find_first_not_of(L' ', pos);
-        if (beg == std::wstring_view::npos)
-        {
-            break;
-        }
-
-        const auto end = std::min(patternStr.size(), patternStr.find_first_of(L' ', beg));
-        auto word = patternStr.substr(beg, end - beg);
-        
-        Term term;
-        term.type = MatchType::Fuzzy;
-
-        if (!word.empty() && word[0] == L'@')
-        {
-            term.location = Location::Context;
-            word = word.substr(1);
-        }
-        
-        if (!word.empty() && word[0] == L'!')
-        {
-            term.type = MatchType::NotContains;
-            word = word.substr(1);
-        }
-        else if (!word.empty() && word[0] == L'$')
-        {
-            term.type = MatchType::Prefix;
-            word = word.substr(1);
-        }
-        else if (!word.empty() && word.back() == L'$')
-        {
-            term.type = MatchType::Suffix;
-            word = word.substr(0, word.size() - 1);
-        }
-        
-        if (!word.empty())
-        {
-            term.codePoints = utf16ToUtf32(word);
-            foldStringUtf32(term.codePoints);
-            patObj.typedTerms.push_back(std::move(term));
-        }
-        
-        pos = end;
-    }
-
-    return patObj;
-}
-
 std::optional<MatchResult> fzf::matcher::Match(std::wstring_view text, const Pattern& pattern)
 {
-    if (pattern.typedTerms.empty() && pattern.terms.empty())
+    if (pattern.terms.empty())
     {
         return MatchResult{};
     }
@@ -544,67 +376,17 @@ std::optional<MatchResult> fzf::matcher::Match(std::wstring_view text, const Pat
     int32_t totalScore = 0;
     std::vector<size_t> allUtf32Pos;
 
-    if (!pattern.typedTerms.empty())
+    for (const auto& term : pattern.terms)
     {
-        for (const auto& term : pattern.typedTerms)
+        std::vector<size_t> termPos;
+        auto score = fzfFuzzyMatchV2(textCodePoints, term, &termPos);
+        if (score <= 0)
         {
-            std::vector<size_t> termPos;
-            int32_t score = 0;
-            
-            if (term.type == MatchType::Suffix)
-            {
-                score = suffixMatch(textCodePoints, term.codePoints, &termPos);
-            }
-            else if (term.type == MatchType::Prefix)
-            {
-                score = prefixMatch(textCodePoints, term.codePoints, &termPos);
-            }
-            else if (term.type == MatchType::NotContains)
-            {
-                if (containsFolded(textCodePoints, term.codePoints))
-                {
-                    score = 0;
-                }
-                else
-                {
-                    score = 1;
-                }
-            }
-            else
-            {
-                score = fzfFuzzyMatchV2(textCodePoints, term.codePoints, &termPos);
-            }
-            
-            if (score <= 0)
-            {
-                return std::nullopt;
-            }
-
-            if (term.type == MatchType::NotContains)
-            {
-                
-            }
-            else
-            {
-                totalScore += score;
-                allUtf32Pos.insert(allUtf32Pos.end(), termPos.begin(), termPos.end());
-            }
+            return std::nullopt;
         }
-    }
-    else
-    {
-        for (const auto& term : pattern.terms)
-        {
-            std::vector<size_t> termPos;
-            auto score = fzfFuzzyMatchV2(textCodePoints, term, &termPos);
-            if (score <= 0)
-            {
-                return std::nullopt;
-            }
 
-            totalScore += score;
-            allUtf32Pos.insert(allUtf32Pos.end(), termPos.begin(), termPos.end());
-        }
+        totalScore += score;
+        allUtf32Pos.insert(allUtf32Pos.end(), termPos.begin(), termPos.end());
     }
 
     std::ranges::sort(allUtf32Pos);
@@ -647,41 +429,4 @@ std::optional<MatchResult> fzf::matcher::Match(std::wstring_view text, const Pat
     }
 
     return MatchResult{ totalScore, std::move(runs) };
-}
-
-std::optional<TokenMatchResult> fzf::matcher::MatchToken(std::wstring_view token, std::wstring_view context, const Pattern& pattern)
-{
-    if (pattern.typedTerms.empty() && pattern.terms.empty())
-    {
-        return TokenMatchResult{};
-    }
-
-    std::vector<Term> contextTerms;
-    std::vector<Term> tokenTerms;
-
-    for (auto term : pattern.typedTerms)
-    {
-        if (term.location == Location::Token)
-        {
-            tokenTerms.emplace_back(term);
-        }
-        else
-        {
-            contextTerms.emplace_back(term);
-        }
-    }
-
-    auto expectsMatchOnToken = tokenTerms.size() > 0;
-    auto expectsMatchOnContext = contextTerms.size() > 0;
-
-    auto contextResult = Match(context, Pattern{ {}, std::move(contextTerms) });
-    auto tokenResult = Match(token, Pattern{ {}, std::move(tokenTerms) });
-
-    return TokenMatchResult
-    {
-        expectsMatchOnToken,
-        expectsMatchOnContext,
-        tokenResult,
-        contextResult
-    };
 }

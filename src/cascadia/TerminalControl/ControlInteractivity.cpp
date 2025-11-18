@@ -40,9 +40,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     ControlInteractivity::ControlInteractivity(IControlSettings settings,
                                                Control::IControlAppearance unfocusedAppearance,
                                                TerminalConnection::ITerminalConnection connection) :
-        _settings{ settings },
-        _unfocusedAppearance{ unfocusedAppearance },
-        _terminal{ std::make_shared<::Microsoft::Terminal::Core::Terminal>() },
         _touchAnchor{ std::nullopt },
         _lastMouseClickTimestamp{},
         _lastMouseClickPos{},
@@ -50,8 +47,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _id = _nextId.fetch_add(1, std::memory_order_relaxed);
 
-        _core = winrt::make_self<ControlCore>(settings, unfocusedAppearance, connection, _terminal);
-        _fuzzySearchBoxControl = winrt::make_self<implementation::FuzzySearchBoxControl>(settings, unfocusedAppearance, _terminal);
+        _core = winrt::make_self<ControlCore>(settings, unfocusedAppearance, connection);
 
         _core->Attached([weakThis = get_weak()](auto&&, auto&&) {
             if (auto self{ weakThis.get() })
@@ -86,7 +82,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _core->DetachUiaEngine(_uiaEngine.get());
         }
         _core->Detach();
-        _fuzzySearchBoxControl->Detach();
     }
 
     void ControlInteractivity::AttachToNewControl(const Microsoft::Terminal::Control::IKeyBindings& keyBindings)
@@ -118,11 +113,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     Control::ControlCore ControlInteractivity::Core()
     {
         return *_core;
-    }
-
-    Control::FuzzySearchBoxControl ControlInteractivity::FuzzySearchBoxControl()
-    {
-        return winrt::make<implementation::FuzzySearchBoxControl>(_settings, _unfocusedAppearance, _terminal);
     }
 
     void ControlInteractivity::Close()

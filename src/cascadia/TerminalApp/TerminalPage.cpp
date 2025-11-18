@@ -3832,14 +3832,6 @@ namespace winrt::TerminalApp::implementation
         }
     }
 
-    void TerminalPage::_FuzzyFind(const TerminalTab& tab)
-    {
-        if (const auto& control{ tab.GetActiveTerminalControl() })
-        {
-            control.CreateFuzzySearchBoxControl(L"");
-        }
-    }
-
     void TerminalPage::_QuickSelect(const TerminalTab& tab, std::wstring_view input, bool copy)
     {
         if (const auto& control{ tab.GetActiveTerminalControl() })

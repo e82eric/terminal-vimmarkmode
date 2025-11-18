@@ -36,7 +36,6 @@ public:
         yank = 1,
         search = 2,
         toggleVisualOn = 3,
-        fuzzyFind = 4,
         exit = 5,
         scroll = 6,
         toggleRowNumbers,

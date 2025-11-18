@@ -16,7 +16,6 @@
     <ClCompile Include="HwndTerminalAutomationPeer.cpp" />
     <ClCompile Include="VimModeProxy.cpp" />
     <ClCompile Include="QuickSelectHandler.cpp" />
-    <ClCompile Include="FuzzySearch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -25,7 +24,6 @@
     <ClInclude Include="HwndTerminalAutomationPeer.hpp" />
     <ClInclude Include="VimModeProxy.h" />
     <ClInclude Include="QuickSelectHandler.h" />
-    <ClInclude Include="FuzzySearch.h" />
   </ItemGroup>
   <ItemGroup>
     <Midl Include="ControlCore.idl" />
@@ -42,12 +40,14 @@
     <Midl Include="TermControlAutomationPeer.idl" />
     <Midl Include="InteractivityAutomationPeer.idl" />
     <Midl Include="IMouseWheelListener.idl" />
+    <Midl Include="SnippetSearchTypes.idl" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="FuzzySearchTextControl.xaml" />
     <Page Include="SearchBoxControl.xaml" />
-    <Page Include="FuzzySearchBoxControl.xaml" />
     <Page Include="TermControl.xaml" />
     <Page Include="SnippetSearchControl.xaml" />
+    <Page Include="StreamingSuggestionsControl.xaml" />
+    <Page Include="AiPromptControl.xaml" />
   </ItemGroup>
 </Project>

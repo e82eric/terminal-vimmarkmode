@@ -119,11 +119,6 @@ namespace Microsoft.Terminal.Control
         String Mode { get; };
     }
 
-    runtimeclass ShowFuzzySearchEventArgs
-    {
-        String SearchString { get; };
-    }
-
     runtimeclass StartVimSearchEventArgs
     {
         Boolean IsReverse { get; };

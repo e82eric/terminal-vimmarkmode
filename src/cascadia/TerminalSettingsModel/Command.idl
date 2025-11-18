@@ -10,12 +10,6 @@ import "TerminalWarnings.idl";
 
 namespace Microsoft.Terminal.Settings.Model
 {
-    struct ScrollbackRange
-    {
-        Int32 Start;
-        Int32 End;
-    };
-
     enum ShortcutAction
     {
         Invalid = 0, // treat Invalid as unbound actions
@@ -46,7 +40,6 @@ namespace Microsoft.Terminal.Settings.Model
         String ID { get; };
 
         String Description { get; };
-        ScrollbackRange Range { get; };
 
         ActionAndArgs ActionAndArgs { get; };
 
@@ -57,7 +50,5 @@ namespace Microsoft.Terminal.Settings.Model
 
         static IVector<Command> ParsePowerShellMenuComplete(String json, Int32 replaceLength);
         static IVector<Command> HistoryToCommands(IVector<String> commandHistory, String commandline, Boolean directories, String iconPath);
-        static Command ScrollBackSuggestionToCommand(String text, String currentWordPrefix, String rowText);
-        static Command ScrollBackSuggestionToCommand(String text, String currentWordPrefix, String rowText, ScrollbackRange range);
     }
 }

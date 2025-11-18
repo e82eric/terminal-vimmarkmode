@@ -3,7 +3,6 @@
 #include "SnippetSearchControl.g.h"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
 #include <ControlSettings.h>
-#include "../../buffer/fzf/fzf.h"
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
@@ -11,7 +10,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
     public:
         SnippetSearchControl();
-        ~SnippetSearchControl() override;
 
         til::property_changed_event PropertyChanged;
         static Windows::UI::Xaml::DependencyProperty BorderColorProperty();
@@ -100,7 +98,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _performFuzzySearch();
         void _close();
         std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
-        //std::vector<SnippetSearchItem> _snippets;
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;
@@ -110,8 +107,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static Windows::UI::Xaml::DependencyProperty _TextColorProperty;
         static Windows::UI::Xaml::DependencyProperty _HighlightedTextColorProperty;
         static Windows::UI::Xaml::DependencyProperty _ResultFontSizeProperty;
-
-        fzf_slab_t* _fzfSlab;
     };
 }
 

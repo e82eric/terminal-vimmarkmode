@@ -3,7 +3,6 @@
 
 #include "pch.h"
 #include "ControlCore.h"
-#include <icu.h>
 
 // MidiAudio
 #include <mmeapi.h>
@@ -73,14 +72,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     ControlCore::ControlCore(Control::IControlSettings settings,
                              Control::IControlAppearance unfocusedAppearance,
                              TerminalConnection::ITerminalConnection connection) :
-        ControlCore(settings, unfocusedAppearance, connection, std::make_shared<::Microsoft::Terminal::Core::Terminal>())
-    {
-    }
-
-    ControlCore::ControlCore(Control::IControlSettings settings,
-                             Control::IControlAppearance unfocusedAppearance,
-                             TerminalConnection::ITerminalConnection connection,
-                             std::shared_ptr<::Microsoft::Terminal::Core::Terminal> terminal):
         _desiredFont{ DEFAULT_FONT_FACE, 0, DEFAULT_FONT_WEIGHT, DEFAULT_FONT_SIZE, CP_UTF8 },
         _actualFont{ DEFAULT_FONT_FACE, 0, DEFAULT_FONT_WEIGHT, { 0, DEFAULT_FONT_SIZE }, CP_UTF8, false }
     {
@@ -102,7 +93,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }();
 
         _settings = winrt::make_self<implementation::ControlSettings>(settings, unfocusedAppearance);
-        _terminal = terminal;
+        _terminal = std::make_shared<::Microsoft::Terminal::Core::Terminal>();
         const auto lock = _terminal->LockForWriting();
 
         _setupDispatcherAndCallbacks();
@@ -168,7 +159,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         UpdateSettings(settings, unfocusedAppearance);
         auto quickSelectAlphabet = std::make_shared<QuickSelectAlphabet>();
         _vimProxy = std::make_shared<VimModeProxy>(_terminal, this, &_searcher);
-        _fuzzySearch = std::make_unique<class FuzzySearcher>();
         _quickSelectHandler = std::make_unique<QuickSelectHandler>(
             _terminal,
             _vimProxy,
@@ -1321,65 +1311,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // save location (for rendering) + render
         _terminal->SetSelectionEnd(terminalPosition);
         _updateSelectionUI();
-    }
-
-    std::pair<int32_t, int32_t> ControlCore::_calculateMatchRange(const auto& buffer, const auto& match, const winrt::hstring& matchText) const
-    {
-        // Find the first row of the logical line
-        int32_t firstRow = match.start.y;
-        while (firstRow > 0)
-        {
-            const auto& prev = buffer.GetRowByOffset(firstRow - 1);
-            if (!prev.WasWrapForced())
-            {
-                break;
-            }
-            --firstRow;
-        }
-
-        // Calculate the offset of the match start within the logical line
-        int32_t offsetInLogicalLine = 0;
-        for (int32_t r = firstRow; r < match.start.y; ++r)
-        {
-            const auto& row = buffer.GetRowByOffset(r);
-            offsetInLogicalLine += static_cast<int32_t>(row.GetText().size());
-        }
-        offsetInLogicalLine += match.start.x;
-
-        // Calculate the end position
-        const int32_t matchLength = static_cast<int32_t>(matchText.size());
-        const int32_t endOffset = offsetInLogicalLine + matchLength;
-
-        return { offsetInLogicalLine, endOffset };
-    }
-
-    Windows::Foundation::Collections::IVector<SuggestionSearchItem> ControlCore::SuggestionScrollBackSearch(hstring const& needle)
-    {
-        auto _ = _terminal->LockForReading();
-        auto& buffer = _terminal->GetTextBuffer();
-        auto end = buffer.GetCursor().GetPosition().y;
-        auto start = std::max(0, end - 12000);
-        if (auto searchResults = buffer.SearchText(needle, SearchFlag::RegularExpression, start, end))
-        {
-            auto results = std::vector<SuggestionSearchItem>();
-            results.reserve(searchResults->size());
-            for (auto it = searchResults->rbegin(); it != searchResults->rend(); ++it)
-            {
-                //const auto rowText = _getLineText(it->start.y);
-                //const auto matchText = winrt::hstring{ buffer.GetPlainText(it->start, it->end) };
-                //const auto range = _calculateMatchRange(buffer, *it, matchText);
-
-                //SuggestionSearchItem item = {
-                //    rowText,
-                //    matchText,
-                //};
-                //SuggestionSearchItem item = { _getLineText(it->start.y, buffer), winrt::hstring{ buffer.GetPlainText(it->start, it->end) } };
-                //results.emplace_back(item);
-            }
-
-            return winrt::single_threaded_vector<SuggestionSearchItem>(std::move(results));
-        }
-        return winrt::single_threaded_vector<SuggestionSearchItem>();
     }
 
     static wil::unique_close_clipboard_call _openClipboard(HWND hwnd)
@@ -3246,22 +3177,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _vimProxy->SelectRow(row, col);
     }
 
-    void ControlCore::StartFuzzySearch(std::wstring_view needle)
-    {
-        _ShowFuzzySearchHandlers(*this, winrt::make<implementation::ShowFuzzySearchEventArgs>(winrt::hstring{ needle }));
-    }
-
     void ControlCore::StartVimSearch(bool isReverse)
     {
         _vimProxy->StartSearch(isReverse);
         _StartVimSearchHandlers(*this, winrt::make<StartVimSearchEventArgs>(isReverse));
-    }
-
-    Control::FuzzySearchResult ControlCore::FuzzySearch(const winrt::hstring& text)
-    {
-        const auto lock = _terminal->LockForWriting();
-        auto results = _fuzzySearch->Search(*_terminal, text);
-        return results;
     }
 
     void ControlCore::ExitVim()

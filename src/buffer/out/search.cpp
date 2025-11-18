@@ -5,7 +5,6 @@
 #include "search.h"
 
 #include "textBuffer.hpp"
-#include "UTextAdapter.h"
 
 using namespace Microsoft::Console::Types;
 

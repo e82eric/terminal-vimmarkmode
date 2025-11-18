@@ -115,9 +115,7 @@ namespace Microsoft.Terminal.Control
         void SelectRow(Int32 row, Int32 col);
         String GetCurrentWord();
 
-        IVector<SuggestionSearchItem> SuggestionScrollBackSearch(String needle);
         void CreateSearchBoxControl();
-        void CreateFuzzySearchBoxControl(String searchString);
         void StartSnippetSearch(IVector<SnippetSearchItem> snippets, Boolean autoCompleteMode);
         void SetSnippets(IVector<SnippetSearchItem> snippets);
         void StartAiPrompt();

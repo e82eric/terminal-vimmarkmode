@@ -474,7 +474,6 @@
         { "command": "toggleFloatingPane" },
         { "command": "movePaneToFloatingPane" },
         { "command": "vimSearch" },
-        { "command": "fuzzyFind" },
         { "command": "searchSnippets", "id": "Terminal.SearchSnippets" },
         { "command": "closeWindow", "id": "Terminal.CloseWindow" },
         { "command": "toggleFullscreen", "id": "Terminal.ToggleFullscreen" },

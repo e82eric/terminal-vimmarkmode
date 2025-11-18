@@ -6,7 +6,6 @@
     <ClCompile Include="..\TerminalSelection.cpp" />
     <ClCompile Include="..\TerminalApi.cpp" />
     <ClCompile Include="..\Terminal.cpp" />
-    <ClCompile Include="..\FuzzySearchRenderData.cpp" />
     <ClCompile Include="..\pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
