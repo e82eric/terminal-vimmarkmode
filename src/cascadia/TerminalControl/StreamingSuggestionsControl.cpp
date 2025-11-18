@@ -14,6 +14,7 @@ using namespace winrt::Windows::UI::Xaml::Media;
 using namespace winrt;
 using namespace winrt::Windows::UI::Xaml;
 using namespace winrt::Windows::UI::Core;
+using namespace std::chrono_literals;
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
@@ -30,6 +31,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     StreamingSuggestionsControl::StreamingSuggestionsControl()
     {
         InitializeComponent();
+
+        _copyNotificationTimer = winrt::Windows::UI::Xaml::DispatcherTimer();
+        _copyNotificationTimer.Interval(1s);
+        _copyNotificationTimer.Tick({ this, &StreamingSuggestionsControl::_OnCopyNotificationTimerTick });
 
         _sizeChangedRevoker = ListBox().SizeChanged(winrt::auto_revoke, [this](auto /*s*/, auto /*e*/) {
             if (Visibility() == Visibility::Visible)
@@ -383,7 +388,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             //   CF_UNICODETEXT: [...] A null character signals the end of the data.
             // --> We add +1 to the length. This works because .c_str() is null-terminated.
             _copyToClipboard(CF_UNICODETEXT, text.c_str(), (text.size() + 1) * sizeof(wchar_t));
+
         }
+    }
+
+    void StreamingSuggestionsControl::_OnCopyNotificationTimerTick(
+        winrt::Windows::Foundation::IInspectable const&,
+        winrt::Windows::Foundation::IInspectable const&)
+    {
+        _copyNotificationTimer.Stop();
+        copyNotificationContainer().Visibility(winrt::Windows::UI::Xaml::Visibility::Collapsed);
+    }
+
+    void StreamingSuggestionsControl::_showCopyNotification(const hstring& text)
+    {
+        copyNotificationContainer().Visibility(Visibility::Visible);
+        copyNotificationText().Text(L"Copied: " + text);
+
+        _copyNotificationTimer.Stop();
+        _copyNotificationTimer.Start();
     }
 
     bool StreamingSuggestionsControl::HandleKeyPress(WORD vkey, WORD /*scanCode*/, Core::ControlKeyStates modifiers, bool keyDown)
@@ -409,6 +432,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     if (auto castedDc = _TryGetSelectedSuggestion())
                     {
                         copyToClipboard(castedDc->Text.c_str());
+                        _showCopyNotification(castedDc->Text);
                         return true;
                     }
                     break;
@@ -423,6 +447,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         if (auto word = data.try_as<hstring>())
                         {
                             copyToClipboard(word->c_str());
+                            _showCopyNotification(word.value());
                             return true;
                         }
                     }

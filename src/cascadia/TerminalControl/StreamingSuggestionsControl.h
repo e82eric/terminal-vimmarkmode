@@ -58,6 +58,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
 
     private:
+        winrt::Windows::UI::Xaml::DispatcherTimer _copyNotificationTimer{ nullptr };
         enum StreamingSuggestionsMode
         {
             Normal,
@@ -101,13 +102,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                                                     dataContext);
 
         Control::FuzzySearchTextLine _BuildLine(hstring const& text,
-                                                                             int32_t row,
-                                                                             int32_t col,
-                                                                             std::optional<std::vector<fzfcpp::matcher::TextRun>> const& runs);
+                                                int32_t row,
+                                                int32_t col,
+                                                std::optional<std::vector<fzfcpp::matcher::TextRun>> const& runs);
 
         void _enterWordSplitMode();
         void _recalculateTopMargin();
         void _setDirection(bool openUpward);
+        void _OnCopyNotificationTimerTick(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::Foundation::IInspectable const&);
+        void _showCopyNotification(const hstring& text);
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;
