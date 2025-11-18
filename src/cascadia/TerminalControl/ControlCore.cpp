@@ -1323,36 +1323,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _updateSelectionUI();
     }
 
-    winrt::hstring ControlCore::_getLineText(int32_t rowNumber, TextBuffer& buffer) const
-    {
-        const auto rowCount = buffer.TotalRowCount();
-
-        int32_t firstRow = rowNumber;
-        while (firstRow > 0)
-        {
-            const auto& prev = buffer.GetRowByOffset(firstRow - 1);
-            if (!prev.WasWrapForced())
-            {
-                break;
-            }
-            --firstRow;
-        }
-
-        std::wstring result;
-        for (int32_t r = firstRow; r < rowCount; ++r)
-        {
-            const auto& row = buffer.GetRowByOffset(r);
-            result += row.GetText();
-
-            if (!row.WasWrapForced())
-            {
-                break;
-            }
-        }
-
-        return winrt::hstring{ result };
-    }
-
     std::pair<int32_t, int32_t> ControlCore::_calculateMatchRange(const auto& buffer, const auto& match, const winrt::hstring& matchText) const
     {
         // Find the first row of the logical line
@@ -2504,74 +2474,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
 
             if (!row.WasWrapForced())
-            {
-                str.append(L"\r\n");
-            }
-        }
-
-        return hstring{ str };
-    }
-
-    hstring ControlCore::GetLinesFromCursor(int32_t numberOfLines) const
-    {
-        const auto lock = _terminal->LockForReading();
-
-        const auto& textBuffer = _terminal->GetTextBuffer();
-        const auto cursor = textBuffer.GetCursor().GetPosition();
-        
-        std::wstring str;
-        int32_t startRow, endRow;
-        
-        if (numberOfLines < 0)
-        {
-            // Get lines before cursor (negative number)
-            const auto linesRequested = -numberOfLines;
-            startRow = std::max(0, cursor.y - linesRequested);
-            endRow = cursor.y + 1; // Include cursor line
-        }
-        else
-        {
-            // Get lines from cursor forward (positive number)
-            startRow = cursor.y;
-            const auto bufferRowCount = textBuffer.TotalRowCount();
-            endRow = std::min(startRow + numberOfLines, bufferRowCount);
-        }
-        
-        for (auto rowIndex = startRow; rowIndex < endRow; ++rowIndex)
-        {
-            const auto& row = textBuffer.GetRowByOffset(rowIndex);
-            const auto rowText = row.GetText();
-            const auto strEnd = rowText.find_last_not_of(UNICODE_SPACE);
-                
-            std::wstring lineText;
-            if (strEnd != std::wstring::npos)
-            {
-                lineText = rowText.substr(0, strEnd + 1);
-            }
-            
-            // For cursor line, extract text after first '>' character
-            if (rowIndex == cursor.y && !lineText.empty())
-            {
-                const auto promptPos = lineText.find(L'>');
-                if (promptPos != std::wstring::npos && promptPos < lineText.length() - 1)
-                {
-                    // Extract everything after the '>' and trim leading whitespace
-                    auto afterPrompt = lineText.substr(promptPos + 1);
-                    const auto firstNonSpace = afterPrompt.find_first_not_of(L" \t");
-                    if (firstNonSpace != std::wstring::npos)
-                    {
-                        lineText = afterPrompt.substr(firstNonSpace);
-                    }
-                    else
-                    {
-                        lineText = afterPrompt; // Keep even if all whitespace
-                    }
-                }
-            }
-            
-            str.append(lineText);
-
-            if (!row.WasWrapForced() && rowIndex < (endRow - 1))
             {
                 str.append(L"\r\n");
             }

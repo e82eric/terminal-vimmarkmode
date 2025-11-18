@@ -452,7 +452,6 @@ namespace winrt::TerminalApp::implementation
         void _UpdateBackground(const winrt::Microsoft::Terminal::Settings::Model::Profile& profile);
 
         void _OnDispatchCommandRequested(const IInspectable& sender, const Microsoft::Terminal::Settings::Model::Command& command);
-        void _OnStreamingDispatchCommandRequested(const IInspectable& sender, const Microsoft::Terminal::Settings::Model::Command& command);
         void _OnCommandLineExecutionRequested(const IInspectable& sender, const winrt::hstring& commandLine);
         void _OnSwitchToTabRequested(const IInspectable& sender, const winrt::TerminalApp::TabBase& tab);
 

@@ -26,7 +26,6 @@ namespace winrt::TerminalApp::implementation
     DependencyProperty HighlightedTextControl::_HighlightedRunsProperty{ nullptr };
     DependencyProperty HighlightedTextControl::_TextBlockStyleProperty{ nullptr };
     DependencyProperty HighlightedTextControl::_HighlightedRunStyleProperty{ nullptr };
-    DependencyProperty HighlightedTextControl::_TextWrappingProperty{ nullptr };
 
     HighlightedTextControl::HighlightedTextControl()
     {
@@ -59,12 +58,6 @@ namespace winrt::TerminalApp::implementation
                 xaml_typename<winrt::Windows::UI::Xaml::Style>(),
                 xaml_typename<winrt::TerminalApp::HighlightedTextControl>(),
                 PropertyMetadata(nullptr, HighlightedTextControl::_onPropertyChanged));
-
-            _TextWrappingProperty = DependencyProperty::Register(
-                L"TextWrapping",
-                xaml_typename<winrt::Windows::UI::Xaml::TextWrapping>(),
-                xaml_typename<winrt::TerminalApp::HighlightedTextControl>(),
-                PropertyMetadata(winrt::box_value(winrt::Windows::UI::Xaml::TextWrapping::NoWrap), HighlightedTextControl::_onPropertyChanged));
 
             return true;
         }();
@@ -121,9 +114,6 @@ namespace winrt::TerminalApp::implementation
         {
             return;
         }
-
-        // Apply TextWrapping property to the TextBlock
-        textBlock.TextWrapping(TextWrapping());
 
         const auto text = Text();
         const auto runs = HighlightedRuns();

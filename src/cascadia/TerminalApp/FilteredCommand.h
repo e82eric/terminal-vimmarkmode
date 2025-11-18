@@ -19,7 +19,6 @@ namespace winrt::TerminalApp::implementation
     {
         FilteredCommand() = default;
         FilteredCommand(const winrt::TerminalApp::IPaletteItem& item);
-        FilteredCommand(const winrt::TerminalApp::IPaletteItem& item, int32_t ordinal, bool searchDescription);
 
         void UpdateFilter(std::shared_ptr<fzf::matcher::Pattern> pattern);
 
@@ -28,21 +27,12 @@ namespace winrt::TerminalApp::implementation
         til::property_changed_event PropertyChanged;
         WINRT_OBSERVABLE_PROPERTY(winrt::TerminalApp::IPaletteItem, Item, PropertyChanged.raise, nullptr);
         WINRT_OBSERVABLE_PROPERTY(winrt::Windows::Foundation::Collections::IVector<winrt::TerminalApp::HighlightedRun>, NameHighlights, PropertyChanged.raise);
-        WINRT_OBSERVABLE_PROPERTY(winrt::Windows::Foundation::Collections::IVector<winrt::TerminalApp::HighlightedRun>, HighlightedSubName, PropertyChanged.raise);
-        WINRT_OBSERVABLE_PROPERTY(winrt::Windows::Foundation::Collections::IVector<winrt::TerminalApp::HighlightedRun>, DescriptionHighlights, PropertyChanged.raise);
         WINRT_OBSERVABLE_PROPERTY(int, Weight, PropertyChanged.raise);
-        WINRT_OBSERVABLE_PROPERTY(winrt::hstring, Description, PropertyChanged.raise);
-
-    public:
-        int32_t Ordinal();
 
     private:
         std::shared_ptr<fzf::matcher::Pattern> _pattern;
         void _update();
         Windows::UI::Xaml::Data::INotifyPropertyChanged::PropertyChanged_revoker _itemChangedRevoker;
-        int32_t _ordinal;
-        bool _searchDescription;
-        struct { int32_t Start = 0; int32_t End = 0; } _scrollbackRange;
 
         friend class TerminalAppLocalTests::FilteredCommandTests;
     };

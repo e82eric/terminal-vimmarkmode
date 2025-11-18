@@ -275,7 +275,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void SetReadOnlyMode(const bool readOnlyState);
 
         hstring ReadEntireBuffer() const;
-        hstring GetLinesFromCursor(int32_t numberOfLines) const;
         Control::CursorContext GetLinesFromCursorWithContext(int32_t numberOfLines) const;
         Control::CommandHistoryContext CommandHistory() const;
         bool QuickFixesAvailable() const noexcept;
@@ -400,7 +399,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _clickedOnMark(const til::point& pos, bool (*filter)(const ::MarkExtents&));
         hstring _getLineText(int32_t rowNumber) const;
         std::pair<int32_t, int32_t> _calculateMatchRange(const auto& buffer, const auto& match, const winrt::hstring& matchText) const;
-        hstring _getLineText(int32_t rowNumber, TextBuffer& buffer) const;
 
         inline bool _IsClosing() const noexcept
         {

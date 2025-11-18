@@ -513,20 +513,11 @@ namespace winrt::TerminalApp::implementation
             }
         }
     }
-    void TerminalPage::_HandleOpenSettings(const IInspectable& sender,
+    void TerminalPage::_HandleOpenSettings(const IInspectable& /*sender*/,
                                            const ActionEventArgs& args)
     {
         if (const auto& realArgs = args.ActionArgs().try_as<OpenSettingsArgs>())
         {
-            if (realArgs.Target() == SettingsTarget::SendInput)
-            {
-                if (const auto termControl{ _senderOrActiveControl(sender) })
-                {
-                    termControl.SendInput(CascadiaSettings::SettingsPath());
-                    args.Handled(true);
-                    return;
-                }
-            }
             _LaunchSettings(realArgs.Target());
             args.Handled(true);
         }
@@ -1695,13 +1686,6 @@ namespace winrt::TerminalApp::implementation
                 termControl.StartSnippetSearch(toSearch, false);
             }
             co_return;
-
-            //const auto tasks = co_await _settings.GlobalSettings().ActionMap().FilterToSnippets(filter, currentWorkingDirectory);
-            //// ----- we may be on a background thread here -----
-            //for (const auto& t : tasks)
-            //{
-            //    commandsCollection.push_back(t);
-            //}
         }
 
         // Command History comes from the commands in the buffer,

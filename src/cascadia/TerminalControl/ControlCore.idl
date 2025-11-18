@@ -203,7 +203,6 @@ namespace Microsoft.Terminal.Control
         void EnablePainting();
 
         String ReadEntireBuffer();
-        String GetLinesFromCursor(Int32 numberOfLines);
         CursorContext GetLinesFromCursorWithContext(Int32 numberOfLines);
         CommandHistoryContext CommandHistory();
         Boolean QuickFixesAvailable { get; };

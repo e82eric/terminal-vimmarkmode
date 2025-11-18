@@ -447,12 +447,6 @@ namespace winrt::TerminalApp::implementation
         _actionDispatch->DoAction(sender, actionAndArgs);
     }
 
-    void TerminalPage::_OnStreamingDispatchCommandRequested(const IInspectable& sender, const Microsoft::Terminal::Settings::Model::Command& command)
-    {
-        const auto& actionAndArgs = command.ActionAndArgs();
-        _actionDispatch->DoAction(sender, actionAndArgs);
-    }
-
     // Method Description:
     // - This method is called once command palette command line was chosen for execution
     //   We'll use this event to create a command line execution command and dispatch it.

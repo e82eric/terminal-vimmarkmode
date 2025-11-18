@@ -4,8 +4,6 @@
 #include "pch.h"
 #include "CommandPalette.h"
 #include <LibraryResources.h>
-
-#include "CommandPaletteItems.h"
 #include "fzf/fzf.h"
 
 #include "FilteredCommand.g.cpp"
@@ -21,35 +19,11 @@ using namespace winrt::Microsoft::Terminal::Settings::Model;
 
 namespace winrt::TerminalApp::implementation
 {
-    int32_t FilteredCommand::Ordinal()
-    {
-        return _ordinal;
-    }
-
-    FilteredCommand::FilteredCommand(const winrt::TerminalApp::IPaletteItem& item) :
-        FilteredCommand(item, 0, false)
-    {
-    }
-
-    // This class is a wrapper of PaletteItem, that is used as an item of a filterable list in CommandPalette.
+    // This class is a wrapper of IPaletteItem, that is used as an item of a filterable list in CommandPalette.
     // It manages a highlighted text that is computed by matching search filter characters to item name
-    FilteredCommand::FilteredCommand(const winrt::TerminalApp::IPaletteItem& item, int32_t ordinal, bool searchDescription) :
+    FilteredCommand::FilteredCommand(const winrt::TerminalApp::IPaletteItem& item) :
         _Item{ item }, _Weight{ 0 }
     {
-        _ordinal = ordinal;
-        _searchDescription = searchDescription;
-
-        if (_searchDescription)
-        {
-            if (auto cmd = item.try_as<ActionPaletteItem>())
-            {
-                Description(cmd->Command().Description());
-                auto range = cmd->Command().Range();
-                _scrollbackRange.Start = range.Start;
-                _scrollbackRange.End = range.End;
-            }
-        }
-
         // Recompute the highlighted name if the item name changes
         // Our Item will not change, so we don't need to update the revoker if it does.
         _itemChangedRevoker = _Item.as<winrt::Windows::UI::Xaml::Data::INotifyPropertyChanged>().PropertyChanged(winrt::auto_revoke, [weakThis{ get_weak() }](auto& /*sender*/, auto& e) {
@@ -92,69 +66,10 @@ namespace winrt::TerminalApp::implementation
         return { std::move(segments), weight };
     }
 
-
     void FilteredCommand::_update()
     {
-        auto description = Description();
-        auto [segments, weight] = _searchDescription && !description.empty() ?
-            _matchedSegmentsAndWeight(_pattern, description) :
-            _matchedSegmentsAndWeight(_pattern, _Item.Name());
+        auto [segments, weight] = _matchedSegmentsAndWeight(_pattern, _Item.Name());
 
-        auto [nameSegments,nameWeight] = _matchedSegmentsAndWeight(_pattern, _Item.Name());
-
-        // Calculate HighlightedSubName first (intersection of filter highlights and scrollback range)
-        //std::vector<winrt::TerminalApp::HighlightedRun> intersectionHighlights;
-        //if (_scrollbackRange.End > _scrollbackRange.Start && !segments.empty())
-        //{
-        //    if (_searchDescription && !description.empty())
-        //    {
-        //        // When searching description, segments are relative to description (full row)
-        //        // so we can directly intersect with scrollback range
-        //        const auto rangeStart = static_cast<uint64_t>(_scrollbackRange.Start);
-        //        const auto rangeEnd = static_cast<uint64_t>(_scrollbackRange.End);
-
-        //        for (const auto& segment : segments)
-        //        {
-        //            const auto intersectStart = std::max(segment.Start, rangeStart);
-        //            const auto intersectEnd = std::min(segment.End, rangeEnd);
-
-        //            if (intersectStart <= intersectEnd)
-        //            {
-        //                const auto offsetStart = intersectStart - rangeStart;
-        //                const auto offsetEnd = intersectEnd - rangeStart;
-
-        //                const auto itemNameLength = static_cast<uint64_t>(_Item.Name().size());
-        //                if (offsetStart < itemNameLength)
-        //                {
-        //                    auto end = std::min(offsetEnd, itemNameLength);
-        //                    weight += static_cast<int>((end - offsetStart) * 8);
-        //                    intersectionHighlights.push_back({
-        //                        offsetStart,
-        //                        std::min(offsetEnd, itemNameLength)
-        //                    });
-        //                }
-        //            }
-        //        }
-        //    }
-        //    else
-        //    {
-        //        // When searching item name, segments are already relative to item name
-        //        // so we just use them directly (they're already within the scrollback range)
-        //        for (const auto& segment : segments)
-        //        {
-        //            const auto itemNameLength = static_cast<uint64_t>(_Item.Name().size());
-        //            if (segment.Start < itemNameLength)
-        //            {
-        //                intersectionHighlights.push_back({
-        //                    segment.Start,
-        //                    std::min(segment.End, itemNameLength)
-        //                });
-        //            }
-        //        }
-        //    }
-        //}
-
-        // Set filter highlights (NameHighlights)
         if (segments.empty())
         {
             NameHighlights(nullptr);
@@ -164,18 +79,7 @@ namespace winrt::TerminalApp::implementation
             NameHighlights(winrt::single_threaded_vector(std::move(segments)));
         }
 
-        HighlightedSubName(winrt::single_threaded_vector(std::move(nameSegments)));
-        // Set HighlightedSubName
-        //if (!intersectionHighlights.empty())
-        //{
-        //    HighlightedSubName(winrt::single_threaded_vector(std::move(intersectionHighlights)));
-        //}
-        //else
-        //{
-        //    HighlightedSubName(nullptr);
-        //}
-
-        Weight(weight + nameWeight);
+        Weight(weight);
     }
 
     // Function Description:
@@ -193,10 +97,6 @@ namespace winrt::TerminalApp::implementation
 
         if (firstWeight == secondWeight)
         {
-            if (first.Ordinal() != second.Ordinal())
-            {
-                return first.Ordinal() < second.Ordinal();
-            }
             const auto firstName = first.Item().Name();
             const auto secondName = second.Item().Name();
             return til::compare_linguistic_insensitive(firstName, secondName) < 0;
