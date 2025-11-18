@@ -331,6 +331,61 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return std::nullopt;
     }
 
+    static void _copyToClipboard(const UINT format, const void* src, const size_t bytes)
+    {
+        wil::unique_hglobal handle{ THROW_LAST_ERROR_IF_NULL(GlobalAlloc(GMEM_MOVEABLE, bytes)) };
+
+        const auto locked = GlobalLock(handle.get());
+        memcpy(locked, src, bytes);
+        GlobalUnlock(handle.get());
+
+        THROW_LAST_ERROR_IF_NULL(SetClipboardData(format, handle.get()));
+        handle.release();
+    }
+
+    static wil::unique_close_clipboard_call _openClipboard(HWND hwnd)
+    {
+        bool success = false;
+
+        // OpenClipboard may fail to acquire the internal lock --> retry.
+        for (DWORD sleep = 10;; sleep *= 2)
+        {
+            if (OpenClipboard(hwnd))
+            {
+                success = true;
+                break;
+            }
+            // 10 iterations
+            if (sleep > 10000)
+            {
+                break;
+            }
+            Sleep(sleep);
+        }
+
+        return wil::unique_close_clipboard_call{ success };
+    }
+
+    static void copyToClipboard(wil::zwstring_view text)
+    {
+        const auto clipboard = _openClipboard(nullptr);
+        if (!clipboard)
+        {
+            LOG_LAST_ERROR();
+            return;
+        }
+
+        EmptyClipboard();
+
+        if (!text.empty())
+        {
+            // As per: https://learn.microsoft.com/en-us/windows/win32/dataxchg/standard-clipboard-formats
+            //   CF_UNICODETEXT: [...] A null character signals the end of the data.
+            // --> We add +1 to the length. This works because .c_str() is null-terminated.
+            _copyToClipboard(CF_UNICODETEXT, text.c_str(), (text.size() + 1) * sizeof(wchar_t));
+        }
+    }
+
     bool StreamingSuggestionsControl::HandleKeyPress(WORD vkey, WORD /*scanCode*/, Core::ControlKeyStates modifiers, bool keyDown)
     {
         const auto itemCount = ListBox().Items().Size();
@@ -341,6 +396,41 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         switch (vkey)
         {
+        case 'C':
+        {
+            const auto ctrlPressed = WI_IsFlagSet(modifiers.Value, LEFT_CTRL_PRESSED);
+            if (ctrlPressed)
+            {
+                auto selectedItem = ListBox().SelectedItem();
+                switch (_mode)
+                {
+                case StreamingSuggestionsMode::Normal:
+                {
+                    if (auto castedDc = _TryGetSelectedSuggestion())
+                    {
+                        copyToClipboard(castedDc->Text.c_str());
+                        return true;
+                    }
+                    break;
+                }
+                case StreamingSuggestionsMode::WordSplit:
+                {
+                    if (auto selected = ListBox().SelectedItem())
+                    {
+                        Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
+                        Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
+
+                        if (auto word = data.try_as<hstring>())
+                        {
+                            copyToClipboard(word->c_str());
+                            return true;
+                        }
+                    }
+                    break;
+                }
+                }
+            }
+        }
         case VK_UP:
         {
             if (keyDown)

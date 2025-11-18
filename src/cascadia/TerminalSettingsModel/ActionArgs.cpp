@@ -539,8 +539,6 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             return RS_(L"OpenSettingsCommandKey");
         case SettingsTarget::SendInput:
             return L"Send Input: Settings File Path";
-        case SettingsTarget::Clipboard:
-            return L"Send settings file path to clipboard";
         case SettingsTarget::Directory:
             return RS_(L"SettingsFileOpenInExplorerCommandKey");
         case SettingsTarget::SettingsUI:

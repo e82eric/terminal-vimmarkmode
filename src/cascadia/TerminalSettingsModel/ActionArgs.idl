@@ -65,7 +65,6 @@ namespace Microsoft.Terminal.Settings.Model
         AllFiles,
         SettingsUI,
         SendInput,
-        Clipboard,
         Directory
     };
 
