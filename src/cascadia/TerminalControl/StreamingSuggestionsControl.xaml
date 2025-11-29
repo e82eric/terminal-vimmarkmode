@@ -27,10 +27,17 @@
         </Grid.RowDefinitions>
 
         <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" CornerRadius="4" >
-            <ListView x:Name="ListBox" Background="{x:Bind BackgroundColor, Mode=OneWay}" VerticalAlignment="Stretch" DataContext="{x:Bind}">
+            <ListView
+                x:Name="ListBox"
+                Background="{x:Bind BackgroundColor, Mode=OneWay}"
+                VerticalAlignment="Stretch"
+                DataContext="{x:Bind}" >
                 <ListView.Resources>
                     <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="{x:Bind SelectedItemColor, Mode=OneWay}" />
                 </ListView.Resources>
+                <ListView.ItemContainerTransitions>
+                    <TransitionCollection />
+                </ListView.ItemContainerTransitions>
             </ListView>
         </Border>
 

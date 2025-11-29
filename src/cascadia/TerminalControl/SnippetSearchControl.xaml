@@ -33,6 +33,9 @@
                 <ListView.Resources>
                     <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="{x:Bind SelectedItemColor, Mode=OneWay}" />
                 </ListView.Resources>
+                <ListView.ItemContainerTransitions>
+                    <TransitionCollection />
+                </ListView.ItemContainerTransitions>
             </ListView>
         </Border>
         <TextBlock
