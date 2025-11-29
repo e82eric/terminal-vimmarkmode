@@ -3368,7 +3368,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             const til::CoordType beg = std::max<til::CoordType>(0, end - rowBatchSize);
             {
-                if (auto searchResults = snapshotBuffer->SearchText(needle, SearchFlag::RegularExpression, beg, end))
+                if (auto searchResults = snapshotBuffer->SearchText(needle, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, beg, end))
                 {
                     auto spans = searchResults.value();
 
@@ -3400,6 +3400,126 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
 
                 end = beg;
+            }
+        }
+
+        co_return;
+    }
+
+    std::vector<std::wstring> SplitOnSpace(const std::wstring& text)
+    {
+        std::vector<std::wstring> parts;
+        std::size_t start = 0;
+
+        for (;;)
+        {
+            std::size_t pos = text.find(L' ', start);
+            if (pos == std::wstring::npos)
+            {
+                if (start < text.size())
+                {
+                    parts.emplace_back(text.substr(start));
+                }
+                break;
+            }
+
+            if (pos > start)
+            {
+                parts.emplace_back(text.substr(start, pos - start));
+            }
+
+            start = pos + 1;
+        }
+
+        return parts;
+    }
+
+    Windows::Foundation::IAsyncAction ControlCore::LineSearchAsync(winrt::hstring /*needle*/, SuggestionBatchHandler const& onBatch, int32_t lineNumber)
+    {
+        auto splitBySpace = L"[^\\s]{3,}";
+        auto splitByMoreThanOneSpace = L"\\S(?: ?\\S)*";
+        auto batchCb = winrt::make_agile(onBatch);
+
+        std::optional<std::vector<til::point_span>> searchResults;
+
+        co_await resume_background();
+
+        auto lock = _terminal->LockForReading();
+        auto& buffer = _terminal->GetTextBuffer();
+
+        std::unordered_set<std::wstring> seen;
+        if (auto searchResults = buffer.SearchText(splitBySpace, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
+        {
+            auto spans = searchResults.value();
+
+            std::vector<SuggestionSearchItem> items;
+            items.reserve(spans.size());
+            auto ordinal = 1000;
+            for (auto it = spans.rbegin(); it != spans.rend(); ++it)
+            {
+                auto span = *it;
+                auto text = buffer.GetPlainText(span.start, span.end);
+
+                if (seen.insert(text).second)
+                {
+                    auto item = SuggestionSearchItem{
+                        hstring{ buffer.GetPlainText(span.start, span.end) },
+                        ordinal,
+                        span.start.to_core_point(),
+                        span.end.to_core_point()
+                    };
+                    items.emplace_back(item);
+                    ordinal--;
+                }
+            }
+
+            auto batch = winrt::make_self<SuggestionBatch>(std::move(items));
+            if (auto cb = batchCb.get())
+            {
+                cb(*batch);
+            }
+        }
+
+        if (auto searchResults = buffer.SearchText(splitByMoreThanOneSpace, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
+        {
+            if (searchResults->size() > 1)
+            {
+                auto spans = searchResults.value();
+
+                std::vector<SuggestionSearchItem> items;
+                items.reserve(spans.size());
+                auto ordinal = 1000;
+                for (auto it = spans.rbegin(); it != spans.rend(); ++it)
+                {
+                    auto span = *it;
+
+                    auto& row = buffer.GetRowByOffset(span.end.y);
+                    for (auto i = span.end.x - 1; i >= span.start.x; i--)
+                    {
+                        auto delimiter = row.DelimiterClassAt(i, L"");
+                        if (delimiter == DelimiterClass::ControlChar)
+                        {
+                            auto current = buffer.GetPlainText(til::point{ i + 1, span.end.y }, span.end);
+                            if (seen.insert(current).second)
+                            {
+                                auto item = SuggestionSearchItem{
+                                    hstring{ current },
+                                    ordinal,
+                                    til::point{ i + 1, span.end.y }.to_core_point(),
+                                    span.end.to_core_point()
+                                };
+                                items.emplace_back(item);
+                                ordinal--;
+                            }
+                        }
+                    }
+                }
+
+                auto batch = winrt::make_self<SuggestionBatch>(std::move(items));
+                if (auto cb = batchCb.get())
+                {
+                    cb(*batch);
+                }
             }
         }
 

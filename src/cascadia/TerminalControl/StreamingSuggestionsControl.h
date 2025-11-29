@@ -45,6 +45,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void HighlightedTextColor(Windows::UI::Xaml::Media::Brush const& value);
 
         void SetCurrentWord(const winrt::hstring& value, int32_t cursorX);
+        bool TryAutoComplete(
+            Microsoft::Terminal::Control::TermControl const& termControl,
+            Windows::Foundation::Point anchor,
+            Windows::Foundation::Size space,
+            winrt::hstring currentWord,
+            float prefixWidth,
+            int32_t cursorX);
         void Open(
             Microsoft::Terminal::Control::TermControl const& termControl,
             winrt::hstring needle,
@@ -54,6 +61,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             float prefixWidth,
             int32_t cursorX);
         std::optional<SuggestionSearchItem> _TryGetSelectedSuggestion();
+        void ToggleAutoComplete();
 
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
 
@@ -65,6 +73,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             WordSplit
         };
 
+        bool _autoCompleteEnabled = false;
+        bool _autoCompleteMode = false;
         StreamingSuggestionsMode _mode = StreamingSuggestionsMode::Normal;
         int32_t _cursorX;
         void _selectFirstItem();

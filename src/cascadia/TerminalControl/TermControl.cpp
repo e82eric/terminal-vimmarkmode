@@ -808,6 +808,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::ToggleSnippetAutoComplete()
     {
         SnippetSearch().ToggleAutoComplete();
+        StreamingSuggestions().ToggleAutoComplete();
     }
 
     winrt::hstring TermControl::GetCurrentWord()
@@ -4301,10 +4302,40 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _refreshSearch();
 
+        auto cursorPosition = _core.CursorPosition();
+        auto y = cursorPosition.Y;
+        auto x = cursorPosition.X;
+        const auto displayInfo = DisplayInformation::GetForCurrentView();
+        const auto scaleFactor = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
+        const auto xScaleFactor = _core.FontSize().Width / displayInfo.RawPixelsPerViewPixel();
+
+        auto cursorYPixel = y * scaleFactor;
+        auto cursorXPixel = x * xScaleFactor;
+
+        const auto cursorPos{ CursorPositionInDips() };
+        const Windows::Foundation::Size termControlDimensions{
+            gsl::narrow_cast<float>(ActualWidth()),
+            gsl::narrow_cast<float>(ActualHeight())
+        };
+        const auto characterDimensions = CharacterDimensions();
+        const auto characterWidth = characterDimensions.Width;
+
+        auto currentWord = _core.GetCurrentWord();
+        const auto prefixWidth = currentWord.size() * characterWidth;
+
         if (StreamingSuggestions().Visibility() == Visibility::Collapsed && SnippetSearch().HasPrefixMatch(_core.GetCurrentWord()))
         {
             StartSnippetSearch(nullptr, true);
         }
+
+        if (SnippetSearch().Visibility() == Visibility::Collapsed)
+        {
+            if (StreamingSuggestions().Visibility() == Visibility::Collapsed && (currentWord.size() == 3 || currentWord.size() == 2))
+            {
+                StreamingSuggestions().TryAutoComplete(*this, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) }, termControlDimensions, currentWord, prefixWidth, x);
+            }
+        }
+
         if (StreamingSuggestions().Visibility() == Visibility::Visible)
         {
             const auto currentWord = _core.GetCurrentLine();
@@ -4377,6 +4408,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     Windows::Foundation::IAsyncAction TermControl::SuggestionScrollBackSearchAsync(winrt::hstring const& needle, SuggestionBatchHandler const& onBatch)
     {
         return _core.SuggestionScrollBackSearchAsync(needle, onBatch);
+    }
+
+    Windows::Foundation::IAsyncAction TermControl::LineSearchAsync(winrt::hstring needle, SuggestionBatchHandler const& onBatch, int32_t lineNumber)
+    {
+        return _core.LineSearchAsync(needle, onBatch, lineNumber);
     }
 
     // Returns the text cursor's position relative to our origin, in DIPs.

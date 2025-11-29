@@ -112,6 +112,7 @@ namespace Microsoft.Terminal.Control
         void ScrollViewport(Int32 viewTop);
 
         Windows.Foundation.IAsyncAction SuggestionScrollBackSearchAsync(String needle, SuggestionBatchHandler onBatch);
+        Windows.Foundation.IAsyncAction LineSearchAsync(String needle, SuggestionBatchHandler onBatch, Int32 lineNumber);
         void SelectRow(Int32 row, Int32 col);
         String GetCurrentWord();
 

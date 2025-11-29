@@ -510,6 +510,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     public:
         Windows::Foundation::IAsyncAction SuggestionScrollBackSearchAsync( winrt::hstring needle, SuggestionBatchHandler const& onBatch);
+        Windows::Foundation::IAsyncAction LineSearchAsync(winrt::hstring needle, SuggestionBatchHandler const& onBatch, int32_t lineNumber);
         void HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan);
         void ClearHighlights(bool scrollToCursor);
         int32_t GetViewportTop();

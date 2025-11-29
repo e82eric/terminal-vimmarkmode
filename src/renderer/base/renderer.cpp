@@ -102,7 +102,7 @@ COLORREF lightenColor(COLORREF color, float factor) {
         });
 
         const auto backgroundColor = _renderSettings.GetColorTableEntry(TextColor::DEFAULT_BACKGROUND);
-        _quickSelectNonMatch = lightenColor(backgroundColor, 1.0f);
+        _quickSelectNonMatch = lightenColor(backgroundColor, 2.0f);
         _quickSelectOddRowBackground = lightenColor(backgroundColor, 1.4f);
         _quickSelectMatch = _renderSettings.GetColorTableEntry(TextColor::DEFAULT_FOREGROUND);
         _quickSelectSelectedHighlight = _renderSettings.GetColorTableEntry(TextColor::BRIGHT_RED);

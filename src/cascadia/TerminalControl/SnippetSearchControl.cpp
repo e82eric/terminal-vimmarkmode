@@ -304,11 +304,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return;
         }
 
-        if (_autoCompleteMode && _currentWord.back() == L' ')
-        {
-            _close();
-            return;
-        }
+        //if (_autoCompleteMode && _currentWord.back() == L' ')
+        //{
+        //    _close();
+        //    return;
+        //}
 
         const size_t nonSpace = std::count_if(_currentWord.begin(), _currentWord.end(), [](wchar_t ch){ return ch != L' '; });
         int minScore = _autoCompleteMode ? static_cast<int>(nonSpace) * 15 : 0;
@@ -328,7 +328,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         };
 
         std::vector<ScoredItem> scoredItems;
-        auto patternStr = _autoCompleteMode ? L"^" + _currentWord : _currentWord;
+        auto patternStr = _autoCompleteMode ? L"" + _currentWord : _currentWord;
         auto pattern = fzfcpp::matcher::ParsePatternWithTypes(patternStr);
         for (auto item : _items)
         {
@@ -707,12 +707,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (openUpward)
         {
-            const auto marginTop = (_anchor.Y - controlHeight);
+            const auto marginTop = (_anchor.Y - controlHeight - 10);
             currentMargin.Top = marginTop;
         }
         else
         {
-            currentMargin.Top = (_anchor.Y + 20);
+            currentMargin.Top = (_anchor.Y + 20 + 10);
         }
         Margin(currentMargin);
     }

@@ -5,9 +5,6 @@
 #include "FuzzySearchTextSegment.h"
 #include "StreamingSuggestionsControl.h"
 #include "StreamingSuggestionsControl.g.cpp"
-#include <LibraryResources.h>
-
-#include "IInputEvent.hpp"
 
 using namespace winrt::Windows::UI::Xaml::Media;
 
@@ -231,6 +228,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto betweenCursors = til::safe_slice_abs(value, _cursorX, cursorX);
 
+        if (Visibility() == Visibility::Visible && _autoCompleteMode && betweenCursors.size() < 2)
+        {
+            _close(false);
+            return;
+        }
+
         _currentWord = betweenCursors;
         {
             std::lock_guard lock(_searchTermMutex);
@@ -259,6 +262,91 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _termControl.ClearHighlights(scrollToCursor);
     }
 
+    bool StreamingSuggestionsControl::TryAutoComplete(
+        TermControl const& termControl,
+        Windows::Foundation::Point anchor,
+        Windows::Foundation::Size space,
+        winrt::hstring currentWord,
+        float prefixWidth,
+        int32_t cursorX)
+    {
+        if (!_autoCompleteEnabled)
+        {
+            return false;
+        }
+
+        if (Visibility() == Visibility::Visible && !_autoCompleteMode)
+        {
+            return false;
+        }
+
+        _scrollToSpan = false;
+        _mode = StreamingSuggestionsMode::Normal;
+        _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
+        _termControl = termControl;
+        _currentWord = currentWord;
+        _currentSearchTerm = currentWord;
+        _prefixWidth = prefixWidth;
+
+        const auto proposedX = gsl::narrow_cast<int>(anchor.X - prefixWidth);
+        const auto maxX = gsl::narrow_cast<int>(space.Width - ActualWidth());
+        const auto clampedX = std::clamp(proposedX, 0, maxX);
+        Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(clampedX, 0, 0, 0));
+
+        _anchor = anchor;
+        _space = space;
+        _searchVersion = 0;
+        _allItemsLoaded = false;
+        _allItemsSearched = false;
+        _controlShown = false;
+
+        //TODO: This feels like a major race condition
+        _autoCompleteMode = true;
+
+        _recalculateTopMargin();
+
+        {
+            std::lock_guard<std::mutex> lock(_batchesMutex);
+            _batches.clear();
+        }
+
+        //auto needle =
+        //    L"(?<![^\\s∙⤶])" // left boundary: previous char is NOT a word-char
+        //    L"(?=[^\\s∙⤶]{5,}(?![^\\s∙⤶]))" // length ≥ 5 within the token
+        //    L"[^\\s∙⤶]*" +
+        //    currentWord + // token chars before + your word
+        //    L"[^\\s∙⤶]*(?![^\\s∙⤶])"; // token chars after + right boundary
+
+std::wstring prefix = L"(?<![^\\s∙⤶])(?=[^\\s∙⤶]{5,}(?![^\\s∙⤶]))[^\\s∙⤶]*";
+std::wstring suffix = L"[^\\s∙⤶]*(?![^\\s∙⤶])";
+std::wstring needle = prefix + currentWord.c_str() + suffix;
+
+        //auto needle = L"(?<!\\S)(?=\\S{5,}(?!\\S))\\S*" + currentWord + L"\\S*(?!\\S)";
+        //auto needle = L"(?<!\\S)\\S*" + currentWord + L"\\S*(?!\\S)";
+        //auto needle = L"\\b\\w*" + currentWord + L"\\w*\\b";
+        auto op = termControl.SuggestionScrollBackSearchAsync(
+            needle,
+            Microsoft::Terminal::Control::SuggestionBatchHandler{
+                [weakThis = get_weak()](Microsoft::Terminal::Control::SuggestionBatch const& batch) {
+                    if (auto self = weakThis.get())
+                    {
+                        std::lock_guard<std::mutex> lock(self->_batchesMutex);
+                        self->_batches.push_back(batch);
+                        self->_triggerSearch();
+                    }
+                } });
+
+        op.Completed([weakThis = get_weak()](auto const&, auto const&) -> winrt::fire_and_forget {
+            if (auto self = weakThis.get())
+            {
+                self->_allItemsLoaded = true;
+                co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
+            }
+        });
+
+        return true;
+    }
+
     void StreamingSuggestionsControl::Open(
         TermControl const& termControl,
         winrt::hstring needle,
@@ -268,6 +356,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float prefixWidth,
         int32_t cursorX)
     {
+        _autoCompleteMode = false;
+
         _scrollToSpan = false;
         _mode = StreamingSuggestionsMode::Normal;
         _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
@@ -334,6 +424,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         return std::nullopt;
+    }
+
+    void StreamingSuggestionsControl::ToggleAutoComplete()
+    {
+        _autoCompleteEnabled = !_autoCompleteEnabled;
     }
 
     static void _copyToClipboard(const UINT format, const void* src, const size_t bytes)
@@ -425,36 +520,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (ctrlPressed)
             {
                 auto selectedItem = ListBox().SelectedItem();
-                switch (_mode)
+                if (auto castedDc = _TryGetSelectedSuggestion())
                 {
-                case StreamingSuggestionsMode::Normal:
-                {
-                    if (auto castedDc = _TryGetSelectedSuggestion())
-                    {
-                        copyToClipboard(castedDc->Text.c_str());
-                        _showCopyNotification(castedDc->Text);
-                        return true;
-                    }
-                    break;
-                }
-                case StreamingSuggestionsMode::WordSplit:
-                {
-                    if (auto selected = ListBox().SelectedItem())
-                    {
-                        Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
-                        Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
-
-                        if (auto word = data.try_as<hstring>())
-                        {
-                            copyToClipboard(word->c_str());
-                            _showCopyNotification(word.value());
-                            return true;
-                        }
-                    }
-                    break;
-                }
+                    copyToClipboard(castedDc->Text.c_str());
+                    _showCopyNotification(castedDc->Text);
+                    return true;
                 }
             }
+            return false;
         }
         case VK_UP:
         {
@@ -496,34 +569,122 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             return true;
         }
-        case VK_TAB:
+        case 'L':
         {
             if (keyDown)
             {
                 const auto ctrlPressed = WI_IsFlagSet(modifiers.Value, LEFT_CTRL_PRESSED);
                 if (ctrlPressed)
                 {
-                    _scrollToSpan = !_scrollToSpan;
-                    auto selectedIndex = ListBox().SelectedIndex();
-                    _selectItem(selectedIndex);
-                }
-                else
-                {
-                    _enterWordSplitMode();
+                    {
+                        std::lock_guard<std::mutex> lock(_batchesMutex);
+                        _batches.clear();
+                    }
+
+                    if (auto selected = ListBox().SelectedItem())
+                    {
+                        Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
+                        Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
+
+                        if (auto castedDc = _TryGetSelectedSuggestion())
+                        {
+                            std::wstring needle = L"^.*";
+                            needle += castedDc->Text;
+                            needle += L".*$";
+                            auto op = _termControl.SuggestionScrollBackSearchAsync(
+                                needle,
+                                Microsoft::Terminal::Control::SuggestionBatchHandler{
+                                    [weakThis = get_weak()](Microsoft::Terminal::Control::SuggestionBatch const& batch) {
+                                        if (auto self = weakThis.get())
+                                        {
+                                            std::lock_guard<std::mutex> lock(self->_batchesMutex);
+                                            self->_batches.push_back(batch);
+
+                                            self->_triggerSearch();
+                                        }
+                                    } });
+
+                            op.Completed([weakThis = get_weak()](auto const&, auto const&) -> winrt::fire_and_forget {
+                                if (auto self = weakThis.get())
+                                {
+                                    self->_allItemsLoaded = true;
+                                    co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
+                                }
+                            });
+                            return true;
+                        }
+                    }
                 }
             }
-            return true;
+            return false;
         }
+        case 'B':
+        {
+            if (keyDown)
+            {
+                const auto ctrlPressed = WI_IsFlagSet(modifiers.Value, LEFT_CTRL_PRESSED);
+                if (ctrlPressed)
+                {
+                    _mode = StreamingSuggestionsMode::WordSplit;
+                    {
+                        std::lock_guard<std::mutex> lock(_batchesMutex);
+                        _batches.clear();
+                    }
+
+                    if (auto selected = ListBox().SelectedItem())
+                    {
+                        Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
+                        Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
+
+                        if (auto castedDc = _TryGetSelectedSuggestion())
+                        {
+                            std::wstring needle = L"[^\\s]{5,}";
+                            auto op = _termControl.LineSearchAsync(
+                                needle,
+                                Microsoft::Terminal::Control::SuggestionBatchHandler{
+                                    [weakThis = get_weak()](Microsoft::Terminal::Control::SuggestionBatch const& batch) {
+                                        if (auto self = weakThis.get())
+                                        {
+                                            std::lock_guard<std::mutex> lock(self->_batchesMutex);
+                                            self->_batches.push_back(batch);
+
+                                            self->_triggerSearch();
+                                        }
+                                    } },
+                                castedDc->StartPos.Y);
+
+                            op.Completed([weakThis = get_weak()](auto const&, auto const&) -> winrt::fire_and_forget {
+                                if (auto self = weakThis.get())
+                                {
+                                    self->_allItemsLoaded = true;
+                                    co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
+                                }
+                            });
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        case VK_TAB:
         case VK_RETURN:
         {
-            hstring combined = L"";
-            auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
-            switch (_mode)
+            if (keyDown)
             {
-            case StreamingSuggestionsMode::Normal:
-            {
+                hstring combined = L"";
+                auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
                 if (auto castedDc = _TryGetSelectedSuggestion())
                 {
+                    const auto ctrlPressed = WI_IsFlagSet(modifiers.Value, LEFT_CTRL_PRESSED);
+                    if (ctrlPressed)
+                    {
+                        _scrollToSpan = !_scrollToSpan;
+                        auto selectedIndex = ListBox().SelectedIndex();
+                        _selectItem(selectedIndex);
+                        return true;
+                    }
+
                     const auto shiftPressed = WI_IsFlagSet(modifiers.Value, SHIFT_PRESSED);
                     if (shiftPressed)
                     {
@@ -535,27 +696,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                     combined = castedDc->Text;
                 }
-                break;
-            }
-            case StreamingSuggestionsMode::WordSplit:
-            {
-                if (auto selected = ListBox().SelectedItem())
+
+                std::wstring_view trimmed{ combined };
+                while (!trimmed.empty() && trimmed.back() == L' ')
                 {
-                    Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
-                    Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
-
-                    if (auto word = data.try_as<hstring>())
-                    {
-                        combined = word.value();
-                    }
+                    trimmed.remove_suffix(1);
                 }
-                break;
-            }
-            }
 
-            auto text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, combined) };
-            _termControl.SendInput(text);
-            _close(true);
+                auto text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, trimmed) };
+                _termControl.SendInput(text);
+                _close(true);
+            }
 
             return true;
         }
@@ -588,10 +739,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         ListBox().SelectedIndex(index);
         ListBox().ScrollIntoView(ListBox().SelectedItem());
 
-        if (_mode != StreamingSuggestionsMode::Normal)
-        {
-            return;
-        }
+        //if (_mode != StreamingSuggestionsMode::Normal)
+        //{
+        //    return;
+        //}
 
         if (auto selectedItem = _TryGetSelectedSuggestion())
         {
@@ -659,7 +810,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             batchesSnapshot.assign(_batches.begin(), _batches.end());
         }
 
-        if (searchTerm.empty())
+        if (searchTerm.empty() || _mode == StreamingSuggestionsMode::WordSplit)
         {
             co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
             ListBox().Items().Clear();
@@ -686,7 +837,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _selectItem(0);
             }
 
-            NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
+            if (ListBox().Items().Size() == 0)
+            {
+                _close(false);
+            }
+
+            //NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
             InvalidateMeasure();
 
             co_return;
@@ -757,7 +913,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         InvalidateMeasure();
         _recalculateTopMargin();
 
-        NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
+        if (ListBox().Items().Size() == 0)
+        {
+            _close(false);
+        }
+
+        //NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
         co_return;
     }
 

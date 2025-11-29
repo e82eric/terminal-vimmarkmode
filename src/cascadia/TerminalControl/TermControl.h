@@ -88,6 +88,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void ColorSelection(Control::SelectionColor fg, Control::SelectionColor bg, Core::MatchMode matchMode);
         Windows::Foundation::IAsyncAction SuggestionScrollBackSearchAsync( winrt::hstring const& needle, SuggestionBatchHandler const& onBatch);
+        Windows::Foundation::IAsyncAction LineSearchAsync(winrt::hstring needle, SuggestionBatchHandler const& onBatch, int32_t lineNumber);
 
 #pragma region ICoreState
         const uint64_t TaskbarState() const noexcept;

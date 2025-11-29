@@ -70,7 +70,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         TYPED_EVENT(OnReturn, Control::SnippetSearchControl, hstring);
 
         private:
-        bool _autoCompleteEnabled = true;
+        bool _autoCompleteEnabled = false;
         bool _autoCompleteMode;
         winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
         int32_t _cursorX;
