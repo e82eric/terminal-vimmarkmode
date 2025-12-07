@@ -43,7 +43,7 @@ namespace vim
             auto innerPairs = 0;
             for (til::CoordType j = pos.y; j >= 0; j--)
             {
-                const auto x = pos.y == j ? pos.x - 1 : terminal.GetTextBuffer().GetRowByOffset(j).size();
+                const auto x = pos.y == j ? pos.x - 2 : terminal.GetTextBuffer().GetRowByOffset(j).size();
                 for (int i = x; i >= 0; i--)
                 {
                     auto g = terminal.GetTextBuffer().GetRowByOffset(j).GlyphAt(i);
@@ -125,81 +125,6 @@ namespace vim
             }
 
             return til::point_span{ { pos.x, pos.y }, { endX, endY } };
-        }
-
-        void _matchingCharFromEnd(Microsoft::Terminal::Core::Terminal &terminal, til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual)
-        {
-            auto selection = terminal.GetVimSelectionAnchors();
-            auto findResult = _findBlockStartFromEnd(terminal, startPos, startDelimiter, endDelimiter);
-            if (findResult.has_value())
-            {
-                const auto pairStart = findResult.value().start;
-                if (isVisual)
-                {
-                    if (selection.start < pairStart)
-                    {
-                        selection.end = pairStart;
-                        selection.pivot = selection.start;
-                    }
-                    else
-                    {
-                        selection.start = pairStart;
-                        selection.pivot = selection.end;
-                    }
-                }
-                else
-                {
-                    selection.start = pairStart;
-                    selection.end = pairStart;
-                    selection.pivot = pairStart;
-                }
-                terminal.SetVimSelectionAnchors(&selection);
-            }
-        }
-
-        void _matchingCharFromStart(Microsoft::Terminal::Core::Terminal &terminal, til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool isVisual)
-        {
-            auto selection = terminal.GetVimSelectionAnchors();
-            auto findResult = _findBlockEndFromStart(terminal, startPos, startDelimiter, endDelimiter);
-            if (findResult.has_value())
-            {
-                const auto pairEnd = findResult.value().end;
-                if (isVisual)
-                {
-                    if (selection.end >= pairEnd)
-                    {
-                        selection.start = pairEnd;
-                        selection.pivot = selection.end;
-                    }
-                    else
-                    {
-                        selection.end = pairEnd;
-                        selection.pivot = selection.start;
-                    }
-                }
-                else
-                {
-                    selection.start = pairEnd;
-                    selection.end = pairEnd;
-                    selection.pivot = selection.start;
-                }
-                terminal.SetVimSelectionAnchors(&selection);
-            }
-        }
-
-        void MatchingChar(Microsoft::Terminal::Core::Terminal &terminal, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual)
-        {
-            auto selection = terminal.GetVimSelectionAnchors();
-            auto cursor = GetVimCursor(terminal, &selection);
-            const auto pos = cursor.Span.start;
-            if (onStartDelimiter)
-            {
-                _matchingCharFromStart(terminal, pos, startDelimiter, endDelimiter, isVisual);
-            }
-            else
-            {
-                _matchingCharFromEnd(terminal, pos, startDelimiter, endDelimiter, isVisual);
-            }
         }
 
         void _matchingChar(Microsoft::Terminal::Core::Terminal &terminal, til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock)
@@ -702,6 +627,17 @@ namespace vim
                 }
                 break;
             case VimCursorPosition::End:
+                if (selection->end.x - 1 <= 0)
+                {
+                    if (selection->end.y > 0)
+                    {
+                        auto previousRow = cursor.Span.end.y - 1;
+                        const auto lastNonSpaceColumn = std::max(1, terminal.GetTextBuffer().GetRowByOffset(previousRow).GetLastNonSpaceColumn());
+                        selection->end = { lastNonSpaceColumn, previousRow };
+                        selection->pivot = selection->start;
+                    }
+                    return;
+                }
                 selection->end.x--;
                 break;
             }
@@ -834,6 +770,16 @@ namespace vim
             }
             else
             {
+                if (cursor.Span.start.x >= lineEnd)
+                {
+                    auto wrapped = terminal.GetTextBuffer().GetRowByOffset(cursor.Span.start.y).WasWrapForced();
+                    if (wrapped || movePreviousLine)
+                    {
+                        selection->start = { 1, cursor.Span.start.y + 1 };
+                        selection->pivot = selection->end;
+                    }
+                    return;
+                }
                 selection->start.x++;
                 selection->pivot = selection->end;
             }
@@ -1614,48 +1560,6 @@ namespace vim
             }
         }
 
-        void MatchingChar(Microsoft::Terminal::Core::Terminal& terminal, til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock)
-        {
-            auto selection = terminal.GetVimSelectionAnchors();
-            std::optional<til::point_span> findResult;
-            if (onStartDelimiter)
-            {
-                findResult = _findBlockEndFromStart(terminal, startPos, startDelimiter, endDelimiter);
-            }
-            else
-            {
-                findResult = _findBlockStartFromEnd(terminal, startPos, startDelimiter, endDelimiter);
-            }
-            if (findResult.has_value())
-            {
-                selection.start = findResult->start;
-                selection.end = findResult->end;
-                if (inBlock)
-                {
-                    if (selection.end.x == 0)
-                    {
-                        selection.end.y--;
-                        selection.end.x = terminal.GetTextBuffer().GetRowByOffset(selection.end.y).GetLastNonSpaceColumn() - 1;
-                    }
-                    else
-                    {
-                        selection.end.x--;
-                    }
-                    if (selection.start.x >= terminal.GetTextBuffer().GetRowByOffset(selection.end.y).GetLastNonSpaceColumn() - 1)
-                    {
-                        selection.start.y++;
-                        selection.start.x = 0;
-                    }
-                    else
-                    {
-                        selection.start.x++;
-                    }
-                }
-                selection.pivot = selection.end;
-                terminal.SetVimSelectionAnchors(&selection);
-            }
-        }
-
         void MoveToFirstNonBlankChar(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual)
         {
             auto selection = terminal.GetVimSelectionAnchors();
@@ -1912,5 +1816,71 @@ namespace vim
             vimSelection.pivot = vimSelection.start;
             terminal.SetVimSelectionAnchors(&vimSelection);
         }
+
+        void MatchingChar(Microsoft::Terminal::Core::Terminal &terminal, bool isVisual)
+        {
+            auto selectionAnchors = terminal.GetSelectionAnchors();
+            const auto selection{ selectionAnchors.write() };
+            auto pivotIsStart = selection->start == selection->pivot;
+            const bool isSingleCell = (selection->end.x - 1 == selection->start.x && selection->start.y == selection->end.y);
+            auto pos = selection->start;
+            auto glyph = terminal.GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(pos.x)[0];
+            if (pivotIsStart && !isSingleCell)
+            {
+                pos = selection->end;
+                glyph = terminal.GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(pos.x - 1)[0];
+            }
+
+            auto startDelimiter2 = L"";
+            auto endDelimiter2 = L"";
+            auto onStartDelimiter2 = false;
+            if (glyph == L'(' || glyph == ')')
+            {
+                startDelimiter2 = L"(";
+                endDelimiter2 = L")";
+            }
+            else if (glyph == L'{' || glyph == '}')
+            {
+                startDelimiter2 = L"{";
+                endDelimiter2 = L"}";
+            }
+            else if (glyph == L'[' || glyph == ']')
+            {
+                startDelimiter2 = L"[";
+                endDelimiter2 = L"]";
+            }
+            else if (glyph == L'<' || glyph == '>')
+            {
+                startDelimiter2 = L"<";
+                endDelimiter2 = L">";
+            }
+            else
+            {
+                return;
+            }
+
+            if (glyph == L'(' || glyph == L'{' || glyph == L'[' || glyph == L'<')
+            {
+                onStartDelimiter2 = true;
+            }
+
+            auto vimSelection = terminal.GetVimSelectionAnchors();
+            if (onStartDelimiter2)
+            {
+                til::point startPos = pos;
+                auto findResult = _findBlockEndFromStart(terminal, startPos, startDelimiter2, endDelimiter2);
+                if (findResult.has_value())
+                {
+                    _moveRightToPoint(terminal, &vimSelection, findResult.value().end, isVisual, true);
+                }
+            }
+            else
+            {
+                til::point startPos = pos;
+                auto findResult = _findBlockStartFromEnd(terminal, startPos, startDelimiter2, endDelimiter2);
+                _moveLeftToPoint(terminal, &vimSelection, findResult->start, isVisual, true);
+            }
+        }
+
     }
 }

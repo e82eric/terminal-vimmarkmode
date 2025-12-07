@@ -4236,6 +4236,166 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 3, 0 }, {7, 0});
         }
 
+        TEST_METHOD(Jump_To_Matching_Brace_StartDelimiter)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"a (is test) a";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+
+            vim::motions::MatchingChar(term, L"(", L")", true, false);
+            ValidateLinearSelection(term, { 10, 0 }, {11, 0});
+        }
+
+        TEST_METHOD(Jump_To_Matching_Brace_StartDelimiter_Visual)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"a (is test) a";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+
+            vim::motions::MatchingChar(term, L"(", L")", true, true);
+            ValidateLinearSelection(term, { 2, 0 }, {11, 0});
+        }
+
+        TEST_METHOD(Jump_To_Matching_Brace_StartDelimiter_VisualExtension)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"a (is test) a";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, true);
+
+            vim::motions::MatchingChar(term, L"(", L")", true, true);
+            ValidateLinearSelection(term, { 1, 0 }, {11, 0});
+        }
+
+        TEST_METHOD(Jump_To_Matching_Brace_EndDelimiter_VisualExtension)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"a (is test) a";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+
+            vim::motions::MatchingChar(term, L"(", L")", true, true);
+            ValidateLinearSelection(term, { 2, 0 }, {3, 0});
+        }
+
+        TEST_METHOD(Jump_To_Matching_Brace_EndDelimiter)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"a (is test) a";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+
+            vim::motions::MatchingChar(term, L"(", L")", false, false);
+            ValidateLinearSelection(term, { 2, 0 }, {3, 0});
+        }
+
+        TEST_METHOD(Jump_To_Matching_Brace_VisualToEndJumpToStartBrace)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"a (is test) a";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+
+            ValidateLinearSelection(term, { 7, 0 }, {11, 0});
+
+            vim::motions::MatchingChar(term, L"(", L")", false, true);
+            ValidateLinearSelection(term, { 2, 0 }, {8, 0});
+        }
+
+        TEST_METHOD(Jump_To_Matching_Brace_BackwardVisualToStartJumpToEndBrace)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"a (is test) a";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveLeft(term, true);
+            vim::motions::MoveLeft(term, true);
+            vim::motions::MoveLeft(term, true);
+
+            ValidateLinearSelection(term, { 2, 0 }, {6, 0});
+
+            vim::motions::MatchingChar(term, L"(", L")", false, true);
+            ValidateLinearSelection(term, { 5, 0 }, {11, 0});
+        }
+
         TEST_METHOD(InBraces_SingleLine_EndDelimiter)
         {
             Terminal term{ Terminal::TestDummyMarker{} };

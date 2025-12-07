@@ -135,14 +135,9 @@ void VimModeProxy::_tilCharBack(std::wstring_view vkey, bool isVisual)
     vim::motions::TilCharBackwards(*_terminal, vkey, isVisual);
 }
 
-void VimModeProxy::_matchingChar(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual)
+void VimModeProxy::_matchingChar(bool isVisual)
 {
-    vim::motions::MatchingChar(*_terminal, startDelimiter, endDelimiter, onStartDelimiter, isVisual);
-}
-
-void VimModeProxy::_matchingChar(til::point startPos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock)
-{
-    vim::motions::MatchingChar(*_terminal, startPos, startDelimiter, endDelimiter, onStartDelimiter, inBlock);
+    vim::motions::MatchingChar(*_terminal, isVisual);
 }
 
 void VimModeProxy::_inDelimiterSameLine(std::wstring_view delimiter, bool includeDelimiter)
@@ -265,27 +260,9 @@ bool VimModeProxy::_executeVimSelection(
 
     for (int i = 0; i < times; i++)
     {
-        auto pairIsVisual = isVisual || _vimMode == VimMode::visualLine;
+        //auto pairIsVisual = isVisual || _vimMode == VimMode::visualLine;
         switch (textObject)
         {
-        case VimTextObjectType::startCurlyBracePair:
-            _matchingChar(L"{", L"}", true, pairIsVisual);
-            break;
-        case VimTextObjectType::startRoundBracePair:
-            _matchingChar(L"(", L")", true, pairIsVisual);
-            break;
-        case VimTextObjectType::startSquareBracePair:
-            _matchingChar(L"[", L"]", true, pairIsVisual);
-            break;
-        case VimTextObjectType::endCurlyBracePair:
-            _matchingChar(L"{", L"}", false, pairIsVisual);
-            break;
-        case VimTextObjectType::endRoundBracePair:
-            _matchingChar(L"(", L")", false, pairIsVisual);
-            break;
-        case VimTextObjectType::endSquareBracePair:
-            _matchingChar(L"[", L"]", false, pairIsVisual);
-            break;
         case VimTextObjectType::inCurlyBracePair:
             _inDelimiter(L"{", L"}", false);
             break;
@@ -429,7 +406,7 @@ bool VimModeProxy::_executeVimSelection(
         case VimTextObjectType::charTextObject:
             switch (motion)
             {
-        case VimMotionType::none:
+            case VimMotionType::none:
                 vim::motions::SelectCurrentChar(*_terminal);
                 break;
             case VimMotionType::moveLeft:
@@ -444,8 +421,10 @@ bool VimModeProxy::_executeVimSelection(
             case VimMotionType::moveRight:
                 _selectCharRight(selectFromStart);
                 break;
+            case VimMotionType::matchingBrace:
+                _matchingChar(isVisual);
+                break;
             }
-            break;
         case VimTextObjectType::none:
             switch (motion)
             {
@@ -627,43 +606,8 @@ bool VimModeProxy::TryVimModeKeyBinding(
     // '%'
     else if (vkeyText[0] == L'%')
     {
-        const auto bufferData = _terminal->RetrieveSelectedTextFromBuffer(false);
-        if (bufferData.plainText.size() > 0)
-        {
-            auto selection = _terminal->GetSelectionAnchors();
-            auto pos = selection->start == selection->pivot ? selection->end : selection->start;
-            auto firstChar = _terminal->GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(pos.x)[0];
-            if (firstChar == L'(')
-            {
-                _textObject = VimTextObjectType::startRoundBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L')')
-            {
-                _textObject = VimTextObjectType::endRoundBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L'{')
-            {
-                _textObject = VimTextObjectType::startCurlyBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L'}')
-            {
-                _textObject = VimTextObjectType::endCurlyBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L'[')
-            {
-                _textObject = VimTextObjectType::startSquareBracePair;
-                sequenceCompleted = true;
-            }
-            else if (firstChar == L']')
-            {
-                _textObject = VimTextObjectType::endSquareBracePair;
-                sequenceCompleted = true;
-            }
-        }
+        _motion = VimMotionType::matchingBrace;
+        sequenceCompleted = true;
     }
     else if (_vimMode == VimMode::visualLine)
     {

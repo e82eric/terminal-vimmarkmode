@@ -3378,8 +3378,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     {
                         auto span = *it;
                         auto text = snapshotBuffer->GetPlainText(span.start, span.end);
+                        bool allWhitespace = text.empty() || std::all_of(text.begin(), text.end(), [](wchar_t ch) { return std::iswspace(ch); });
 
-                        if (seen.insert(text).second)
+                        if (!allWhitespace && seen.insert(text).second)
                         {
                             auto item = SuggestionSearchItem{
                                 hstring{ snapshotBuffer->GetPlainText(span.start, span.end) },

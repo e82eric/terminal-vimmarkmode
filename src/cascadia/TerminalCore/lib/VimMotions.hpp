@@ -62,7 +62,7 @@ namespace vim
         void SelectTop(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual, bool entireLine);
         void SelectLineDown(Microsoft::Terminal::Core::Terminal& terminal);
         void SelectLineUp(Microsoft::Terminal::Core::Terminal& terminal);
-        void MatchingChar(Microsoft::Terminal::Core::Terminal& terminal, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual);
+        void MatchingChar(Microsoft::Terminal::Core::Terminal& terminal, bool isVisual);
         void SelectPoint(Microsoft::Terminal::Core::Terminal& terminal, til::point point);
         void SelectCurrentChar(Microsoft::Terminal::Core::Terminal& terminal);
         void SelectEntireLine(Microsoft::Terminal::Core::Terminal& terminal);

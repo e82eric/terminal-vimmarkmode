@@ -110,7 +110,8 @@ public:
         pageUp = 15,
         pageDown = 16,
         backToFirstNonSpaceChar = 17,
-        selectCurrentLine
+        selectCurrentLine = 18,
+        matchingBrace = 19
     };
 
     VimModeProxy(
@@ -149,8 +150,7 @@ private:
     void _tilChar(std::wstring_view vkey, bool isVisual);
     void _findCharBack(std::wstring_view vkey, bool isVisual);
     void _tilCharBack(std::wstring_view vkey, bool isVisual);
-    void _matchingChar(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool isVisual);
-    void _matchingChar(til::point pos, std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool onStartDelimiter, bool inBlock);
+    void _matchingChar(bool isVisual);
     void _inDelimiter(std::wstring_view startDelimiter, std::wstring_view endDelimiter, bool includeDelimiter);
     void _inDelimiterSameLine(std::wstring_view delimiter, bool includeDelimiter);
     void _selectWordRight(bool isVisual, bool isLargeWord);
