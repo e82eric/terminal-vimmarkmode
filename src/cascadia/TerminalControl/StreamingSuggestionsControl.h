@@ -118,6 +118,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void _enterWordSplitMode();
         void _recalculateTopMargin();
+        void _recalculateHorizontalPlacement();
+        void _ensureCellWidth();
         void _setDirection(bool openUpward);
         void _OnCopyNotificationTimerTick(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::Foundation::IInspectable const&);
         void _showCopyNotification(const hstring& text);

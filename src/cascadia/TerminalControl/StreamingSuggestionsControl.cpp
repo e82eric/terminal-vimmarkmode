@@ -344,8 +344,6 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
             }
         });
 
-        Visibility(Visibility::Visible);
-
         return true;
     }
 
@@ -386,8 +384,6 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
             std::lock_guard<std::mutex> lock(_batchesMutex);
             _batches.clear();
         }
-
-        Visibility(Visibility::Visible);
 
         auto op = termControl.SuggestionScrollBackSearchAsync(
             needle,
@@ -817,7 +813,7 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
         if (searchTerm.empty() || _mode == StreamingSuggestionsMode::WordSplit)
         {
             co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
-            //ListBox().Items().Clear();
+            ListBox().Items().Clear();
             for (const auto& batch : batchesSnapshot)
             {
                 for (auto item : batch.Items())
@@ -833,12 +829,7 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
                 }
             }
 
-            //Visibility(Visibility::Visible);
-            auto num = ListBox().Items().Size();
-            if (num > 0)
-            {
-                
-            }
+            Visibility(Visibility::Visible);
             _recalculateTopMargin();
 
             if (ListBox().SelectedIndex() == -1)
@@ -1020,32 +1011,41 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
         _setDirection(openUpward);
     }
 
+    void StreamingSuggestionsControl::_recalculateHorizontalPlacement()
+    {
+        const float availableWidth = gsl::narrow_cast<float>(_space.Width);
+
+        RootGrid().Measure({ availableWidth, std::numeric_limits<float>::infinity() });
+
+        const float desiredWidth = RootGrid().DesiredSize().Width;
+
+        const float minWidth = 400.0f;
+        const float width = std::clamp(desiredWidth, minWidth, availableWidth);
+
+        Width(width);
+
+        float left = gsl::narrow_cast<float>(_anchor.X - _prefixWidth - 5.0f);
+        left = std::clamp(left, 0.0f, availableWidth - width);
+
+        auto m = Margin();
+        m.Left = left;
+        Margin(m);
+    }
+
     void StreamingSuggestionsControl::_setDirection(bool openUpward)
     {
-        RootGrid().Measure({
-            static_cast<float>(ActualWidth()),
-            static_cast<float>(ActualHeight()),
-        });
+        _recalculateHorizontalPlacement();
 
         auto currentMargin = Margin();
-
-        // Use explicit control dimensions (set in XAML)
-        const auto controlWidth = ActualWidth();
         const auto controlHeight = ActualHeight();
-
-        const auto proposedX = gsl::narrow_cast<int>(_anchor.X - _prefixWidth - 5.0f);
-        const auto maxX = gsl::narrow_cast<int>(_space.Width - controlWidth);
-        const auto clampedX = std::clamp(proposedX, 0, maxX);
-        currentMargin.Left = clampedX;
 
         if (openUpward)
         {
-            const auto marginTop = (_anchor.Y - controlHeight);
-            currentMargin.Top = marginTop;
+            currentMargin.Top = (_anchor.Y - controlHeight);
         }
         else
         {
-            currentMargin.Top = (_anchor.Y + 20); // Position below the cursor line
+            currentMargin.Top = (_anchor.Y + 20);
         }
         Margin(currentMargin);
     }
