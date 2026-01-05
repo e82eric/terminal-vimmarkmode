@@ -1481,32 +1481,56 @@ namespace vim
 
             auto pos = cursor.Span.start;
 
-            const auto glyph = terminal.GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(pos.x);
+            const auto &row = terminal.GetTextBuffer().GetRowByOffset(pos.y);
+            const auto glyph = row.GlyphAt(pos.x);
             const auto posIsDelimiter = glyph == delimiter;
 
             auto foundMatchGoingBack = false;
             til::CoordType matchGoingBack;
+            til::CoordType matchGoingBackY;
+            til::CoordType currentRowNum = pos.y;
             for (int i = pos.x - 1; i >= 0; i--)
             {
-                auto g = terminal.GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(i);
+                auto g = terminal.GetTextBuffer().GetRowByOffset(currentRowNum).GlyphAt(i);
                 if (g == delimiter)
                 {
                     foundMatchGoingBack = true;
                     matchGoingBack = i;
+                    matchGoingBackY = currentRowNum;
                     break;
+                }
+
+                if (i == 0 && pos.y > 0)
+                {
+                    const auto &prevRow = terminal.GetTextBuffer().GetRowByOffset(currentRowNum - 1);
+                    if (prevRow.WasWrapForced())
+                    {
+                        currentRowNum--;
+                        i = terminal.GetTextBuffer().GetRowByOffset(currentRowNum).size();
+                    }
                 }
             }
 
             auto foundMatchGoingForward = false;
             til::CoordType matchGoingForward;
-            for (int i = pos.x + 1; i <= terminal.GetTextBuffer().GetRowByOffset(pos.y).size(); i++)
+            til::CoordType matchGoingForwardY;
+            currentRowNum = pos.y;
+            auto rowWidth = terminal.GetTextBuffer().GetRowByOffset(pos.y).size();
+            for (int i = pos.x + 1; i <= rowWidth; i++)
             {
-                auto g = terminal.GetTextBuffer().GetRowByOffset(pos.y).GlyphAt(i);
+                auto g = terminal.GetTextBuffer().GetRowByOffset(currentRowNum).GlyphAt(i);
                 if (g == delimiter)
                 {
                     foundMatchGoingForward = true;
                     matchGoingForward = i;
+                    matchGoingForwardY = currentRowNum;
                     break;
+                }
+
+                if (i == rowWidth && row.WasWrapForced())
+                {
+                    currentRowNum++;
+                    i = 0;
                 }
             }
 
@@ -1515,7 +1539,7 @@ namespace vim
                 if (foundMatchGoingBack)
                 {
                     selection.end = til::point{ pos.x, pos.y };
-                    selection.start = til::point{ matchGoingBack, pos.y };
+                    selection.start = til::point{ matchGoingBack, matchGoingBackY };
                     if (!includeDelimiter)
                     {
                         selection.start.x++;
@@ -1530,7 +1554,7 @@ namespace vim
                 else if (foundMatchGoingForward)
                 {
                     selection.start = til::point{ pos.x, pos.y };
-                    selection.end = til::point{ matchGoingForward, pos.y };
+                    selection.end = til::point{ matchGoingForward, matchGoingForwardY };
                     if (!includeDelimiter)
                     {
                         selection.start.x++;
@@ -1545,8 +1569,8 @@ namespace vim
             }
             else if (foundMatchGoingBack && foundMatchGoingForward)
             {
-                selection.start = til::point{ matchGoingBack, pos.y };
-                selection.end = til::point{ matchGoingForward, pos.y };
+                selection.start = til::point{ matchGoingBack, matchGoingBackY };
+                selection.end = til::point{ matchGoingForward, matchGoingForwardY };
                 if (!includeDelimiter)
                 {
                     selection.start.x++;
@@ -1771,24 +1795,13 @@ namespace vim
 
         void SelectCurrentChar(Microsoft::Terminal::Core::Terminal &terminal)
         {
+            auto cursor = GetVimCursor(terminal);
             auto selectionAnchors = terminal.GetSelectionAnchors();
             const auto selection{ selectionAnchors.write() };
-            auto pivotAtStart = selection->start == selection->pivot;
-            auto pivotAtEnd = selection->end == selection->pivot;
-            if (pivotAtStart)
-            {
-                selection->start = { selection->end.x - 1, selection->end.y };
-                selection->end = { selection->end.x, selection->end.y };
-                selection->pivot = selection->end;
-                terminal.SetSelectionAnchors(selection);
-            }
-            else if (pivotAtEnd)
-            {
-                selection->start = { selection->start.x, selection->start.y };
-                selection->end = { selection->start.x + 1, selection->start.y };
-                selection->pivot = selection->start;
-                terminal.SetSelectionAnchors(selection);
-            }
+            selection->start = { cursor.Span.start };
+            selection->end = { cursor.Span.end };
+            selection->pivot = { cursor.Span.end };
+            terminal.SetSelectionAnchors(selection);
         }
 
         void SelectEntireLine(Microsoft::Terminal::Core::Terminal &terminal)

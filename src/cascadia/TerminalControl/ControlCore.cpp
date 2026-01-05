@@ -3378,9 +3378,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     {
                         auto span = *it;
                         auto text = snapshotBuffer->GetPlainText(span.start, span.end);
-                        bool allWhitespace = text.empty() || std::all_of(text.begin(), text.end(), [](wchar_t ch) { return std::iswspace(ch); });
+                        const auto nonWhitespaceCount =
+                            std::count_if(text.begin(), text.end(), [](wchar_t ch) {
+                                return !std::iswspace(ch);
+                            });
 
-                        if (!allWhitespace && seen.insert(text).second)
+                        if (nonWhitespaceCount > 2 && seen.insert(text).second)
                         {
                             auto item = SuggestionSearchItem{
                                 hstring{ snapshotBuffer->GetPlainText(span.start, span.end) },
@@ -3439,6 +3442,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         auto splitBySpace = L"[^\\s]{3,}";
         auto splitByMoreThanOneSpace = L"\\S(?: ?\\S)*";
+
+        static const std::array s_wrappedRegexes = {
+            LR"((?<=\{)[^}]*(?=\}))",
+            LR"((?<=\[)[^\]]*(?=\]))",
+            LR"((?<=\()[^)]*(?=\)))",
+            LR"((?<=")[^"]*(?="))",
+            LR"((?<=')[^']*(?='))",
+            LR"((?<=<)[^>]*(?=>))",
+        };
         auto batchCb = winrt::make_agile(onBatch);
 
         std::optional<std::vector<til::point_span>> searchResults;
@@ -3449,6 +3461,68 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto& buffer = _terminal->GetTextBuffer();
 
         std::unordered_set<std::wstring> seen;
+
+        for (auto wrappedRegex : s_wrappedRegexes)
+        {
+            if (auto searchResults = buffer.SearchText(
+                    wrappedRegex,
+                    SearchFlag::RegularExpression,
+                    lineNumber,
+                    lineNumber + 1))
+            {
+                auto spans = searchResults.value();
+
+                std::vector<SuggestionSearchItem> items;
+                items.reserve(spans.size());
+                auto ordinal = 1000;
+
+                for (auto it = spans.rbegin(); it != spans.rend(); ++it)
+                {
+                    auto span = *it;
+
+                    auto inner = buffer.GetPlainText(span.start, span.end);
+                    if (inner.empty())
+                    {
+                        continue;
+                    }
+
+                    if (!seen.insert(inner).second)
+                    {
+                        continue;
+                    }
+
+                    const auto nonWhitespaceCount =
+                        std::count_if(inner.begin(), inner.end(), [](wchar_t ch) {
+                            return !std::iswspace(ch);
+                        });
+
+                    if (nonWhitespaceCount < 3)
+                    {
+                        continue;
+                    }
+
+                    SuggestionSearchItem item{
+                        winrt::hstring{ inner },
+                        ordinal,
+                        span.start.to_core_point(),
+                        span.end.to_core_point()
+                    };
+
+                    items.emplace_back(std::move(item));
+                    --ordinal;
+                }
+
+                if (!items.empty())
+                {
+                    auto batch = winrt::make_self<SuggestionBatch>(std::move(items));
+                    if (auto cb = batchCb.get())
+                    {
+                        cb(*batch);
+                    }
+                }
+            }
+        }
+
         if (auto searchResults = buffer.SearchText(splitBySpace, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
         {
             auto spans = searchResults.value();

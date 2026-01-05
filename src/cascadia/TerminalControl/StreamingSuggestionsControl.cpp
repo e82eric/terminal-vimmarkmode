@@ -344,6 +344,8 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
             }
         });
 
+        Visibility(Visibility::Visible);
+
         return true;
     }
 
@@ -384,6 +386,8 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
             std::lock_guard<std::mutex> lock(_batchesMutex);
             _batches.clear();
         }
+
+        Visibility(Visibility::Visible);
 
         auto op = termControl.SuggestionScrollBackSearchAsync(
             needle,
@@ -813,7 +817,7 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
         if (searchTerm.empty() || _mode == StreamingSuggestionsMode::WordSplit)
         {
             co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
-            ListBox().Items().Clear();
+            //ListBox().Items().Clear();
             for (const auto& batch : batchesSnapshot)
             {
                 for (auto item : batch.Items())
@@ -822,14 +826,19 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
                     auto lbi = _makeListViewItem(line, box_value(item));
                     ListBox().Items().Append(lbi);
 
-                    if (ListBox().Items().Size() >= 1000)
+                    if (ListBox().Items().Size() >= 10)
                     {
                         break;
                     }
                 }
             }
 
-            Visibility(Visibility::Visible);
+            //Visibility(Visibility::Visible);
+            auto num = ListBox().Items().Size();
+            if (num > 0)
+            {
+                
+            }
             _recalculateTopMargin();
 
             if (ListBox().SelectedIndex() == -1)
@@ -842,7 +851,6 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
                 _close(false);
             }
 
-            //NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
             InvalidateMeasure();
 
             co_return;

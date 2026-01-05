@@ -4178,6 +4178,36 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 3, 0 }, {7, 0});
         }
 
+        TEST_METHOD(InBraces_Wrap_DelimiterOnSecondLine)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+
+            // 5 columns forces wrapping exactly where we want it.
+            // Row 0: "aaaa{"
+            // Row 1: "test}"
+            // Row 2: "a"
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"aaaa'test'a";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            // Put the cursor inside the braces (on the 't' at {0,1}).
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false); // a
+            vim::motions::MoveRight(term, false); // a
+            vim::motions::MoveRight(term, false); // a
+            vim::motions::MoveRight(term, false); // a
+            vim::motions::MoveRight(term, false); // wraps -> 't' on next row
+
+            // Select "in { }" even though '{' is on the previous wrapped row.
+            vim::motions::InDelimiter(term, L"'", L"'", false);
+
+            // Expect selection to start at 't' and extend to the closing '}' on row 1.
+            ValidateLinearSelection(term, { 0, 1 }, { 4, 1 });
+        }
+
         TEST_METHOD(InSingleQuotes_SingleLine_StartDelimiter)
         {
             Terminal term{ Terminal::TestDummyMarker{} };
@@ -4250,7 +4280,7 @@ namespace VimMotionsTests
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
 
-            vim::motions::MatchingChar(term, L"(", L")", true, false);
+            vim::motions::MatchingChar(term, false);
             ValidateLinearSelection(term, { 10, 0 }, {11, 0});
         }
 
@@ -4268,7 +4298,7 @@ namespace VimMotionsTests
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
 
-            vim::motions::MatchingChar(term, L"(", L")", true, true);
+            vim::motions::MatchingChar(term, true);
             ValidateLinearSelection(term, { 2, 0 }, {11, 0});
         }
 
@@ -4286,7 +4316,7 @@ namespace VimMotionsTests
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, true);
 
-            vim::motions::MatchingChar(term, L"(", L")", true, true);
+            vim::motions::MatchingChar(term, true);
             ValidateLinearSelection(term, { 1, 0 }, {11, 0});
         }
 
@@ -4312,7 +4342,7 @@ namespace VimMotionsTests
             vim::motions::MoveRight(term, true);
             vim::motions::MoveRight(term, true);
 
-            vim::motions::MatchingChar(term, L"(", L")", true, true);
+            vim::motions::MatchingChar(term, true);
             ValidateLinearSelection(term, { 2, 0 }, {3, 0});
         }
 
@@ -4338,7 +4368,7 @@ namespace VimMotionsTests
             vim::motions::MoveRight(term, false);
             vim::motions::MoveRight(term, false);
 
-            vim::motions::MatchingChar(term, L"(", L")", false, false);
+            vim::motions::MatchingChar(term, false);
             ValidateLinearSelection(term, { 2, 0 }, {3, 0});
         }
 
@@ -4366,7 +4396,7 @@ namespace VimMotionsTests
 
             ValidateLinearSelection(term, { 7, 0 }, {11, 0});
 
-            vim::motions::MatchingChar(term, L"(", L")", false, true);
+            vim::motions::MatchingChar(term, true);
             ValidateLinearSelection(term, { 2, 0 }, {8, 0});
         }
 
@@ -4392,7 +4422,7 @@ namespace VimMotionsTests
 
             ValidateLinearSelection(term, { 2, 0 }, {6, 0});
 
-            vim::motions::MatchingChar(term, L"(", L")", false, true);
+            vim::motions::MatchingChar(term, true);
             ValidateLinearSelection(term, { 5, 0 }, {11, 0});
         }
 
@@ -5130,6 +5160,47 @@ namespace VimMotionsTests
 
             vim::motions::SelectEntireLine(term);
             ValidateLinearSelection(term, { 0, 0 }, {11, 0}, {0,0});
+        }
+
+        TEST_METHOD(SelectCurrentChar_Visual_Moving_Right)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"C:\\Terminal>";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+            vim::motions::MoveRight(term, true);
+
+            ValidateLinearSelection(term, { 0, 0 }, {4, 0});
+            vim::motions::SelectCurrentChar(term);
+            ValidateLinearSelection(term, { 3, 0 }, {4, 0});
+        }
+
+        TEST_METHOD(SelectCurrentChar_Visual_Moving_Left)
+        {
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 100, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"C:\\Terminal>";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveRight(term, false);
+            vim::motions::MoveLeft(term, true);
+            vim::motions::MoveLeft(term, true);
+            vim::motions::MoveLeft(term, true);
+
+            ValidateLinearSelection(term, { 0, 0 }, {4, 0});
+            vim::motions::SelectCurrentChar(term);
+            ValidateLinearSelection(term, { 0, 0 }, {1, 0});
         }
     };
 }
