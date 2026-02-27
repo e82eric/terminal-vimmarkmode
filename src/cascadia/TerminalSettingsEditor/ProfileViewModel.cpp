@@ -11,6 +11,7 @@
 #include "../WinRTUtils/inc/Utils.h"
 #include "../../renderer/base/FontCache.h"
 #include "SegoeFluentIconList.h"
+#include "../../types/inc/utils.hpp"
 
 using namespace winrt::Windows::UI::Text;
 using namespace winrt::Windows::UI::Xaml;
@@ -94,6 +95,8 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
                 // _DeduceCurrentIconType() ends with a "CurrentIconType" notification
                 //  so we don't need to call _UpdateIconPreview() here
                 _DeduceCurrentIconType();
+                // The icon changed; let's re-evaluate it with its new context.
+                _appSettings.ResolveMediaResources();
             }
             else if (viewModelProperty == L"CurrentIconType")
             {
@@ -105,15 +108,16 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
                                L"UsingImageIcon",
                                L"LocalizedIcon",
                                L"IconPreview",
+                               L"IconPath",
                                L"EvaluatedIcon");
             }
             else if (viewModelProperty == L"CurrentBuiltInIcon")
             {
-                Icon(unbox_value<hstring>(_CurrentBuiltInIcon.as<Editor::EnumEntry>().EnumValue()));
+                IconPath(unbox_value<hstring>(_CurrentBuiltInIcon.as<Editor::EnumEntry>().EnumValue()));
             }
             else if (viewModelProperty == L"CurrentEmojiIcon")
             {
-                Icon(CurrentEmojiIcon());
+                IconPath(CurrentEmojiIcon());
             }
             else if (viewModelProperty == L"CurrentBellSounds")
             {
@@ -182,17 +186,17 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
 
     void ProfileViewModel::_DeduceCurrentIconType()
     {
-        const auto& profileIcon = _profile.Icon();
+        const auto profileIcon = IconPath();
         if (profileIcon == HideIconValue)
         {
             _currentIconType = _IconTypes.GetAt(0);
         }
-        else if (L"\uE700" <= profileIcon && profileIcon <= L"\uF8B3")
+        else if (profileIcon.size() == 1 && (L'\uE700' <= til::at(profileIcon, 0) && til::at(profileIcon, 0) <= L'\uF8B3'))
         {
             _currentIconType = _IconTypes.GetAt(1);
             _DeduceCurrentBuiltInIcon();
         }
-        else if (profileIcon.size() <= 2)
+        else if (::Microsoft::Console::Utils::IsLikelyToBeEmojiOrSymbolIcon(profileIcon))
         {
             // We already did a range check for MDL2 Assets in the previous one,
             // so if we're out of that range but still short, assume we're an emoji
@@ -211,7 +215,7 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
         {
             _UpdateBuiltInIcons();
         }
-        const auto& profileIcon = Icon();
+        const auto profileIcon = IconPath();
         for (uint32_t i = 0; i < _BuiltInIcons.Size(); i++)
         {
             const auto& builtIn = _BuiltInIcons.GetAt(i);
@@ -282,6 +286,9 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
     }
     Model::TerminalSettings ProfileViewModel::TermSettings() const
     {
+        // This may look pricey, but it only resolves resources that have not been visited
+        // and the preview update is debounced.
+        _appSettings.ResolveMediaResources();
         return Model::TerminalSettings::CreateForPreview(_appSettings, _profile);
     }
 
@@ -539,7 +546,7 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
         {
             return RS_(L"Profile_IconTypeNone");
         }
-        return Icon();
+        return IconPath(); // For display as a string
     }
 
     Windows::UI::Xaml::Controls::IconElement ProfileViewModel::IconPreview() const
@@ -561,7 +568,7 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
                 // Stash the current value of Icon. If the user
                 // switches out of then back to IconType::Image, we want
                 // the path that we display in the text box to remain unchanged.
-                _lastIconPath = Icon();
+                _lastIconPath = IconPath();
             }
 
             // Set the member here instead of after setting Icon() below!
@@ -576,7 +583,7 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
             {
             case IconType::None:
             {
-                _profile.Icon(HideIconValue);
+                IconPath(winrt::hstring{ HideIconValue });
                 break;
             }
             case IconType::Image:
@@ -585,7 +592,7 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
                 {
                     // Conversely, if we switch to Image,
                     // retrieve that saved value and apply it
-                    _profile.Icon(_lastIconPath);
+                    IconPath(_lastIconPath);
                 }
                 break;
             }
@@ -593,7 +600,7 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
             {
                 if (_CurrentBuiltInIcon)
                 {
-                    _profile.Icon(unbox_value<hstring>(_CurrentBuiltInIcon.as<Editor::EnumEntry>().EnumValue()));
+                    IconPath(unbox_value<hstring>(_CurrentBuiltInIcon.as<Editor::EnumEntry>().EnumValue()));
                 }
                 break;
             }
@@ -713,7 +720,6 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
             }
         }
         _MarkDuplicateBellSoundDirectories();
-        _CheckBellSoundsExistence();
         _NotifyChanges(L"CurrentBellSounds");
     }
 
@@ -725,19 +731,14 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
     {
         if (!_profile.HasBellSound())
         {
-            std::vector<hstring> newSounds;
+            std::vector<IMediaResource> newSounds;
             if (const auto inheritedSounds = _profile.BellSound())
             {
-                // copy inherited bell sounds to the current layer
-                newSounds.reserve(inheritedSounds.Size());
-                for (const auto sound : inheritedSounds)
-                {
-                    newSounds.push_back(sound);
-                }
+                newSounds = wil::to_vector(inheritedSounds);
             }
             // if we didn't inherit any bell sounds,
             // we should still set the bell sound to an empty list (instead of null)
-            _profile.BellSound(winrt::single_threaded_vector<hstring>(std::move(newSounds)));
+            _profile.BellSound(winrt::single_threaded_vector(std::move(newSounds)));
         }
     }
 
@@ -761,56 +762,35 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
         }
     }
 
-    // Method Description:
-    // - Check if the bell sounds exist on disk. Mark any that don't exist
-    //   so that they show the appropriate UI
-    safe_void_coroutine ProfileViewModel::_CheckBellSoundsExistence()
+    BellSoundViewModel::BellSoundViewModel(const Model::IMediaResource& resource) :
+        _resource{ resource }
     {
-        co_await winrt::resume_background();
-        std::vector<Editor::BellSoundViewModel> markedSounds;
-        for (auto&& sound : _CurrentBellSounds)
+        if (_resource.Ok() && _resource.Path() != _resource.Resolved())
         {
-            if (!std::filesystem::exists(std::wstring_view{ sound.Path() }))
-            {
-                markedSounds.push_back(sound);
-            }
+            // If the resource was resolved to something other than its path, show the path!
+            _ShowDirectory = true;
         }
-
-        co_await winrt::resume_foreground(_dispatcher);
-        for (auto&& sound : markedSounds)
-        {
-            get_self<BellSoundViewModel>(sound)->FileExists(false);
-        }
-    }
-
-    BellSoundViewModel::BellSoundViewModel(hstring path) :
-        _Path{ path }
-    {
-        PropertyChanged([this](auto&&, const PropertyChangedEventArgs& args) {
-            if (args.PropertyName() == L"FileExists")
-            {
-                _NotifyChanges(L"DisplayPath", L"SubText");
-            }
-        });
     }
 
     hstring BellSoundViewModel::DisplayPath() const
     {
-        if (_FileExists)
+        if (_resource.Ok())
         {
-            // filename
-            const std::filesystem::path filePath{ std::wstring_view{ _Path } };
+            // filename; start from the resolved path to show where it actually landed
+            auto resolvedPath{ _resource.Resolved() };
+            const std::filesystem::path filePath{ std::wstring_view{ resolvedPath } };
             return hstring{ filePath.filename().wstring() };
         }
-        return _Path;
+        return _resource.Path();
     }
 
     hstring BellSoundViewModel::SubText() const
     {
-        if (_FileExists)
+        if (_resource.Ok())
         {
             // Directory
-            const std::filesystem::path filePath{ std::wstring_view{ _Path } };
+            auto resolvedPath{ _resource.Resolved() };
+            const std::filesystem::path filePath{ std::wstring_view{ resolvedPath } };
             return hstring{ filePath.parent_path().wstring() };
         }
         return RS_(L"Profile_BellSoundNotFound");
@@ -818,17 +798,22 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
 
     hstring ProfileViewModel::BellSoundPreview()
     {
-        const auto& currentSound = BellSound();
-        if (!currentSound || currentSound.Size() == 0)
+        if (!_CurrentBellSounds || _CurrentBellSounds.Size() == 0)
         {
             return RS_(L"Profile_BellSoundPreviewDefault");
         }
-        else if (currentSound.Size() == 1)
+        if (_CurrentBellSounds.Size() > 1)
         {
-            std::filesystem::path filePath{ std::wstring_view{ currentSound.GetAt(0) } };
-            return hstring{ filePath.filename().wstring() };
+            return RS_(L"Profile_BellSoundPreviewMultiple");
         }
-        return RS_(L"Profile_BellSoundPreviewMultiple");
+
+        const auto currentBellSound = _CurrentBellSounds.GetAt(0);
+        if (currentBellSound.FileExists())
+        {
+            return currentBellSound.DisplayPath();
+        }
+
+        return RS_(L"Profile_BellSoundNotFound");
     }
 
     void ProfileViewModel::RequestAddBellSound(hstring path)
@@ -837,9 +822,10 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
         // copy it over to the current layer and apply modifications
         _PrepareModelForBellSoundModification();
 
-        // No need to check if the file exists. We came from the FilePicker. That's good enough.
-        _CurrentBellSounds.Append(winrt::make<BellSoundViewModel>(path));
-        _profile.BellSound().Append(path);
+        auto bellResource{ MediaResourceHelper::FromString(path) };
+        bellResource.Resolve(path); // No need to check if the file exists. We came from the FilePicker. That's good enough.
+        _CurrentBellSounds.Append(winrt::make<BellSoundViewModel>(bellResource));
+        _profile.BellSound().Append(bellResource);
         _NotifyChanges(L"CurrentBellSounds");
     }
 

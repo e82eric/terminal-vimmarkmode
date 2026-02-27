@@ -30,13 +30,16 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
     struct BellSoundViewModel : BellSoundViewModelT<BellSoundViewModel>, ViewModelHelper<BellSoundViewModel>
     {
     public:
-        BellSoundViewModel(hstring path);
+        BellSoundViewModel(const Model::IMediaResource& resource);
 
+        hstring Path() const { return _resource.Path(); }
+        bool FileExists() const { return _resource.Ok(); }
         hstring DisplayPath() const;
         hstring SubText() const;
-        VIEW_MODEL_OBSERVABLE_PROPERTY(bool, FileExists, true);
-        VIEW_MODEL_OBSERVABLE_PROPERTY(hstring, Path);
         VIEW_MODEL_OBSERVABLE_PROPERTY(bool, ShowDirectory);
+
+    private:
+        Model::IMediaResource _resource;
     };
 
     struct ProfileViewModel : ProfileViewModelT<ProfileViewModel>, ViewModelHelper<ProfileViewModel>
@@ -81,7 +84,7 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
 
         winrt::hstring EvaluatedIcon() const
         {
-            return _profile.EvaluatedIcon();
+            return _profile.Icon().Resolved();
         }
         Windows::Foundation::IInspectable CurrentIconType() const noexcept
         {
@@ -94,6 +97,12 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
         bool UsingBuiltInIcon() const;
         bool UsingEmojiIcon() const;
         bool UsingImageIcon() const;
+        winrt::hstring IconPath() const { return _profile.Icon().Path(); }
+        void IconPath(const winrt::hstring& path)
+        {
+            Icon(Model::MediaResourceHelper::FromString(path));
+            _NotifyChanges(L"Icon", L"IconPath");
+        }
 
         // starting directory
         hstring CurrentStartingDirectoryPreview() const;
@@ -184,7 +193,6 @@ namespace winrt::Microsoft::Terminal::Settings::Editor::implementation
         void _InitializeCurrentBellSounds();
         void _PrepareModelForBellSoundModification();
         void _MarkDuplicateBellSoundDirectories();
-        safe_void_coroutine _CheckBellSoundsExistence();
         static Windows::Foundation::Collections::IObservableVector<Editor::Font> _MonospaceFontList;
         static Windows::Foundation::Collections::IObservableVector<Editor::Font> _FontList;
         static Windows::Foundation::Collections::IVector<Windows::Foundation::IInspectable> _BuiltInIcons;

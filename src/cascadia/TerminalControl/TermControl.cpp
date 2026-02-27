@@ -334,6 +334,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _revokers.RestartTerminalRequested = _core.RestartTerminalRequested(winrt::auto_revoke, { get_weak(), &TermControl::_bubbleRestartTerminalRequested });
         _revokers.SearchMissingCommand = _core.SearchMissingCommand(winrt::auto_revoke, { get_weak(), &TermControl::_bubbleSearchMissingCommand });
         _revokers.WindowSizeChanged = _core.WindowSizeChanged(winrt::auto_revoke, { get_weak(), &TermControl::_bubbleWindowSizeChanged });
+        _revokers.WriteToClipboard = _core.WriteToClipboard(winrt::auto_revoke, { get_weak(), &TermControl::_bubbleWriteToClipboard });
 
         _revokers.PasteFromClipboard = _interactivity.PasteFromClipboard(winrt::auto_revoke, { get_weak(), &TermControl::_bubblePasteFromClipboard });
 
@@ -362,9 +363,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // These three throttled functions are triggered by terminal output and interact with the UI.
         // Since Close() is the point after which we are removed from the UI, but before the
         // destructor has run, we MUST check control->_IsClosing() before actually doing anything.
-        _playWarningBell = std::make_shared<ThrottledFuncLeading>(
+        _playWarningBell = std::make_shared<ThrottledFunc<>>(
             dispatcher,
-            TerminalWarningBellInterval,
+            til::throttled_func_options{
+                .delay = TerminalWarningBellInterval,
+                .leading = true,
+            },
             [weakThis = get_weak()]() {
                 if (auto control{ weakThis.get() }; control && !control->_IsClosing())
                 {
@@ -372,9 +376,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 }
             });
 
-        _updateScrollBar = std::make_shared<ThrottledFuncTrailing<ScrollBarUpdate>>(
+        _updateScrollBar = std::make_shared<ThrottledFunc<ScrollBarUpdate>>(
             dispatcher,
-            ScrollBarUpdateInterval,
+            til::throttled_func_options{
+                .delay = ScrollBarUpdateInterval,
+                .trailing = true,
+            },
             [weakThis = get_weak()](const auto& update) {
                 if (auto control{ weakThis.get() }; control && !control->_IsClosing())
                 {
@@ -2926,9 +2933,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return _core.Title();
     }
 
-    hstring TermControl::GetProfileName() const
+    hstring TermControl::GetStartingTitle() const
     {
-        return _core.Settings().ProfileName();
+        return _core.Settings().StartingTitle();
     }
 
     hstring TermControl::WorkingDirectory() const
@@ -2951,7 +2958,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // - withControlSequences: if enabled, the copied plain text contains color/style ANSI escape codes from the selection
     // - formats: which formats to copy (defined by action's CopyFormatting arg). nullptr
     //             if we should defer which formats are copied to the global setting
-    bool TermControl::CopySelectionToClipboard(bool dismissSelection, bool singleLine, bool withControlSequences, const Windows::Foundation::IReference<CopyFormat>& formats)
+    bool TermControl::CopySelectionToClipboard(bool dismissSelection, bool singleLine, bool withControlSequences, const CopyFormat formats)
     {
         if (_IsClosing())
         {
@@ -3835,13 +3842,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             // Switch on the light and animate the intensity to fade out
             VisualBellLight::SetIsTarget(RootGrid(), true);
 
+            auto compositionLight{ BellLight().as<Windows::UI::Xaml::Media::IXamlLightProtected>().CompositionLight() };
             if (_isBackgroundLight)
             {
-                BellLight().CompositionLight().StartAnimation(L"Intensity", _bellDarkAnimation);
+                compositionLight.StartAnimation(L"Intensity", _bellDarkAnimation);
             }
             else
             {
-                BellLight().CompositionLight().StartAnimation(L"Intensity", _bellLightAnimation);
+                compositionLight.StartAnimation(L"Intensity", _bellLightAnimation);
             }
         }
     }
@@ -4620,7 +4628,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                           const IInspectable& /*args*/)
     {
         // formats = nullptr -> copy all formats
-        _interactivity.CopySelectionToClipboard(false, false, nullptr);
+        _interactivity.CopySelectionToClipboard(false, false, _core.Settings().CopyFormatting());
         ContextMenu().Hide();
         SelectionContextMenu().Hide();
     }

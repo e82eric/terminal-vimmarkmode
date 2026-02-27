@@ -55,6 +55,7 @@ namespace Microsoft.Terminal.Control
         Microsoft.Terminal.Control.IControlSettings Settings { get; };
 
         event Windows.Foundation.TypedEventHandler<Object, TitleChangedEventArgs> TitleChanged;
+        event Windows.Foundation.TypedEventHandler<Object, WriteToClipboardEventArgs> WriteToClipboard;
         event Windows.Foundation.TypedEventHandler<Object, PasteFromClipboardEventArgs> PasteFromClipboard;
         event Windows.Foundation.TypedEventHandler<Object, OpenHyperlinkEventArgs> OpenHyperlink;
         event Windows.Foundation.TypedEventHandler<Object, Object> SetTaskbarProgress;
@@ -89,7 +90,7 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, Object> CloseTerminalRequested;
         event Windows.Foundation.TypedEventHandler<Object, Object> RestartTerminalRequested;
 
-        Boolean CopySelectionToClipboard(Boolean dismissSelection, Boolean singleLine, Boolean withControlSequences, Windows.Foundation.IReference<CopyFormat> formats);
+        Boolean CopySelectionToClipboard(Boolean dismissSelection, Boolean singleLine, Boolean withControlSequences, CopyFormat formats);
         void PasteTextFromClipboard();
         void SelectAll();
         Boolean ToggleBlockSelection();

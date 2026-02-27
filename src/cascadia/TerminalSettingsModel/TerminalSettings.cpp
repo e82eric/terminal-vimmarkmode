@@ -5,6 +5,8 @@
 #include "TerminalSettings.h"
 #include "../../types/inc/colorTable.hpp"
 
+#include "AppearanceConfig.h"
+
 #include "TerminalSettings.g.cpp"
 #include "TerminalSettingsCreateResult.g.cpp"
 
@@ -250,9 +252,20 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         {
             _CursorColor = til::color{ appearance.CursorColor().Value() };
         }
-        if (!appearance.BackgroundImagePath().empty())
+
+        if (const auto backgroundImage{ appearance.BackgroundImagePath() })
         {
-            _BackgroundImage = appearance.ExpandedBackgroundImagePath();
+            _BackgroundImage = backgroundImage.Resolved();
+        }
+
+        if (const auto pixelShader{ appearance.PixelShaderPath() })
+        {
+            _PixelShaderPath = pixelShader.Resolved();
+        }
+
+        if (const auto pixelShaderImage{ appearance.PixelShaderImagePath() })
+        {
+            _PixelShaderImagePath = pixelShaderImage.Resolved();
         }
 
         _BackgroundImageOpacity = appearance.BackgroundImageOpacity();
@@ -260,8 +273,6 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         std::tie(_BackgroundImageHorizontalAlignment, _BackgroundImageVerticalAlignment) = ConvertConvergedAlignment(appearance.BackgroundImageAlignment());
 
         _RetroTerminalEffect = appearance.RetroTerminalEffect();
-        _PixelShaderPath = winrt::hstring{ wil::ExpandEnvironmentStringsW<std::wstring>(appearance.PixelShaderPath().c_str()) };
-        _PixelShaderImagePath = winrt::hstring{ wil::ExpandEnvironmentStringsW<std::wstring>(appearance.PixelShaderImagePath().c_str()) };
 
         _IntenseIsBold = WI_IsFlagSet(appearance.IntenseTextStyle(), Microsoft::Terminal::Settings::Model::IntenseStyle::Bold);
         _IntenseIsBright = WI_IsFlagSet(appearance.IntenseTextStyle(), Microsoft::Terminal::Settings::Model::IntenseStyle::Bright);
@@ -285,9 +296,6 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         _SnapOnInput = profile.SnapOnInput();
         _AltGrAliasing = profile.AltGrAliasing();
         _AnswerbackMessage = profile.AnswerbackMessage();
-
-        // Fill in the remaining properties from the profile
-        _ProfileName = profile.Name();
 
         const auto fontInfo = profile.FontInfo();
         _FontFace = fontInfo.FontFace();

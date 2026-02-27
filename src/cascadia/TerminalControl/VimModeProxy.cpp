@@ -521,7 +521,7 @@ bool VimModeProxy::_executeVimSelection(
             }
         });
         hideTimerThread.detach();
-        _controlCore->CopySelectionToClipboard(false, false, nullptr);
+        _controlCore->CopySelectionToClipboard(false, false, _controlCore->Settings().CopyFormatting());
         exitAfter = false;
         break;
     }

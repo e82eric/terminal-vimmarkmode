@@ -59,9 +59,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         uint64_t ContentId() const;
 
-        hstring GetProfileName() const;
+        hstring GetStartingTitle() const;
 
-        bool CopySelectionToClipboard(bool dismissSelection, bool singleLine, bool withControlSequences, const Windows::Foundation::IReference<CopyFormat>& formats);
+        bool CopySelectionToClipboard(bool dismissSelection, bool singleLine, bool withControlSequences, const CopyFormat formats);
         void PasteTextFromClipboard();
         void SelectAll();
         bool ToggleBlockSelection();
@@ -245,8 +245,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         BUBBLED_FORWARDED_TYPED_EVENT(CloseTerminalRequested,   IInspectable, IInspectable);
         BUBBLED_FORWARDED_TYPED_EVENT(CompletionsChanged,       IInspectable, Control::CompletionsChangedEventArgs);
         BUBBLED_FORWARDED_TYPED_EVENT(RestartTerminalRequested, IInspectable, IInspectable);
-
-        BUBBLED_FORWARDED_TYPED_EVENT(PasteFromClipboard, IInspectable, Control::PasteFromClipboardEventArgs);
+        BUBBLED_FORWARDED_TYPED_EVENT(WriteToClipboard,         IInspectable, Control::WriteToClipboardEventArgs);
+        BUBBLED_FORWARDED_TYPED_EVENT(PasteFromClipboard,       IInspectable, Control::PasteFromClipboardEventArgs);
 
         // clang-format on
 
@@ -302,7 +302,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _quickFixesAvailable{ false };
         til::CoordType _quickFixBufferPos{};
 
-        std::shared_ptr<ThrottledFuncLeading> _playWarningBell;
+        std::shared_ptr<ThrottledFunc<>> _playWarningBell;
 
         struct ScrollBarUpdate
         {
@@ -312,7 +312,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             double newViewportSize;
         };
 
-        std::shared_ptr<ThrottledFuncTrailing<ScrollBarUpdate>> _updateScrollBar;
+        std::shared_ptr<ThrottledFunc<ScrollBarUpdate>> _updateScrollBar;
 
         bool _isInternalScrollBarUpdate;
 
@@ -495,6 +495,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Control::ControlCore::UpdateSelectionMarkers_revoker UpdateSelectionMarkers;
             Control::ControlCore::OpenHyperlink_revoker coreOpenHyperlink;
             Control::ControlCore::TitleChanged_revoker TitleChanged;
+            Control::ControlCore::WriteToClipboard_revoker WriteToClipboard;
             Control::ControlCore::TabColorChanged_revoker TabColorChanged;
             Control::ControlCore::TaskbarProgressChanged_revoker TaskbarProgressChanged;
             Control::ControlCore::ConnectionStateChanged_revoker ConnectionStateChanged;

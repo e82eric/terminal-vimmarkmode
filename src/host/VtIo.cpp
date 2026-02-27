@@ -226,6 +226,28 @@ bool VtIo::IsUsingVt() const
     return S_OK;
 }
 
+void VtIo::Shutdown() noexcept
+{
+    if (_state != State::Running)
+    {
+        return;
+    }
+
+    // The reverse of what we did in StartIfNeeded.
+    try
+    {
+        Writer writer{ this };
+
+        writer.WriteUTF8(
+            "\x1b[?1004l" // Focus Event Mode
+            "\x1b[?9001l" // Win32 Input Mode
+        );
+
+        writer.Submit();
+    }
+    CATCH_LOG();
+}
+
 void VtIo::SetDeviceAttributes(const til::enumset<DeviceAttribute, uint64_t> attributes) noexcept
 {
     _deviceAttributes = attributes;

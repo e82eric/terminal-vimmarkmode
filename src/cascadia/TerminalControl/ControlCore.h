@@ -145,7 +145,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void SendInput(std::wstring_view wstr);
         void PasteText(const winrt::hstring& hstr);
-        bool CopySelectionToClipboard(bool singleLine, bool withControlSequences, const Windows::Foundation::IReference<CopyFormat>& formats);
+        bool CopySelectionToClipboard(bool singleLine, bool withControlSequences, const CopyFormat formats);
         void SelectAll();
         void ClearSelection();
         bool ToggleBlockSelection();
@@ -299,6 +299,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         til::typed_event<IInspectable, Control::FontSizeChangedArgs> FontSizeChanged;
 
         til::typed_event<IInspectable, Control::TitleChangedEventArgs> TitleChanged;
+        til::typed_event<IInspectable, Control::WriteToClipboardEventArgs> WriteToClipboard;
         til::typed_event<> WarningBell;
         til::typed_event<> TabColorChanged;
         til::typed_event<> BackgroundColorChanged;
@@ -329,9 +330,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     private:
         struct SharedState
         {
-            std::unique_ptr<til::debounced_func_trailing<>> outputIdle;
-            std::unique_ptr<til::debounced_func_trailing<bool>> focusChanged;
-            std::shared_ptr<ThrottledFuncTrailing<Control::ScrollPositionChangedArgs>> updateScrollBar;
+            std::unique_ptr<til::throttled_func<>> outputIdle;
+            std::unique_ptr<til::throttled_func<bool>> focusChanged;
+            std::shared_ptr<ThrottledFunc<Control::ScrollPositionChangedArgs>> updateScrollBar;
         };
 
         void _setupDispatcherAndCallbacks();
@@ -347,7 +348,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _sendInputToConnection(std::wstring_view wstr);
 
 #pragma region TerminalCoreCallbacks
-        void _terminalCopyToClipboard(wil::zwstring_view wstr);
         void _terminalWarningBell();
         void _terminalTitleChanged(std::wstring_view wstr);
         void _terminalScrollPositionChanged(const int viewTop,
@@ -361,7 +361,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _terminalSearchMissingCommand(std::wstring_view missingCommand, const til::CoordType& bufferRow);
         void _terminalWindowSizeChanged(int32_t width, int32_t height);
 
-        safe_void_coroutine _terminalCompletionsChanged(std::wstring_view menuJson, unsigned int replaceLength);
+        void _terminalCompletionsChanged(std::wstring_view menuJson, unsigned int replaceLength);
 #pragma endregion
 
 #pragma region RendererCallbacks

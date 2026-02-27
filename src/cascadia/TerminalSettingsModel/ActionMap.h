@@ -88,6 +88,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
         winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Foundation::Collections::IVector<Model::Command>> FilterToSnippets(winrt::hstring currentCommandline, winrt::hstring currentWorkingDirectory);
 
         void SaveSnippet(const winrt::hstring& input, const winrt::hstring& name);
+        void ResolveMediaResourcesWithBasePath(const winrt::hstring& basePath, const Model::MediaResourceResolver& resolver);
 
     private:
         Model::Command _GetActionByID(const winrt::hstring& actionID) const;

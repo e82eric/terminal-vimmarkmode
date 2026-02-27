@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <ThrottledFunc.h>
+
 #include "TerminalPage.g.h"
 #include "Tab.h"
 #include "AppKeyBindings.h"
@@ -29,6 +31,8 @@ namespace Microsoft::Terminal::Core
 
 namespace winrt::TerminalApp::implementation
 {
+    struct TerminalSettingsCache;
+
     inline constexpr uint32_t DefaultRowsToScroll{ 3 };
     inline constexpr std::wstring_view TabletInputServiceKey{ L"TabletInputService" };
 
@@ -149,7 +153,7 @@ namespace winrt::TerminalApp::implementation
         safe_void_coroutine ProcessStartupActions(std::vector<Microsoft::Terminal::Settings::Model::ActionAndArgs> actions,
                                                   const winrt::hstring cwd = winrt::hstring{},
                                                   const winrt::hstring env = winrt::hstring{});
-        void CreateTabFromConnection(winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection connection);
+        safe_void_coroutine CreateTabFromConnection(winrt::Microsoft::Terminal::TerminalConnection::ITerminalConnection connection);
 
         TerminalApp::WindowProperties WindowProperties() const noexcept { return _WindowProperties; };
 
@@ -169,7 +173,7 @@ namespace winrt::TerminalApp::implementation
         til::property_changed_event PropertyChanged;
 
         // -------------------------------- WinRT Events ---------------------------------
-        til::typed_event<IInspectable, winrt::hstring> TitleChanged;
+        til::typed_event<IInspectable, IInspectable> TitleChanged;
         til::typed_event<IInspectable, IInspectable> CloseWindowRequested;
         til::typed_event<IInspectable, winrt::Windows::UI::Xaml::UIElement> SetTitleBarContent;
         til::typed_event<IInspectable, IInspectable> FocusModeChanged;
@@ -278,7 +282,7 @@ namespace winrt::TerminalApp::implementation
 
         TerminalApp::ContentManager _manager{ nullptr };
 
-        TerminalApp::TerminalSettingsCache _terminalSettingsCache{ nullptr };
+        std::shared_ptr<TerminalSettingsCache> _terminalSettingsCache{};
 
         struct StashedDragData
         {
@@ -368,8 +372,11 @@ namespace winrt::TerminalApp::implementation
         bool _MovePane(const Microsoft::Terminal::Settings::Model::MovePaneArgs args);
         bool _MoveTab(winrt::com_ptr<Tab> tab, const Microsoft::Terminal::Settings::Model::MoveTabArgs args);
 
+        std::shared_ptr<ThrottledFunc<>> _adjustProcessPriorityThrottled;
+        void _adjustProcessPriority() const;
+
         template<typename F>
-        bool _ApplyToActiveControls(F f)
+        bool _ApplyToActiveControls(F f) const
         {
             if (const auto tab{ _GetFocusedTabImpl() })
             {
@@ -388,7 +395,7 @@ namespace winrt::TerminalApp::implementation
             return false;
         }
 
-        winrt::Microsoft::Terminal::Control::TermControl _GetActiveControl();
+        winrt::Microsoft::Terminal::Control::TermControl _GetActiveControl() const;
         std::optional<uint32_t> _GetFocusedTabIndex() const noexcept;
         std::optional<uint32_t> _GetTabIndex(const TerminalApp::Tab& tab) const noexcept;
         TerminalApp::Tab _GetFocusedTab() const noexcept;
@@ -422,10 +429,11 @@ namespace winrt::TerminalApp::implementation
         bool _IsUriSupported(const winrt::Windows::Foundation::Uri& parsedUri);
 
         void _ShowCouldNotOpenDialog(winrt::hstring reason, winrt::hstring uri);
-        bool _CopyText(const bool dismissSelection, const bool singleLine, const bool withControlSequences, const Windows::Foundation::IReference<Microsoft::Terminal::Control::CopyFormat>& formats);
+        bool _CopyText(bool dismissSelection, bool singleLine, bool withControlSequences, Microsoft::Terminal::Control::CopyFormat formats);
 
         safe_void_coroutine _SetTaskbarProgressHandler(const IInspectable sender, const IInspectable eventArgs);
 
+        void _copyToClipboard(IInspectable, Microsoft::Terminal::Control::WriteToClipboardEventArgs args) const;
         void _PasteText();
 
         safe_void_coroutine _ControlNoticeRaisedHandler(const IInspectable sender, const Microsoft::Terminal::Control::NoticeEventArgs eventArgs);
@@ -473,7 +481,7 @@ namespace winrt::TerminalApp::implementation
 
         void _RefreshUIForSettingsReload();
 
-        void _SetNewTabButtonColor(const Windows::UI::Color& color, const Windows::UI::Color& accentColor);
+        void _SetNewTabButtonColor(til::color color, til::color accentColor);
         void _ClearNewTabButtonColor();
 
         safe_void_coroutine _CompleteInitialization();

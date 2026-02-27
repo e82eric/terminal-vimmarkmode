@@ -1736,6 +1736,14 @@
     <value>マウスをポイントしたときにフォーカス ウィンドウを自動的に表示する</value>
     <comment>Header for a control to toggle the "focus follow mouse" setting. When enabled, hovering over a pane puts it in focus.</comment>
   </data>
+  <data name="Globals_ScrollToZoom.Header" xml:space="preserve">
+    <value>Ctrl キーを押しながらスクロールして、ターミナルのフォント サイズを調整します</value>
+    <comment>Header for a control to toggle font size changes with scrolling. When enabled, holding the Ctrl key while scrolling will increase or decrease the terminal font size.</comment>
+  </data>
+  <data name="Globals_ScrollToChangeOpacity.Header" xml:space="preserve">
+    <value>Ctrl キーと Shift キーを押しながらスクロールして、ターミナルの不透明度を調整します</value>
+    <comment>Header for a control to toggle opacity changes with scrolling. When enabled, holding the Ctrl and Shift keys while scrolling will increase or decrease the window opacity.</comment>
+  </data>
   <data name="Globals_DisableAnimationsReversed.Header" xml:space="preserve">
     <value>ウィンドウのアニメーション</value>
     <comment>Header for a control to toggle animations on panes. "Enabled" value enables the animations.</comment>
@@ -1916,10 +1924,26 @@
     <value>[タッチ キーボードと手書きパネル サービス] が無効になっている場合に警告する</value>
   </data>
   <data name="Globals_WarnAboutLargePaste.Header" xml:space="preserve">
-    <value>5 KiB を超える文字を貼り付けようとしたときに警告する</value>
+    <value>5 KiB を超える貼り付け時に警告する</value>
   </data>
   <data name="Globals_WarnAboutMultiLinePaste.Header" xml:space="preserve">
-    <value>"改行" 文字を貼り付けようとしたときに警告する</value>
+    <value>改行を貼り付ける際に警告する</value>
+  </data>
+  <data name="Globals_WarnAboutMultiLinePaste.HelpText" xml:space="preserve">
+    <value>シェルが ”角かっこで囲まれた貼り付け” モードをサポートしていない場合は、セキュリティ上の理由からこれを [常に] に設定することをお勧めします。</value>
+    <comment>"bracketed paste" is a technical term referring to escape sequences. "Always" is a setting, as in "Always VS Never".</comment>
+  </data>
+  <data name="Globals_WarnAboutMultiLinePasteAutomatic.Content" xml:space="preserve">
+    <value>"角かっこで囲まれた貼り付け" が無効になっている場合のみ</value>
+    <comment>"bracketed paste" is a technical term referring to terminal escape sequences.</comment>
+  </data>
+  <data name="Globals_WarnAboutMultiLinePasteAlways.Content" xml:space="preserve">
+    <value>常時</value>
+    <comment>As in: Always VS Never</comment>
+  </data>
+  <data name="Globals_WarnAboutMultiLinePasteNever.Content" xml:space="preserve">
+    <value>なし</value>
+    <comment>As in: Always VS Never</comment>
   </data>
   <data name="Settings_PortableModeNote.Text" xml:space="preserve">
     <value>Windows ターミナルはポータブル モードで実行されています。</value>

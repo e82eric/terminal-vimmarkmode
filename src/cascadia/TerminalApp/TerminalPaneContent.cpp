@@ -6,6 +6,7 @@
 
 #include <mmsystem.h>
 
+#include "TerminalSettingsCache.h"
 #include "../../types/inc/utils.hpp"
 
 #include "BellEventArgs.g.cpp"
@@ -20,7 +21,7 @@ using namespace winrt::Microsoft::Terminal::TerminalConnection;
 namespace winrt::TerminalApp::implementation
 {
     TerminalPaneContent::TerminalPaneContent(const winrt::Microsoft::Terminal::Settings::Model::Profile& profile,
-                                             const TerminalApp::TerminalSettingsCache& cache,
+                                             const std::shared_ptr<TerminalSettingsCache>& cache,
                                              const winrt::Microsoft::Terminal::Control::TermControl& control) :
         _control{ control },
         _cache{ cache },
@@ -82,7 +83,7 @@ namespace winrt::TerminalApp::implementation
 
     winrt::hstring TerminalPaneContent::Icon() const
     {
-        return _profile.EvaluatedIcon();
+        return _profile.Icon().Resolved();
     }
 
     Windows::Foundation::IReference<winrt::Windows::UI::Color> TerminalPaneContent::TabColor() const noexcept
@@ -278,7 +279,7 @@ namespace winrt::TerminalApp::implementation
                     auto sounds{ _profile.BellSound() };
                     if (sounds && sounds.Size() > 0)
                     {
-                        winrt::hstring soundPath{ wil::ExpandEnvironmentStringsW<std::wstring>(sounds.GetAt(rand() % sounds.Size()).c_str()) };
+                        winrt::hstring soundPath{ sounds.GetAt(rand() % sounds.Size()).Resolved() };
                         winrt::Windows::Foundation::Uri uri{ soundPath };
                         _playBellSound(uri);
                     }
@@ -340,9 +341,13 @@ namespace winrt::TerminalApp::implementation
         RestartTerminalRequested.raise(*this, nullptr);
     }
 
-    void TerminalPaneContent::UpdateSettings(const CascadiaSettings& /*settings*/)
+    void TerminalPaneContent::UpdateSettings(const CascadiaSettings& settings)
     {
-        if (const auto& settings{ _cache.TryLookup(_profile) })
+        // Reload our profile from the settings model to propagate bell mode, icon, and close on exit mode (anything that uses _profile).
+        const auto profile{ settings.FindProfile(_profile.Guid()) };
+        _profile = profile ? profile : settings.ProfileDefaults();
+
+        if (const auto& settings{ _cache->TryLookup(_profile) })
         {
             _control.UpdateControlSettings(settings.DefaultSettings(), settings.UnfocusedSettings());
         }
