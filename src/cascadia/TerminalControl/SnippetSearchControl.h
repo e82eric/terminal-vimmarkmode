@@ -2,7 +2,6 @@
 
 #include "SnippetSearchControl.g.h"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
-#include <ControlSettings.h>
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {

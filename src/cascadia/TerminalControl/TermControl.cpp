@@ -491,25 +491,22 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // Function Description:
     // - Static helper for building a new TermControl from an already existing
     //   content. We'll attach the existing swapchain to this new control's
-    //   SwapChainPanel. The IKeyBindings might belong to a non-agile object on
-    //   a new thread, so we'll hook up the core to these new bindings.
+    //   SwapChainPanel.
     // Arguments:
     // - content: The preexisting ControlInteractivity to connect to.
-    // - keybindings: The new IKeyBindings instance to use for this control.
     // Return Value:
     // - The newly constructed TermControl.
-    Control::TermControl TermControl::NewControlByAttachingContent(Control::ControlInteractivity content,
-                                                                   const Microsoft::Terminal::Control::IKeyBindings& keyBindings)
+    Control::TermControl TermControl::NewControlByAttachingContent(Control::ControlInteractivity content)
     {
         const auto term{ winrt::make_self<TermControl>(content) };
-        term->_initializeForAttach(keyBindings);
+        term->_initializeForAttach();
         return *term;
     }
 
-    void TermControl::_initializeForAttach(const Microsoft::Terminal::Control::IKeyBindings& keyBindings)
+    void TermControl::_initializeForAttach()
     {
         _AttachDxgiSwapChainToXaml(reinterpret_cast<HANDLE>(_core.SwapChainHandle()));
-        _interactivity.AttachToNewControl(keyBindings);
+        _interactivity.AttachToNewControl();
 
         // Initialize the terminal only once the swapchainpanel is loaded - that
         //      way, we'll be able to query the real pixel size it got on layout
@@ -744,7 +741,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         // Get the last 200 lines from the terminal for context, including cursor line
         const auto cursorContext = _core.GetLinesFromCursorWithContext(-200);  // Negative to get lines before cursor
-        
+
         AiPrompt().Visibility(Visibility::Visible);
         AiPrompt().ShowWithContext(cursorContext.Lines, cursorContext.CursorLine);
     }
@@ -1080,13 +1077,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return result;
         };
 
-        const auto headerTextColor = createSolidColorBrush(_core.ColorScheme().BrightGreen);
-        const auto borderColor = createSolidColorBrush(_core.ColorScheme().BrightBlack);
-        const auto backgroundColor = createSolidColorBrush(_core.ColorScheme().Background);
-        const auto selectionColor = createSolidColorBrush(_core.ColorScheme().SelectionBackground);
-        const auto highlightColor = createSolidColorBrush(_core.ColorScheme().BrightRed);
-        const auto textColor = createSolidColorBrush(_core.ColorScheme().Foreground);
-        constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
+winrt::com_array<Core::Color> table;
+this->Settings().GetColorTable(table);
+
+// ANSI table entries: safe to take from GetColorTable().
+const auto headerTextColor = createSolidColorBrush(table[TextColor::BRIGHT_GREEN]);
+const auto borderColor = createSolidColorBrush(table[TextColor::BRIGHT_BLACK]);
+const auto highlightColor = createSolidColorBrush(table[TextColor::BRIGHT_RED]);
+
+// Alias/default colors: take these from the settings directly.
+const auto backgroundColor = createSolidColorBrush(this->Settings().DefaultBackground());
+const auto selectionColor = createSolidColorBrush(this->Settings().SelectionBackground());
+const auto textColor = createSolidColorBrush(this->Settings().DefaultForeground());
+
+constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
 
         NumberBorder().Background(backgroundColor);
         NumberTextBox().Foreground(textColor);
@@ -2035,7 +2039,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     // - modifiers: The ControlKeyStates representing the modifier key states.
     bool TermControl::_TryHandleKeyBinding(const WORD vkey, const WORD scanCode, ::Microsoft::Terminal::Core::ControlKeyStates modifiers) const
     {
-        auto bindings = _core.Settings().KeyBindings();
+        auto bindings = _keyBindings;
         if (!bindings)
         {
             return false;
@@ -2089,7 +2093,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return true;
         }
 
-        auto success = bindings.TryKeyChord({
+        if (!_keyBindings)
+        {
+            return false;
+        }
+
+        auto success = _keyBindings.TryKeyChord({
             modifiers.IsCtrlPressed(),
             modifiers.IsAltPressed(),
             modifiers.IsShiftPressed(),
@@ -4197,16 +4206,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::UpdateWinGetSuggestions(Windows::Foundation::Collections::IVector<hstring> suggestions)
     {
         get_self<ControlCore>(_core)->UpdateQuickFixes(suggestions);
-    }
-
-    Core::Scheme TermControl::ColorScheme() const noexcept
-    {
-        return _core.ColorScheme();
-    }
-
-    void TermControl::ColorScheme(const Core::Scheme& scheme) const noexcept
-    {
-        _core.ColorScheme(scheme);
     }
 
     void TermControl::AdjustOpacity(const float opacity, const bool relative)

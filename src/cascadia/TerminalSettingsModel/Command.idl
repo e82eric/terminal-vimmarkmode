@@ -35,14 +35,18 @@ namespace Microsoft.Terminal.Settings.Model
     runtimeclass Command : ISettingsModelObject
     {
         Command();
+        static Command NewUserCommand();
+        static Command CopyAsUserCommand(Command originalCmd);
 
-        String Name { get; };
+        String Name;
+        Boolean HasName();
         String LanguageNeutralName { get; };
         String ID { get; };
+        void GenerateID();
 
         String Description { get; };
 
-        ActionAndArgs ActionAndArgs { get; };
+        ActionAndArgs ActionAndArgs;
 
         IMediaResource Icon;
 

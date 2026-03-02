@@ -44,7 +44,6 @@
   </ItemGroup>
   <ItemGroup>
     <Midl Include="..\ICoreSettings.idl" />
-    <Midl Include="..\ICoreAppearance.idl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="QuickSelectAlphabet.h" />
