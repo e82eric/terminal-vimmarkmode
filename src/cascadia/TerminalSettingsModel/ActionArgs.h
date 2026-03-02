@@ -64,7 +64,6 @@
 
 #include "TerminalSettingsSerializationHelpers.h"
 
-#include <LibraryResources.h>
 #include <ScopedResourceLoader.h>
 
 #include "ActionArgsMagic.h"
@@ -323,7 +322,7 @@ protected:                                                                  \
 #define SPLIT_PANE_ARGS(X)                                                                                 \
     X(Model::SplitDirection, SplitDirection, "split", false, ArgTypeHint::None, SplitDirection::Automatic) \
     X(SplitType, SplitMode, "splitMode", false, ArgTypeHint::None, SplitType::Manual)                      \
-    X(float, SplitSize, "size", false, ArgTypeHint::None, 0.5f)
+    X(float, SplitSize, "size", false, ArgTypeHint::SplitSize, 0.5f)
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -622,7 +621,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 return otherAsUs->_ContentArgs.Equals(_ContentArgs);
             }
             return false;
-        };
+        }
         static FromJsonResult FromJson(const Json::Value& json)
         {
             // LOAD BEARING: Not using make_self here _will_ break you in the future!
@@ -890,7 +889,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                        otherAsUs->_SplitMode == _SplitMode;
             }
             return false;
-        };
+        }
         static FromJsonResult FromJson(const Json::Value& json)
         {
             // LOAD BEARING: Not using make_self here _will_ break you in the future!
@@ -1018,7 +1017,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 return otherAsUs->_ContentArgs.Equals(_ContentArgs);
             }
             return false;
-        };
+        }
         static FromJsonResult FromJson(const Json::Value& json)
         {
             // LOAD BEARING: Not using make_self here _will_ break you in the future!
@@ -1172,7 +1171,7 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 return otherAsUs->_Actions == _Actions;
             }
             return false;
-        };
+        }
         static FromJsonResult FromJson(const Json::Value& json)
         {
             // LOAD BEARING: Not using make_self here _will_ break you in the future!

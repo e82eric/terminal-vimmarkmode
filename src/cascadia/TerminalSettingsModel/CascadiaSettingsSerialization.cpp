@@ -4,7 +4,6 @@
 #include "pch.h"
 #include "CascadiaSettings.h"
 
-#include <LibraryResources.h>
 #include <fmt/chrono.h>
 #include <shlobj.h>
 #include <til/latch.h>
@@ -16,9 +15,7 @@
 #include "PowershellCoreProfileGenerator.h"
 #include "VisualStudioGenerator.h"
 #include "WslDistroGenerator.h"
-#if TIL_FEATURE_DYNAMICSSHPROFILES_ENABLED
 #include "SshHostGenerator.h"
-#endif
 
 #include "ApplicationState.h"
 #include "DefaultTerminal.h"
@@ -226,9 +223,10 @@ void SettingsLoader::GenerateProfiles()
     generateProfiles(WslDistroGenerator{});
     generateProfiles(AzureCloudShellGenerator{});
     generateProfiles(VisualStudioGenerator{});
-#if TIL_FEATURE_DYNAMICSSHPROFILES_ENABLED
-    sshProfilesGenerated = generateProfiles(SshHostGenerator{});
-#endif
+    if constexpr (Feature_DynamicSSHProfiles::IsEnabled())
+    {
+        sshProfilesGenerated = generateProfiles(SshHostGenerator{});
+    }
 }
 
 // Generate ExtensionPackage objects from the profile generators.
@@ -267,9 +265,10 @@ void SettingsLoader::GenerateExtensionPackagesFromProfileGenerators()
     generateExtensionPackages(WslDistroGenerator{});
     generateExtensionPackages(AzureCloudShellGenerator{});
     generateExtensionPackages(VisualStudioGenerator{});
-#if TIL_FEATURE_DYNAMICSSHPROFILES_ENABLED
-    generateExtensionPackages(SshHostGenerator{});
-#endif
+    if constexpr (Feature_DynamicSSHProfiles::IsEnabled())
+    {
+        generateExtensionPackages(SshHostGenerator{});
+    }
 }
 
 // A new settings.json gets a special treatment:
@@ -559,6 +558,7 @@ bool SettingsLoader::AddDynamicProfileFolders()
         folderEntry->Inlining(FolderEntryInlining::Auto);
         folderEntry->RawEntries(winrt::single_threaded_vector<Model::NewTabMenuEntry>({ *matchProfilesEntry }));
 
+        // NewTabMenu is guaranteed to exist by FixupUserSettings, which runs before this fixup.
         userSettings.globals->NewTabMenu().Append(folderEntry.as<Model::NewTabMenuEntry>());
         state->SSHFolderGenerated(true);
         return true;
@@ -687,6 +687,16 @@ bool SettingsLoader::FixupUserSettings()
         // migrate the user's opt-out to the profiles.defaults
         userSettings.baseLayerProfile->ForceVTInput(true);
         fixedUp = true;
+    }
+
+    // Terminal 1.24
+    // Ensure that the user always has a newTabMenu. We used to do this last, after
+    // resolving all of the new tab menu entries, but there was no conceivable reason
+    // that it should happen so late.
+    if (!userSettings.globals->HasNewTabMenu())
+    {
+        userSettings.globals->NewTabMenu(winrt::single_threaded_vector<Model::NewTabMenuEntry>({ Model::RemainingProfilesEntry{} }));
+        // This one does not need to be written back to the settings file immediately, it can wait until we write one for another reason.
     }
 
     return fixedUp;
@@ -1112,11 +1122,11 @@ bool SettingsLoader::_addOrMergeUserColorScheme(const winrt::com_ptr<implementat
             userSettings.fixupsAppliedDuringLoad = true; // Make sure we save the settings.
             if (!existingScheme->IsEquivalentForSettingsMergePurposes(newScheme))
             {
-                hstring newName{ fmt::format(FMT_COMPILE(L"{} (modified)"), existingScheme->Name()) };
+                auto newName = til::hstring_format(FMT_COMPILE(L"{} (modified)"), existingScheme->Name());
                 int differentiator = 2;
                 while (userSettings.colorSchemes.contains(newName))
                 {
-                    newName = hstring{ fmt::format(FMT_COMPILE(L"{} (modified {})"), existingScheme->Name(), differentiator++) };
+                    newName = til::hstring_format(FMT_COMPILE(L"{} (modified {})"), existingScheme->Name(), differentiator++);
                 }
                 // Rename the user's scheme.
                 existingScheme->Name(newName);
@@ -1263,8 +1273,8 @@ try
     // DisableDeletedProfiles returns true whenever we encountered any new generated/dynamic profiles.
     // Similarly FixupUserSettings returns true, when it encountered settings that were patched up.
     mustWriteToDisk |= loader.DisableDeletedProfiles();
-    mustWriteToDisk |= loader.AddDynamicProfileFolders();
     mustWriteToDisk |= loader.FixupUserSettings();
+    mustWriteToDisk |= loader.AddDynamicProfileFolders();
 
     // If this throws, the app will catch it and use the default settings.
     const auto settings = winrt::make_self<CascadiaSettings>(std::move(loader));
@@ -1744,16 +1754,6 @@ void CascadiaSettings::_resolveNewTabMenuProfiles() const
     if (remainingProfilesEntry != nullptr)
     {
         remainingProfilesEntry.Profiles(remainingProfiles);
-    }
-
-    // If the configuration does not have a "newTabMenu" field, GlobalAppSettings
-    // will return a default value containing just a "remainingProfiles" entry. However,
-    // this value is regenerated on every "get" operation, so the effect of setting
-    // the remaining profiles above will be undone. So only in the case that no custom
-    // value is present in GlobalAppSettings, we will store the modified default value.
-    if (!_globals->HasNewTabMenu())
-    {
-        _globals->NewTabMenu(entries);
     }
 }
 

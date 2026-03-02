@@ -1125,7 +1125,7 @@ int32_t VimModeProxy::ViewportRowToHighlight()
     const auto selection = _terminal->GetSelectionAnchors();
     if (!selection->active)
     {
-        return _terminal->GetCursorPosition().y;
+        return _terminal->GetViewportRelativeCursorPosition().y;
     }
     const auto pivotIsStart = selection->start == selection->pivot;
     const til::point point = pivotIsStart ? selection->end : selection->start;

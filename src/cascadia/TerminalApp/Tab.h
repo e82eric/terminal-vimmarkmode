@@ -71,6 +71,7 @@ namespace winrt::TerminalApp::implementation
         void UpdateSettings(const winrt::Microsoft::Terminal::Settings::Model::CascadiaSettings& settings);
         void UpdateTitle();
 
+        void Close();
         void Shutdown();
         void ClosePane();
 

@@ -4,7 +4,6 @@
 #include "pch.h"
 #include "TermControl.h"
 
-#include <LibraryResources.h>
 #include <inputpaneinterop.h>
 
 #include "TermControlAutomationPeer.h"
@@ -742,8 +741,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // Get the last 200 lines from the terminal for context, including cursor line
         const auto cursorContext = _core.GetLinesFromCursorWithContext(-200);  // Negative to get lines before cursor
 
-        AiPrompt().Visibility(Visibility::Visible);
-        AiPrompt().ShowWithContext(cursorContext.Lines, cursorContext.CursorLine);
+        //AiPrompt().Visibility(Visibility::Visible);
+        //AiPrompt().ShowWithContext(cursorContext.Lines, cursorContext.CursorLine);
     }
 
     // This is called when a Find Next/Previous Match action is triggered.
@@ -759,8 +758,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else
         {
-            const auto request = SearchRequest{ _searchBox->Text(), goForward, _searchBox->CaseSensitive(), _searchBox->RegularExpression(), false, _searchScrollOffset };
-            _handleSearchResults(_core.Search(request));
+            _handleSearchResults(_core.Search(SearchRequest{
+                .Text = _searchBox->Text(),
+                .GoForward = goForward,
+                .CaseSensitive = _searchBox->CaseSensitive(),
+                .RegularExpression = _searchBox->RegularExpression(),
+                .ExecuteSearch = true,
+                .ScrollIntoView = true,
+                .ScrollOffset = _searchScrollOffset,
+            }));
         }
     }
 
@@ -794,8 +800,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         if (_searchBox && _searchBox->IsOpen())
         {
-            const auto request = SearchRequest{ text, goForward, caseSensitive, regularExpression, false, _searchScrollOffset };
-            _handleSearchResults(_core.Search(request));
+            _handleSearchResults(_core.Search(SearchRequest{
+                .Text = text,
+                .GoForward = goForward,
+                .CaseSensitive = caseSensitive,
+                .RegularExpression = regularExpression,
+                .ExecuteSearch = true,
+                .ScrollIntoView = true,
+                .ScrollOffset = _searchScrollOffset,
+            }));
         }
     }
 
@@ -835,11 +848,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         if (_searchBox && _searchBox->IsOpen())
         {
-            // We only want to update the search results based on the new text. Set
-            // `resetOnly` to true so we don't accidentally update the current match index.
-            const auto request = SearchRequest{ text, goForward, caseSensitive, regularExpression, true, _searchScrollOffset };
-            const auto result = _core.Search(request);
-            _handleSearchResults(result);
+            _handleSearchResults(_core.Search(SearchRequest{
+                .Text = text,
+                .GoForward = goForward,
+                .CaseSensitive = caseSensitive,
+                .RegularExpression = regularExpression,
+                .ExecuteSearch = false,
+                .ScrollIntoView = true,
+                .ScrollOffset = _searchScrollOffset,
+            }));
         }
     }
 
@@ -888,14 +905,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::_CloseAiPromptControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, const Windows::UI::Xaml::RoutedEventArgs& /*args*/)
     {
-        AiPrompt().Visibility(Visibility::Collapsed);
+        //AiPrompt().Visibility(Visibility::Collapsed);
     }
 
-    void TermControl::_OnReturnAiPromptControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, hstring input)
+    void TermControl::_OnReturnAiPromptControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, hstring /*input*/)
     {
-        AiPrompt().Visibility(Visibility::Collapsed);
-        SendInput(input);
-        this->Focus(FocusState::Programmatic);
+        //AiPrompt().Visibility(Visibility::Collapsed);
+        //SendInput(input);
+        //this->Focus(FocusState::Programmatic);
     }
 
     void TermControl::UpdateControlSettings(IControlSettings settings)
@@ -1104,10 +1121,10 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         SnippetSearch().HighlightedTextColor(highlightColor);
         SnippetSearch().ResultFontSize(14);
 
-        AiPrompt().BorderColor(borderColor);
-        AiPrompt().HeaderTextColor(headerTextColor);
-        AiPrompt().BackgroundColor(backgroundColor);
-        AiPrompt().InnerBorderThickness(borderThickness);
+        //AiPrompt().BorderColor(borderColor);
+        //AiPrompt().HeaderTextColor(headerTextColor);
+        //AiPrompt().BackgroundColor(backgroundColor);
+        //AiPrompt().InnerBorderThickness(borderThickness);
 
         VimSearchBorder().BorderThickness(borderThickness);
         VimSearchBorder().BorderBrush(borderColor);
@@ -1544,51 +1561,6 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         ScrollBar().ViewportSize(bufferHeight);
         ScrollBar().LargeChange(bufferHeight); // scroll one "screenful" at a time when the scroll bar is clicked
 
-        // Set up blinking cursor
-        int blinkTime = GetCaretBlinkTime();
-        if (blinkTime != INFINITE)
-        {
-            // Create a timer
-            _cursorTimer.Interval(std::chrono::milliseconds(blinkTime));
-            _cursorTimer.Tick({ get_weak(), &TermControl::_CursorTimerTick });
-            // As of GH#6586, don't start the cursor timer immediately, and
-            // don't show the cursor initially. We'll show the cursor and start
-            // the timer when the control is first focused.
-            //
-            // As of GH#11411, turn on the cursor if we've already been marked
-            // as focused. We suspect that it's possible for the Focused event
-            // to fire before the LayoutUpdated. In that case, the
-            // _GotFocusHandler would mark us _focused, but find that a
-            // _cursorTimer doesn't exist, and it would never turn on the
-            // cursor. To mitigate, we'll initialize the cursor's 'on' state
-            // with `_focused` here.
-            _core.CursorOn(_focused || _displayCursorWhileBlurred());
-            if (_displayCursorWhileBlurred())
-            {
-                _cursorTimer.Start();
-            }
-        }
-        else
-        {
-            _cursorTimer.Destroy();
-        }
-
-        // Set up blinking attributes
-        auto animationsEnabled = TRUE;
-        SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animationsEnabled, 0);
-        if (animationsEnabled && blinkTime != INFINITE)
-        {
-            // Create a timer
-            _blinkTimer.Interval(std::chrono::milliseconds(blinkTime));
-            _blinkTimer.Tick({ get_weak(), &TermControl::_BlinkTimerTick });
-            _blinkTimer.Start();
-        }
-        else
-        {
-            // The user has disabled blinking
-            _blinkTimer.Destroy();
-        }
-
         // Now that the renderer is set up, update the appearance for initialization
         _UpdateAppearanceFromUIThread(_core.FocusedAppearance());
 
@@ -1732,10 +1704,10 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             return;
         }
 
-        if (AiPrompt().ContainsFocus())
-        {
-            return;
-        }
+        //if (AiPrompt().ContainsFocus())
+        //{
+        //    return;
+        //}
 
         if (VimSearchStringTextBox().FocusState() != FocusState::Unfocused)
         {
@@ -2186,13 +2158,13 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             get_self<TermControlAutomationPeer>(_automationPeer)->RecordKeyEvent(vkey);
         }
 
-        if (_cursorTimer)
-        {
-            // Manually show the cursor when a key is pressed. Restarting
-            // the timer prevents flickering.
-            _core.CursorOn(_core.SelectionMode() != SelectionInteractionMode::Mark && !_core.IsInQuickSelectMode());
-            _cursorTimer.Start();
-        }
+        //if (_cursorTimer)
+        //{
+        //    // Manually show the cursor when a key is pressed. Restarting
+        //    // the timer prevents flickering.
+        //    _core.CursorOn(_core.SelectionMode() != SelectionInteractionMode::Mark && !_core.IsInQuickSelectMode());
+        //    _cursorTimer.Start();
+        //}
 
         return handled;
     }
@@ -2408,15 +2380,11 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         RestorePointerCursor.raise(*this, nullptr);
 
         const auto point = args.GetCurrentPoint(*this);
-        // GH#10329 - we don't need to handle horizontal scrolls. Only vertical ones.
-        // So filter out the horizontal ones.
-        if (point.Properties().IsHorizontalMouseWheel())
-        {
-            return;
-        }
-
+        auto delta = point.Properties().MouseWheelDelta();
         auto result = _interactivity.MouseWheel(ControlKeyStates{ args.KeyModifiers() },
-                                                point.Properties().MouseWheelDelta(),
+                                                point.Properties().IsHorizontalMouseWheel() ?
+                                                    Core::Point{ delta, 0 } :
+                                                    Core::Point{ 0, delta },
                                                 _toTerminalOrigin(point.Position()),
                                                 TermControl::GetPressedMouseButtons(point));
         if (result)
@@ -2436,7 +2404,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
     // - delta: the mouse wheel delta that triggered this event.
     // - state: the state for each of the mouse buttons individually (pressed/unpressed)
     bool TermControl::OnMouseWheel(const Windows::Foundation::Point location,
-                                   const int32_t delta,
+                                   const Core::Point delta,
                                    const bool leftButtonDown,
                                    const bool midButtonDown,
                                    const bool rightButtonDown)
@@ -2657,17 +2625,17 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         }
 
         //Do I need this?
-        if (_cursorTimer && !_core.IsInVimMode() && !_core.IsInQuickSelectMode())
-        {
-            // When the terminal focuses, show the cursor immediately
-            _core.CursorOn(_core.SelectionMode() != SelectionInteractionMode::Mark);
-            _cursorTimer.Start();
-        }
+        //if (_cursorTimer && !_core.IsInVimMode() && !_core.IsInQuickSelectMode())
+        //{
+        //    // When the terminal focuses, show the cursor immediately
+        //    _core.CursorOn(_core.SelectionMode() != SelectionInteractionMode::Mark);
+        //    _cursorTimer.Start();
+        //}
 
-        if (_blinkTimer)
-        {
-            _blinkTimer.Start();
-        }
+        //if (_blinkTimer)
+        //{
+        //    _blinkTimer.Start();
+        //}
 
         // Only update the appearance here if an unfocused config exists - if an
         // unfocused config does not exist then we never would have switched
@@ -2702,17 +2670,6 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         if (_interactivity)
         {
             _interactivity.LostFocus();
-        }
-
-        if (_cursorTimer && !_displayCursorWhileBlurred())
-        {
-            _cursorTimer.Stop();
-            _core.CursorOn(false);
-        }
-
-        if (_blinkTimer)
-        {
-            _blinkTimer.Stop();
         }
 
         // Check if there is an unfocused config we should set the appearance to
@@ -2790,34 +2747,6 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto scaleX = sender.CompositionScaleX();
 
         _core.ScaleChanged(scaleX);
-    }
-
-    // Method Description:
-    // - Toggle the cursor on and off when called by the cursor blink timer.
-    // Arguments:
-    // - sender: not used
-    // - e: not used
-    void TermControl::_CursorTimerTick(const Windows::Foundation::IInspectable& /* sender */,
-                                       const Windows::Foundation::IInspectable& /* e */)
-    {
-        if (!_IsClosing())
-        {
-            _core.BlinkCursor();
-        }
-    }
-
-    // Method Description:
-    // - Toggle the blinking rendition state when called by the blink timer.
-    // Arguments:
-    // - sender: not used
-    // - e: not used
-    void TermControl::_BlinkTimerTick(const Windows::Foundation::IInspectable& /* sender */,
-                                      const Windows::Foundation::IInspectable& /* e */)
-    {
-        if (!_IsClosing())
-        {
-            _core.BlinkAttributeTick();
-        }
     }
 
     // Method Description:
@@ -3038,7 +2967,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         _restorePath = std::move(path);
     }
 
-    void TermControl::PersistToPath(const winrt::hstring& path) const
+    void TermControl::PersistTo(int64_t handle) const
     {
         // Don't persist us if we weren't ever initialized. In that case, we
         // never got an initial size, never instantiated a buffer, and didn't
@@ -3050,7 +2979,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         // file then.
         if (_initializedTerminal)
         {
-            winrt::get_self<ControlCore>(_core)->PersistToPath(path.c_str());
+            winrt::get_self<ControlCore>(_core)->PersistTo(reinterpret_cast<HANDLE>(handle));
         }
     }
 
@@ -3081,8 +3010,6 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             // while the thread is supposed to be idle. Stop these timers avoids this.
             _autoScrollTimer.Stop();
             _bellLightTimer.Stop();
-            _cursorTimer.Stop();
-            _blinkTimer.Stop();
 
             // This is absolutely crucial, as the TSF code tries to hold a strong reference to _tsfDataProvider,
             // but right now _tsfDataProvider implements IUnknown as a no-op. This ensures that TSF stops referencing us.
@@ -3556,12 +3483,17 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             co_return;
         }
 
+        const auto weak = get_weak();
+
         if (e.DataView().Contains(StandardDataFormats::ApplicationLink()))
         {
             try
             {
                 auto link{ co_await e.DataView().GetApplicationLinkAsync() };
-                _pasteTextWithBroadcast(link.AbsoluteUri());
+                if (const auto strong = weak.get())
+                {
+                    _pasteTextWithBroadcast(link.AbsoluteUri());
+                }
             }
             CATCH_LOG();
         }
@@ -3570,7 +3502,10 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             try
             {
                 auto link{ co_await e.DataView().GetWebLinkAsync() };
-                _pasteTextWithBroadcast(link.AbsoluteUri());
+                if (const auto strong = weak.get())
+                {
+                    _pasteTextWithBroadcast(link.AbsoluteUri());
+                }
             }
             CATCH_LOG();
         }
@@ -3579,7 +3514,10 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             try
             {
                 auto text{ co_await e.DataView().GetTextAsync() };
-                _pasteTextWithBroadcast(text);
+                if (const auto strong = weak.get())
+                {
+                    _pasteTextWithBroadcast(text);
+                }
             }
             CATCH_LOG();
         }
@@ -3639,6 +3577,12 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
                     {
                         fullPaths.emplace_back(item.Path());
                     }
+                }
+
+                const auto strong = weak.get();
+                if (!strong)
+                {
+                    co_return;
                 }
 
                 std::wstring allPathsString;
@@ -3983,9 +3927,14 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
 
     safe_void_coroutine TermControl::_updateSelectionMarkers(IInspectable /*sender*/, Control::UpdateSelectionMarkersEventArgs args)
     {
+        if (!args)
+        {
+            co_return;
+        }
+
         auto weakThis{ get_weak() };
         co_await resume_foreground(Dispatcher());
-        if (weakThis.get() && args)
+        if (const auto strong = weakThis.get())
         {
             _updateRowNumbers();
             if (_core.HasSelection() && !args.ClearMarkers() && !_core.IsInQuickSelectMode() && !_core.IsInVimMode())
@@ -4251,8 +4200,15 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto goForward = _searchBox->GoForward();
         const auto caseSensitive = _searchBox->CaseSensitive();
         const auto regularExpression = _searchBox->RegularExpression();
-        const auto request = SearchRequest{ text, goForward, caseSensitive, regularExpression, true, _searchScrollOffset };
-        _handleSearchResults(_core.Search(request));
+        _handleSearchResults(_core.Search(SearchRequest{
+            .Text = text,
+            .GoForward = goForward,
+            .CaseSensitive = caseSensitive,
+            .RegularExpression = regularExpression,
+            .ExecuteSearch = false,
+            .ScrollIntoView = false,
+            .ScrollOffset = _searchScrollOffset,
+        }));
     }
 
     void TermControl::_handleSearchResults(SearchResults results)
@@ -4285,13 +4241,17 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
                 };
                 _updateScrollBar->Run(update);
             }
+        }
 
-            if (auto automationPeer{ FrameworkElementAutomationPeer::FromElement(*this) })
+        if (auto automationPeer{ FrameworkElementAutomationPeer::FromElement(*this) })
+        {
+            const auto status = _searchBox->GetAccessibleStatus(results.TotalMatches, results.CurrentMatch, results.SearchRegexInvalid);
+            if (!status.empty())
             {
                 automationPeer.RaiseNotificationEvent(
                     AutomationNotificationKind::ActionCompleted,
                     AutomationNotificationProcessing::ImportantMostRecent,
-                    results.TotalMatches > 0 ? RS_(L"SearchBox_MatchesAvailable") : RS_(L"SearchBox_NoMatches"), // what to announce if results were found
+                    status,
                     L"SearchBoxResultAnnouncement" /* unique name for this group of notifications */);
             }
         }
@@ -4658,44 +4618,21 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         _core.ContextMenuSelectOutput();
     }
 
-    // Should the text cursor be displayed, even when the control isn't focused?
-    // n.b. "blur" is the opposite of "focus".
-    bool TermControl::_displayCursorWhileBlurred() const noexcept
-    {
-        return CursorVisibility() == Control::CursorDisplayState::Shown;
-    }
     Control::CursorDisplayState TermControl::CursorVisibility() const noexcept
     {
         return _cursorVisibility;
     }
+
     void TermControl::CursorVisibility(Control::CursorDisplayState cursorVisibility)
     {
         _cursorVisibility = cursorVisibility;
-        if (!_initializedTerminal)
-        {
-            return;
-        }
 
-        if (_displayCursorWhileBlurred())
+        // NOTE: This code is specific to broadcast input. It's never been well integrated.
+        // Ideally TermControl should not tie focus to XAML in the first place,
+        // allowing us to truly say "yeah these two controls both have focus".
+        if (_core)
         {
-            // If we should be ALWAYS displaying the cursor, turn it on and start blinking.
-            _core.CursorOn(true);
-            if (_cursorTimer)
-            {
-                _cursorTimer.Start();
-            }
-        }
-        else
-        {
-            // Otherwise, if we're unfocused, then turn the cursor off and stop
-            // blinking. (if we're focused, then we're already doing the right
-            // thing)
-            const auto focused = FocusState() != FocusState::Unfocused;
-            if (!focused && _cursorTimer)
-            {
-                _cursorTimer.Stop();
-            }
-            _core.CursorOn(focused);
+            _core.ForceCursorVisible(cursorVisibility == CursorDisplayState::Shown);
         }
     }
 }
