@@ -212,8 +212,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void ContextMenuSelectCommand();
         void ContextMenuSelectOutput();
-
-        winrt::hstring CurrentWorkingDirectory() const;
 #pragma endregion
 
 #pragma region ITerminalInput
@@ -279,6 +277,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         TerminalConnection::ITerminalConnection Connection();
         void Connection(const TerminalConnection::ITerminalConnection& connection);
+        void HardResetWithoutErase();
 
         void AnchorContextMenu(til::point viewportRelativeCharacterPosition);
 

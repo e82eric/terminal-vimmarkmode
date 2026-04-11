@@ -131,6 +131,7 @@ namespace Microsoft.Terminal.Control
         IVector<Int32> GetRowNumbers();
 
         Microsoft.Terminal.TerminalConnection.ITerminalConnection Connection;
+        void HardResetWithoutErase();
 
         IControlSettings Settings { get; };
         IControlAppearance FocusedAppearance { get; };

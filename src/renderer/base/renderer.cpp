@@ -119,12 +119,15 @@ DWORD WINAPI Renderer::s_renderThread(void* param) noexcept
 
 DWORD Renderer::_renderThread() noexcept
 {
-    while (true)
+    while (_threadKeepRunning.load(std::memory_order_relaxed))
     {
         _enable.wait();
         _waitUntilCanRender();
         _waitUntilTimerOrRedraw();
 
+        // We just completed what could have been a long wait;
+        // eagerly check again to prevent rendering if we don't
+        // need to.
         if (!_threadKeepRunning.load(std::memory_order_relaxed))
         {
             break;
@@ -848,22 +851,8 @@ bool Renderer::_CheckViewportAndScroll()
 void Renderer::_scheduleRenditionBlink()
 {
     const auto& buffer = _pData->GetTextBuffer();
-    bool blinkUsed = false;
+    const auto blinkUsed = buffer.ContainsBlinkAttributeInRegion(_viewport);
 
-    for (auto row = _viewport.Top(); row < _viewport.BottomExclusive(); ++row)
-    {
-        const auto& r = buffer.GetRowByOffset(row);
-        for (const auto& attr : r.Attributes())
-        {
-            if (attr.IsBlinking())
-            {
-                blinkUsed = true;
-                goto why_does_cpp_not_have_labeled_loops;
-            }
-        }
-    }
-
-why_does_cpp_not_have_labeled_loops:
     if (blinkUsed != IsTimerRunning(_renditionBlinker))
     {
         if (blinkUsed)
@@ -1638,7 +1627,7 @@ void Renderer::_updateCursorInfo()
     _currentCursorOptions.lineRendition = lineRendition;
     _currentCursorOptions.ulCursorHeightPercent = cursorHeight;
     _currentCursorOptions.cursorPixelWidth = _pData->GetCursorPixelWidth();
-    _currentCursorOptions.fIsDoubleWidth = buffer.GetRowByOffset(cursorPosition.y).DbcsAttrAt(cursorPosition.x) != DbcsAttribute::Single;
+    _currentCursorOptions.fIsDoubleWidth = buffer.IsGlyphDoubleWidthAt(cursorPosition);
     _currentCursorOptions.cursorType = cursor.GetType();
     _currentCursorOptions.fUseColor = useColor;
     _currentCursorOptions.cursorColor = cursorColor;
