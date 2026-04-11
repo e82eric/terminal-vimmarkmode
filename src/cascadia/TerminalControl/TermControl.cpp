@@ -741,8 +741,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // Get the last 200 lines from the terminal for context, including cursor line
         const auto cursorContext = _core.GetLinesFromCursorWithContext(-200);  // Negative to get lines before cursor
 
-        //AiPrompt().Visibility(Visibility::Visible);
-        //AiPrompt().ShowWithContext(cursorContext.Lines, cursorContext.CursorLine);
+        AiPrompt().Visibility(Visibility::Visible);
+        AiPrompt().ShowWithContext(cursorContext.Lines, cursorContext.CursorLine);
     }
 
     // This is called when a Find Next/Previous Match action is triggered.
@@ -905,14 +905,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void TermControl::_CloseAiPromptControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, const Windows::UI::Xaml::RoutedEventArgs& /*args*/)
     {
-        //AiPrompt().Visibility(Visibility::Collapsed);
+        AiPrompt().Visibility(Visibility::Collapsed);
+        this->Focus(FocusState::Programmatic);
     }
 
-    void TermControl::_OnReturnAiPromptControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, hstring /*input*/)
+    void TermControl::_OnReturnAiPromptControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, hstring input)
     {
-        //AiPrompt().Visibility(Visibility::Collapsed);
-        //SendInput(input);
-        //this->Focus(FocusState::Programmatic);
+        AiPrompt().Visibility(Visibility::Collapsed);
+        SendInput(input);
+        this->Focus(FocusState::Programmatic);
     }
 
     void TermControl::UpdateControlSettings(IControlSettings settings)
@@ -1121,10 +1122,11 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         SnippetSearch().HighlightedTextColor(highlightColor);
         SnippetSearch().ResultFontSize(14);
 
-        //AiPrompt().BorderColor(borderColor);
-        //AiPrompt().HeaderTextColor(headerTextColor);
-        //AiPrompt().BackgroundColor(backgroundColor);
-        //AiPrompt().InnerBorderThickness(borderThickness);
+        AiPrompt().BorderColor(borderColor);
+        AiPrompt().HeaderTextColor(headerTextColor);
+        AiPrompt().BackgroundColor(backgroundColor);
+        AiPrompt().InnerBorderThickness(borderThickness);
+        AiPrompt().TextColor(textColor);
 
         VimSearchBorder().BorderThickness(borderThickness);
         VimSearchBorder().BorderBrush(borderColor);
@@ -1704,10 +1706,10 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             return;
         }
 
-        //if (AiPrompt().ContainsFocus())
-        //{
-        //    return;
-        //}
+        if (AiPrompt().ContainsFocus())
+        {
+            return;
+        }
 
         if (VimSearchStringTextBox().FocusState() != FocusState::Unfocused)
         {

@@ -2,12 +2,7 @@
 
 #include "AiPromptControl.g.h"
 #include "../../cascadia/TerminalCore/Terminal.hpp"
-#include <winrt/Windows.Web.Http.h>
-#include <winrt/Windows.Web.Http.Headers.h>
-#include <winrt/Windows.Data.Json.h>
-#include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.ApplicationModel.DataTransfer.h>
-#include <wincred.h>
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
@@ -17,10 +12,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Chat
     };
 
+    enum class AiProvider
+    {
+        Claude,
+        Codex
+    };
+
+    // Provider-agnostic "small/fast" vs "large/smart" slot. Mapped to the actual
+    // model name in AiPromptControl::_getModelString() based on _currentProvider.
     enum class AiModel
     {
-        GPT4_1,
-        GPT5
+        Haiku, // small / fast
+        Sonnet // large / smart
     };
 
     struct AiPromptControl : AiPromptControlT<AiPromptControl>
@@ -33,6 +36,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         static Windows::UI::Xaml::DependencyProperty HeaderTextColorProperty();
         static Windows::UI::Xaml::DependencyProperty BackgroundColorProperty();
         static Windows::UI::Xaml::DependencyProperty InnerBorderThicknessProperty();
+        static Windows::UI::Xaml::DependencyProperty TextColorProperty();
 
         Windows::UI::Xaml::Media::Brush BorderColor();
         void BorderColor(Windows::UI::Xaml::Media::Brush const& value);
@@ -45,6 +49,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         Windows::UI::Xaml::Thickness InnerBorderThickness();
         void InnerBorderThickness(Windows::UI::Xaml::Thickness const& value);
+
+        Windows::UI::Xaml::Media::Brush TextColor();
+        void TextColor(Windows::UI::Xaml::Media::Brush const& value);
 
         void Show();
         void ShowWithContext(const winrt::hstring& terminalContext, const winrt::hstring& cursorLine);
@@ -60,30 +67,33 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         private:
         void _close();
-        void _sendToOpenAI(const winrt::hstring& prompt);
-        winrt::Windows::Foundation::IAsyncAction _sendToOpenAIAsync(const winrt::hstring& prompt, uint32_t requestId);
+        void _sendToClaude(const winrt::hstring& prompt);
+        winrt::Windows::Foundation::IAsyncAction _sendToClaudeAsync(const winrt::hstring& prompt, uint32_t requestId);
         void _showSpinner();
         void _hideSpinner();
         void _displayResult(const winrt::hstring& result);
         void _cycleMode();
         void _updateModeDisplay();
         void _cycleModel();
+        void _cycleProvider();
         std::wstring _getModelString() const;
         void _updateModelIndicator();
-        std::wstring _getOpenAIApiKey();
+        void _sendResultToTerminal();
         std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
-        winrt::Windows::Web::Http::HttpClient _httpClient;
         winrt::hstring _terminalContext;
+        std::wstring _extractedCommand;
         uint32_t _requestCounter = 0;
         uint32_t _currentRequestId = 0;
         size_t _originalCursorLineLength = 0;
         AiMode _currentMode = AiMode::CommandSuggestions;
-        AiModel _currentModel = AiModel::GPT4_1;
+        AiProvider _currentProvider = AiProvider::Claude;
+        AiModel _currentModel = AiModel::Haiku;
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;
         static Windows::UI::Xaml::DependencyProperty _BackgroundColorProperty;
         static Windows::UI::Xaml::DependencyProperty _InnerBorderThicknessProperty;
+        static Windows::UI::Xaml::DependencyProperty _TextColorProperty;
     };
 }
 

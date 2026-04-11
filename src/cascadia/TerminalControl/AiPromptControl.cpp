@@ -10,9 +10,203 @@ using namespace winrt::Windows::UI::Xaml::Media;
 using namespace winrt;
 using namespace winrt::Windows::UI::Xaml;
 using namespace winrt::Windows::UI::Core;
-using namespace winrt::Windows::Web::Http;
-using namespace winrt::Windows::Data::Json;
-using namespace winrt::Windows::Storage::Streams;
+
+namespace
+{
+    // Sanitizes a prompt for use inside a `cmd.exe /s /c "claude ... -p "X""` invocation,
+    // where X is wrapped in bare double quotes (no backslash escaping).
+    // - CR is dropped; LF is replaced with literal " \n " because cmd.exe cannot carry real
+    //   newlines across a single command line.
+    // - Double quotes are replaced with single quotes. Embedding literal quotes inside a
+    //   cmd-quoted section and having them survive the C runtime argv parser in the child
+    //   is a lost cause, so we accept losing quote characters from the context.
+    // - % and ! are passed through; prompts containing %VAR% may be subject to environment
+    //   variable expansion before the child process sees them.
+    std::wstring EscapeForCmdPromptArg(std::wstring_view s)
+    {
+        std::wstring out;
+        out.reserve(s.size() + 16);
+        for (wchar_t c : s)
+        {
+            switch (c)
+            {
+            case L'\r':
+                break;
+            case L'\n':
+                out += L" \\n ";
+                break;
+            case L'"':
+                out.push_back(L'\'');
+                break;
+            default:
+                out.push_back(c);
+                break;
+            }
+        }
+        return out;
+    }
+
+    std::wstring Utf8ToWide(const std::string& in)
+    {
+        if (in.empty())
+        {
+            return {};
+        }
+        const int wlen = MultiByteToWideChar(CP_UTF8, 0, in.data(), static_cast<int>(in.size()), nullptr, 0);
+        if (wlen <= 0)
+        {
+            return {};
+        }
+        std::wstring w(static_cast<size_t>(wlen), L'\0');
+        MultiByteToWideChar(CP_UTF8, 0, in.data(), static_cast<int>(in.size()), w.data(), wlen);
+        return w;
+    }
+
+    // Launches an AI CLI via cmd.exe with a system prompt and a user prompt,
+    // captures stdout (with stderr merged in), and returns the exit code.
+    // Returns true if the process was launched successfully.
+    //
+    // The command line shape differs per provider:
+    //   Claude: claude --model <m> --effort <e> --append-system-prompt "<sys>" -p "<usr>"
+    //   Codex:  codex exec --model <m> -c model_reasoning_effort=<e> "<sys>\n\n<usr>"
+    // Codex has no dedicated system-prompt flag, so the rules get prepended to
+    // the exec argument with a blank-line separator.
+    bool RunAiCli(winrt::Microsoft::Terminal::Control::implementation::AiProvider provider,
+                  std::wstring_view model,
+                  std::wstring_view effort,
+                  std::wstring_view systemPrompt,
+                  std::wstring_view userPrompt,
+                  std::string& outStdout,
+                  DWORD& exitCode)
+    {
+        SECURITY_ATTRIBUTES saAttr{};
+        saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+        saAttr.bInheritHandle = TRUE;
+
+        HANDLE hOutRead = nullptr;
+        HANDLE hOutWrite = nullptr;
+        if (!CreatePipe(&hOutRead, &hOutWrite, &saAttr, 0))
+        {
+            return false;
+        }
+        // Parent's read end must not be inherited by the child.
+        SetHandleInformation(hOutRead, HANDLE_FLAG_INHERIT, 0);
+
+        // Give the child a NUL stdin so it doesn't try to share ours (which may not exist
+        // for a GUI process anyway) and so claude doesn't block waiting for input.
+        HANDLE hNulIn = CreateFileW(L"NUL",
+                                    GENERIC_READ,
+                                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                    &saAttr,
+                                    OPEN_EXISTING,
+                                    0,
+                                    nullptr);
+        if (hNulIn == INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(hOutRead);
+            CloseHandle(hOutWrite);
+            return false;
+        }
+
+        // Build the command line. /s makes cmd strip the first and last quote and use
+        // the rest as-is, so we use bare "..." groups for the quoted args — cmd parses
+        // them, the .cmd shim forwards them via %*, and node.exe's C runtime yields
+        // single argv elements without the surrounding quotes.
+        using winrt::Microsoft::Terminal::Control::implementation::AiProvider;
+        std::wstring cmdLine = L"cmd.exe /s /c \"";
+        if (provider == AiProvider::Claude)
+        {
+            //   claude --model <m> --effort <e> --append-system-prompt "<sys>" -p "<usr>"
+            cmdLine += L"claude --model ";
+            cmdLine.append(model);
+            cmdLine += L" --effort ";
+            cmdLine.append(effort);
+            cmdLine += L" --append-system-prompt \"";
+            cmdLine += EscapeForCmdPromptArg(systemPrompt);
+            cmdLine += L"\" -p \"";
+            cmdLine += EscapeForCmdPromptArg(userPrompt);
+            cmdLine += L"\"";
+        }
+        else // Codex
+        {
+            //   codex exec --model <m> [-c model_reasoning_effort=<e>] "<sys>\n\n<usr>"
+            // Codex has no --append-system-prompt, so the rules are concatenated onto
+            // the front of the exec argument with a blank-line separator.
+            std::wstring combined;
+            combined.reserve(systemPrompt.size() + userPrompt.size() + 4);
+            combined.append(systemPrompt);
+            combined += L"\n\n";
+            combined.append(userPrompt);
+
+            // --skip-git-repo-check: codex otherwise refuses to run exec outside a
+            // "trusted" directory. We're only asking it to produce text (no file writes),
+            // so bypass the gate instead of forcing the user to curate a trust list.
+            cmdLine += L"codex exec --skip-git-repo-check --model ";
+            cmdLine.append(model);
+            if (!effort.empty())
+            {
+                cmdLine += L" -c model_reasoning_effort=";
+                cmdLine.append(effort);
+            }
+            cmdLine += L" \"";
+            cmdLine += EscapeForCmdPromptArg(combined);
+            cmdLine += L"\"";
+        }
+        cmdLine += L"\"";
+
+        STARTUPINFOW si{};
+        si.cb = sizeof(STARTUPINFOW);
+        si.dwFlags = STARTF_USESTDHANDLES;
+        si.hStdInput = hNulIn;
+        si.hStdOutput = hOutWrite;
+        si.hStdError = hOutWrite; // merge stderr into stdout to avoid pipe deadlocks
+
+        PROCESS_INFORMATION pi{};
+
+        // CreateProcessW requires a mutable command-line buffer.
+        std::vector<wchar_t> buf(cmdLine.begin(), cmdLine.end());
+        buf.push_back(L'\0');
+
+        const BOOL launched = CreateProcessW(
+            nullptr,
+            buf.data(),
+            nullptr,
+            nullptr,
+            TRUE, // inherit handles
+            CREATE_NO_WINDOW,
+            nullptr,
+            nullptr,
+            &si,
+            &pi);
+
+        // Parent no longer needs the child's handle copies.
+        CloseHandle(hOutWrite);
+        CloseHandle(hNulIn);
+
+        if (!launched)
+        {
+            CloseHandle(hOutRead);
+            return false;
+        }
+
+        // Drain stdout until EOF (child closes its write end on exit).
+        outStdout.clear();
+        char readBuf[4096];
+        DWORD bytesRead = 0;
+        while (ReadFile(hOutRead, readBuf, sizeof(readBuf), &bytesRead, nullptr) && bytesRead > 0)
+        {
+            outStdout.append(readBuf, bytesRead);
+        }
+
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        GetExitCodeProcess(pi.hProcess, &exitCode);
+
+        CloseHandle(hOutRead);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return true;
+    }
+}
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
@@ -41,6 +235,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         DependencyProperty::Register(
             L"BorderThickness",
             xaml_typename<Thickness>(),
+            xaml_typename<winrt::Microsoft::Terminal::Control::AiPromptControl>(),
+            PropertyMetadata{ nullptr });
+
+    DependencyProperty AiPromptControl::_TextColorProperty =
+        DependencyProperty::Register(
+            L"TextColor",
+            xaml_typename<Brush>(),
             xaml_typename<winrt::Microsoft::Terminal::Control::AiPromptControl>(),
             PropertyMetadata{ nullptr });
 
@@ -120,13 +321,52 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
+    DependencyProperty AiPromptControl::TextColorProperty()
+    {
+        return _TextColorProperty;
+    }
+
+    Brush AiPromptControl::TextColor()
+    {
+        return GetValue(_TextColorProperty).as<Brush>();
+    }
+
+    void AiPromptControl::TextColor(Brush const& value)
+    {
+        if (value != TextColor())
+        {
+            SetValue(_TextColorProperty, value);
+            PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"TextColor" });
+
+            // A WinUI TextBox ignores its Foreground brush in the focused/pointer-over/disabled
+            // visual states and instead reads the TextControlForeground* theme resources. To make
+            // the editable FuzzySearchTextBox match the read-only ResultTextBox in every state,
+            // override those theme resource keys on the TextBox itself.
+            if (auto tb = FuzzySearchTextBox())
+            {
+                const auto resources = tb.Resources();
+                const Windows::Foundation::IInspectable brushAsInspectable{ value };
+                for (const auto key : { L"TextControlForeground",
+                                        L"TextControlForegroundPointerOver",
+                                        L"TextControlForegroundFocused",
+                                        L"TextControlForegroundDisabled" })
+                {
+                    const auto boxedKey = box_value(hstring{ key });
+                    if (resources.HasKey(boxedKey))
+                    {
+                        resources.Remove(boxedKey);
+                    }
+                    resources.Insert(boxedKey, brushAsInspectable);
+                }
+            }
+        }
+    }
+
     AiPromptControl::AiPromptControl()
     {
         InitializeComponent();
         _focusableElements.insert(FuzzySearchTextBox());
         _focusableElements.insert(ResultTextBox());
-        _httpClient = HttpClient{};
-        _httpClient.DefaultRequestHeaders().UserAgent().TryParseAdd(L"Windows-Terminal/1.0");
     }
 
     void AiPromptControl::_close()
@@ -149,21 +389,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             
             if (shiftDown)
             {
-                // Shift+Enter: Send result to terminal
-                auto resultText = ResultTextBox().Text();
-                if (!resultText.empty() && resultText != L"AI response will appear here...")
-                {
-                    std::wstring backspaces(_originalCursorLineLength, L'\b');
-
-                    auto finalText = backspaces + resultText.c_str();
-
-                    _OnReturnHandlers(*this, hstring{ finalText });
-                    _close();
-                }
-                else
-                {
-                    _close();
-                }
+                // Shift+Enter: Send result (or extracted command) to terminal
+                _sendResultToTerminal();
             }
             else
             {
@@ -171,7 +398,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 auto text = FuzzySearchTextBox().Text();
                 if (!text.empty())
                 {
-                    _sendToOpenAI(text);
+                    _sendToClaude(text);
                 }
             }
             e.Handled(true);
@@ -206,13 +433,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             const auto window = Windows::UI::Core::CoreWindow::GetForCurrentThread();
             const auto ctrlState = window.GetKeyState(Windows::System::VirtualKey::Control);
             const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
-            //const auto shiftState = window.GetKeyState(Windows::System::VirtualKey::Shift);
-            //const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
-            
+
             if (ctrlDown)
             {
-                // Ctrl+Shift+1: Cycle between models
+                // Ctrl+M: Cycle between models
                 _cycleModel();
+                e.Handled(true);
+            }
+        }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::P)
+        {
+            const auto ctrlState = Windows::UI::Core::CoreWindow::GetForCurrentThread().GetKeyState(Windows::System::VirtualKey::Control);
+            const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+
+            if (ctrlDown)
+            {
+                // Ctrl+P: Cycle between AI providers (Claude / Codex)
+                _cycleProvider();
                 e.Handled(true);
             }
         }
@@ -257,6 +494,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         _terminalContext = L"";
         _originalCursorLineLength = 0;
+        _extractedCommand.clear();
         _currentMode = AiMode::CommandSuggestions;
         FuzzySearchTextBox().Text(L"");
         ResultTextBox().Text(L"AI response will appear here...");
@@ -274,6 +512,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _terminalContext = terminalContext;
         _currentMode = AiMode::CommandSuggestions;
         _originalCursorLineLength = cursorLine.size();
+        _extractedCommand.clear();
 
         if (!cursorLine.empty())
         {
@@ -295,7 +534,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (!cursorLine.empty())
         {
-            _sendToOpenAI(cursorLine);
+            _sendToClaude(cursorLine);
         }
     }
 
@@ -310,10 +549,35 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return false;
     }
 
-    void AiPromptControl::_sendToOpenAI(const winrt::hstring& prompt)
+    void AiPromptControl::_sendToClaude(const winrt::hstring& prompt)
     {
         _currentRequestId = ++_requestCounter;
-        _sendToOpenAIAsync(prompt, _currentRequestId);
+        _extractedCommand.clear();
+        _sendToClaudeAsync(prompt, _currentRequestId);
+    }
+
+    void AiPromptControl::_sendResultToTerminal()
+    {
+        std::wstring textToSend;
+        if (!_extractedCommand.empty())
+        {
+            textToSend = _extractedCommand;
+        }
+        else
+        {
+            auto resultText = ResultTextBox().Text();
+            if (resultText.empty() || resultText == L"AI response will appear here...")
+            {
+                _close();
+                return;
+            }
+            textToSend = resultText.c_str();
+        }
+
+        std::wstring backspaces(_originalCursorLineLength, L'\b');
+        auto finalText = backspaces + textToSend;
+        _OnReturnHandlers(*this, hstring{ finalText });
+        _close();
     }
 
     void AiPromptControl::_showSpinner()
@@ -328,166 +592,160 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         LoadingSpinner().Visibility(Visibility::Collapsed);
     }
 
-    winrt::Windows::Foundation::IAsyncAction AiPromptControl::_sendToOpenAIAsync(const winrt::hstring& prompt, uint32_t requestId)
+    winrt::Windows::Foundation::IAsyncAction AiPromptControl::_sendToClaudeAsync(const winrt::hstring& prompt, uint32_t requestId)
     {
         _showSpinner();
-        try
+
+        if (requestId != _currentRequestId)
         {
-            if (requestId != _currentRequestId)
-            {
-                _hideSpinner();
-                co_return;
-            }
-
-            const auto apiKey = _getOpenAIApiKey();
-            if (apiKey.empty())
-            {
-                if (requestId != _currentRequestId)
-                {
-                    _hideSpinner();
-                    co_return;
-                }
-                _hideSpinner();
-                _displayResult(L"Error: OpenAI API key not found. Please store your API key in Windows Credential Manager with resource name 'WindowsTerminal_OpenAI_API_Key' and username 'OpenAI', or set the OPENAI_API_KEY environment variable.");
-                co_return;
-            }
-
-            JsonObject requestBody;
-            requestBody.SetNamedValue(L"model", JsonValue::CreateStringValue(hstring{ _getModelString() }));
-
-            std::wstring input;
-            
-            if (_currentMode == AiMode::CommandSuggestions)
-            {
-                input = L"[SYSTEM]\n"
-                        L"Return EXACTLY ONE command on a single line.\n"
-                        L"- You are inside of windows terminal, use the context to understand the current shell \n"
-                        L"- Always return a command that can be executed in a terminal"
-                        L"- No explanations, comments, or prose.\n"
-                        L"- Do not include multiple commands joined by &&, ;, |, or newline.\n"
-                        L"- Do not wrap in code fences.\n"
-                        L"[USER]\n";
-            }
-            else // Chat mode
-            {
-                input = L"[SYSTEM]\n"
-                        L"You are a helpful assistant within Windows Terminal.\n"
-                        L"- Provide helpful, conversational responses\n"
-                        L"- You can explain commands, concepts, and provide guidance\n"
-                        L"- Use the terminal context to understand the user's environment\n"
-                        L"- Don't Format code with syntax highlighting\n"
-                        L"- Be concise but informative\n"
-                        L"[USER]\n";
-            }
-
-            if (!_terminalContext.empty())
-            {
-                input += L"[CONTEXT]\n";
-                input += _terminalContext.c_str();
-                input += L"\n";
-            }
-            input += L"[USER]\n";
-            input += prompt.c_str();
-
-            requestBody.SetNamedValue(L"input", JsonValue::CreateStringValue(hstring{ input }));
-
-            auto uri = winrt::Windows::Foundation::Uri{ L"https://api.openai.com/v1/responses" };
-            HttpRequestMessage request{ HttpMethod::Post(), uri };
-            request.Headers().Insert(L"Authorization", std::wstring(L"Bearer ") + apiKey);
-            request.Headers().Accept().TryParseAdd(L"application/json");
-
-            auto jsonString = requestBody.Stringify();
-            auto content = HttpStringContent(jsonString, UnicodeEncoding::Utf8, L"application/json");
-            request.Content(content);
-
-            if (requestId != _currentRequestId)
-            {
-                _hideSpinner();
-                co_return;
-            }
-
-            auto response = co_await _httpClient.SendRequestAsync(request);
-            auto responseContent = co_await response.Content().ReadAsStringAsync();
-
-            if (response.IsSuccessStatusCode())
-            {
-                auto responseJson = JsonObject::Parse(responseContent);
-                hstring out;
-
-                if (responseJson.HasKey(L"output"))
-                {
-                    const auto output = responseJson.GetNamedArray(L"output");
-                    for (uint32_t oi = 0; oi < output.Size(); ++oi)
-                    {
-                        const auto item = output.GetObjectAt(oi);
-                        if (!item.HasKey(L"content"))
-                        {
-                            continue;
-                        }
-
-                        const auto contentArr = item.GetNamedArray(L"content");
-                        for (uint32_t ci = 0; ci < contentArr.Size(); ++ci)
-                        {
-                            const auto part = contentArr.GetObjectAt(ci);
-                            if (!part.HasKey(L"type"))
-                                continue;
-
-                            const auto ptype = part.GetNamedString(L"type");
-                            if (ptype == L"output_text")
-                            {
-                                if (part.HasKey(L"text") && part.GetNamedValue(L"text").ValueType() == JsonValueType::String)
-                                {
-                                    out = out + part.GetNamedString(L"text");
-                                }
-                                else if (part.HasKey(L"text") && part.GetNamedValue(L"text").ValueType() == JsonValueType::Object)
-                                {
-                                    const auto textObj = part.GetNamedObject(L"text");
-                                    if (textObj.HasKey(L"value"))
-                                    {
-                                        out = out + textObj.GetNamedString(L"value");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (out.empty() && responseJson.HasKey(L"output_text"))
-                {
-                    out = responseJson.GetNamedString(L"output_text");
-                }
-
-                if (requestId != _currentRequestId)
-                {
-                    _hideSpinner();
-                    co_return;
-                }
-
-                _hideSpinner();
-                _displayResult(out.empty() ? L"No response from AI" : out);
-            }
-            else
-            {
-                if (requestId != _currentRequestId)
-                {
-                    _hideSpinner();
-                    co_return;
-                }
-                _hideSpinner();
-                auto errorMsg = std::wstring(L"API Error: ") + std::to_wstring(static_cast<int>(response.StatusCode())) + L" - " + responseContent.c_str();
-                _displayResult(hstring{ errorMsg });
-            }
-        }
-        catch (...)
-        {
-            if (requestId != _currentRequestId)
-            {
-                _hideSpinner();
-                co_return;
-            }
             _hideSpinner();
-            _displayResult(L"Error: Failed to connect to OpenAI API");
+            co_return;
         }
+
+        // The system prompt is passed to claude via --append-system-prompt so it carries
+        // real system-prompt weight (not just literal text in the user message). Keep
+        // the command-mode instructions forceful to override claude's default tendency
+        // to wrap answers in code fences and add explanatory prose.
+        std::wstring systemPrompt;
+        if (_currentMode == AiMode::CommandSuggestions)
+        {
+            systemPrompt =
+                L"You are running inside Windows Terminal as a command suggester. "
+                L"Your response MUST follow this exact format:\n"
+                L"1. A brief one- or two-sentence explanation of what the command does and why.\n"
+                L"2. A blank line.\n"
+                L"3. The exact command to run, wrapped in <cmd> and </cmd> tags on a single line, "
+                L"with nothing else on that line.\n"
+                L"\n"
+                L"Example:\n"
+                L"This rewrites the last three commits into a single one via an interactive rebase.\n"
+                L"\n"
+                L"<cmd>git rebase -i HEAD~3</cmd>\n"
+                L"\n"
+                L"Rules:\n"
+                L"- Infer the current shell (PowerShell, cmd, bash, etc.) from the provided context.\n"
+                L"- The <cmd>...</cmd> block must contain exactly ONE command, executable as-is.\n"
+                L"- Do not chain commands with &&, ;, |, or newlines inside the <cmd> block.\n"
+                L"- Do not wrap the command in code fences or backticks.\n"
+                L"- Do not add text after the </cmd> tag.";
+        }
+        else // Chat mode
+        {
+            systemPrompt =
+                L"You are a helpful assistant embedded in Windows Terminal. "
+                L"Provide concise, conversational answers. You may explain commands and concepts. "
+                L"Do not wrap output in code fences or use syntax highlighting - the terminal "
+                L"cannot render markdown. Keep responses short and informative.";
+        }
+
+        // The user prompt carries the terminal context and the user's actual question.
+        std::wstring userPrompt;
+        if (!_terminalContext.empty())
+        {
+            userPrompt += L"[Terminal context]\n";
+            userPrompt += _terminalContext.c_str();
+            userPrompt += L"\n\n";
+        }
+        userPrompt += L"[Question]\n";
+        userPrompt += prompt.c_str();
+
+        const std::wstring model = _getModelString();
+        const std::wstring effort = (_currentMode == AiMode::CommandSuggestions) ? L"low" : L"medium";
+
+        auto strongThis{ get_strong() };
+
+        // Run the CLI on a background thread so we don't block the UI dispatcher.
+        co_await winrt::resume_background();
+
+        const AiProvider provider = _currentProvider;
+
+        std::string stdoutBytes;
+        DWORD exitCode = 0;
+        const bool launched = RunAiCli(provider, model, effort, systemPrompt, userPrompt, stdoutBytes, exitCode);
+
+        co_await winrt::resume_foreground(strongThis->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
+
+        if (requestId != _currentRequestId)
+        {
+            _hideSpinner();
+            co_return;
+        }
+
+        _hideSpinner();
+
+        if (!launched)
+        {
+            const wchar_t* exe = (provider == AiProvider::Claude) ? L"claude" : L"codex";
+            std::wstring err = L"Error: failed to launch '";
+            err += exe;
+            err += L"' CLI. Make sure it is installed and on your PATH.";
+            _displayResult(hstring{ err });
+            co_return;
+        }
+
+        std::wstring result = Utf8ToWide(stdoutBytes);
+
+        // Trim trailing whitespace/newlines.
+        while (!result.empty() && (result.back() == L'\n' || result.back() == L'\r' || result.back() == L' ' || result.back() == L'\t'))
+        {
+            result.pop_back();
+        }
+
+        if (exitCode != 0)
+        {
+            _extractedCommand.clear();
+            const wchar_t* exe = (provider == AiProvider::Claude) ? L"claude" : L"codex";
+            std::wstring err = exe;
+            err += L" exited with code ";
+            err += std::to_wstring(exitCode);
+            if (!result.empty())
+            {
+                err += L":\n";
+                err += result;
+            }
+            _displayResult(hstring{ err });
+            co_return;
+        }
+
+        // If claude wrapped a command in <cmd>...</cmd>, pull it out so Shift+Enter can
+        // send just the command instead of the whole explanation. Strip the tags from
+        // the display text so the user sees clean output.
+        _extractedCommand.clear();
+        {
+            constexpr std::wstring_view openTag = L"<cmd>";
+            constexpr std::wstring_view closeTag = L"</cmd>";
+            const auto openPos = result.find(openTag);
+            if (openPos != std::wstring::npos)
+            {
+                const auto cmdStart = openPos + openTag.size();
+                const auto closePos = result.find(closeTag, cmdStart);
+                if (closePos != std::wstring::npos)
+                {
+                    _extractedCommand = result.substr(cmdStart, closePos - cmdStart);
+                    // Trim whitespace around the extracted command.
+                    while (!_extractedCommand.empty() && iswspace(_extractedCommand.back()))
+                    {
+                        _extractedCommand.pop_back();
+                    }
+                    size_t lead = 0;
+                    while (lead < _extractedCommand.size() && iswspace(_extractedCommand[lead]))
+                    {
+                        ++lead;
+                    }
+                    if (lead > 0)
+                    {
+                        _extractedCommand.erase(0, lead);
+                    }
+
+                    // Strip the tags from the display text (erase close first so the
+                    // open-tag offset stays valid).
+                    result.erase(closePos, closeTag.size());
+                    result.erase(openPos, openTag.size());
+                }
+            }
+        }
+
+        _displayResult(result.empty() ? hstring{ L"No response from AI" } : hstring{ result });
     }
 
     void AiPromptControl::_displayResult(const winrt::hstring& result)
@@ -519,12 +777,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_currentMode == AiMode::CommandSuggestions)
         {
             _currentMode = AiMode::Chat;
-            _currentModel = AiModel::GPT5; // Chat mode uses GPT-5
+            _currentModel = AiModel::Sonnet; // Chat mode defaults to Sonnet
         }
         else
         {
             _currentMode = AiMode::CommandSuggestions;
-            _currentModel = AiModel::GPT4_1; // Command mode uses GPT-4.1
+            _currentModel = AiModel::Haiku; // Command mode defaults to Haiku
         }
         _updateModeDisplay();
         _updateModelIndicator();
@@ -532,14 +790,19 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void AiPromptControl::_updateModeDisplay()
     {
+        const std::wstring_view providerName = (_currentProvider == AiProvider::Claude) ? L"Claude" : L"Codex";
         if (_currentMode == AiMode::CommandSuggestions)
         {
-            VimSearchHeaderTextBlock().Text(L"AI Prompt - Command Mode");
+            std::wstring text{ providerName };
+            text += L" - Command Mode";
+            VimSearchHeaderTextBlock().Text(hstring{ text });
             CopyButton().Visibility(Visibility::Collapsed);
         }
         else
         {
-            VimSearchHeaderTextBlock().Text(L"AI Prompt - Chat Mode");
+            std::wstring text{ providerName };
+            text += L" - Chat Mode";
+            VimSearchHeaderTextBlock().Text(hstring{ text });
             // Copy button visibility will be set when displaying results
         }
     }
@@ -551,6 +814,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _hideSpinner();
             _close();
             e.Handled(true);
+        }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::Enter)
+        {
+            const auto shiftState = Windows::UI::Core::CoreWindow::GetForCurrentThread().GetKeyState(Windows::System::VirtualKey::Shift);
+            const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+
+            if (shiftDown)
+            {
+                // Shift+Enter: Send result (or extracted command) to terminal
+                _sendResultToTerminal();
+                e.Handled(true);
+            }
         }
         else if (e.OriginalKey() == Windows::System::VirtualKey::Tab)
         {
@@ -576,13 +851,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
             const auto shiftState = window.GetKeyState(Windows::System::VirtualKey::Shift);
             const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
-            
+
             if (ctrlDown && shiftDown)
             {
                 // Ctrl+Shift+1: Cycle between models
                 _cycleModel();
             }
             e.Handled(true);
+        }
+        else if (e.OriginalKey() == Windows::System::VirtualKey::P)
+        {
+            const auto ctrlState = Windows::UI::Core::CoreWindow::GetForCurrentThread().GetKeyState(Windows::System::VirtualKey::Control);
+            const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+
+            if (ctrlDown)
+            {
+                // Ctrl+P: Cycle between AI providers (Claude / Codex)
+                _cycleProvider();
+                e.Handled(true);
+            }
         }
         else if (e.OriginalKey() == Windows::System::VirtualKey::PageUp)
         {
@@ -659,94 +946,70 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    std::wstring AiPromptControl::_getOpenAIApiKey()
-    {
-        constexpr wchar_t kTarget[] = L"WindowsTerminal_OpenAI_API_Key";
-        PCREDENTIALW cred = nullptr;
-        std::wstring apiKey;
-
-        if (CredReadW(kTarget, CRED_TYPE_GENERIC, 0, &cred))
-        {
-            if (cred && cred->Type == CRED_TYPE_GENERIC && cred->CredentialBlob && cred->CredentialBlobSize)
-            {
-                // Prefer UTF-16LE (how you should have written it with CredWriteW)
-                if ((cred->CredentialBlobSize % sizeof(wchar_t)) == 0)
-                {
-                    const wchar_t* w = reinterpret_cast<const wchar_t*>(cred->CredentialBlob);
-                    size_t count = cred->CredentialBlobSize / sizeof(wchar_t);
-                    if (count && w[count - 1] == L'\0')
-                    {
-                        --count;
-                    } // trim single trailing NUL
-                    apiKey.assign(w, w + count);
-                }
-                else
-                {
-                    // Fallback: treat as UTF-8 if someone wrote bytes that aren't UTF-16
-                    const char* bytes = reinterpret_cast<const char*>(cred->CredentialBlob);
-                    int wlen = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes, static_cast<int>(cred->CredentialBlobSize), nullptr, 0);
-                    if (wlen > 0)
-                    {
-                        apiKey.resize(wlen);
-                        MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes, static_cast<int>(cred->CredentialBlobSize), apiKey.data(), wlen);
-                    }
-                }
-            }
-            CredFree(cred);
-            if (!apiKey.empty())
-                return apiKey;
-        }
-
-        // Optional (less secure): environment variable fallback
-        // Consider removing or gating behind a setting.
-        wchar_t* env = nullptr;
-        size_t len = 0;
-        if (_wdupenv_s(&env, &len, L"OPENAI_API_KEY") == 0 && env)
-        {
-            std::wstring v(env);
-            free(env);
-            if (!v.empty())
-                return v;
-        }
-        return L"";
-    }
-
     void AiPromptControl::_cycleModel()
     {
-        if (_currentModel == AiModel::GPT5)
+        if (_currentModel == AiModel::Haiku)
         {
-            _currentModel = AiModel::GPT4_1;
+            _currentModel = AiModel::Sonnet;
         }
         else
         {
-            _currentModel = AiModel::GPT5;
+            _currentModel = AiModel::Haiku;
         }
         _updateModelIndicator();
     }
 
+    void AiPromptControl::_cycleProvider()
+    {
+        if (_currentProvider == AiProvider::Claude)
+        {
+            _currentProvider = AiProvider::Codex;
+        }
+        else
+        {
+            _currentProvider = AiProvider::Claude;
+        }
+        _updateModelIndicator();
+        _updateModeDisplay();
+    }
+
     std::wstring AiPromptControl::_getModelString() const
     {
+        // Map the provider-agnostic Fast/Smart slot to a real model name.
+        if (_currentProvider == AiProvider::Codex)
+        {
+            switch (_currentModel)
+            {
+                case AiModel::Sonnet:
+                    return L"gpt-5";
+                case AiModel::Haiku:
+                default:
+                    return L"gpt-5-codex";
+            }
+        }
+        // Claude
         switch (_currentModel)
         {
-            case AiModel::GPT4_1:
-                return L"gpt-4.1";
-            case AiModel::GPT5:
+            case AiModel::Sonnet:
+                return L"sonnet";
+            case AiModel::Haiku:
             default:
-                return L"gpt-5";
+                return L"haiku";
         }
     }
 
     void AiPromptControl::_updateModelIndicator()
     {
-        switch (_currentModel)
+        std::wstring text = (_currentProvider == AiProvider::Claude) ? L"Claude" : L"Codex";
+        text += L" | ";
+        if (_currentProvider == AiProvider::Codex)
         {
-            case AiModel::GPT4_1:
-                ModelIndicator().Text(L"GPT-4.1");
-                break;
-            case AiModel::GPT5:
-            default:
-                ModelIndicator().Text(L"GPT-5");
-                break;
+            text += (_currentModel == AiModel::Sonnet) ? L"gpt-5" : L"gpt-5-codex";
         }
+        else
+        {
+            text += (_currentModel == AiModel::Sonnet) ? L"Sonnet" : L"Haiku";
+        }
+        ModelIndicator().Text(hstring{ text });
     }
 }

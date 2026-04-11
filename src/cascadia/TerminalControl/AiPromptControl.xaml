@@ -41,6 +41,7 @@
                         IsSpellCheckEnabled="False"
                         KeyDown="_TextBoxKeyDown"
                         HorizontalAlignment="Stretch"
+                        Foreground="{x:Bind TextColor, Mode=OneWay}"
                         TextChanged="_TextBoxTextChanged"
                         Grid.Column="0"/>
 
@@ -88,7 +89,7 @@
                          IsSpellCheckEnabled="False"
                          TextWrapping="Wrap"
                          AcceptsReturn="True"
-                         Foreground="{x:Bind HeaderTextColor, Mode=OneWay}"
+                         Foreground="{x:Bind TextColor, Mode=OneWay}"
                          FontFamily="Consolas"
                          Padding="8,4"
                          MinHeight="50"

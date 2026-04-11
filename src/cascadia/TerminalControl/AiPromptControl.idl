@@ -23,5 +23,7 @@ namespace Microsoft.Terminal.Control
         Windows.UI.Xaml.DependencyProperty BackgroundColorProperty { get; };
         Windows.UI.Xaml.Thickness InnerBorderThickness;
         Windows.UI.Xaml.DependencyProperty InnerBorderThicknessProperty { get; };
+        Windows.UI.Xaml.Media.Brush TextColor;
+        Windows.UI.Xaml.DependencyProperty TextColorProperty { get; };
     }
 }
