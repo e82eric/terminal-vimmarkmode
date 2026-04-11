@@ -741,12 +741,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         SnippetSearch().Show(snippets, *this, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x, autoCompleteMode);
     }
 
-    void TermControl::StartAiPrompt()
+    void TermControl::StartAiPrompt(Control::AiPromptProvider provider, Control::AiPromptMode mode)
     {
         // Get the last 200 lines from the terminal for context, including cursor line
         const auto cursorContext = _core.GetLinesFromCursorWithContext(-200);  // Negative to get lines before cursor
 
         AiPrompt().Visibility(Visibility::Visible);
+        AiPrompt().SetProvider(provider);
+        AiPrompt().SetMode(mode);
         AiPrompt().ShowWithContext(cursorContext.Lines, cursorContext.CursorLine);
     }
 

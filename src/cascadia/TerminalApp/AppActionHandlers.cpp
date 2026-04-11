@@ -1781,25 +1781,32 @@ namespace winrt::TerminalApp::implementation
         args.Handled(true);
     }
 
-    void TerminalPage::_HandleSearchSnippets(const IInspectable& sender,
-                                             const ActionEventArgs& args)
-    {
-        _doSearchSnippets(sender, args);
-        args.Handled(true);
-    }
-
-
-    winrt::fire_and_forget TerminalPage::_doSearchSnippets(const IInspectable& sender, ActionEventArgs /*realArgs*/)
+    void TerminalPage::_HandleShowAiPrompt(const IInspectable& sender,
+                                           const ActionEventArgs& args)
     {
         if (const auto activeTab{ _senderOrFocusedTab(sender) })
         {
             _SetFocusedTab(*activeTab);
             if (const auto& control{ activeTab->GetActiveTerminalControl() })
             {
-                control.StartAiPrompt();
+                auto provider = Microsoft::Terminal::Control::AiPromptProvider::Claude;
+                auto mode = Microsoft::Terminal::Control::AiPromptMode::Command;
+                if (args)
+                {
+                    if (const auto& realArgs = args.ActionArgs().try_as<ShowAiPromptArgs>())
+                    {
+                        provider = realArgs.Provider() == Settings::Model::AiPromptProvider::Codex ?
+                                       Microsoft::Terminal::Control::AiPromptProvider::Codex :
+                                       Microsoft::Terminal::Control::AiPromptProvider::Claude;
+                        mode = realArgs.Mode() == Settings::Model::AiPromptMode::Chat ?
+                                   Microsoft::Terminal::Control::AiPromptMode::Chat :
+                                   Microsoft::Terminal::Control::AiPromptMode::Command;
+                    }
+                }
+                control.StartAiPrompt(provider, mode);
+                args.Handled(true);
             }
         }
-        co_return;
     }
 
     void TerminalPage::_HandleOpenScratchpad(const IInspectable& sender,

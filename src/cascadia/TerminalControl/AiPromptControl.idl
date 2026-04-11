@@ -6,10 +6,23 @@ import "IControlSettings.idl";
 
 namespace Microsoft.Terminal.Control
 {
+    enum AiPromptProvider
+    {
+        Claude = 0,
+        Codex
+    };
+
+    enum AiPromptMode
+    {
+        Command = 0,
+        Chat
+    };
 
     [default_interface] runtimeclass AiPromptControl : Windows.UI.Xaml.Controls.UserControl,Windows.UI.Xaml.Data.INotifyPropertyChanged
     {
         AiPromptControl();
+        void SetProvider(AiPromptProvider provider);
+        void SetMode(AiPromptMode mode);
         void Show();
         void ShowWithContext(String terminalContext, String cursorLine);
         Boolean ContainsFocus();

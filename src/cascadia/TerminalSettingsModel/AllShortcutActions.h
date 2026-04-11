@@ -108,7 +108,7 @@
     ON_ALL_ACTIONS(SelectOutput)            \
     ON_ALL_ACTIONS(MarkMode)                \
     ON_ALL_ACTIONS(VimMode)                 \
-    ON_ALL_ACTIONS(SearchSnippets)          \
+    ON_ALL_ACTIONS(ShowAiPrompt)            \
     ON_ALL_ACTIONS(VimSearch)               \
     ON_ALL_ACTIONS(ToggleRowNumbers)        \
     ON_ALL_ACTIONS(ToggleSnippetAutoComplete)        \
@@ -159,6 +159,7 @@
     ON_ALL_ACTIONS_WITH_ARGS(AddMark)              \
     ON_ALL_ACTIONS_WITH_ARGS(SendInput)            \
     ON_ALL_ACTIONS_WITH_ARGS(QuickSelect)          \
+    ON_ALL_ACTIONS_WITH_ARGS(ShowAiPrompt)         \
     ON_ALL_ACTIONS_WITH_ARGS(SetColorScheme)       \
     ON_ALL_ACTIONS_WITH_ARGS(SetTabColor)          \
     ON_ALL_ACTIONS_WITH_ARGS(SplitPane)            \

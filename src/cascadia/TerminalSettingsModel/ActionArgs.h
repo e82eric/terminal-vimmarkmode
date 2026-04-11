@@ -41,6 +41,7 @@
 #include "SendInputToPaneArgs.g.h"
 #include "ToggleCommandPaletteArgs.g.h"
 #include "SuggestionsArgs.g.h"
+#include "ShowAiPromptArgs.g.h"
 #include "FindMatchArgs.g.h"
 #include "NewWindowArgs.g.h"
 #include "PrevTabArgs.g.h"
@@ -245,6 +246,11 @@ protected:                                                                  \
     X(SuggestionsSource, Source, "source", false, ArgTypeHint::None, SuggestionsSource::Tasks) \
     X(bool, UseCommandline, "useCommandline", false, ArgTypeHint::None, false) \
     X(winrt::hstring, Regex, "regex", false, ArgTypeHint::None, L"[^\\s]{5,}") //Setting the default here may not be ok since other suggestion sources don't use a regex
+
+////////////////////////////////////////////////////////////////////////////////
+#define SHOW_AI_PROMPT_ARGS(X) \
+    X(AiPromptProvider, Provider, "provider", false, ArgTypeHint::None, AiPromptProvider::Claude) \
+    X(AiPromptMode, Mode, "mode", false, ArgTypeHint::None, AiPromptMode::Command)
 
 ////////////////////////////////////////////////////////////////////////////////
 #define FIND_MATCH_ARGS(X) \
@@ -1118,6 +1124,8 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
     ACTION_ARGS_STRUCT(SendInputToPaneArgs, SEND_INPUT_TO_PANE_ARGS);
 
     ACTION_ARGS_STRUCT(SuggestionsArgs, SUGGESTIONS_ARGS);
+
+    ACTION_ARGS_STRUCT(ShowAiPromptArgs, SHOW_AI_PROMPT_ARGS);
 
     ACTION_ARGS_STRUCT(FindMatchArgs, FIND_MATCH_ARGS);
 

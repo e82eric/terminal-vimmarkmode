@@ -6,18 +6,6 @@
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
-    enum class AiMode
-    {
-        CommandSuggestions,
-        Chat
-    };
-
-    enum class AiProvider
-    {
-        Claude,
-        Codex
-    };
-
     // Provider-agnostic "small/fast" vs "large/smart" slot. Mapped to the actual
     // model name in AiPromptControl::_getModelString() based on _currentProvider.
     enum class AiModel
@@ -30,6 +18,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
     public:
         AiPromptControl();
+        void SetProvider(Control::AiPromptProvider provider);
+        void SetMode(Control::AiPromptMode mode);
 
         til::property_changed_event PropertyChanged;
         static Windows::UI::Xaml::DependencyProperty BorderColorProperty();
@@ -85,8 +75,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         uint32_t _requestCounter = 0;
         uint32_t _currentRequestId = 0;
         size_t _originalCursorLineLength = 0;
-        AiMode _currentMode = AiMode::CommandSuggestions;
-        AiProvider _currentProvider = AiProvider::Claude;
+        Control::AiPromptMode _currentMode = Control::AiPromptMode::Command;
+        Control::AiPromptProvider _currentProvider = Control::AiPromptProvider::Claude;
         AiModel _currentModel = AiModel::Haiku;
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;

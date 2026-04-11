@@ -10,6 +10,7 @@ import "ICoreState.idl";
 import "ControlCore.idl";
 import "FuzzySearchTextSegment.idl";
 import "SnippetSearchTypes.idl";
+import "AiPromptControl.idl";
 
 namespace Microsoft.Terminal.Control
 {
@@ -130,7 +131,7 @@ namespace Microsoft.Terminal.Control
         void CreateSearchBoxControl();
         void StartSnippetSearch(IVector<SnippetSearchItem> snippets, Boolean autoCompleteMode);
         void SetSnippets(IVector<SnippetSearchItem> snippets);
-        void StartAiPrompt();
+        void StartAiPrompt(AiPromptProvider provider, AiPromptMode mode);
         Boolean SearchBoxEditInFocus();
 
         void OpenStreamingSuggestions(String needle);

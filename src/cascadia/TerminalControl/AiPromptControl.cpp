@@ -87,7 +87,7 @@ namespace
     //   Codex:  codex exec --model <m> -c model_reasoning_effort=<e> "<sys>\n\n<usr>"
     // Codex has no dedicated system-prompt flag, so the rules get prepended to
     // the exec argument with a blank-line separator.
-    bool RunAiCli(winrt::Microsoft::Terminal::Control::implementation::AiProvider provider,
+    bool RunAiCli(winrt::Microsoft::Terminal::Control::AiPromptProvider provider,
                   std::wstring_view model,
                   std::wstring_view effort,
                   std::wstring_view systemPrompt,
@@ -130,10 +130,9 @@ namespace
         //
         // The large user prompt (terminal context + question) is NOT on the command line;
         // it goes through the stdin pipe below. Only small fixed flags remain here.
-        using winrt::Microsoft::Terminal::Control::implementation::AiProvider;
         std::wstring cmdLine = L"cmd.exe /s /c \"";
         std::string stdinPayload;
-        if (provider == AiProvider::Claude)
+        if (provider == winrt::Microsoft::Terminal::Control::AiPromptProvider::Claude)
         {
             //   claude --model <m> --effort <e> --append-system-prompt "<sys>" -p
             // With no positional prompt arg and stdin redirected, `claude -p` reads the
@@ -412,6 +411,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _focusableElements.insert(ResultTextBox());
     }
 
+    void AiPromptControl::SetProvider(Control::AiPromptProvider provider)
+    {
+        _currentProvider = provider;
+        _updateModeDisplay();
+        _updateModelIndicator();
+    }
+
+    void AiPromptControl::SetMode(Control::AiPromptMode mode)
+    {
+        _currentMode = mode;
+        _currentModel = mode == Control::AiPromptMode::Chat ? AiModel::Sonnet : AiModel::Haiku;
+        _updateModeDisplay();
+        _updateModelIndicator();
+    }
+
     void AiPromptControl::_close()
     {
         _ClosedHandlers(*this, RoutedEventArgs{});
@@ -538,7 +552,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _terminalContext = L"";
         _originalCursorLineLength = 0;
         _extractedCommand.clear();
-        _currentMode = AiMode::CommandSuggestions;
         FuzzySearchTextBox().Text(L"");
         ResultTextBox().Text(L"AI response will appear here...");
         _updateModeDisplay();
@@ -553,7 +566,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void AiPromptControl::ShowWithContext(const winrt::hstring& terminalContext, const winrt::hstring& cursorLine)
     {
         _terminalContext = terminalContext;
-        _currentMode = AiMode::CommandSuggestions;
         _originalCursorLineLength = cursorLine.size();
         _extractedCommand.clear();
 
@@ -650,7 +662,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // the command-mode instructions forceful to override claude's default tendency
         // to wrap answers in code fences and add explanatory prose.
         std::wstring systemPrompt;
-        if (_currentMode == AiMode::CommandSuggestions)
+        if (_currentMode == Control::AiPromptMode::Command)
         {
             systemPrompt =
                 L"You are running inside Windows Terminal as a command suggester. "
@@ -693,14 +705,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         userPrompt += prompt.c_str();
 
         const std::wstring model = _getModelString();
-        const std::wstring effort = (_currentMode == AiMode::CommandSuggestions) ? L"low" : L"medium";
+        const std::wstring effort = (_currentMode == Control::AiPromptMode::Command) ? L"low" : L"medium";
 
         auto strongThis{ get_strong() };
 
         // Run the CLI on a background thread so we don't block the UI dispatcher.
         co_await winrt::resume_background();
 
-        const AiProvider provider = _currentProvider;
+        const Control::AiPromptProvider provider = _currentProvider;
 
         std::string stdoutBytes;
         DWORD exitCode = 0;
@@ -718,7 +730,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         if (!launched)
         {
-            const wchar_t* exe = (provider == AiProvider::Claude) ? L"claude" : L"codex";
+            const wchar_t* exe = (provider == Control::AiPromptProvider::Claude) ? L"claude" : L"codex";
             std::wstring err = L"Error: failed to launch '";
             err += exe;
             err += L"' CLI. Make sure it is installed and on your PATH.";
@@ -737,7 +749,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (exitCode != 0)
         {
             _extractedCommand.clear();
-            const wchar_t* exe = (provider == AiProvider::Claude) ? L"claude" : L"codex";
+            const wchar_t* exe = (provider == Control::AiPromptProvider::Claude) ? L"claude" : L"codex";
             std::wstring err = exe;
             err += L" exited with code ";
             err += std::to_wstring(exitCode);
@@ -800,7 +812,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         ResultTextBox().SelectionLength(0);
 
         // Show copy button for chat mode
-        if (_currentMode == AiMode::Chat)
+        if (_currentMode == Control::AiPromptMode::Chat)
         {
             CopyButton().Visibility(Visibility::Visible);
         }
@@ -817,14 +829,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void AiPromptControl::_cycleMode()
     {
-        if (_currentMode == AiMode::CommandSuggestions)
+        if (_currentMode == Control::AiPromptMode::Command)
         {
-            _currentMode = AiMode::Chat;
+            _currentMode = Control::AiPromptMode::Chat;
             _currentModel = AiModel::Sonnet; // Chat mode defaults to Sonnet
         }
         else
         {
-            _currentMode = AiMode::CommandSuggestions;
+            _currentMode = Control::AiPromptMode::Command;
             _currentModel = AiModel::Haiku; // Command mode defaults to Haiku
         }
         _updateModeDisplay();
@@ -833,8 +845,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void AiPromptControl::_updateModeDisplay()
     {
-        const std::wstring_view providerName = (_currentProvider == AiProvider::Claude) ? L"Claude" : L"Codex";
-        if (_currentMode == AiMode::CommandSuggestions)
+        const std::wstring_view providerName = (_currentProvider == Control::AiPromptProvider::Claude) ? L"Claude" : L"Codex";
+        if (_currentMode == Control::AiPromptMode::Command)
         {
             std::wstring text{ providerName };
             text += L" - Command Mode";
@@ -1004,13 +1016,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void AiPromptControl::_cycleProvider()
     {
-        if (_currentProvider == AiProvider::Claude)
+        if (_currentProvider == Control::AiPromptProvider::Claude)
         {
-            _currentProvider = AiProvider::Codex;
+            _currentProvider = Control::AiPromptProvider::Codex;
         }
         else
         {
-            _currentProvider = AiProvider::Claude;
+            _currentProvider = Control::AiPromptProvider::Claude;
         }
         _updateModelIndicator();
         _updateModeDisplay();
@@ -1019,7 +1031,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     std::wstring AiPromptControl::_getModelString() const
     {
         // Map the provider-agnostic Fast/Smart slot to a real model name.
-        if (_currentProvider == AiProvider::Codex)
+        if (_currentProvider == Control::AiPromptProvider::Codex)
         {
             switch (_currentModel)
             {
@@ -1043,9 +1055,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void AiPromptControl::_updateModelIndicator()
     {
-        std::wstring text = (_currentProvider == AiProvider::Claude) ? L"Claude" : L"Codex";
+        std::wstring text = (_currentProvider == Control::AiPromptProvider::Claude) ? L"Claude" : L"Codex";
         text += L" | ";
-        if (_currentProvider == AiProvider::Codex)
+        if (_currentProvider == Control::AiPromptProvider::Codex)
         {
             text += (_currentModel == AiModel::Sonnet) ? L"gpt-5" : L"gpt-5-codex";
         }

@@ -147,7 +147,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void CreateSearchBoxControl();
         void SetSnippets(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets);
         void StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, bool autoCompleteMode);
-        void StartAiPrompt();
+        void StartAiPrompt(Control::AiPromptProvider provider, Control::AiPromptMode mode);
         void OpenStreamingSuggestions(winrt::hstring needle);
         void HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan);
         void ClearHighlights(bool scrollToCursor);

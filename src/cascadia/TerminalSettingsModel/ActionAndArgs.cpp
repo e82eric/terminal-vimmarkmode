@@ -97,7 +97,7 @@ static constexpr std::string_view SelectCommandKey{ "selectCommand" };
 static constexpr std::string_view SelectOutputKey{ "selectOutput" };
 static constexpr std::string_view MarkModeKey{ "markMode" };
 static constexpr std::string_view VimModeKey{ "vimMode" };
-static constexpr std::string_view SearchSnippetsKey{ "searchSnippets" };
+static constexpr std::string_view ShowAiPromptKey{ "showAiPrompt" };
 static constexpr std::string_view VimSearchKey{ "vimSearch" };
 static constexpr std::string_view ToggleRowNumbersKey{ "toggleRowNumbers" };
 static constexpr std::string_view ToggleSnippetAutoCompleteKey{ "toggleSnippetAutoComplete" };

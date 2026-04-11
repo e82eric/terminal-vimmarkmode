@@ -499,6 +499,22 @@ JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::CommandPaletteLa
     };
 };
 
+JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::AiPromptProvider)
+{
+    JSON_MAPPINGS(2) = {
+        pair_type{ "claude", ValueType::Claude },
+        pair_type{ "codex", ValueType::Codex },
+    };
+};
+
+JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::AiPromptMode)
+{
+    JSON_MAPPINGS(2) = {
+        pair_type{ "command", ValueType::Command },
+        pair_type{ "chat", ValueType::Chat },
+    };
+};
+
 JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::FindMatchDirection)
 {
     JSON_MAPPINGS(2) = {

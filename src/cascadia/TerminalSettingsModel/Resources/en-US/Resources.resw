@@ -781,6 +781,21 @@
   <data name="QuickFixCommandKey" xml:space="preserve">
     <value>Open quick fix menu</value>
   </data>
+  <data name="ShowAiPromptCommandKey" xml:space="preserve">
+    <value>Show AI prompt ({0}, {1})</value>
+  </data>
+  <data name="ShowAiPromptProviderClaude" xml:space="preserve">
+    <value>Claude</value>
+  </data>
+  <data name="ShowAiPromptProviderCodex" xml:space="preserve">
+    <value>Codex</value>
+  </data>
+  <data name="ShowAiPromptModeCommand" xml:space="preserve">
+    <value>Command</value>
+  </data>
+  <data name="ShowAiPromptModeChat" xml:space="preserve">
+    <value>Chat</value>
+  </data>
   <data name="OpenCWDCommandKey" xml:space="preserve">
     <value>Open current working directory</value>
   </data>
@@ -843,6 +858,9 @@
   </data>
   <data name="Suggestions" xml:space="preserve">
     <value>Suggestions</value>
+  </data>
+  <data name="ShowAiPrompt" xml:space="preserve">
+    <value>Show AI prompt</value>
   </data>
   <data name="ColorSelection" xml:space="preserve">
     <value>Color selection</value>
@@ -950,6 +968,12 @@
   </data>
   <data name="SourceActionArgumentLocalized" xml:space="preserve">
     <value>Source</value>
+  </data>
+  <data name="ProviderActionArgumentLocalized" xml:space="preserve">
+    <value>Provider</value>
+  </data>
+  <data name="ModeActionArgumentLocalized" xml:space="preserve">
+    <value>Mode</value>
   </data>
   <data name="UseCommandlineActionArgumentLocalized" xml:space="preserve">
     <value>Use commandline</value>

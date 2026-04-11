@@ -119,6 +119,18 @@ namespace Microsoft.Terminal.Settings.Model
         CommandLine
     };
 
+    enum AiPromptProvider
+    {
+        Claude = 0,
+        Codex
+    };
+
+    enum AiPromptMode
+    {
+        Command = 0,
+        Chat
+    };
+
     enum TabSwitcherMode
     {
         MostRecentlyUsed,
@@ -399,6 +411,12 @@ namespace Microsoft.Terminal.Settings.Model
         SuggestionsSource Source { get; };
         Boolean UseCommandline { get; };
         String Regex { get; };
+    };
+
+    [default_interface] runtimeclass ShowAiPromptArgs : IActionArgs, IActionArgsDescriptorAccess
+    {
+        AiPromptProvider Provider { get; };
+        AiPromptMode Mode { get; };
     };
 
     [default_interface] runtimeclass FindMatchArgs : IActionArgs, IActionArgsDescriptorAccess

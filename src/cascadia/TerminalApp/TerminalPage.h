@@ -580,7 +580,6 @@ namespace winrt::TerminalApp::implementation
 
         void _activePaneChanged(winrt::TerminalApp::Tab tab, Windows::Foundation::IInspectable args);
         safe_void_coroutine _doHandleSuggestions(Microsoft::Terminal::Settings::Model::SuggestionsArgs realArgs);
-        winrt::fire_and_forget _doSearchSnippets(const IInspectable& sender, Microsoft::Terminal::Settings::Model::ActionEventArgs realArgs);
 
         void _ensureFloatingPaneState(winrt::com_ptr<Tab> tab);
 

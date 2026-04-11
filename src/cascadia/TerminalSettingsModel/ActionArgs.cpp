@@ -40,6 +40,7 @@
 #include "SaveSnippetArgs.g.cpp"
 #include "ToggleCommandPaletteArgs.g.cpp"
 #include "SuggestionsArgs.g.cpp"
+#include "ShowAiPromptArgs.g.cpp"
 #include "NewWindowArgs.g.cpp"
 #include "PrevTabArgs.g.cpp"
 #include "NextTabArgs.g.cpp"
@@ -979,10 +980,19 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             {
                 fmt::format_to(std::back_inserter(str), FMT_COMPILE(L", keyChord {}"), KeyChord());
             }
-
             return winrt::hstring{ str };
         }
+
         return {};
+    }
+
+    winrt::hstring ShowAiPromptArgs::GenerateName(const winrt::WARC::ResourceContext& context) const
+    {
+        const auto provider = Provider() == AiPromptProvider::Codex ? RS_switchable_(L"ShowAiPromptProviderCodex") :
+                                                                     RS_switchable_(L"ShowAiPromptProviderClaude");
+        const auto mode = Mode() == AiPromptMode::Chat ? RS_switchable_(L"ShowAiPromptModeChat") :
+                                                         RS_switchable_(L"ShowAiPromptModeCommand");
+        return winrt::hstring{ RS_switchable_fmt(L"ShowAiPromptCommandKey", provider, mode) };
     }
 
     static winrt::hstring _FormatColorString(const Control::SelectionColor& selectionColor)
