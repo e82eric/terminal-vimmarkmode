@@ -62,6 +62,22 @@ namespace
         return w;
     }
 
+    std::string WideToUtf8(std::wstring_view in)
+    {
+        if (in.empty())
+        {
+            return {};
+        }
+        const int len = WideCharToMultiByte(CP_UTF8, 0, in.data(), static_cast<int>(in.size()), nullptr, 0, nullptr, nullptr);
+        if (len <= 0)
+        {
+            return {};
+        }
+        std::string out(static_cast<size_t>(len), '\0');
+        WideCharToMultiByte(CP_UTF8, 0, in.data(), static_cast<int>(in.size()), out.data(), len, nullptr, nullptr);
+        return out;
+    }
+
     // Launches an AI CLI via cmd.exe with a system prompt and a user prompt,
     // captures stdout (with stderr merged in), and returns the exit code.
     // Returns true if the process was launched successfully.
@@ -83,6 +99,7 @@ namespace
         saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
         saAttr.bInheritHandle = TRUE;
 
+        // stdout pipe: child writes, parent reads.
         HANDLE hOutRead = nullptr;
         HANDLE hOutWrite = nullptr;
         if (!CreatePipe(&hOutRead, &hOutWrite, &saAttr, 0))
@@ -92,55 +109,51 @@ namespace
         // Parent's read end must not be inherited by the child.
         SetHandleInformation(hOutRead, HANDLE_FLAG_INHERIT, 0);
 
-        // Give the child a NUL stdin so it doesn't try to share ours (which may not exist
-        // for a GUI process anyway) and so claude doesn't block waiting for input.
-        HANDLE hNulIn = CreateFileW(L"NUL",
-                                    GENERIC_READ,
-                                    FILE_SHARE_READ | FILE_SHARE_WRITE,
-                                    &saAttr,
-                                    OPEN_EXISTING,
-                                    0,
-                                    nullptr);
-        if (hNulIn == INVALID_HANDLE_VALUE)
+        // stdin pipe: parent writes the prompt, child reads it. We pipe the prompt rather
+        // than putting it on the command line because cmd.exe's command-line length limit
+        // (~8191 wchars) is trivially exceeded once the terminal scrollback is included.
+        HANDLE hInRead = nullptr;
+        HANDLE hInWrite = nullptr;
+        if (!CreatePipe(&hInRead, &hInWrite, &saAttr, 0))
         {
             CloseHandle(hOutRead);
             CloseHandle(hOutWrite);
             return false;
         }
+        // Parent's write end must not be inherited by the child.
+        SetHandleInformation(hInWrite, HANDLE_FLAG_INHERIT, 0);
 
         // Build the command line. /s makes cmd strip the first and last quote and use
         // the rest as-is, so we use bare "..." groups for the quoted args — cmd parses
         // them, the .cmd shim forwards them via %*, and node.exe's C runtime yields
         // single argv elements without the surrounding quotes.
+        //
+        // The large user prompt (terminal context + question) is NOT on the command line;
+        // it goes through the stdin pipe below. Only small fixed flags remain here.
         using winrt::Microsoft::Terminal::Control::implementation::AiProvider;
         std::wstring cmdLine = L"cmd.exe /s /c \"";
+        std::string stdinPayload;
         if (provider == AiProvider::Claude)
         {
-            //   claude --model <m> --effort <e> --append-system-prompt "<sys>" -p "<usr>"
+            //   claude --model <m> --effort <e> --append-system-prompt "<sys>" -p
+            // With no positional prompt arg and stdin redirected, `claude -p` reads the
+            // user prompt from stdin. System prompt stays on the command line because it
+            // needs the dedicated --append-system-prompt flag (and is small).
             cmdLine += L"claude --model ";
             cmdLine.append(model);
             cmdLine += L" --effort ";
             cmdLine.append(effort);
             cmdLine += L" --append-system-prompt \"";
             cmdLine += EscapeForCmdPromptArg(systemPrompt);
-            cmdLine += L"\" -p \"";
-            cmdLine += EscapeForCmdPromptArg(userPrompt);
-            cmdLine += L"\"";
+            cmdLine += L"\" -p";
+            stdinPayload = WideToUtf8(userPrompt);
         }
         else // Codex
         {
-            //   codex exec --model <m> [-c model_reasoning_effort=<e>] "<sys>\n\n<usr>"
-            // Codex has no --append-system-prompt, so the rules are concatenated onto
-            // the front of the exec argument with a blank-line separator.
-            std::wstring combined;
-            combined.reserve(systemPrompt.size() + userPrompt.size() + 4);
-            combined.append(systemPrompt);
-            combined += L"\n\n";
-            combined.append(userPrompt);
-
-            // --skip-git-repo-check: codex otherwise refuses to run exec outside a
-            // "trusted" directory. We're only asking it to produce text (no file writes),
-            // so bypass the gate instead of forcing the user to curate a trust list.
+            //   codex exec --skip-git-repo-check --model <m> [-c model_reasoning_effort=<e>]
+            // Codex has no --append-system-prompt flag, so sys+user are concatenated and
+            // fed through stdin together. --skip-git-repo-check bypasses codex's trusted-
+            // directory gate (safe for us — we only read codex's stdout).
             cmdLine += L"codex exec --skip-git-repo-check --model ";
             cmdLine.append(model);
             if (!effort.empty())
@@ -148,16 +161,20 @@ namespace
                 cmdLine += L" -c model_reasoning_effort=";
                 cmdLine.append(effort);
             }
-            cmdLine += L" \"";
-            cmdLine += EscapeForCmdPromptArg(combined);
-            cmdLine += L"\"";
+
+            std::wstring combined;
+            combined.reserve(systemPrompt.size() + userPrompt.size() + 4);
+            combined.append(systemPrompt);
+            combined += L"\n\n";
+            combined.append(userPrompt);
+            stdinPayload = WideToUtf8(combined);
         }
         cmdLine += L"\"";
 
         STARTUPINFOW si{};
         si.cb = sizeof(STARTUPINFOW);
         si.dwFlags = STARTF_USESTDHANDLES;
-        si.hStdInput = hNulIn;
+        si.hStdInput = hInRead;
         si.hStdOutput = hOutWrite;
         si.hStdError = hOutWrite; // merge stderr into stdout to avoid pipe deadlocks
 
@@ -179,15 +196,39 @@ namespace
             &si,
             &pi);
 
-        // Parent no longer needs the child's handle copies.
+        // Parent no longer needs the child's end of either pipe.
         CloseHandle(hOutWrite);
-        CloseHandle(hNulIn);
+        CloseHandle(hInRead);
 
         if (!launched)
         {
             CloseHandle(hOutRead);
+            CloseHandle(hInWrite);
             return false;
         }
+
+        // Writer thread: stream the prompt into the child's stdin. We do this off the
+        // main thread because the write can block if the payload exceeds the pipe
+        // buffer before the child starts reading — and we need to be simultaneously
+        // draining stdout on the current thread to avoid a reciprocal deadlock.
+        std::thread writer([hInWrite, payload = std::move(stdinPayload)]() {
+            const char* p = payload.data();
+            size_t remaining = payload.size();
+            while (remaining > 0)
+            {
+                DWORD written = 0;
+                const DWORD chunk = static_cast<DWORD>(std::min<size_t>(remaining, 65536));
+                if (!WriteFile(hInWrite, p, chunk, &written, nullptr) || written == 0)
+                {
+                    break;
+                }
+                p += written;
+                remaining -= written;
+            }
+            // Closing the write end signals EOF to the child, which is how claude/codex
+            // know the prompt is complete and they can start generating.
+            CloseHandle(hInWrite);
+        });
 
         // Drain stdout until EOF (child closes its write end on exit).
         outStdout.clear();
@@ -197,6 +238,8 @@ namespace
         {
             outStdout.append(readBuf, bytesRead);
         }
+
+        writer.join();
 
         WaitForSingleObject(pi.hProcess, INFINITE);
         GetExitCodeProcess(pi.hProcess, &exitCode);
