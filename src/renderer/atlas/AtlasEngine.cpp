@@ -451,7 +451,8 @@ try
                      hiStart.x,
                      static_cast<size_t>(hiEnd.x),
                      fgColor,
-                     bgColor);
+                     bgColor,
+                     fgColor);
 
     return S_OK;
 }

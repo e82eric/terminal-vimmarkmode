@@ -560,8 +560,7 @@ namespace winrt::TerminalApp::implementation
             auto current = _GetActiveControl();
             if (const auto& newTerminalArgs{ realArgs.ContentArgs().try_as<NewTerminalArgs>() })
             {
-                auto t = current.CurrentWorkingDirectory();
-                newTerminalArgs.StartingDirectory(current.CurrentWorkingDirectory());
+                newTerminalArgs.StartingDirectory(current.WorkingDirectory());
             }
             const auto termPane = _MakePane(realArgs.ContentArgs(), nullptr, nullptr);
             AddFloatingPane(termPane);
