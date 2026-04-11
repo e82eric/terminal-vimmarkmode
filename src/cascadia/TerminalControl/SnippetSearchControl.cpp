@@ -677,14 +677,40 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::_recalculateTopMargin()
     {
-        const auto controlHeight = 500;
-        const auto spaceBelow = _space.Height - _anchor.Y;
+        const auto preferredHeight = 500.0;
+        const auto edgeInset = 12.0;
+        const auto downwardOffset = 30.0; // matches the +20+10 used when opening downward
+        const auto upwardOffset = 10.0; // matches the -10 used when opening upward
 
-        auto openUpward = true;
-        if (spaceBelow >= controlHeight)
+        const auto spaceAbove = std::max(0.0, _anchor.Y - upwardOffset - edgeInset);
+        const auto spaceBelow = std::max(0.0, _space.Height - _anchor.Y - downwardOffset - edgeInset);
+
+        bool openUpward;
+        double maxAvailable;
+
+        if (spaceBelow >= preferredHeight)
         {
             openUpward = false;
+            maxAvailable = preferredHeight;
         }
+        else if (spaceAbove >= preferredHeight)
+        {
+            openUpward = true;
+            maxAvailable = preferredHeight;
+        }
+        else
+        {
+            // Neither side has enough room for the preferred height. Open on
+            // whichever side has more space and shrink the control to fit.
+            openUpward = spaceAbove > spaceBelow;
+            maxAvailable = openUpward ? spaceAbove : spaceBelow;
+        }
+
+        // Cap both the outer UserControl and the inner RootGrid so the
+        // rendered control never exceeds the available space.
+        MaxHeight(maxAvailable);
+        RootGrid().MaxHeight(maxAvailable);
+
         _setDirection(openUpward);
     }
 
@@ -703,21 +729,35 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto currentMargin = Margin();
 
         const auto controlWidth = ActualWidth();
-        const auto controlHeight = ActualHeight();
+        // Use MaxHeight (set in _recalculateTopMargin) instead of ActualHeight
+        // for positioning. ActualHeight is stale here because layout hasn't
+        // happened yet, and RootGrid's only row is Height="*", which has no
+        // intrinsic desired size, so Measure reports zero. MaxHeight is the
+        // upper bound of what will actually render, so positioning against it
+        // keeps the control inside the viewport in the worst case.
+        const auto controlHeight = MaxHeight();
 
         const auto proposedX = static_cast<float>(_anchor.X - _prefixWidth - 5.0f);
         const auto maxX = std::max<float>(edgeInset, static_cast<float>(_space.Width) - static_cast<float>(controlWidth) - edgeInset);
         const auto clampedX = std::clamp(proposedX, edgeInset, maxX);
         currentMargin.Left = clampedX;
 
+        double top;
         if (openUpward)
         {
-            currentMargin.Top = std::max<double>(edgeInset, _anchor.Y - controlHeight - 10);
+            top = _anchor.Y - controlHeight - 10;
         }
         else
         {
-            currentMargin.Top = (_anchor.Y + 20 + 10);
+            top = _anchor.Y + 20 + 10;
         }
+
+        // Clamp so the control stays within the terminal viewport even when
+        // there isn't enough room in the chosen direction.
+        const auto maxTop = std::max<double>(edgeInset, _space.Height - controlHeight - edgeInset);
+        top = std::clamp(top, static_cast<double>(edgeInset), maxTop);
+
+        currentMargin.Top = top;
         Margin(currentMargin);
     }
 }
