@@ -690,8 +690,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::_setDirection(bool openUpward)
     {
+        const float edgeInset = 12.0f;
+        const float availableWidth = std::max(0.0f, static_cast<float>(_space.Width) - 2 * edgeInset);
+
+        MaxWidth(availableWidth);
+
         RootGrid().Measure({
-            static_cast<float>(ActualWidth()),
+            availableWidth,
             static_cast<float>(ActualHeight()),
         });
 
@@ -700,15 +705,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto controlWidth = ActualWidth();
         const auto controlHeight = ActualHeight();
 
-        const auto proposedX = gsl::narrow_cast<int>(_anchor.X - _prefixWidth - 5.0f);
-        const auto maxX = gsl::narrow_cast<int>(_space.Width - controlWidth);
-        const auto clampedX = std::clamp(proposedX, 0, maxX);
+        const auto proposedX = static_cast<float>(_anchor.X - _prefixWidth - 5.0f);
+        const auto maxX = std::max<float>(edgeInset, static_cast<float>(_space.Width) - static_cast<float>(controlWidth) - edgeInset);
+        const auto clampedX = std::clamp(proposedX, edgeInset, maxX);
         currentMargin.Left = clampedX;
 
         if (openUpward)
         {
-            const auto marginTop = (_anchor.Y - controlHeight - 10);
-            currentMargin.Top = marginTop;
+            currentMargin.Top = std::max<double>(edgeInset, _anchor.Y - controlHeight - 10);
         }
         else
         {
