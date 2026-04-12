@@ -3338,6 +3338,115 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_return;
     }
 
+    static std::vector<til::CoordType> DetectColumnBoundaries(
+        const TextBuffer& buffer,
+        til::CoordType targetLine,
+        til::CoordType bufferWidth)
+    {
+        const auto& targetRow = buffer.GetRowByOffset(targetLine);
+        const auto targetLen = targetRow.GetLastNonSpaceColumn();
+
+        if (targetLen < 10)
+        {
+            return {};
+        }
+
+        // Sample up to 5 lines above and 5 below, stopping at blank lines
+        // or lines with very different length
+        std::vector<til::CoordType> sampledLines;
+        sampledLines.push_back(targetLine);
+
+        const auto totalRows = buffer.TotalRowCount();
+        const auto lenThresholdLow = static_cast<til::CoordType>(targetLen * 0.7);
+        const auto lenThresholdHigh = static_cast<til::CoordType>(targetLen * 1.3);
+
+        // Sample upward
+        for (til::CoordType i = 1; i <= 5; ++i)
+        {
+            auto y = targetLine - i;
+            if (y < 0)
+                break;
+            const auto& row = buffer.GetRowByOffset(y);
+            if (!row.ContainsText())
+                break;
+            auto len = row.GetLastNonSpaceColumn();
+            if (len < lenThresholdLow || len > lenThresholdHigh)
+                break;
+            sampledLines.push_back(y);
+        }
+
+        // Sample downward
+        for (til::CoordType i = 1; i <= 5; ++i)
+        {
+            auto y = targetLine + i;
+            if (y >= totalRows)
+                break;
+            const auto& row = buffer.GetRowByOffset(y);
+            if (!row.ContainsText())
+                break;
+            auto len = row.GetLastNonSpaceColumn();
+            if (len < lenThresholdLow || len > lenThresholdHigh)
+                break;
+            sampledLines.push_back(y);
+        }
+
+        // Need at least 3 lines to detect columnar structure
+        if (sampledLines.size() < 3)
+        {
+            return {};
+        }
+
+        // Build boundary histogram: count lines where position x is a space->non-space transition
+        const auto lineCount = static_cast<int>(sampledLines.size());
+        const auto threshold = static_cast<int>(lineCount * 0.7);
+        std::map<til::CoordType, int> boundaryVotes;
+
+        for (auto y : sampledLines)
+        {
+            const auto& row = buffer.GetRowByOffset(y);
+            const auto text = row.GetText();
+            const auto len = std::min(static_cast<til::CoordType>(text.size()), bufferWidth);
+
+            for (til::CoordType x = 1; x < len; ++x)
+            {
+                if (std::iswspace(text[x - 1]) && !std::iswspace(text[x]))
+                {
+                    boundaryVotes[x]++;
+                }
+            }
+        }
+
+        // Collect boundaries that meet the threshold
+        std::vector<til::CoordType> boundaries;
+        for (const auto& [x, votes] : boundaryVotes)
+        {
+            if (votes >= threshold)
+            {
+                boundaries.push_back(x);
+            }
+        }
+
+        std::sort(boundaries.begin(), boundaries.end());
+
+        // Filter out boundaries that are too close together (< 3 chars apart)
+        std::vector<til::CoordType> filtered;
+        for (auto b : boundaries)
+        {
+            if (filtered.empty() || b - filtered.back() >= 3)
+            {
+                filtered.push_back(b);
+            }
+        }
+
+        // Need at least 2 boundaries to declare columnar structure
+        if (filtered.size() < 2)
+        {
+            return {};
+        }
+
+        return filtered;
+    }
+
     std::vector<std::wstring> SplitOnSpace(const std::wstring& text)
     {
         std::vector<std::wstring> parts;
@@ -3389,6 +3498,75 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto& buffer = _terminal->GetTextBuffer();
 
         std::unordered_set<std::wstring> seen;
+
+        // Pass 0: detect fixed-width columnar output and split on column boundaries
+        auto columnBoundaries = DetectColumnBoundaries(buffer, lineNumber, buffer.GetSize().Width());
+        if (!columnBoundaries.empty())
+        {
+            const auto& targetRow = buffer.GetRowByOffset(lineNumber);
+            auto lineEnd = targetRow.GetLastNonSpaceColumn() + 1;
+
+            // Build column edges: [0, b1), [b1, b2), ..., [bN, lineEnd)
+            std::vector<til::CoordType> edges;
+            edges.push_back(0);
+            edges.insert(edges.end(), columnBoundaries.begin(), columnBoundaries.end());
+            edges.push_back(lineEnd);
+
+            std::vector<SuggestionSearchItem> items;
+            auto ordinal = 1000;
+            for (size_t i = 0; i + 1 < edges.size(); ++i)
+            {
+                auto colStart = edges[i];
+                auto colEnd = edges[i + 1];
+
+                if (colEnd <= colStart)
+                    continue;
+
+                auto text = buffer.GetPlainText(
+                    til::point{ colStart, lineNumber },
+                    til::point{ colEnd, lineNumber });
+
+                // Trim leading/trailing whitespace
+                auto front = text.find_first_not_of(L" \t");
+                if (front == std::wstring::npos)
+                    continue;
+                auto back = text.find_last_not_of(L" \t");
+                text = text.substr(front, back - front + 1);
+
+                const auto nonWhitespaceCount =
+                    std::count_if(text.begin(), text.end(), [](wchar_t ch) {
+                        return !std::iswspace(ch);
+                    });
+
+                if (nonWhitespaceCount < 3)
+                    continue;
+
+                if (!seen.insert(text).second)
+                    continue;
+
+                // Adjust span start to account for trimmed leading whitespace
+                auto spanStart = colStart + static_cast<til::CoordType>(front);
+                auto spanEnd = colStart + static_cast<til::CoordType>(back) + 1;
+
+                auto item = SuggestionSearchItem{
+                    hstring{ text },
+                    ordinal,
+                    til::point{ spanStart, lineNumber }.to_core_point(),
+                    til::point{ spanEnd, lineNumber }.to_core_point()
+                };
+                items.emplace_back(std::move(item));
+                ordinal--;
+            }
+
+            if (!items.empty())
+            {
+                auto batch = winrt::make_self<SuggestionBatch>(std::move(items));
+                if (auto cb = batchCb.get())
+                {
+                    cb(*batch);
+                }
+            }
+        }
 
         for (auto wrappedRegex : s_wrappedRegexes)
         {
