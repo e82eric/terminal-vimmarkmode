@@ -3455,8 +3455,9 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         return std::pow(cursorDistanceFromBorder, 2.0) / 25.0 + 2.0;
     }
 
-    void TermControl::OpenStreamingSuggestions(winrt::hstring needle)
+    void TermControl::OpenStreamingSuggestions(winrt::hstring needle, bool useFuzzySearch)
     {
+        StreamingSuggestions().UseFuzzySearch(useFuzzySearch);
         auto cursorPosition = _core.CursorPosition();
         auto y = cursorPosition.Y;
         auto x = cursorPosition.X;

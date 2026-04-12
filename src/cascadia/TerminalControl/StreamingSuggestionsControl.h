@@ -65,6 +65,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
 
+        bool UseFuzzySearch() const { return _useFuzzySearch; }
+        void UseFuzzySearch(bool value) { _useFuzzySearch = value; }
+
     private:
         winrt::Windows::UI::Xaml::DispatcherTimer _copyNotificationTimer{ nullptr };
         enum StreamingSuggestionsMode
@@ -75,6 +78,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         bool _autoCompleteEnabled = false;
         bool _autoCompleteMode = false;
+        bool _useFuzzySearch = false;
         StreamingSuggestionsMode _mode = StreamingSuggestionsMode::Normal;
         int32_t _cursorX;
         void _selectFirstItem();

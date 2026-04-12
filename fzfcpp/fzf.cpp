@@ -415,6 +415,46 @@ static bool containsFolded(const std::vector<UChar32>& text, const std::vector<U
     return it != t.end();
 }
 
+// Fast-path substring match with case folding. Unlike containsFolded this
+// returns a score and the positions of the matched code points so the caller
+// can build highlight runs. Mirrors prefixMatch/suffixMatch.
+static int32_t containsMatch(const std::vector<UChar32>& text, const std::vector<UChar32>& pattern, std::vector<size_t>* pos)
+{
+    if (pattern.size() == 0)
+    {
+        return 0;
+    }
+
+    if (pattern.size() > text.size())
+    {
+        return 0;
+    }
+
+    auto foldedText = text;
+    foldStringUtf32(foldedText);
+
+    const auto matchRange = std::ranges::search(foldedText, pattern);
+    const auto it = matchRange.begin();
+    if (it == foldedText.end())
+    {
+        return 0;
+    }
+
+    const size_t startPos = static_cast<size_t>(std::distance(foldedText.begin(), it));
+
+    int32_t score = ScoreMatch * static_cast<int32_t>(pattern.size());
+
+    if (pos)
+    {
+        for (size_t i = 0; i < pattern.size(); ++i)
+        {
+            pos->push_back(startPos + i);
+        }
+    }
+
+    return score;
+}
+
 static int32_t prefixMatch(const std::vector<UChar32>& text, const std::vector<UChar32>& pattern, std::vector<size_t>* pos)
 {
     if (pattern.size() == 0)
@@ -529,7 +569,42 @@ Pattern fzfcpp::matcher::ParsePatternWithTypes(const std::wstring_view patternSt
             foldStringUtf32(term.codePoints);
             patObj.typedTerms.push_back(std::move(term));
         }
-        
+
+        pos = end;
+    }
+
+    return patObj;
+}
+
+// Like ParsePatternWithTypes, but every term is forced to MatchType::Contains.
+// No sigil handling (^, $, @) — the whole word is treated as a literal
+// substring. Callers that only need plain substring matching can use this to
+// skip the expensive fuzzy matcher entirely.
+Pattern fzfcpp::matcher::ParsePatternContainsOnly(const std::wstring_view patternStr)
+{
+    Pattern patObj;
+    size_t pos = 0;
+
+    while (true)
+    {
+        const auto beg = patternStr.find_first_not_of(L' ', pos);
+        if (beg == std::wstring_view::npos)
+        {
+            break;
+        }
+
+        const auto end = std::min(patternStr.size(), patternStr.find_first_of(L' ', beg));
+        const auto word = patternStr.substr(beg, end - beg);
+
+        if (!word.empty())
+        {
+            Term term;
+            term.type = MatchType::Contains;
+            term.codePoints = utf16ToUtf32(word);
+            foldStringUtf32(term.codePoints);
+            patObj.typedTerms.push_back(std::move(term));
+        }
+
         pos = end;
     }
 
@@ -573,6 +648,10 @@ std::optional<MatchResult> fzfcpp::matcher::Match(std::wstring_view text, const 
                 {
                     score = 1;
                 }
+            }
+            else if (term.type == MatchType::Contains)
+            {
+                score = containsMatch(textCodePoints, term.codePoints, &termPos);
             }
             else
             {

@@ -1928,6 +1928,16 @@
             "useCommandline": {
               "default": false,
               "description": "When set to `true`, the current commandline the user has typed will prepopulate the filter of the Suggestions UI. This requires that the user has enabled shell integration in their shell's config. When set to false, the filter will start empty."
+            },
+            "regex": {
+              "type": "string",
+              "default": "[^\\s]{5,}",
+              "description": "For streaming suggestions sources, the initial search pattern to apply."
+            },
+            "useFuzzySearch": {
+              "type": "boolean",
+              "default": false,
+              "description": "For streaming suggestions sources, use fuzzy matching instead of literal substring matching."
             }
           }
         }

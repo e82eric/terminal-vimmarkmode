@@ -407,10 +407,10 @@ namespace Microsoft.Terminal.Settings.Model
     [default_interface] runtimeclass SuggestionsArgs : IActionArgs, IActionArgsDescriptorAccess
     {
         SuggestionsArgs();
-        SuggestionsArgs(SuggestionsSource source, Boolean useCommandline, String regex);
         SuggestionsSource Source { get; };
         Boolean UseCommandline { get; };
         String Regex { get; };
+        Boolean UseFuzzySearch { get; };
     };
 
     [default_interface] runtimeclass ShowAiPromptArgs : IActionArgs, IActionArgsDescriptorAccess

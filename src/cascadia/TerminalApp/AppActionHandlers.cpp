@@ -1704,7 +1704,7 @@ namespace winrt::TerminalApp::implementation
         {
             if (const auto termControl{_GetActiveControl()})
             {
-                termControl.OpenStreamingSuggestions(realArgs.Regex());
+                termControl.OpenStreamingSuggestions(realArgs.Regex(), realArgs.UseFuzzySearch());
                 co_return;
             }
         }

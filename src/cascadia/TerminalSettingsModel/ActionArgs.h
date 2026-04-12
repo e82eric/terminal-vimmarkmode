@@ -245,7 +245,8 @@ protected:                                                                  \
 #define SUGGESTIONS_ARGS(X)                                                 \
     X(SuggestionsSource, Source, "source", false, ArgTypeHint::None, SuggestionsSource::Tasks) \
     X(bool, UseCommandline, "useCommandline", false, ArgTypeHint::None, false) \
-    X(winrt::hstring, Regex, "regex", false, ArgTypeHint::None, L"[^\\s]{5,}") //Setting the default here may not be ok since other suggestion sources don't use a regex
+    X(winrt::hstring, Regex, "regex", false, ArgTypeHint::None, L"[^\\s]{5,}") \
+    X(bool, UseFuzzySearch, "useFuzzySearch", false, ArgTypeHint::None, false)
 
 ////////////////////////////////////////////////////////////////////////////////
 #define SHOW_AI_PROMPT_ARGS(X) \

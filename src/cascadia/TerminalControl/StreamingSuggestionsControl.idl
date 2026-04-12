@@ -28,5 +28,6 @@ namespace Microsoft.Terminal.Control
         Windows.UI.Xaml.DependencyProperty TextColorProperty { get; };
         Windows.UI.Xaml.Media.Brush HighlightedTextColor;
         Windows.UI.Xaml.DependencyProperty HighlightedTextColorProperty { get; };
+        Boolean UseFuzzySearch;
     }
 }

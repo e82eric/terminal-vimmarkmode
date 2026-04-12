@@ -769,6 +769,17 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             str.append(L", useCommandline:true");
         }
 
+        if (!Regex().empty() && Regex() != L"[^\\s]{5,}")
+        {
+            str.append(L", regex:");
+            str.append(Regex());
+        }
+
+        if (UseFuzzySearch())
+        {
+            str.append(L", useFuzzySearch:true");
+        }
+
         // All of the source values will leave a trailing ", " that we need to chop later:
         str.append(L", source: ");
         const auto source = Source();

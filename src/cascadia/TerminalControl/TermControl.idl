@@ -134,7 +134,7 @@ namespace Microsoft.Terminal.Control
         void StartAiPrompt(AiPromptProvider provider, AiPromptMode mode);
         Boolean SearchBoxEditInFocus();
 
-        void OpenStreamingSuggestions(String needle);
+        void OpenStreamingSuggestions(String needle, Boolean useFuzzySearch);
         void HighlightPointSpan(Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end, Boolean scrollToSpan);
         void ClearHighlights(Boolean scrollToCursor);
 

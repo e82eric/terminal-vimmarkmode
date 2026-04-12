@@ -794,15 +794,6 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
         };
 
         co_await winrt::resume_background();
-        using namespace std::chrono_literals;
-        if (_searchVersion > 1)
-        {
-            co_await winrt::resume_after(50ms);
-            if (version != _searchVersion)
-            {
-                co_return;
-            }
-        }
 
         std::vector<Microsoft::Terminal::Control::SuggestionBatch> batchesSnapshot;
         {
@@ -847,7 +838,9 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
             co_return;
         }
 
-        auto pattern = fzfcpp::matcher::ParsePatternWithTypes(searchTerm);
+        auto pattern = _useFuzzySearch
+            ? fzfcpp::matcher::ParsePatternWithTypes(searchTerm)
+            : fzfcpp::matcher::ParsePatternContainsOnly(searchTerm);
 
         std::vector<ScoredItem> scoredItems;
 
