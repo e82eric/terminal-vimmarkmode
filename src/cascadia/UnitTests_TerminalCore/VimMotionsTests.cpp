@@ -4208,6 +4208,47 @@ namespace VimMotionsTests
             ValidateLinearSelection(term, { 0, 1 }, { 4, 1 });
         }
 
+        TEST_METHOD(InDoubleQuotes_Wrap_CursorOnMiddleRow)
+        {
+            // Repro for: yi" in the middle of a double-quoted string that
+            // wraps across more than two rows only copies the current char.
+            //
+            // Width 5 forces wrapping so a 13-char quoted string spans 3 rows:
+            //   Row 0: `"aaab`  (indices 0..4)
+            //   Row 1: `bbbbc`  (indices 5..9)
+            //   Row 2: `cc"`    (indices 10..12)
+            // The cursor sits on the middle wrapped row (a 'b'), so both the
+            // opening `"` (row 0) and the closing `"` (row 2) are on different
+            // rows from the cursor. InDelimiterSameLine has to walk across
+            // wrap-forced row boundaries in both directions to find them.
+            Terminal term{ Terminal::TestDummyMarker{} };
+            DummyRenderer renderer{ &term };
+            term.Create({ 5, 100 }, 0, renderer);
+
+            const std::wstring_view text = L"\"aaabbbbbccc\"";
+            GetTextBuffer(term).GetCursor().SetPosition({ 0, 0 });
+            term.Write(text);
+
+            // Move to {2, 1} (middle 'b' on the middle wrapped row).
+            vim::motions::MoveToStartOfLine(term, false);
+            vim::motions::MoveRight(term, false); // (1,0) 'a'
+            vim::motions::MoveRight(term, false); // (2,0) 'a'
+            vim::motions::MoveRight(term, false); // (3,0) 'a'
+            vim::motions::MoveRight(term, false); // (4,0) 'b'
+            vim::motions::MoveRight(term, false); // wraps -> (0,1) 'b'
+            vim::motions::MoveRight(term, false); // (1,1) 'b'
+            vim::motions::MoveRight(term, false); // (2,1) 'b'
+
+            // Select inside double quotes. Opening `"` is at {0,0} and closing
+            // `"` is at {2,2}; the selection should span from right after the
+            // opening quote to the closing quote, matching the single-line
+            // convention used by InSingleQuotes_Inside (start at first inner
+            // char, end at the closing delimiter position).
+            vim::motions::InDelimiterSameLine(term, L"\"", false);
+
+            ValidateLinearSelection(term, { 1, 0 }, { 2, 2 });
+        }
+
         TEST_METHOD(InSingleQuotes_SingleLine_StartDelimiter)
         {
             Terminal term{ Terminal::TestDummyMarker{} };
