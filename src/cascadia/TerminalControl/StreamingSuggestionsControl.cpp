@@ -828,10 +828,7 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
                 _selectItem(0);
             }
 
-            if (ListBox().Items().Size() == 0)
-            {
-                _close(false);
-            }
+            NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
 
             InvalidateMeasure();
 
@@ -905,12 +902,7 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
         InvalidateMeasure();
         _recalculateTopMargin();
 
-        if (ListBox().Items().Size() == 0)
-        {
-            _close(false);
-        }
-
-        //NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
+        NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
         co_return;
     }
 
