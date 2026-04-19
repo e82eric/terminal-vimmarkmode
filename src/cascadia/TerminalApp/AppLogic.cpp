@@ -334,6 +334,29 @@ namespace winrt::TerminalApp::implementation
                     ReloadSettingsThrottled();
                 }
             });
+
+        // Also watch %USERPROFILE% and %USERPROFILE%\.wtd\ for .wt.json snippet
+        // files, which live outside the settings folder and won't be caught by
+        // the watcher above.
+        const auto wtSnippetCallback = [this](wil::FolderChangeEvent, PCWSTR fileModified) {
+            if (std::filesystem::path{ fileModified }.filename() == L".wt.json")
+            {
+                ReloadSettingsThrottled();
+            }
+        };
+
+        const auto userProfile = wil::ExpandEnvironmentStringsW<std::wstring>(L"%USERPROFILE%");
+        _homeDirReader.create(userProfile.c_str(), false,
+                              wil::FolderChangeEvents::FileName | wil::FolderChangeEvents::LastWriteTime,
+                              wtSnippetCallback);
+
+        const std::filesystem::path globalSnippetsDir = std::filesystem::path(userProfile) / L".wtd";
+        if (std::filesystem::is_directory(globalSnippetsDir))
+        {
+            _globalSnippetsDirReader.create(globalSnippetsDir.c_str(), false,
+                                            wil::FolderChangeEvents::FileName | wil::FolderChangeEvents::LastWriteTime,
+                                            wtSnippetCallback);
+        }
     }
 
     void AppLogic::_ApplyLanguageSettingChange() noexcept
