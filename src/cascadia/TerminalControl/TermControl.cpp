@@ -832,7 +832,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void TermControl::ToggleSnippetAutoComplete()
     {
         SnippetSearch().ToggleAutoComplete();
-        StreamingSuggestions().ToggleAutoComplete();
     }
 
     winrt::hstring TermControl::GetCurrentWord()
@@ -3479,7 +3478,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         auto currentWord = _core.GetCurrentWord();
         const auto prefixWidth = currentWord.size() * characterWidth;
 
-        StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x);
+        StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x, gsl::narrow_cast<float>(characterDimensions.Height));
     }
 
     void TermControl::HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan)
@@ -4300,14 +4299,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         _refreshSearch();
 
         auto cursorPosition = _core.CursorPosition();
-        auto y = cursorPosition.Y;
-        auto x = cursorPosition.X;
         const auto displayInfo = DisplayInformation::GetForCurrentView();
-        const auto scaleFactor = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
-        const auto xScaleFactor = _core.FontSize().Width / displayInfo.RawPixelsPerViewPixel();
-
-        auto cursorYPixel = y * scaleFactor;
-        auto cursorXPixel = x * xScaleFactor;
 
         const auto cursorPos{ CursorPositionInDips() };
         const Windows::Foundation::Size termControlDimensions{
@@ -4315,22 +4307,12 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             gsl::narrow_cast<float>(ActualHeight())
         };
         const auto characterDimensions = CharacterDimensions();
-        const auto characterWidth = characterDimensions.Width;
 
         auto currentWord = _core.GetCurrentWord();
-        const auto prefixWidth = currentWord.size() * characterWidth;
 
         if (StreamingSuggestions().Visibility() == Visibility::Collapsed && SnippetSearch().HasPrefixMatch(_core.GetCurrentWord()))
         {
             StartSnippetSearch(nullptr, true);
-        }
-
-        if (SnippetSearch().Visibility() == Visibility::Collapsed)
-        {
-            if (StreamingSuggestions().Visibility() == Visibility::Collapsed && (currentWord.size() == 3 || currentWord.size() == 2))
-            {
-                StreamingSuggestions().TryAutoComplete(*this, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) }, termControlDimensions, currentWord, prefixWidth, x);
-            }
         }
 
         if (StreamingSuggestions().Visibility() == Visibility::Visible)
@@ -4339,6 +4321,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             const auto cursorPos = _core.CursorPosition();
             StreamingSuggestions().SetCurrentWord(currentWord, cursorPos.X);
         }
+
         if (SnippetSearch().Visibility() == Visibility::Visible)
         {
             const auto currentWord = _core.GetCurrentLine();

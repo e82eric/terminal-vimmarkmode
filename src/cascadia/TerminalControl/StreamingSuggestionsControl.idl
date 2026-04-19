@@ -9,10 +9,8 @@ namespace Microsoft.Terminal.Control
     [default_interface] runtimeclass StreamingSuggestionsControl : Windows.UI.Xaml.Controls.UserControl, Windows.UI.Xaml.Data.INotifyPropertyChanged
     {
         StreamingSuggestionsControl();
-        void Open(Microsoft.Terminal.Control.TermControl termControl, String needle, Windows.Foundation.Point anchor, Windows.Foundation.Size space, String currentWord, Single prefixWidth, Int32 cursorX);
-        Boolean TryAutoComplete(Microsoft.Terminal.Control.TermControl termControl, Windows.Foundation.Point anchor, Windows.Foundation.Size space, String currentWord, Single prefixWidth, Int32 cursorX);
+        void Open(Microsoft.Terminal.Control.TermControl termControl, String needle, Windows.Foundation.Point anchor, Windows.Foundation.Size space, String currentWord, Single prefixWidth, Int32 cursorX, Single characterHeight);
         void SetCurrentWord(String value, Int32 cursorX);
-        void ToggleAutoComplete();
         Boolean HandleKeyPress(UInt16 vkey, UInt16 scanCode, Microsoft.Terminal.Core.ControlKeyStates modifiers, Boolean keyDown);
         Windows.UI.Xaml.Media.Brush HeaderTextColor;
         Windows.UI.Xaml.DependencyProperty HeaderTextColorProperty { get; };

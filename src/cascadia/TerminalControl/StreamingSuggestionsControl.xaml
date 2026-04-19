@@ -63,5 +63,19 @@
             Visibility="Collapsed">
             <TextBlock x:Name="copyNotificationText"></TextBlock>
         </Border>
+        <Border
+            x:Name="helpOverlay"
+            Padding="12"
+            BorderBrush="{x:Bind BorderColor, Mode=OneWay}"
+            BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}"
+            Background="{x:Bind BackgroundColor, Mode=OneWay}"
+            CornerRadius="4"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            Visibility="Collapsed">
+            <ScrollViewer x:Name="helpScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="helpEntriesPanel" Orientation="Vertical" />
+            </ScrollViewer>
+        </Border>
     </Grid>
 </UserControl>

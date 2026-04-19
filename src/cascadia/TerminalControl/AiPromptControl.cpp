@@ -78,6 +78,53 @@ namespace
         return out;
     }
 
+    std::string ReadFileToString(const std::wstring& path)
+    {
+        wil::unique_handle file{ CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr) };
+        if (!file)
+        {
+            return {};
+        }
+
+        std::string result;
+        char readBuf[4096];
+        DWORD bytesRead = 0;
+        while (ReadFile(file.get(), readBuf, sizeof(readBuf), &bytesRead, nullptr) && bytesRead > 0)
+        {
+            result.append(readBuf, bytesRead);
+        }
+        return result;
+    }
+
+    std::wstring CreateTempFilePath()
+    {
+        wchar_t tempPath[MAX_PATH]{};
+        if (GetTempPathW(static_cast<DWORD>(std::size(tempPath)), tempPath) == 0)
+        {
+            return {};
+        }
+
+        wchar_t filePath[MAX_PATH]{};
+        if (GetTempFileNameW(tempPath, L"wt", 0, filePath) == 0)
+        {
+            return {};
+        }
+
+        return filePath;
+    }
+
+    std::wstring FilterCodexErrorOutput(const std::wstring& output)
+    {
+        constexpr std::wstring_view errorPrefix = L"ERROR:";
+        const auto lastError = output.rfind(errorPrefix);
+        if (lastError != std::wstring::npos)
+        {
+            return output.substr(lastError);
+        }
+
+        return output;
+    }
+
     // Launches an AI CLI via cmd.exe with a system prompt and a user prompt,
     // captures stdout (with stderr merged in), and returns the exit code.
     // Returns true if the process was launched successfully.
@@ -132,6 +179,7 @@ namespace
         // it goes through the stdin pipe below. Only small fixed flags remain here.
         std::wstring cmdLine = L"cmd.exe /s /c \"";
         std::string stdinPayload;
+        std::wstring codexLastMessagePath;
         if (provider == winrt::Microsoft::Terminal::Control::AiPromptProvider::Claude)
         {
             //   claude --model <m> --effort <e> --append-system-prompt "<sys>" -p
@@ -149,12 +197,27 @@ namespace
         }
         else // Codex
         {
-            //   codex exec --skip-git-repo-check --model <m> [-c model_reasoning_effort=<e>]
+            //   codex exec --skip-git-repo-check [-c model_reasoning_effort=<e>]
             // Codex has no --append-system-prompt flag, so sys+user are concatenated and
             // fed through stdin together. --skip-git-repo-check bypasses codex's trusted-
-            // directory gate (safe for us — we only read codex's stdout).
-            cmdLine += L"codex exec --skip-git-repo-check --model ";
-            cmdLine.append(model);
+            // directory gate (safe for us — we only read codex's stdout). The CLI's stdout
+            // is an execution transcript, so ask it to write only the final answer to a file.
+            // Do not pass --model for Codex: ChatGPT-backed Codex accounts reject explicit
+            // model names and choose the supported model server-side.
+            cmdLine += L"codex exec --skip-git-repo-check";
+            if (!model.empty())
+            {
+                cmdLine += L" --model ";
+                cmdLine.append(model);
+            }
+            cmdLine += L" --color never";
+            codexLastMessagePath = CreateTempFilePath();
+            if (!codexLastMessagePath.empty())
+            {
+                cmdLine += L" --output-last-message \"";
+                cmdLine += EscapeForCmdPromptArg(codexLastMessagePath);
+                cmdLine += L"\"";
+            }
             if (!effort.empty())
             {
                 cmdLine += L" -c model_reasoning_effort=";
@@ -242,6 +305,19 @@ namespace
 
         WaitForSingleObject(pi.hProcess, INFINITE);
         GetExitCodeProcess(pi.hProcess, &exitCode);
+
+        if (provider == winrt::Microsoft::Terminal::Control::AiPromptProvider::Codex && exitCode == 0 && !codexLastMessagePath.empty())
+        {
+            const auto lastMessage = ReadFileToString(codexLastMessagePath);
+            if (!lastMessage.empty())
+            {
+                outStdout = lastMessage;
+            }
+        }
+        if (!codexLastMessagePath.empty())
+        {
+            DeleteFileW(codexLastMessagePath.c_str());
+        }
 
         CloseHandle(hOutRead);
         CloseHandle(pi.hProcess);
@@ -407,6 +483,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     AiPromptControl::AiPromptControl()
     {
         InitializeComponent();
+        _initKeyBindings();
         _focusableElements.insert(FuzzySearchTextBox());
         _focusableElements.insert(ResultTextBox());
     }
@@ -435,8 +512,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         if (e.OriginalKey() == Windows::System::VirtualKey::Escape)
         {
-            _hideSpinner();
-            _close();
+            if (_helpVisible)
+            {
+                _toggleHelp();
+            }
+            else
+            {
+                _hideSpinner();
+                _close();
+            }
             e.Handled(true);
         }
         else if (e.OriginalKey() == Windows::System::VirtualKey::Enter)
@@ -535,6 +619,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 e.Handled(true);
             }
         }
+        else if (e.OriginalKey() == Windows::System::VirtualKey(0xBF)) // VK_OEM_2 = /?
+        {
+            const auto window = Windows::UI::Core::CoreWindow::GetForCurrentThread();
+            const auto ctrlState = window.GetKeyState(Windows::System::VirtualKey::Control);
+            const auto shiftState = window.GetKeyState(Windows::System::VirtualKey::Shift);
+            const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+
+            if (ctrlDown && shiftDown)
+            {
+                _toggleHelp();
+                e.Handled(true);
+            }
+        }
     }
 
     void AiPromptControl::_TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
@@ -569,15 +667,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _originalCursorLineLength = cursorLine.size();
         _extractedCommand.clear();
 
-        if (!cursorLine.empty())
-        {
-            FuzzySearchTextBox().Text(cursorLine);
-        }
-        else
-        {
-            FuzzySearchTextBox().Text(L"");
-        }
-
+        FuzzySearchTextBox().Text(L"");
         ResultTextBox().Text(L"AI response will appear here...");
         _updateModeDisplay();
         _updateModelIndicator();
@@ -585,11 +675,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (FuzzySearchTextBox())
         {
             Input::FocusManager::TryFocusAsync(FuzzySearchTextBox(), FocusState::Keyboard);
-        }
-
-        if (!cursorLine.empty())
-        {
-            _sendToClaude(cursorLine);
         }
     }
 
@@ -705,7 +790,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         userPrompt += prompt.c_str();
 
         const std::wstring model = _getModelString();
-        const std::wstring effort = (_currentMode == Control::AiPromptMode::Command) ? L"low" : L"medium";
+        const std::wstring effort = (_currentProvider == Control::AiPromptProvider::Codex || _currentMode == Control::AiPromptMode::Command) ? L"low" : L"medium";
 
         auto strongThis{ get_strong() };
 
@@ -750,6 +835,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _extractedCommand.clear();
             const wchar_t* exe = (provider == Control::AiPromptProvider::Claude) ? L"claude" : L"codex";
+            if (provider == Control::AiPromptProvider::Codex)
+            {
+                result = FilterCodexErrorOutput(result);
+            }
+
             std::wstring err = exe;
             err += L" exited with code ";
             err += std::to_wstring(exitCode);
@@ -866,8 +956,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         if (e.OriginalKey() == Windows::System::VirtualKey::Escape)
         {
-            _hideSpinner();
-            _close();
+            if (_helpVisible)
+            {
+                _toggleHelp();
+            }
+            else
+            {
+                _hideSpinner();
+                _close();
+            }
             e.Handled(true);
         }
         else if (e.OriginalKey() == Windows::System::VirtualKey::Enter)
@@ -981,6 +1078,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 e.Handled(true);
             }
         }
+        else if (e.OriginalKey() == Windows::System::VirtualKey(0xBF)) // VK_OEM_2 = /?
+        {
+            const auto window = Windows::UI::Core::CoreWindow::GetForCurrentThread();
+            const auto ctrlState = window.GetKeyState(Windows::System::VirtualKey::Control);
+            const auto shiftState = window.GetKeyState(Windows::System::VirtualKey::Shift);
+            const bool ctrlDown = (ctrlState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+            const bool shiftDown = (shiftState & Windows::UI::Core::CoreVirtualKeyStates::Down) == Windows::UI::Core::CoreVirtualKeyStates::Down;
+
+            if (ctrlDown && shiftDown)
+            {
+                _toggleHelp();
+                e.Handled(true);
+            }
+        }
     }
 
     void AiPromptControl::_CopyButtonClick(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
@@ -999,6 +1110,54 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             // Clipboard operation failed, but don't crash the app
         }
+    }
+
+    void AiPromptControl::_initKeyBindings()
+    {
+        _keyBindings = {
+            { L"Ctrl+Shift+?", L"Show/hide this help" },
+            { L"Enter", L"Send prompt to AI" },
+            { L"Shift+Enter", L"Send result to terminal" },
+            { L"Escape", L"Close" },
+            { L"Tab", L"Cycle focus (prompt / result)" },
+            { L"Shift+Tab", L"Cycle mode (Command / Chat)" },
+            { L"Ctrl+M", L"Cycle model" },
+            { L"Ctrl+P", L"Cycle provider (Claude / Codex)" },
+            { L"Ctrl+C", L"Copy response text" },
+            { L"PageUp/Down", L"Scroll result text" },
+        };
+    }
+
+    void AiPromptControl::_toggleHelp()
+    {
+        _helpVisible = !_helpVisible;
+        if (!_helpVisible)
+        {
+            helpOverlay().Visibility(Visibility::Collapsed);
+            return;
+        }
+
+        helpEntriesPanel().Children().Clear();
+        for (const auto& b : _keyBindings)
+        {
+            Controls::StackPanel row;
+            row.Orientation(Controls::Orientation::Horizontal);
+
+            Controls::TextBlock keyText;
+            keyText.Text(hstring{ b.label });
+            keyText.Width(160);
+            keyText.Foreground(TextColor());
+            keyText.FontFamily(Media::FontFamily{ L"Consolas" });
+
+            Controls::TextBlock descText;
+            descText.Text(hstring{ b.description });
+            descText.Foreground(TextColor());
+
+            row.Children().Append(keyText);
+            row.Children().Append(descText);
+            helpEntriesPanel().Children().Append(row);
+        }
+        helpOverlay().Visibility(Visibility::Visible);
     }
 
     void AiPromptControl::_cycleModel()
@@ -1033,14 +1192,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         // Map the provider-agnostic Fast/Smart slot to a real model name.
         if (_currentProvider == Control::AiPromptProvider::Codex)
         {
-            switch (_currentModel)
-            {
-                case AiModel::Sonnet:
-                    return L"gpt-5";
-                case AiModel::Haiku:
-                default:
-                    return L"gpt-5-codex";
-            }
+            return {};
         }
         // Claude
         switch (_currentModel)
@@ -1059,7 +1211,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         text += L" | ";
         if (_currentProvider == Control::AiPromptProvider::Codex)
         {
-            text += (_currentModel == AiModel::Sonnet) ? L"gpt-5" : L"gpt-5-codex";
+            text += L"default";
         }
         else
         {

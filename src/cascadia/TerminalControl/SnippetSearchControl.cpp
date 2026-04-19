@@ -729,35 +729,32 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto currentMargin = Margin();
 
         const auto controlWidth = ActualWidth();
-        // Use MaxHeight (set in _recalculateTopMargin) instead of ActualHeight
-        // for positioning. ActualHeight is stale here because layout hasn't
-        // happened yet, and RootGrid's only row is Height="*", which has no
-        // intrinsic desired size, so Measure reports zero. MaxHeight is the
-        // upper bound of what will actually render, so positioning against it
-        // keeps the control inside the viewport in the worst case.
-        const auto controlHeight = MaxHeight();
 
         const auto proposedX = static_cast<float>(_anchor.X - _prefixWidth - 5.0f);
         const auto maxX = std::max<float>(edgeInset, static_cast<float>(_space.Width) - static_cast<float>(controlWidth) - edgeInset);
         const auto clampedX = std::clamp(proposedX, edgeInset, maxX);
         currentMargin.Left = clampedX;
 
-        double top;
+        // Anchor the control via VerticalAlignment + Top/Bottom margin rather
+        // than computing Top from a height. ActualHeight lags behind item
+        // changes (RootGrid has a Height="*" row so Measure reports zero), and
+        // using MaxHeight would pin the Top to a fixed offset — causing the
+        // bottom to creep upward as items are filtered. Anchoring to Bottom
+        // when opening upward keeps the list glued to the cursor line so the
+        // top moves down instead.
         if (openUpward)
         {
-            top = _anchor.Y - controlHeight - 10;
+            this->VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Bottom);
+            currentMargin.Top = 0;
+            currentMargin.Bottom = std::max<double>(edgeInset, _space.Height - _anchor.Y + 10);
         }
         else
         {
-            top = _anchor.Y + 20 + 10;
+            this->VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Top);
+            currentMargin.Top = std::max<double>(edgeInset, _anchor.Y + 20 + 10);
+            currentMargin.Bottom = 0;
         }
 
-        // Clamp so the control stays within the terminal viewport even when
-        // there isn't enough room in the chosen direction.
-        const auto maxTop = std::max<double>(edgeInset, _space.Height - controlHeight - edgeInset);
-        top = std::clamp(top, static_cast<double>(edgeInset), maxTop);
-
-        currentMargin.Top = top;
         Margin(currentMargin);
     }
 }

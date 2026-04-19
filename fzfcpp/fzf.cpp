@@ -576,10 +576,10 @@ Pattern fzfcpp::matcher::ParsePatternWithTypes(const std::wstring_view patternSt
     return patObj;
 }
 
-// Like ParsePatternWithTypes, but every term is forced to MatchType::Contains.
-// No sigil handling (^, $, @) — the whole word is treated as a literal
-// substring. Callers that only need plain substring matching can use this to
-// skip the expensive fuzzy matcher entirely.
+// Like ParsePatternWithTypes, but defaults to MatchType::Contains instead of
+// Fuzzy. Supports !, ^, and $ sigils for negation, prefix, and suffix matching.
+// Callers that only need plain substring matching can use this to skip the
+// expensive fuzzy matcher entirely.
 Pattern fzfcpp::matcher::ParsePatternContainsOnly(const std::wstring_view patternStr)
 {
     Pattern patObj;
@@ -594,12 +594,29 @@ Pattern fzfcpp::matcher::ParsePatternContainsOnly(const std::wstring_view patter
         }
 
         const auto end = std::min(patternStr.size(), patternStr.find_first_of(L' ', beg));
-        const auto word = patternStr.substr(beg, end - beg);
+        auto word = patternStr.substr(beg, end - beg);
+
+        Term term;
+        term.type = MatchType::Contains;
+
+        if (!word.empty() && word[0] == L'!')
+        {
+            term.type = MatchType::NotContains;
+            word = word.substr(1);
+        }
+        else if (!word.empty() && word[0] == L'^')
+        {
+            term.type = MatchType::Prefix;
+            word = word.substr(1);
+        }
+        else if (!word.empty() && word.back() == L'$')
+        {
+            term.type = MatchType::Suffix;
+            word = word.substr(0, word.size() - 1);
+        }
 
         if (!word.empty())
         {
-            Term term;
-            term.type = MatchType::Contains;
             term.codePoints = utf16ToUtf32(word);
             foldStringUtf32(term.codePoints);
             patObj.typedTerms.push_back(std::move(term));

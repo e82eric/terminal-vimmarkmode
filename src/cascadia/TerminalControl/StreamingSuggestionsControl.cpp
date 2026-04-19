@@ -39,6 +39,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 this->_recalculateTopMargin();
             }
         });
+
+        _initKeyBindings();
     }
 
     DependencyProperty StreamingSuggestionsControl::_borderColorProperty =
@@ -262,91 +264,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _termControl.ClearHighlights(scrollToCursor);
     }
 
-    bool StreamingSuggestionsControl::TryAutoComplete(
-        TermControl const& termControl,
-        Windows::Foundation::Point anchor,
-        Windows::Foundation::Size space,
-        winrt::hstring currentWord,
-        float prefixWidth,
-        int32_t cursorX)
-    {
-        if (!_autoCompleteEnabled)
-        {
-            return false;
-        }
-
-        if (Visibility() == Visibility::Visible && !_autoCompleteMode)
-        {
-            return false;
-        }
-
-        _scrollToSpan = false;
-        _mode = StreamingSuggestionsMode::Normal;
-        _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
-        _termControl = termControl;
-        _currentWord = currentWord;
-        _currentSearchTerm = currentWord;
-        _prefixWidth = prefixWidth;
-
-        const auto proposedX = gsl::narrow_cast<int>(anchor.X - prefixWidth);
-        const auto maxX = gsl::narrow_cast<int>(space.Width - ActualWidth());
-        const auto clampedX = std::clamp(proposedX, 0, maxX);
-        Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(clampedX, 0, 0, 0));
-
-        _anchor = anchor;
-        _space = space;
-        _searchVersion = 0;
-        _allItemsLoaded = false;
-        _allItemsSearched = false;
-        _controlShown = false;
-
-        //TODO: This feels like a major race condition
-        _autoCompleteMode = true;
-
-        _recalculateTopMargin();
-
-        {
-            std::lock_guard<std::mutex> lock(_batchesMutex);
-            _batches.clear();
-        }
-
-        //auto needle =
-        //    L"(?<![^\\s∙⤶])" // left boundary: previous char is NOT a word-char
-        //    L"(?=[^\\s∙⤶]{5,}(?![^\\s∙⤶]))" // length ≥ 5 within the token
-        //    L"[^\\s∙⤶]*" +
-        //    currentWord + // token chars before + your word
-        //    L"[^\\s∙⤶]*(?![^\\s∙⤶])"; // token chars after + right boundary
-
-std::wstring prefix = L"(?<![^\\s∙⤶])(?=[^\\s∙⤶]{5,}(?![^\\s∙⤶]))[^\\s∙⤶]*";
-std::wstring suffix = L"[^\\s∙⤶]*(?![^\\s∙⤶])";
-std::wstring needle = prefix + currentWord.c_str() + suffix;
-
-        //auto needle = L"(?<!\\S)(?=\\S{5,}(?!\\S))\\S*" + currentWord + L"\\S*(?!\\S)";
-        //auto needle = L"(?<!\\S)\\S*" + currentWord + L"\\S*(?!\\S)";
-        //auto needle = L"\\b\\w*" + currentWord + L"\\w*\\b";
-        auto op = termControl.SuggestionScrollBackSearchAsync(
-            needle,
-            Microsoft::Terminal::Control::SuggestionBatchHandler{
-                [weakThis = get_weak()](Microsoft::Terminal::Control::SuggestionBatch const& batch) {
-                    if (auto self = weakThis.get())
-                    {
-                        std::lock_guard<std::mutex> lock(self->_batchesMutex);
-                        self->_batches.push_back(batch);
-                        self->_triggerSearch();
-                    }
-                } });
-
-        op.Completed([weakThis = get_weak()](auto const&, auto const&) -> winrt::fire_and_forget {
-            if (auto self = weakThis.get())
-            {
-                self->_allItemsLoaded = true;
-                co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
-            }
-        });
-
-        return true;
-    }
-
     void StreamingSuggestionsControl::Open(
         TermControl const& termControl,
         winrt::hstring needle,
@@ -354,13 +271,15 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
         Windows::Foundation::Size space,
         winrt::hstring currentWord,
         float prefixWidth,
-        int32_t cursorX)
+        int32_t cursorX,
+        float characterHeight)
     {
         _autoCompleteMode = false;
 
         _scrollToSpan = false;
         _mode = StreamingSuggestionsMode::Normal;
         _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
+        _characterHeight = characterHeight;
         _termControl = termControl;
         _currentWord = currentWord;
         _currentSearchTerm = currentWord;
@@ -507,212 +426,410 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
     bool StreamingSuggestionsControl::HandleKeyPress(WORD vkey, WORD /*scanCode*/, Core::ControlKeyStates modifiers, bool keyDown)
     {
         const auto itemCount = ListBox().Items().Size();
-        if (itemCount == 0)
+        const auto mods = modifiers.Value;
+
+        // Allow the help toggle even with no results — it's a UX aid, not a
+        // list-level action.
+        const bool isHelpKey = (vkey == VK_OEM_2) &&
+                               WI_AreAllFlagsSet(mods, LEFT_CTRL_PRESSED | SHIFT_PRESSED);
+        if (itemCount == 0 && !isHelpKey && !_helpVisible)
         {
             return false;
         }
 
-        switch (vkey)
+        for (const auto& b : _keyBindings)
         {
-        case 'C':
-        {
-            const auto ctrlPressed = WI_IsFlagSet(modifiers.Value, LEFT_CTRL_PRESSED);
-            if (ctrlPressed)
+            if (b.vkey == vkey && (mods & b.requiredMods) == b.requiredMods)
             {
-                auto selectedItem = ListBox().SelectedItem();
-                if (auto castedDc = _TryGetSelectedSuggestion())
-                {
-                    copyToClipboard(castedDc->Text.c_str());
-                    _showCopyNotification(castedDc->Text);
+                return b.action(keyDown);
+            }
+        }
+        return false;
+    }
+
+    bool StreamingSuggestionsControl::_applySelectedOrClose(bool keyDown)
+    {
+        if (!keyDown)
+        {
+            return true;
+        }
+
+        hstring combined = L"";
+        auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
+        if (auto castedDc = _TryGetSelectedSuggestion())
+        {
+            combined = castedDc->Text;
+        }
+
+        std::wstring_view trimmed{ combined };
+        while (!trimmed.empty() && trimmed.back() == L' ')
+        {
+            trimmed.remove_suffix(1);
+        }
+
+        auto text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, trimmed) };
+        _termControl.SendInput(text);
+        _close(true);
+        return true;
+    }
+
+    void StreamingSuggestionsControl::_toggleHelp()
+    {
+        _helpVisible = !_helpVisible;
+        if (!_helpVisible)
+        {
+            helpOverlay().Visibility(Visibility::Collapsed);
+            return;
+        }
+
+        helpEntriesPanel().Children().Clear();
+        for (const auto& b : _keyBindings)
+        {
+            Controls::StackPanel row;
+            row.Orientation(Controls::Orientation::Horizontal);
+
+            Controls::TextBlock keyText;
+            keyText.Text(hstring{ b.label });
+            keyText.Width(140);
+            keyText.Foreground(TextColor());
+            keyText.FontFamily(Media::FontFamily{ L"Consolas" });
+
+            Controls::TextBlock descText;
+            descText.Text(hstring{ b.description });
+            descText.Foreground(TextColor());
+
+            row.Children().Append(keyText);
+            row.Children().Append(descText);
+            helpEntriesPanel().Children().Append(row);
+        }
+        helpOverlay().Visibility(Visibility::Visible);
+    }
+
+    void StreamingSuggestionsControl::_initKeyBindings()
+    {
+        using KB = _KeyBinding;
+
+        // Entries are checked in order; first matching vkey + required-mod mask
+        // wins. Put more-specific modifier combinations before less-specific.
+        _keyBindings = {
+            KB{
+                LEFT_CTRL_PRESSED | SHIFT_PRESSED,
+                VK_OEM_2,
+                L"Ctrl+Shift+?",
+                L"Show/hide this help",
+                [this](bool keyDown) {
+                    if (keyDown)
+                    {
+                        _toggleHelp();
+                    }
                     return true;
-                }
-            }
-            return false;
-        }
-        case VK_UP:
-        {
-            if (keyDown)
-            {
-                const auto currentIndex = ListBox().SelectedIndex();
-                if (currentIndex > 0)
-                {
-                    _selectItem(currentIndex - 1);
-                }
-            }
-            return true;
-        }
-        case VK_DOWN:
-        {
-            if (keyDown)
-            {
-                const auto currentIndex = ListBox().SelectedIndex();
-                if (currentIndex < static_cast<int32_t>(itemCount) - 1)
-                {
-                    _selectItem(currentIndex + 1);
-                }
-            }
-            return true;
-        }
-        case VK_ESCAPE:
-        {
-            if (keyDown)
-            {
-                if (_mode == StreamingSuggestionsMode::WordSplit)
-                {
-                    _mode = StreamingSuggestionsMode::Normal;
-                    _triggerSearch();
-                }
-                else
-                {
-                    _close(true);
-                }
-            }
-            return true;
-        }
-        case 'L':
-        {
-            if (keyDown)
-            {
-                const auto ctrlPressed = WI_IsFlagSet(modifiers.Value, LEFT_CTRL_PRESSED);
-                if (ctrlPressed)
-                {
+                },
+            },
+            KB{
+                LEFT_CTRL_PRESSED,
+                'C',
+                L"Ctrl+C",
+                L"Copy selected item",
+                [this](bool /*keyDown*/) {
+                    if (auto castedDc = _TryGetSelectedSuggestion())
+                    {
+                        copyToClipboard(castedDc->Text.c_str());
+                        _showCopyNotification(castedDc->Text);
+                        return true;
+                    }
+                    return false;
+                },
+            },
+            KB{
+                LEFT_CTRL_PRESSED,
+                'L',
+                L"Ctrl+L",
+                L"Expand to scrollback line matches",
+                [this](bool keyDown) {
+                    if (!keyDown)
+                    {
+                        return false;
+                    }
                     {
                         std::lock_guard<std::mutex> lock(_batchesMutex);
                         _batches.clear();
                     }
-
-                    if (auto selected = ListBox().SelectedItem())
+                    if (auto castedDc = _TryGetSelectedSuggestion())
                     {
-                        Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
-                        Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
+                        std::wstring needle = L"^.*";
+                        needle += castedDc->Text;
+                        needle += L".*$";
+                        auto op = _termControl.SuggestionScrollBackSearchAsync(
+                            needle,
+                            Microsoft::Terminal::Control::SuggestionBatchHandler{
+                                [weakThis = get_weak()](Microsoft::Terminal::Control::SuggestionBatch const& batch) {
+                                    if (auto self = weakThis.get())
+                                    {
+                                        std::lock_guard<std::mutex> lock(self->_batchesMutex);
+                                        self->_batches.push_back(batch);
+                                        self->_triggerSearch();
+                                    }
+                                } });
 
-                        if (auto castedDc = _TryGetSelectedSuggestion())
-                        {
-                            std::wstring needle = L"^.*";
-                            needle += castedDc->Text;
-                            needle += L".*$";
-                            auto op = _termControl.SuggestionScrollBackSearchAsync(
-                                needle,
-                                Microsoft::Terminal::Control::SuggestionBatchHandler{
-                                    [weakThis = get_weak()](Microsoft::Terminal::Control::SuggestionBatch const& batch) {
-                                        if (auto self = weakThis.get())
-                                        {
-                                            std::lock_guard<std::mutex> lock(self->_batchesMutex);
-                                            self->_batches.push_back(batch);
-
-                                            self->_triggerSearch();
-                                        }
-                                    } });
-
-                            op.Completed([weakThis = get_weak()](auto const&, auto const&) -> winrt::fire_and_forget {
-                                if (auto self = weakThis.get())
-                                {
-                                    self->_allItemsLoaded = true;
-                                    co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
-                                }
-                            });
-                            return true;
-                        }
+                        op.Completed([weakThis = get_weak()](auto const&, auto const&) -> winrt::fire_and_forget {
+                            if (auto self = weakThis.get())
+                            {
+                                self->_allItemsLoaded = true;
+                                co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
+                            }
+                        });
+                        return true;
                     }
-                }
-            }
-            return false;
-        }
-        case 'B':
-        {
-            if (keyDown)
-            {
-                const auto ctrlPressed = WI_IsFlagSet(modifiers.Value, LEFT_CTRL_PRESSED);
-                if (ctrlPressed)
-                {
+                    return false;
+                },
+            },
+            KB{
+                LEFT_CTRL_PRESSED,
+                'B',
+                L"Ctrl+B",
+                L"Word-split mode",
+                [this](bool keyDown) {
+                    if (!keyDown)
+                    {
+                        return false;
+                    }
                     _mode = StreamingSuggestionsMode::WordSplit;
                     {
                         std::lock_guard<std::mutex> lock(_batchesMutex);
                         _batches.clear();
                     }
-
-                    if (auto selected = ListBox().SelectedItem())
+                    if (auto castedDc = _TryGetSelectedSuggestion())
                     {
-                        Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
-                        Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
+                        std::wstring needle = L"[^\\s]{5,}";
+                        auto op = _termControl.LineSearchAsync(
+                            needle,
+                            Microsoft::Terminal::Control::SuggestionBatchHandler{
+                                [weakThis = get_weak()](Microsoft::Terminal::Control::SuggestionBatch const& batch) {
+                                    if (auto self = weakThis.get())
+                                    {
+                                        std::lock_guard<std::mutex> lock(self->_batchesMutex);
+                                        self->_batches.push_back(batch);
+                                        self->_triggerSearch();
+                                    }
+                                } },
+                            castedDc->StartPos.Y);
 
-                        if (auto castedDc = _TryGetSelectedSuggestion())
-                        {
-                            std::wstring needle = L"[^\\s]{5,}";
-                            auto op = _termControl.LineSearchAsync(
-                                needle,
-                                Microsoft::Terminal::Control::SuggestionBatchHandler{
-                                    [weakThis = get_weak()](Microsoft::Terminal::Control::SuggestionBatch const& batch) {
-                                        if (auto self = weakThis.get())
-                                        {
-                                            std::lock_guard<std::mutex> lock(self->_batchesMutex);
-                                            self->_batches.push_back(batch);
-
-                                            self->_triggerSearch();
-                                        }
-                                    } },
-                                castedDc->StartPos.Y);
-
-                            op.Completed([weakThis = get_weak()](auto const&, auto const&) -> winrt::fire_and_forget {
-                                if (auto self = weakThis.get())
-                                {
-                                    self->_allItemsLoaded = true;
-                                    co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
-                                }
-                            });
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-        case VK_TAB:
-        case VK_RETURN:
-        {
-            if (keyDown)
-            {
-                hstring combined = L"";
-                auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
-                if (auto castedDc = _TryGetSelectedSuggestion())
-                {
-                    const auto ctrlPressed = WI_IsFlagSet(modifiers.Value, LEFT_CTRL_PRESSED);
-                    if (ctrlPressed)
-                    {
-                        _scrollToSpan = !_scrollToSpan;
-                        auto selectedIndex = ListBox().SelectedIndex();
-                        _selectItem(selectedIndex);
+                        op.Completed([weakThis = get_weak()](auto const&, auto const&) -> winrt::fire_and_forget {
+                            if (auto self = weakThis.get())
+                            {
+                                self->_allItemsLoaded = true;
+                                co_await winrt::resume_foreground(self->Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
+                            }
+                        });
                         return true;
                     }
-
-                    const auto shiftPressed = WI_IsFlagSet(modifiers.Value, SHIFT_PRESSED);
-                    if (shiftPressed)
+                    return false;
+                },
+            },
+            KB{
+                LEFT_CTRL_PRESSED,
+                VK_RETURN,
+                L"Ctrl+Enter",
+                L"Toggle scroll-to-span on selection",
+                [this](bool keyDown) {
+                    if (!keyDown)
                     {
+                        return true;
+                    }
+                    if (_TryGetSelectedSuggestion())
+                    {
+                        _scrollToSpan = !_scrollToSpan;
+                        _selectItem(ListBox().SelectedIndex());
+                        return true;
+                    }
+                    return _applySelectedOrClose(keyDown);
+                },
+            },
+            KB{
+                LEFT_CTRL_PRESSED,
+                VK_TAB,
+                L"Ctrl+Tab",
+                L"Toggle scroll-to-span on selection",
+                [this](bool keyDown) {
+                    if (!keyDown)
+                    {
+                        return true;
+                    }
+                    if (_TryGetSelectedSuggestion())
+                    {
+                        _scrollToSpan = !_scrollToSpan;
+                        _selectItem(ListBox().SelectedIndex());
+                        return true;
+                    }
+                    return _applySelectedOrClose(keyDown);
+                },
+            },
+            KB{
+                SHIFT_PRESSED,
+                VK_RETURN,
+                L"Shift+Enter",
+                L"Select the row in the terminal",
+                [this](bool keyDown) {
+                    if (!keyDown)
+                    {
+                        return true;
+                    }
+                    if (auto castedDc = _TryGetSelectedSuggestion())
+                    {
+                        auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
                         _termControl.SendInput(backspaces);
                         _termControl.SelectRow(castedDc->StartPos.Y, castedDc->StartPos.X);
                         _close(false);
                         return true;
                     }
-
-                    combined = castedDc->Text;
-                }
-
-                std::wstring_view trimmed{ combined };
-                while (!trimmed.empty() && trimmed.back() == L' ')
-                {
-                    trimmed.remove_suffix(1);
-                }
-
-                auto text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, trimmed) };
-                _termControl.SendInput(text);
-                _close(true);
-            }
-
-            return true;
-        }
-        default:
-            return false;
-        }
+                    return _applySelectedOrClose(keyDown);
+                },
+            },
+            KB{
+                SHIFT_PRESSED,
+                VK_TAB,
+                L"Shift+Tab",
+                L"Select the row in the terminal",
+                [this](bool keyDown) {
+                    if (!keyDown)
+                    {
+                        return true;
+                    }
+                    if (auto castedDc = _TryGetSelectedSuggestion())
+                    {
+                        auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
+                        _termControl.SendInput(backspaces);
+                        _termControl.SelectRow(castedDc->StartPos.Y, castedDc->StartPos.X);
+                        _close(false);
+                        return true;
+                    }
+                    return _applySelectedOrClose(keyDown);
+                },
+            },
+            KB{
+                0,
+                VK_RETURN,
+                L"Enter",
+                L"Insert selected item",
+                [this](bool keyDown) { return _applySelectedOrClose(keyDown); },
+            },
+            KB{
+                0,
+                VK_TAB,
+                L"Tab",
+                L"Insert selected item",
+                [this](bool keyDown) { return _applySelectedOrClose(keyDown); },
+            },
+            KB{
+                0,
+                VK_PRIOR,
+                L"PgUp",
+                L"Scroll up one page",
+                [this](bool keyDown) {
+                    if (keyDown)
+                    {
+                        if (_helpVisible)
+                        {
+                            const auto sv = helpScrollViewer();
+                            sv.ScrollToVerticalOffset(sv.VerticalOffset() - sv.ViewportHeight());
+                        }
+                        else
+                        {
+                            const auto pageSize = std::max(1, static_cast<int32_t>(ListBox().ActualHeight() / 40.0));
+                            const auto currentIndex = ListBox().SelectedIndex();
+                            _selectItem(std::max(0, currentIndex - pageSize));
+                        }
+                    }
+                    return true;
+                },
+            },
+            KB{
+                0,
+                VK_NEXT,
+                L"PgDn",
+                L"Scroll down one page",
+                [this](bool keyDown) {
+                    if (keyDown)
+                    {
+                        if (_helpVisible)
+                        {
+                            const auto sv = helpScrollViewer();
+                            sv.ScrollToVerticalOffset(sv.VerticalOffset() + sv.ViewportHeight());
+                        }
+                        else
+                        {
+                            const auto pageSize = std::max(1, static_cast<int32_t>(ListBox().ActualHeight() / 40.0));
+                            const auto size = static_cast<int32_t>(ListBox().Items().Size());
+                            const auto currentIndex = ListBox().SelectedIndex();
+                            _selectItem(std::min(size - 1, currentIndex + pageSize));
+                        }
+                    }
+                    return true;
+                },
+            },
+            KB{
+                0,
+                VK_UP,
+                L"Up",
+                L"Previous item",
+                [this](bool keyDown) {
+                    if (keyDown)
+                    {
+                        const auto currentIndex = ListBox().SelectedIndex();
+                        if (currentIndex > 0)
+                        {
+                            _selectItem(currentIndex - 1);
+                        }
+                    }
+                    return true;
+                },
+            },
+            KB{
+                0,
+                VK_DOWN,
+                L"Down",
+                L"Next item",
+                [this](bool keyDown) {
+                    if (keyDown)
+                    {
+                        const auto size = static_cast<int32_t>(ListBox().Items().Size());
+                        const auto currentIndex = ListBox().SelectedIndex();
+                        if (currentIndex < size - 1)
+                        {
+                            _selectItem(currentIndex + 1);
+                        }
+                    }
+                    return true;
+                },
+            },
+            KB{
+                0,
+                VK_ESCAPE,
+                L"Esc",
+                L"Close (or exit word-split mode)",
+                [this](bool keyDown) {
+                    if (!keyDown)
+                    {
+                        return true;
+                    }
+                    if (_helpVisible)
+                    {
+                        _toggleHelp();
+                        return true;
+                    }
+                    if (_mode == StreamingSuggestionsMode::WordSplit)
+                    {
+                        _mode = StreamingSuggestionsMode::Normal;
+                        _triggerSearch();
+                    }
+                    else
+                    {
+                        _close(true);
+                    }
+                    return true;
+                },
+            },
+        };
     }
 
     void StreamingSuggestionsControl::_triggerSearch()
@@ -1030,7 +1147,7 @@ std::wstring needle = prefix + currentWord.c_str() + suffix;
         }
         else
         {
-            currentMargin.Top = (_anchor.Y + 20);
+            currentMargin.Top = (_anchor.Y + _characterHeight + 5);
         }
         Margin(currentMargin);
     }

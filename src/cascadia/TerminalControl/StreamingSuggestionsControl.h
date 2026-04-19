@@ -45,13 +45,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void HighlightedTextColor(Windows::UI::Xaml::Media::Brush const& value);
 
         void SetCurrentWord(const winrt::hstring& value, int32_t cursorX);
-        bool TryAutoComplete(
-            Microsoft::Terminal::Control::TermControl const& termControl,
-            Windows::Foundation::Point anchor,
-            Windows::Foundation::Size space,
-            winrt::hstring currentWord,
-            float prefixWidth,
-            int32_t cursorX);
         void Open(
             Microsoft::Terminal::Control::TermControl const& termControl,
             winrt::hstring needle,
@@ -59,7 +52,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Windows::Foundation::Size space,
             winrt::hstring currentWord,
             float prefixWidth,
-            int32_t cursorX);
+            int32_t cursorX,
+            float characterHeight);
         std::optional<SuggestionSearchItem> _TryGetSelectedSuggestion();
         void ToggleAutoComplete();
 
@@ -127,6 +121,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _setDirection(bool openUpward);
         void _OnCopyNotificationTimerTick(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::Foundation::IInspectable const&);
         void _showCopyNotification(const hstring& text);
+
+        struct _KeyBinding
+        {
+            DWORD requiredMods;
+            WORD vkey;
+            std::wstring_view label;
+            std::wstring_view description;
+            std::function<bool(bool /*keyDown*/)> action;
+        };
+
+        std::vector<_KeyBinding> _keyBindings;
+        bool _helpVisible{ false };
+        void _initKeyBindings();
+        void _toggleHelp();
+        bool _applySelectedOrClose(bool keyDown);
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;

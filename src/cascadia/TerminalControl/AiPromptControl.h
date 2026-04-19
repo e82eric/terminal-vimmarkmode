@@ -79,6 +79,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Control::AiPromptProvider _currentProvider = Control::AiPromptProvider::Claude;
         AiModel _currentModel = AiModel::Haiku;
 
+        struct _KeyBinding
+        {
+            std::wstring_view label;
+            std::wstring_view description;
+        };
+
+        std::vector<_KeyBinding> _keyBindings;
+        bool _helpVisible{ false };
+        void _initKeyBindings();
+        void _toggleHelp();
+
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;
         static Windows::UI::Xaml::DependencyProperty _BackgroundColorProperty;
