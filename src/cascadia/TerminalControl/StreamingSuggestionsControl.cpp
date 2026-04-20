@@ -220,30 +220,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void StreamingSuggestionsControl::SetCurrentWord(const winrt::hstring& value, int32_t cursorX)
-    {
-        if (cursorX < _cursorX)
-        {
-            _close(true);
-            return;
-        }
-
-        auto betweenCursors = til::safe_slice_abs(value, _cursorX, cursorX);
-
-        if (Visibility() == Visibility::Visible && _autoCompleteMode && betweenCursors.size() < 2)
-        {
-            _close(false);
-            return;
-        }
-
-        _currentWord = betweenCursors;
-        {
-            std::lock_guard lock(_searchTermMutex);
-            _currentSearchTerm = betweenCursors;
-        }
-        _triggerSearch();
-    }
-
     DependencyProperty StreamingSuggestionsControl::HighlightedTextColorProperty()
     {
         return _HighlightedTextColorProperty;
@@ -259,6 +235,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void StreamingSuggestionsControl::_close(bool scrollToCursor)
     {
+        _searchBoxMode = false;
+        SearchBox().Text(L"");
         ListBox().Items().Clear();
         Visibility(Windows::UI::Xaml::Visibility::Collapsed);
         _termControl.ClearHighlights(scrollToCursor);
@@ -271,14 +249,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Windows::Foundation::Size space,
         winrt::hstring currentWord,
         float prefixWidth,
-        int32_t cursorX,
         float characterHeight)
     {
-        _autoCompleteMode = false;
-
         _scrollToSpan = false;
         _mode = StreamingSuggestionsMode::Normal;
-        _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
         _characterHeight = characterHeight;
         _termControl = termControl;
         _currentWord = currentWord;
@@ -303,6 +277,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::lock_guard<std::mutex> lock(_batchesMutex);
             _batches.clear();
         }
+
+        _searchBoxMode = true;
+        SearchBox().Text(currentWord);
+        Visibility(Windows::UI::Xaml::Visibility::Visible);
+        SearchBox().Focus(Windows::UI::Xaml::FocusState::Programmatic);
+        // Move caret to end so the user can continue typing from where they left off
+        SearchBox().SelectionStart(currentWord.size());
 
         auto op = termControl.SuggestionScrollBackSearchAsync(
             needle,
@@ -343,11 +324,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         return std::nullopt;
-    }
-
-    void StreamingSuggestionsControl::ToggleAutoComplete()
-    {
-        _autoCompleteEnabled = !_autoCompleteEnabled;
     }
 
     static void _copyToClipboard(const UINT format, const void* src, const size_t bytes)
@@ -925,6 +901,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
             ListBox().Items().Clear();
+            ListBox().SelectedIndex(-1);
             for (const auto& batch : batchesSnapshot)
             {
                 for (auto item : batch.Items())
@@ -949,6 +926,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
 
             NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
+            if (ListBox().Items().Size() == 0)
+            {
+                _termControl.ClearHighlights(false);
+            }
 
             InvalidateMeasure();
 
@@ -1002,6 +983,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
 
         ListBox().Items().Clear();
+        ListBox().SelectedIndex(-1);
         for (const auto& scoredItem : scoredItems)
         {
             auto line = _BuildLine(scoredItem.item.Text, scoredItem.item.StartPos.Y, scoredItem.item.StartPos.X, scoredItem.runs);
@@ -1010,7 +992,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         _allItemsSearched = true;
-        if (!scoredItems.empty() && ListBox().SelectedIndex() == -1)
+        if (!scoredItems.empty())
         {
             _selectItem(0);
         }
@@ -1021,7 +1003,61 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _recalculateTopMargin();
 
         NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
+        if (ListBox().Items().Size() == 0)
+        {
+            _termControl.ClearHighlights(false);
+        }
         co_return;
+    }
+
+    void StreamingSuggestionsControl::_SearchBoxTextChanged(
+        Windows::Foundation::IInspectable const& /*sender*/,
+        Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
+    {
+        if (!_searchBoxMode)
+            return;
+
+        auto text = SearchBox().Text();
+        {
+            std::lock_guard lock(_searchTermMutex);
+            _currentSearchTerm = text;
+        }
+        _triggerSearch();
+    }
+
+    void StreamingSuggestionsControl::_SearchBoxKeyDown(
+        Windows::Foundation::IInspectable const& /*sender*/,
+        Windows::UI::Xaml::Input::KeyRoutedEventArgs const& e)
+    {
+        const auto key = gsl::narrow_cast<WORD>(e.OriginalKey());
+        const auto itemCount = ListBox().Items().Size();
+        auto mods = DWORD{ 0 };
+
+        const auto window = CoreWindow::GetForCurrentThread();
+        const auto ctrlState = window.GetKeyState(Windows::System::VirtualKey::Control);
+        const auto shiftState = window.GetKeyState(Windows::System::VirtualKey::Shift);
+        WI_SetFlagIf(mods, LEFT_CTRL_PRESSED, WI_IsFlagSet(ctrlState, CoreVirtualKeyStates::Down));
+        WI_SetFlagIf(mods, SHIFT_PRESSED, WI_IsFlagSet(shiftState, CoreVirtualKeyStates::Down));
+
+        const bool isHelpKey = key == VK_OEM_2 &&
+                               WI_AreAllFlagsSet(mods, LEFT_CTRL_PRESSED | SHIFT_PRESSED);
+        if (itemCount == 0 && key != VK_ESCAPE && !isHelpKey && !_helpVisible)
+        {
+            return;
+        }
+        if (key == VK_TAB && mods == 0 && ListBox().SelectedIndex() < 0)
+        {
+            return;
+        }
+
+        for (const auto& binding : _keyBindings)
+        {
+            if (binding.vkey == key && (mods & binding.requiredMods) == binding.requiredMods)
+            {
+                e.Handled(binding.action(true));
+                return;
+            }
+        }
     }
 
     winrt::Windows::Foundation::IAsyncAction StreamingSuggestionsControl::_performContainsSearch(std::wstring searchTerm, uint64_t version)
@@ -1066,6 +1102,7 @@ done:
         co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
 
         ListBox().Items().Clear();
+        ListBox().SelectedIndex(-1);
         for (const auto& matched : matchedItems)
         {
             auto line = _BuildLine(matched.item.Text, matched.item.StartPos.Y, matched.item.StartPos.X, matched.runs);
@@ -1074,7 +1111,7 @@ done:
         }
 
         _allItemsSearched = true;
-        if (!matchedItems.empty() && ListBox().SelectedIndex() == -1)
+        if (!matchedItems.empty())
         {
             _selectItem(0);
         }
@@ -1085,6 +1122,10 @@ done:
         _recalculateTopMargin();
 
         NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
+        if (ListBox().Items().Size() == 0)
+        {
+            _termControl.ClearHighlights(false);
+        }
         co_return;
     }
 
@@ -1167,14 +1208,9 @@ done:
 
     void StreamingSuggestionsControl::_recalculateTopMargin()
     {
-        const auto controlHeight = 250.0;
-        const auto spaceBelow = _space.Height - _anchor.Y;
-
-        auto openUpward = true;
-        if (spaceBelow >= controlHeight)
-        {
-            openUpward = false;
-        }
+        const auto controlHeight = ActualHeight() > 0 ? ActualHeight() : 250.0;
+        const auto spaceBelow = _space.Height - (_anchor.Y + _characterHeight + 5);
+        const bool openUpward = spaceBelow < controlHeight;
         _setDirection(openUpward);
     }
 
@@ -1203,11 +1239,24 @@ done:
     {
         _recalculateHorizontalPlacement();
 
+        // When opening upward, put the search box at the bottom (nearest the cursor).
+        // Row heights must follow the SearchBox so it stays Auto-sized while the ListBox takes the remaining space.
+        const auto autoLength = Windows::UI::Xaml::GridLengthHelper::FromValueAndType(1.0, Windows::UI::Xaml::GridUnitType::Auto);
+        const auto starLength = Windows::UI::Xaml::GridLengthHelper::FromValueAndType(1.0, Windows::UI::Xaml::GridUnitType::Star);
+        InnerRow0().Height(openUpward ? starLength : autoLength);
+        InnerRow1().Height(openUpward ? autoLength : starLength);
+        Controls::Grid::SetRow(SearchBoxBorder(), openUpward ? 1 : 0);
+        Controls::Grid::SetRow(ListBox(), openUpward ? 0 : 1);
+        Controls::Grid::SetRow(NoItemsPlaceholder(), openUpward ? 0 : 1);
+        SearchBoxBorder().BorderThickness(Windows::UI::Xaml::ThicknessHelper::FromLengths(0, openUpward ? 1 : 0, 0, openUpward ? 0 : 1));
+
         auto currentMargin = Margin();
-        const auto controlHeight = ActualHeight();
 
         if (openUpward)
         {
+            // Keep the bottom edge anchored near the cursor so shorter result sets
+            // shrink downward instead of pulling away from it.
+            const auto controlHeight = ActualHeight() > 0 ? ActualHeight() : 250.0;
             currentMargin.Top = (_anchor.Y - controlHeight);
         }
         else

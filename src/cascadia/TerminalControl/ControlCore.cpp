@@ -34,6 +34,8 @@ using namespace Microsoft::Terminal::Core;
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
+    static bool _isPromptOnlySuggestion(std::wstring_view text);
+
     static winrt::Microsoft::Terminal::Core::OptionalColor OptionalFromColor(const til::color& c) noexcept
     {
         Core::OptionalColor result;
@@ -2575,7 +2577,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto context = winrt::make_self<CommandHistoryContext>(std::move(commands));
         context->CurrentCommandline(trimmedCurrentCommand);
         context->QuickFixes(_cachedQuickFixes);
-        context->CurrentWordPrefix(trimToHstring(_terminal->CurrentWordPrefix()));
+        const auto currentWordPrefix = _terminal->CurrentWordPrefix();
+        context->CurrentWordPrefix(_isPromptOnlySuggestion(currentWordPrefix) ? winrt::hstring{} : trimToHstring(currentWordPrefix));
         return *context;
     }
 
@@ -3235,10 +3238,54 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _vimProxy->CommitSearch();
     }
 
+    static bool _isPromptOnlySuggestion(std::wstring_view text)
+    {
+        const auto isWhitespace = [](wchar_t ch) {
+            return std::iswspace(ch) != 0;
+        };
+        const auto isPromptChar = [](wchar_t ch) {
+            switch (ch)
+            {
+            case L'>':
+            case L'$':
+            case L'#':
+            case L'%':
+            case L':':
+            case L';':
+            case L'\u276F': // HEAVY RIGHT-POINTING ANGLE QUOTATION MARK ORNAMENT
+            case L'\u279C': // HEAVY ROUND-TIPPED RIGHTWARDS ARROW
+            case L'\u00BB': // RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK
+            case L'\u203A': // SINGLE RIGHT-POINTING ANGLE QUOTATION MARK
+                return true;
+            default:
+                return false;
+            }
+        };
+
+        while (!text.empty() && isWhitespace(text.front()))
+        {
+            text.remove_prefix(1);
+        }
+        while (!text.empty() && isWhitespace(text.back()))
+        {
+            text.remove_suffix(1);
+        }
+
+        if (text.empty())
+        {
+            return false;
+        }
+
+        return std::all_of(text.begin(), text.end(), [&](wchar_t ch) {
+            return isWhitespace(ch) || isPromptChar(ch);
+        });
+    }
+
     winrt::hstring ControlCore::GetCurrentWord()
     {
         auto lock = _terminal->LockForReading();
-        return winrt::hstring{ _terminal->CurrentWordPrefix() };
+        const auto currentWord = _terminal->CurrentWordPrefix();
+        return _isPromptOnlySuggestion(currentWord) ? winrt::hstring{} : winrt::hstring{ currentWord };
     }
 
     winrt::hstring ControlCore::GetCurrentLine()
@@ -3311,10 +3358,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                 return !std::iswspace(ch);
                             });
 
-                        if (nonWhitespaceCount > 2 && seen.insert(text).second)
+                        if (nonWhitespaceCount > 2 && !_isPromptOnlySuggestion(text) && seen.insert(text).second)
                         {
                             auto item = SuggestionSearchItem{
-                                hstring{ snapshotBuffer->GetPlainText(span.start, span.end) },
+                                hstring{ text },
                                 ordinal,
                                 span.start.to_core_point(),
                                 span.end.to_core_point()

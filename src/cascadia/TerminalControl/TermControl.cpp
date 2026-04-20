@@ -3478,7 +3478,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         auto currentWord = _core.GetCurrentWord();
         const auto prefixWidth = currentWord.size() * characterWidth;
 
-        StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x, gsl::narrow_cast<float>(characterDimensions.Height));
+        StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height));
     }
 
     void TermControl::HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan)
@@ -4298,28 +4298,10 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
 
         _refreshSearch();
 
-        auto cursorPosition = _core.CursorPosition();
-        const auto displayInfo = DisplayInformation::GetForCurrentView();
-
-        const auto cursorPos{ CursorPositionInDips() };
-        const Windows::Foundation::Size termControlDimensions{
-            gsl::narrow_cast<float>(ActualWidth()),
-            gsl::narrow_cast<float>(ActualHeight())
-        };
-        const auto characterDimensions = CharacterDimensions();
-
-        auto currentWord = _core.GetCurrentWord();
-
-        if (StreamingSuggestions().Visibility() == Visibility::Collapsed && SnippetSearch().HasPrefixMatch(_core.GetCurrentWord()))
+        const auto currentWord = _core.GetCurrentWord();
+        if (StreamingSuggestions().Visibility() == Visibility::Collapsed && SnippetSearch().HasPrefixMatch(currentWord))
         {
             StartSnippetSearch(nullptr, true);
-        }
-
-        if (StreamingSuggestions().Visibility() == Visibility::Visible)
-        {
-            const auto currentWord = _core.GetCurrentLine();
-            const auto cursorPos = _core.CursorPosition();
-            StreamingSuggestions().SetCurrentWord(currentWord, cursorPos.X);
         }
 
         if (SnippetSearch().Visibility() == Visibility::Visible)

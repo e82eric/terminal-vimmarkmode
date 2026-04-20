@@ -44,7 +44,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Windows::UI::Xaml::Media::Brush HighlightedTextColor();
         void HighlightedTextColor(Windows::UI::Xaml::Media::Brush const& value);
 
-        void SetCurrentWord(const winrt::hstring& value, int32_t cursorX);
         void Open(
             Microsoft::Terminal::Control::TermControl const& termControl,
             winrt::hstring needle,
@@ -52,15 +51,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Windows::Foundation::Size space,
             winrt::hstring currentWord,
             float prefixWidth,
-            int32_t cursorX,
             float characterHeight);
         std::optional<SuggestionSearchItem> _TryGetSelectedSuggestion();
-        void ToggleAutoComplete();
 
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
 
         bool UseFuzzySearch() const { return _useFuzzySearch; }
         void UseFuzzySearch(bool value) { _useFuzzySearch = value; }
+
+        void _SearchBoxTextChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&);
+        void _SearchBoxKeyDown(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs const&);
 
     private:
         winrt::Windows::UI::Xaml::DispatcherTimer _copyNotificationTimer{ nullptr };
@@ -70,11 +70,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             WordSplit
         };
 
-        bool _autoCompleteEnabled = false;
-        bool _autoCompleteMode = false;
         bool _useFuzzySearch = false;
         StreamingSuggestionsMode _mode = StreamingSuggestionsMode::Normal;
-        int32_t _cursorX;
         void _selectFirstItem();
         void _close(bool scrollToCursor);
         winrt::handle _lastSwapChainHandle{ nullptr };
@@ -137,6 +134,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _initKeyBindings();
         void _toggleHelp();
         bool _applySelectedOrClose(bool keyDown);
+
+        bool _searchBoxMode{ false };
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;
         static Windows::UI::Xaml::DependencyProperty _headerTextColorProperty;
