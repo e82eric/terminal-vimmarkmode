@@ -842,7 +842,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const std::uint64_t myVersion = ++_searchVersion;
 
-        _performFuzzySearch(term, myVersion);
+        if (_useFuzzySearch || term.empty() || _mode == StreamingSuggestionsMode::WordSplit)
+            _performFuzzySearch(term, myVersion);
+        else
+            _performContainsSearch(term, myVersion);
     }
 
     void StreamingSuggestionsControl::_selectItem(int32_t index)
@@ -952,9 +955,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             co_return;
         }
 
-        auto pattern = _useFuzzySearch
-            ? fzfcpp::matcher::ParsePatternWithTypes(searchTerm)
-            : fzfcpp::matcher::ParsePatternContainsOnly(searchTerm);
+        auto pattern = fzfcpp::matcher::ParsePatternWithTypes(searchTerm);
 
         std::vector<ScoredItem> scoredItems;
 
@@ -1010,6 +1011,70 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _allItemsSearched = true;
         if (!scoredItems.empty() && ListBox().SelectedIndex() == -1)
+        {
+            _selectItem(0);
+        }
+
+        Visibility(Visibility::Visible);
+
+        InvalidateMeasure();
+        _recalculateTopMargin();
+
+        NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
+        co_return;
+    }
+
+    winrt::Windows::Foundation::IAsyncAction StreamingSuggestionsControl::_performContainsSearch(std::wstring searchTerm, uint64_t version)
+    {
+        struct MatchedItem
+        {
+            Microsoft::Terminal::Control::SuggestionSearchItem item;
+            std::optional<std::vector<fzfcpp::matcher::TextRun>> runs;
+        };
+
+        co_await winrt::resume_background();
+
+        std::vector<Microsoft::Terminal::Control::SuggestionBatch> batchesSnapshot;
+        {
+            std::lock_guard<std::mutex> lock(_batchesMutex);
+            batchesSnapshot.assign(_batches.begin(), _batches.end());
+        }
+
+        auto pattern = fzfcpp::matcher::ParsePatternContainsOnly(searchTerm);
+        constexpr auto MaxResults = 1000;
+        std::vector<MatchedItem> matchedItems;
+
+        for (const auto& batch : batchesSnapshot)
+        {
+            if (version != _searchVersion)
+            {
+                co_return;
+            }
+            for (const auto& item : batch.Items())
+            {
+                if (auto matchResult = fzfcpp::matcher::Match(item.Text, pattern))
+                {
+                    matchedItems.push_back({ item, matchResult->Runs });
+                    if (matchedItems.size() >= MaxResults)
+                        goto done;
+                }
+            }
+        }
+done:
+        // Items are already in ordinal-ascending order (scrollback scanned top→bottom),
+        // so no sort is needed.
+        co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
+
+        ListBox().Items().Clear();
+        for (const auto& matched : matchedItems)
+        {
+            auto line = _BuildLine(matched.item.Text, matched.item.StartPos.Y, matched.item.StartPos.X, matched.runs);
+            auto lbi = _makeListViewItem(line, box_value(matched.item));
+            ListBox().Items().Append(lbi);
+        }
+
+        _allItemsSearched = true;
+        if (!matchedItems.empty() && ListBox().SelectedIndex() == -1)
         {
             _selectItem(0);
         }

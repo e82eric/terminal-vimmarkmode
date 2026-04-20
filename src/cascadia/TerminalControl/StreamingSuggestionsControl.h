@@ -105,6 +105,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _triggerSearch();
         void _selectItem(int32_t index);
         winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version);
+        winrt::Windows::Foundation::IAsyncAction _performContainsSearch(std::wstring searchTerm, uint64_t version);
         Windows::UI::Xaml::Controls::ListViewItem _makeListViewItem(Control::FuzzySearchTextLine const& line,
                                                                     winrt::Windows::Foundation::IInspectable const&
                                                                     dataContext);
