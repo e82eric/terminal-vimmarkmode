@@ -46,12 +46,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void Open(
             Microsoft::Terminal::Control::TermControl const& termControl,
-            winrt::hstring needle,
+            winrt::hstring const& needle,
             Windows::Foundation::Point anchor,
             Windows::Foundation::Size space,
-            winrt::hstring currentWord,
+            winrt::hstring const& currentWord,
             float prefixWidth,
-            float characterHeight);
+            float characterHeight,
+            float swapChainOffset);
         std::optional<SuggestionSearchItem> _TryGetSelectedSuggestion();
 
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
@@ -60,6 +61,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void UseFuzzySearch(bool value) { _useFuzzySearch = value; }
 
         void _SearchBoxTextChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&);
+        void _SplitSearchBoxTextChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&);
         void _SearchBoxKeyDown(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs const&);
 
     private:
@@ -85,7 +87,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::event<winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler> _propertyChangedEvent;
         float _characterHeight;
         Microsoft::Terminal::Control::TermControl _termControl{ nullptr };
-        bool _scrollToSpan = false;
+        float _swapChainOffset = 0.0f;
         hstring _currentWord;
         hstring _currentSearchTerm;
         float _prefixWidth;
@@ -96,13 +98,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _allItemsSearched;
         bool _controlShown;
         std::vector<Microsoft::Terminal::Control::SuggestionBatch> _batches;
+        std::vector<Microsoft::Terminal::Control::SuggestionSearchItem> _splitItems;
         std::mutex _batchesMutex;
         std::mutex _searchTermMutex;
         winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
+        winrt::Windows::UI::Xaml::Controls::ListView _activeListBox();
+        void _showSplitOverlay(bool show);
         void _triggerSearch();
         void _selectItem(int32_t index);
         winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version);
         winrt::Windows::Foundation::IAsyncAction _performContainsSearch(std::wstring searchTerm, uint64_t version);
+        void _populateSplitList(std::wstring searchTerm);
         Windows::UI::Xaml::Controls::ListViewItem _makeListViewItem(Control::FuzzySearchTextLine const& line,
                                                                     winrt::Windows::Foundation::IInspectable const&
                                                                     dataContext);
@@ -112,11 +118,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                                 int32_t col,
                                                 std::optional<std::vector<fzfcpp::matcher::TextRun>> const& runs);
 
-        void _enterWordSplitMode();
         void _recalculateTopMargin();
         void _recalculateHorizontalPlacement();
         void _ensureCellWidth();
-        void _setDirection(bool openUpward);
+        void _setDirection();
         void _OnCopyNotificationTimerTick(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::Foundation::IInspectable const&);
         void _showCopyNotification(const hstring& text);
 

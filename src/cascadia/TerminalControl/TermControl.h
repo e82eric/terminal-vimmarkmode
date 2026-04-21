@@ -89,7 +89,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void ColorSelection(Control::SelectionColor fg, Control::SelectionColor bg, Core::MatchMode matchMode);
         Windows::Foundation::IAsyncAction SuggestionScrollBackSearchAsync( winrt::hstring const& needle, SuggestionBatchHandler const& onBatch);
-        Windows::Foundation::IAsyncAction LineSearchAsync(winrt::hstring needle, SuggestionBatchHandler const& onBatch, int32_t lineNumber);
+        Windows::Foundation::Collections::IVector<SuggestionSearchItem> LineSearchAsync(int32_t lineNumber);
 
 #pragma region ICoreState
         const uint64_t TaskbarState() const noexcept;
@@ -149,7 +149,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, bool autoCompleteMode);
         void StartAiPrompt(Control::AiPromptProvider provider, Control::AiPromptMode mode);
         void OpenStreamingSuggestions(winrt::hstring needle, bool useFuzzySearch);
-        void HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan);
+        void SetStreamingSuggestionsSwapChainOffset(float offset);
+        bool HighlightPointSpan(Core::Point start, Core::Point end, float clippedTopPixels);
         void ClearHighlights(bool scrollToCursor);
 
         void SearchMatch(const bool goForward);

@@ -124,7 +124,7 @@ namespace Microsoft.Terminal.Control
         void ScrollViewport(Int32 viewTop);
 
         Windows.Foundation.IAsyncAction SuggestionScrollBackSearchAsync(String needle, SuggestionBatchHandler onBatch);
-        Windows.Foundation.IAsyncAction LineSearchAsync(String needle, SuggestionBatchHandler onBatch, Int32 lineNumber);
+        IVector<SuggestionSearchItem> LineSearchAsync(Int32 lineNumber);
         void SelectRow(Int32 row, Int32 col);
         String GetCurrentWord();
 
@@ -135,7 +135,8 @@ namespace Microsoft.Terminal.Control
         Boolean SearchBoxEditInFocus();
 
         void OpenStreamingSuggestions(String needle, Boolean useFuzzySearch);
-        void HighlightPointSpan(Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end, Boolean scrollToSpan);
+        void SetStreamingSuggestionsSwapChainOffset(Single offset);
+        Boolean HighlightPointSpan(Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end, Single clippedTopPixels);
         void ClearHighlights(Boolean scrollToCursor);
 
         void SearchMatch(Boolean goForward);

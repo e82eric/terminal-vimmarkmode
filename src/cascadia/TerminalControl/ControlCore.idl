@@ -265,9 +265,8 @@ namespace Microsoft.Terminal.Control
         event Windows.Foundation.TypedEventHandler<Object, StartVimSearchEventArgs> StartVimSearch;
         event Windows.Foundation.TypedEventHandler<Object, ToggleRowNumbersEventArgs> ToggleRowNumbers;
         Windows.Foundation.IAsyncAction SuggestionScrollBackSearchAsync(String needle, SuggestionBatchHandler onBatch);
-        Windows.Foundation.IAsyncAction LineSearchAsync(String needle, SuggestionBatchHandler onBatch, Int32 lineNumber);
+        IVector<SuggestionSearchItem> LineSearchAsync(Int32 lineNumber);
         Int32 GetViewportTop();
-        void HighlightPointSpan(Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end, Boolean scrollToSpan);
         void ClearHighlights(Boolean scrollToCursor);
     };
 }

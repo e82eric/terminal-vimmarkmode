@@ -3477,13 +3477,39 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
 
         auto currentWord = _core.GetCurrentWord();
         const auto prefixWidth = currentWord.size() * characterWidth;
+        constexpr auto suggestionsMaxHeight = 204.0f;
+        const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + 5.0f;
+        const auto spaceBelow = gsl::narrow_cast<float>(ActualHeight()) - popupTop;
+        const auto offset = std::clamp(suggestionsMaxHeight - spaceBelow, 0.0f, gsl::narrow_cast<float>(cursorYPixel));
 
-        StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height));
+        SetStreamingSuggestionsSwapChainOffset(offset);
+        StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, currentWord, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset);
     }
 
-    void TermControl::HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan)
+    void TermControl::SetStreamingSuggestionsSwapChainOffset(float offset)
     {
-        _core.HighlightPointSpan(start, end, scrollToSpan);
+        offset = std::max(0.0f, offset);
+        SwapChainPanelTransform().Y(-offset);
+
+        if (offset == 0.0f)
+        {
+            SwapChainPanel().Clip(nullptr);
+            return;
+        }
+
+        const auto width = gsl::narrow_cast<float>(SwapChainPanel().ActualWidth());
+        const auto height = gsl::narrow_cast<float>(SwapChainPanel().ActualHeight());
+        auto clip = winrt::Windows::UI::Xaml::Media::RectangleGeometry{};
+        clip.Rect({ 0.0f, offset, width, std::max(0.0f, height - offset) });
+        SwapChainPanel().Clip(clip);
+    }
+
+    bool TermControl::HighlightPointSpan(Core::Point start, Core::Point end, float clippedTopPixels)
+    {
+        const auto displayInfo = DisplayInformation::GetForCurrentView();
+        const auto directXHeight = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
+        const auto clippedTopRows = directXHeight <= 0.0 ? 0 : gsl::narrow_cast<int32_t>(std::ceil(clippedTopPixels / directXHeight));
+        return winrt::get_self<implementation::ControlCore>(_core)->HighlightPointSpan(start, end, clippedTopRows);
     }
 
     void TermControl::ClearHighlights(bool scrollToCursor)
@@ -4372,9 +4398,9 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         return _core.SuggestionScrollBackSearchAsync(needle, onBatch);
     }
 
-    Windows::Foundation::IAsyncAction TermControl::LineSearchAsync(winrt::hstring needle, SuggestionBatchHandler const& onBatch, int32_t lineNumber)
+    Windows::Foundation::Collections::IVector<SuggestionSearchItem> TermControl::LineSearchAsync(int32_t lineNumber)
     {
-        return _core.LineSearchAsync(needle, onBatch, lineNumber);
+        return _core.LineSearchAsync(lineNumber);
     }
 
     // Returns the text cursor's position relative to our origin, in DIPs.

@@ -3522,7 +3522,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         return parts;
     }
 
-    Windows::Foundation::IAsyncAction ControlCore::LineSearchAsync(winrt::hstring /*needle*/, SuggestionBatchHandler const& onBatch, int32_t lineNumber)
+    Windows::Foundation::Collections::IVector<SuggestionSearchItem> ControlCore::LineSearchAsync(int32_t lineNumber)
     {
         auto splitBySpace = L"[^\\s]{3,}";
         auto splitByMoreThanOneSpace = L"\\S(?: ?\\S)*";
@@ -3535,16 +3535,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             LR"((?<=')[^']*(?='))",
             LR"((?<=<)[^>]*(?=>))",
         };
-        auto batchCb = winrt::make_agile(onBatch);
 
         std::optional<std::vector<til::point_span>> searchResults;
-
-        co_await resume_background();
 
         auto lock = _terminal->LockForReading();
         auto& buffer = _terminal->GetTextBuffer();
 
         std::unordered_set<std::wstring> seen;
+        std::vector<SuggestionSearchItem> results;
 
         // Pass 0: detect fixed-width columnar output and split on column boundaries
         auto columnBoundaries = DetectColumnBoundaries(buffer, lineNumber, buffer.GetSize().Width());
@@ -3559,7 +3557,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             edges.insert(edges.end(), columnBoundaries.begin(), columnBoundaries.end());
             edges.push_back(lineEnd);
 
-            std::vector<SuggestionSearchItem> items;
             auto ordinal = 1000;
             for (size_t i = 0; i + 1 < edges.size(); ++i)
             {
@@ -3601,17 +3598,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     til::point{ spanStart, lineNumber }.to_core_point(),
                     til::point{ spanEnd, lineNumber }.to_core_point()
                 };
-                items.emplace_back(std::move(item));
+                results.emplace_back(std::move(item));
                 ordinal--;
-            }
-
-            if (!items.empty())
-            {
-                auto batch = winrt::make_self<SuggestionBatch>(std::move(items));
-                if (auto cb = batchCb.get())
-                {
-                    cb(*batch);
-                }
             }
         }
 
@@ -3625,8 +3613,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 auto spans = searchResults.value();
 
-                std::vector<SuggestionSearchItem> items;
-                items.reserve(spans.size());
                 auto ordinal = 1000;
 
                 for (auto it = spans.rbegin(); it != spans.rend(); ++it)
@@ -3661,17 +3647,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         span.end.to_core_point()
                     };
 
-                    items.emplace_back(std::move(item));
+                    results.emplace_back(std::move(item));
                     --ordinal;
-                }
-
-                if (!items.empty())
-                {
-                    auto batch = winrt::make_self<SuggestionBatch>(std::move(items));
-                    if (auto cb = batchCb.get())
-                    {
-                        cb(*batch);
-                    }
                 }
             }
         }
@@ -3680,8 +3657,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             auto spans = searchResults.value();
 
-            std::vector<SuggestionSearchItem> items;
-            items.reserve(spans.size());
             auto ordinal = 1000;
             for (auto it = spans.rbegin(); it != spans.rend(); ++it)
             {
@@ -3696,15 +3671,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         span.start.to_core_point(),
                         span.end.to_core_point()
                     };
-                    items.emplace_back(item);
+                    results.emplace_back(item);
                     ordinal--;
                 }
-            }
-
-            auto batch = winrt::make_self<SuggestionBatch>(std::move(items));
-            if (auto cb = batchCb.get())
-            {
-                cb(*batch);
             }
         }
 
@@ -3714,8 +3683,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 auto spans = searchResults.value();
 
-                std::vector<SuggestionSearchItem> items;
-                items.reserve(spans.size());
                 auto ordinal = 1000;
                 for (auto it = spans.rbegin(); it != spans.rend(); ++it)
                 {
@@ -3736,25 +3703,19 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                     til::point{ i + 1, span.end.y }.to_core_point(),
                                     span.end.to_core_point()
                                 };
-                                items.emplace_back(item);
+                                results.emplace_back(item);
                                 ordinal--;
                             }
                         }
                     }
                 }
-
-                auto batch = winrt::make_self<SuggestionBatch>(std::move(items));
-                if (auto cb = batchCb.get())
-                {
-                    cb(*batch);
-                }
             }
         }
 
-        co_return;
+        return winrt::single_threaded_vector<SuggestionSearchItem>(std::move(results));
     }
 
-    void ControlCore::HighlightPointSpan(Core::Point start, Core::Point end, bool scrollToSpan)
+    bool ControlCore::HighlightPointSpan(Core::Point start, Core::Point end, int32_t clippedTopRows)
     {
         auto span = til::point_span{ til::point{ start.X, start.Y }, til::point{ end.X, end.Y } };
         std::vector spanVec{ span };
@@ -3768,20 +3729,33 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const auto viewport = _terminal->GetViewport();
         const auto scrollOffset = _terminal->GetViewport().Top();
+        const auto bottomViewportTop = std::max(0, _terminal->GetBufferHeight() - viewport.Height());
+        const auto isAtBottom = [bottomViewportTop](const auto viewTop) {
+            return viewTop >= bottomViewportTop;
+        };
 
-        if (!scrollToSpan)
+        clippedTopRows = std::max(0, clippedTopRows);
+        const auto bottomVisibleTop = bottomViewportTop + clippedTopRows;
+        const auto bottomVisibleBottom = bottomViewportTop + viewport.Height();
+        const auto spanBottom = std::max(start.Y, end.Y);
+        if (start.Y >= bottomVisibleTop && spanBottom < bottomVisibleBottom)
         {
-            return;
+            _terminal->UserScrollViewport(bottomViewportTop);
+            return true;
         }
 
-        const auto visibleTop = scrollOffset;
+        const auto currentClippedTopRows = isAtBottom(scrollOffset) ? clippedTopRows : 0;
+        const auto visibleTop = scrollOffset + currentClippedTopRows;
         const auto visibleBottom = scrollOffset + viewport.Height();
 
         if (start.Y < visibleTop || start.Y >= visibleBottom)
         {
-            const auto newY = std::max(0, start.Y - 5);
+            const auto newY = std::max(0, start.Y - 5 - currentClippedTopRows);
             _terminal->UserScrollViewport(newY);
+            return isAtBottom(newY);
         }
+
+        return isAtBottom(scrollOffset);
     }
 
     void ControlCore::ClearHighlights(bool scrollToCursor)

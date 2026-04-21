@@ -1304,6 +1304,9 @@
                 <SwapChainPanel x:Name="SwapChainPanel"
                                 CompositionScaleChanged="_SwapChainScaleChanged"
                                 SizeChanged="_SwapChainSizeChanged">
+                    <SwapChainPanel.RenderTransform>
+                        <TranslateTransform x:Name="SwapChainPanelTransform" />
+                    </SwapChainPanel.RenderTransform>
                     <Canvas x:Name="OverlayCanvas"
                             Visibility="Visible">
                         <Border x:Name="HyperlinkTooltipBorder"
@@ -1386,8 +1389,8 @@
                     Visibility="Collapsed"/>
                 <local:StreamingSuggestionsControl
                     x:Name="StreamingSuggestions"
-                                    MaxHeight="250"
-                                    HorizontalAlignment="Left"
+                                    MaxHeight="204"
+                                    HorizontalAlignment="Stretch"
                                     VerticalAlignment="Top"
                                     Canvas.ZIndex="100"
                     Visibility="Collapsed"/>
