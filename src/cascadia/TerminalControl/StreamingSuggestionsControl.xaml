@@ -38,24 +38,47 @@
                     Height="40"
                     BorderBrush="{x:Bind BorderColor, Mode=OneWay}"
                     BorderThickness="0,0,0,1">
-                    <TextBox
-                        x:Name="SearchBox"
-                        IsSpellCheckEnabled="False"
-                        Foreground="{x:Bind TextColor, Mode=OneWay}"
-                        Background="{x:Bind BackgroundColor, Mode=OneWay}"
-                        BorderThickness="0"
-                        Padding="8,6"
-                        TextChanged="_SearchBoxTextChanged"
-                        KeyDown="_SearchBoxKeyDown">
-                        <TextBox.Resources>
-                            <StaticResource x:Key="TextControlBackground" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBorderBrush" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="SystemControlTransparentBrush" />
-                        </TextBox.Resources>
-                    </TextBox>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox
+                            Grid.Column="0"
+                            x:Name="SearchBox"
+                            IsSpellCheckEnabled="False"
+                            Foreground="{x:Bind TextColor, Mode=OneWay}"
+                            Background="{x:Bind BackgroundColor, Mode=OneWay}"
+                            BorderThickness="0"
+                            Padding="8,6"
+                            TextChanged="_SearchBoxTextChanged"
+                            KeyDown="_SearchBoxKeyDown">
+                            <TextBox.Resources>
+                                <StaticResource x:Key="TextControlBackground" ResourceKey="SystemControlTransparentBrush" />
+                                <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="SystemControlTransparentBrush" />
+                                <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="SystemControlTransparentBrush" />
+                                <StaticResource x:Key="TextControlBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                                <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="SystemControlTransparentBrush" />
+                                <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="SystemControlTransparentBrush" />
+                            </TextBox.Resources>
+                        </TextBox>
+                        <Border
+                            Grid.Column="1"
+                            x:Name="ModeIndicatorBorder"
+                            VerticalAlignment="Center"
+                            Margin="4,0,8,0"
+                            Padding="6,2"
+                            CornerRadius="3"
+                            BorderBrush="{x:Bind TextColor, Mode=OneWay}"
+                            BorderThickness="1">
+                            <TextBlock
+                                x:Name="ModeIndicatorText"
+                                Text="Contains"
+                                FontSize="11"
+                                Foreground="{x:Bind TextColor, Mode=OneWay}"
+                                Opacity="0.8"/>
+                        </Border>
+                    </Grid>
                 </Border>
                 <ListView
                     x:Name="ListBox"

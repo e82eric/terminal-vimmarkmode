@@ -58,7 +58,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
 
         bool UseFuzzySearch() const { return _useFuzzySearch; }
-        void UseFuzzySearch(bool value) { _useFuzzySearch = value; }
+        void UseFuzzySearch(bool value)
+        {
+            _useFuzzySearch = value;
+            _updateModeIndicator();
+        }
 
         void _SearchBoxTextChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&);
         void _SplitSearchBoxTextChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&);
@@ -120,6 +124,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void _recalculateTopMargin();
         void _recalculateHorizontalPlacement();
+        void _updateModeIndicator();
         void _ensureCellWidth();
         void _setDirection();
         void _OnCopyNotificationTimerTick(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::Foundation::IInspectable const&);

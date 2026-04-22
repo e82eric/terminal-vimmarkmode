@@ -43,6 +43,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         });
 
         _initKeyBindings();
+        _updateModeIndicator();
     }
 
     Controls::ListView StreamingSuggestionsControl::_activeListBox()
@@ -431,11 +432,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto itemCount = _activeListBox().Items().Size();
         const auto mods = modifiers.Value;
 
-        // Allow the help toggle even with no results — it's a UX aid, not a
-        // list-level action.
+        // Allow the help toggle and mode toggle even with no results — UX aids,
+        // not list-level actions.
         const bool isHelpKey = (vkey == VK_OEM_2) &&
                                WI_AreAllFlagsSet(mods, LEFT_CTRL_PRESSED | SHIFT_PRESSED);
-        if (itemCount == 0 && !isHelpKey && !_helpVisible)
+        const bool isModeToggleKey = vkey == VK_TAB && mods == 0;
+        if (itemCount == 0 && !isHelpKey && !isModeToggleKey && !_helpVisible)
         {
             return false;
         }
@@ -560,7 +562,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     if (auto castedDc = _TryGetSelectedSuggestion())
                     {
                         std::wstring needle = L"^.*";
-                        needle += castedDc->Text;
+                        needle += SearchBox().Text();
                         needle += L".*$";
                         auto op = _termControl.SuggestionScrollBackSearchAsync(
                             needle,
@@ -653,6 +655,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 L"Enter",
                 L"Insert selected item",
                 [this](bool keyDown) { return _applySelectedOrClose(keyDown); },
+            },
+            KB{
+                0,
+                VK_TAB,
+                L"Tab",
+                L"Toggle between fuzzy and contains search",
+                [this](bool keyDown) {
+                    if (!keyDown)
+                    {
+                        return true;
+                    }
+                    if (_mode == StreamingSuggestionsMode::WordSplit)
+                    {
+                        return false;
+                    }
+                    _useFuzzySearch = !_useFuzzySearch;
+                    _updateModeIndicator();
+                    _triggerSearch();
+                    return true;
+                },
             },
             KB{
                 0,
@@ -1037,11 +1059,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const bool isHelpKey = key == VK_OEM_2 &&
                                WI_AreAllFlagsSet(mods, LEFT_CTRL_PRESSED | SHIFT_PRESSED);
-        if (itemCount == 0 && key != VK_ESCAPE && !isHelpKey && !_helpVisible)
-        {
-            return;
-        }
-        if (key == VK_TAB && mods == 0 && listBox.SelectedIndex() < 0)
+        const bool isModeToggleKey = key == VK_TAB && mods == 0;
+        if (itemCount == 0 && key != VK_ESCAPE && !isHelpKey && !isModeToggleKey && !_helpVisible)
         {
             return;
         }
@@ -1241,5 +1260,16 @@ done:
         auto m = Margin();
         m.Left = 0.0;
         Margin(m);
+    }
+
+    void StreamingSuggestionsControl::_updateModeIndicator()
+    {
+        // Guard against being called before XAML parts are wired up
+        // (UseFuzzySearch setter may fire during initialization).
+        if (!ModeIndicatorText())
+        {
+            return;
+        }
+        ModeIndicatorText().Text(_useFuzzySearch ? L"Fuzzy" : L"Contains");
     }
 }
