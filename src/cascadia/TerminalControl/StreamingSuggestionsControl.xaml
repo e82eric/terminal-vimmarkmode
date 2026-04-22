@@ -93,6 +93,21 @@
                     <ListView.ItemContainerTransitions>
                         <TransitionCollection />
                     </ListView.ItemContainerTransitions>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                            <Setter Property="Height" Value="40"/>
+                            <Setter Property="MinHeight" Value="40"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:SuggestionSearchRow">
+                            <local:FuzzySearchTextControl
+                                TextColor="{x:Bind TextColor}"
+                                HighlightedTextColor="{x:Bind HighlightedTextColor}"
+                                Text="{x:Bind Line}"
+                                HorizontalAlignment="Left"/>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
                 </ListView>
                 <TextBlock
                     Grid.Row="1"
@@ -158,6 +173,21 @@
                     <ListView.ItemContainerTransitions>
                         <TransitionCollection />
                     </ListView.ItemContainerTransitions>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                            <Setter Property="Height" Value="40"/>
+                            <Setter Property="MinHeight" Value="40"/>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="local:SuggestionSearchRow">
+                            <local:FuzzySearchTextControl
+                                TextColor="{x:Bind TextColor}"
+                                HighlightedTextColor="{x:Bind HighlightedTextColor}"
+                                Text="{x:Bind Line}"
+                                HorizontalAlignment="Left"/>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
                 </ListView>
                 <TextBlock
                     Grid.Row="1"

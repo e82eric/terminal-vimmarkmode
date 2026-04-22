@@ -5,6 +5,11 @@
 #include "FuzzySearchTextSegment.h"
 #include "StreamingSuggestionsControl.h"
 #include "StreamingSuggestionsControl.g.cpp"
+#include "SuggestionSearchRow.g.cpp"
+
+#ifdef NDEBUG
+#include <execution>
+#endif
 
 using namespace winrt::Windows::UI::Xaml::Media;
 
@@ -57,7 +62,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (!show)
         {
             SplitSearchBox().Text(L"");
-            SplitListBox().Items().Clear();
+            SplitListBox().ItemsSource(nullptr);
             _splitItems.clear();
             SplitNoItemsPlaceholder().Visibility(Visibility::Collapsed);
         }
@@ -259,10 +264,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _searchBoxMode = false;
         _showSplitOverlay(false);
         SearchBox().Text(L"");
-        ListBox().Items().Clear();
+        ListBox().ItemsSource(nullptr);
         Visibility(Windows::UI::Xaml::Visibility::Collapsed);
         _termControl.SetStreamingSuggestionsSwapChainOffset(0.0f);
         _termControl.ClearHighlights(scrollToCursor);
+        _termControl.Focus(Windows::UI::Xaml::FocusState::Programmatic);
     }
 
     void StreamingSuggestionsControl::Open(
@@ -302,7 +308,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::lock_guard<std::mutex> lock(_batchesMutex);
             _batches.clear();
         }
-        ListBox().Items().Clear();
+        ListBox().ItemsSource(nullptr);
         ListBox().SelectedIndex(-1);
         NoItemsPlaceholder().Visibility(Visibility::Collapsed);
 
@@ -343,12 +349,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return std::nullopt;
         }
 
-        Controls::ListViewItem lvi = selected.try_as<Controls::ListViewItem>();
-        Windows::Foundation::IInspectable data = lvi ? lvi.DataContext() : selected;
-
-        if (auto suggestion = data.try_as<SuggestionSearchItem>())
+        if (auto row = selected.try_as<Control::SuggestionSearchRow>())
         {
-            return suggestion;
+            return row.Item();
         }
 
         return std::nullopt;
@@ -840,10 +843,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    Control::FuzzySearchTextLine StreamingSuggestionsControl::_BuildLine(hstring const& text,
-                                                                        int32_t row,
-                                                                        int32_t col,
-                                                                        std::optional<std::vector<fzfcpp::matcher::TextRun>> const& runs)
+    static Control::FuzzySearchTextLine BuildLine(hstring const& text,
+                                                  int32_t row,
+                                                  int32_t col,
+                                                  std::optional<std::vector<fzfcpp::matcher::TextRun>> const& runs)
     {
         auto segments = winrt::single_threaded_observable_vector<Control::FuzzySearchTextSegment>();
         if (runs && !runs->empty())
@@ -871,6 +874,92 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             segments.Append(winrt::make<implementation::FuzzySearchTextSegment>(text, false));
         }
         return winrt::make<implementation::FuzzySearchTextLine>(segments, row, col);
+    }
+
+    winrt::Windows::Foundation::IInspectable LazySuggestionRowVector::GetAt(uint32_t index)
+    {
+        if (index >= _sources.size())
+        {
+            throw winrt::hresult_out_of_bounds();
+        }
+        auto& cached = _cache[index];
+        if (!cached)
+        {
+            const auto& src = _sources[index];
+            auto line = BuildLine(src.item.Text, src.item.StartPos.Y, src.item.StartPos.X, src.runs);
+            cached = winrt::make<SuggestionSearchRow>(line, src.item, _textColor, _highlightedTextColor);
+        }
+        return cached;
+    }
+
+    winrt::Windows::Foundation::Collections::IVectorView<winrt::Windows::Foundation::IInspectable> LazySuggestionRowVector::GetView()
+    {
+        return winrt::make<LazySuggestionRowVectorView>(get_strong());
+    }
+
+    bool LazySuggestionRowVector::IndexOf(winrt::Windows::Foundation::IInspectable const& value, uint32_t& index) const noexcept
+    {
+        for (uint32_t i = 0; i < _cache.size(); ++i)
+        {
+            if (_cache[i] && _cache[i] == value)
+            {
+                index = i;
+                return true;
+            }
+        }
+        index = 0;
+        return false;
+    }
+
+    uint32_t LazySuggestionRowVector::GetMany(uint32_t startIndex, winrt::array_view<winrt::Windows::Foundation::IInspectable> items)
+    {
+        const auto total = static_cast<uint32_t>(_sources.size());
+        if (startIndex >= total)
+        {
+            return 0;
+        }
+        const auto available = total - startIndex;
+        const auto copied = std::min<uint32_t>(available, static_cast<uint32_t>(items.size()));
+        for (uint32_t i = 0; i < copied; ++i)
+        {
+            items[i] = GetAt(startIndex + i);
+        }
+        return copied;
+    }
+
+    winrt::Windows::Foundation::Collections::IIterator<winrt::Windows::Foundation::IInspectable> LazySuggestionRowVector::First()
+    {
+        return winrt::make<LazySuggestionRowIterator>(get_strong());
+    }
+
+    winrt::Windows::Foundation::IInspectable LazySuggestionRowIterator::Current() const
+    {
+        if (_index >= _owner->Size())
+        {
+            throw winrt::hresult_out_of_bounds();
+        }
+        return _owner->GetAt(_index);
+    }
+
+    bool LazySuggestionRowIterator::HasCurrent() const noexcept
+    {
+        return _index < _owner->Size();
+    }
+
+    bool LazySuggestionRowIterator::MoveNext() noexcept
+    {
+        if (_index < _owner->Size())
+        {
+            ++_index;
+        }
+        return _index < _owner->Size();
+    }
+
+    uint32_t LazySuggestionRowIterator::GetMany(winrt::array_view<winrt::Windows::Foundation::IInspectable> items)
+    {
+        const auto copied = _owner->GetMany(_index, items);
+        _index += copied;
+        return copied;
     }
 
     winrt::Windows::Foundation::IAsyncAction StreamingSuggestionsControl::_performFuzzySearch(std::wstring searchTerm, uint64_t version)
@@ -907,19 +996,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 co_return;
             }
 
-            ListBox().Items().Clear();
-            ListBox().SelectedIndex(-1);
+            std::vector<SuggestionRowSource> sources;
             for (const auto& item : itemsSnapshot)
             {
-                auto line = _BuildLine(item.Text, item.StartPos.Y, item.StartPos.X, {});
-                auto lbi = _makeListViewItem(line, box_value(item));
-                ListBox().Items().Append(lbi);
-
-                if (ListBox().Items().Size() >= 10)
+                sources.push_back({ item, std::nullopt });
+                if (sources.size() >= 5)
                 {
                     break;
                 }
             }
+            const auto shown = static_cast<uint32_t>(sources.size());
+            ListBox().ItemsSource(winrt::make<LazySuggestionRowVector>(std::move(sources), TextColor(), HighlightedTextColor()));
+            ListBox().SelectedIndex(-1);
 
             Visibility(Visibility::Visible);
             _recalculateTopMargin();
@@ -929,8 +1017,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 _selectItem(0);
             }
 
-            NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
-            if (ListBox().Items().Size() == 0)
+            NoItemsPlaceholder().Visibility(shown == 0 ? Visibility::Visible : Visibility::Collapsed);
+            if (shown == 0)
             {
                 _termControl.ClearHighlights(false);
             }
@@ -940,10 +1028,41 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             co_return;
         }
 
+        using clock = std::chrono::steady_clock;
+        const auto t0 = clock::now();
+
         auto pattern = fzfcpp::matcher::ParsePatternWithTypes(searchTerm);
+
+        const auto tParse = clock::now();
 
         std::vector<ScoredItem> scoredItems;
 
+#ifdef NDEBUG
+        std::vector<std::optional<ScoredItem>> slots(itemsSnapshot.size());
+        std::transform(std::execution::par, itemsSnapshot.begin(), itemsSnapshot.end(), slots.begin(),
+            [&pattern](const auto& item) -> std::optional<ScoredItem> {
+                auto matchResult = fzfcpp::matcher::Match(item.Text, pattern);
+                if (!matchResult)
+                {
+                    return std::nullopt;
+                }
+                return ScoredItem{ item, matchResult->Score, matchResult->Runs, item.Ordinal };
+            });
+
+        if (version != _searchVersion)
+        {
+            co_return;
+        }
+
+        scoredItems.reserve(slots.size());
+        for (auto& slot : slots)
+        {
+            if (slot)
+            {
+                scoredItems.push_back(std::move(*slot));
+            }
+        }
+#else
         for (const auto& item : itemsSnapshot)
         {
             if (version != _searchVersion)
@@ -957,8 +1076,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 scoredItems.push_back({ item, matchResult->Score, matchResult->Runs, item.Ordinal });
             }
         }
+#endif
 
-        auto MaxResults = 1000;
+        const auto tMatch = clock::now();
+        const auto matchedCount = scoredItems.size();
+
+        auto MaxResults = 100000;
         if (scoredItems.size() > MaxResults)
         {
             std::ranges::partial_sort(scoredItems, scoredItems.begin() + MaxResults, [](const ScoredItem& a, const ScoredItem& b) {
@@ -981,16 +1104,37 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             });
         }
 
+        const auto tSort = clock::now();
+
         co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
 
-        ListBox().Items().Clear();
-        ListBox().SelectedIndex(-1);
-        for (const auto& scoredItem : scoredItems)
+        const auto tForeground = clock::now();
+
+        std::vector<SuggestionRowSource> sources;
+        sources.reserve(scoredItems.size());
+        for (auto& scoredItem : scoredItems)
         {
-            auto line = _BuildLine(scoredItem.item.Text, scoredItem.item.StartPos.Y, scoredItem.item.StartPos.X, scoredItem.runs);
-            auto lbi = _makeListViewItem(line, box_value(scoredItem.item));
-            ListBox().Items().Append(lbi);
+            sources.push_back({ scoredItem.item, std::move(scoredItem.runs) });
         }
+        ListBox().ItemsSource(winrt::make<LazySuggestionRowVector>(std::move(sources), TextColor(), HighlightedTextColor()));
+        ListBox().SelectedIndex(-1);
+
+        const auto tAppend = clock::now();
+
+        const auto us = [](auto a, auto b) {
+            return std::chrono::duration_cast<std::chrono::microseconds>(b - a).count();
+        };
+        OutputDebugStringW(fmt::format(
+            FMT_COMPILE(L"[StreamingSuggestions] fuzzy total={}us parse={}us match={}us sort={}us fg_switch={}us append={}us items={} matched={} shown={}\n"),
+            us(t0, tAppend),
+            us(t0, tParse),
+            us(tParse, tMatch),
+            us(tMatch, tSort),
+            us(tSort, tForeground),
+            us(tForeground, tAppend),
+            itemsSnapshot.size(),
+            matchedCount,
+            scoredItems.size()).c_str());
 
         _allItemsSearched = true;
         if (!scoredItems.empty())
@@ -1003,8 +1147,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         InvalidateMeasure();
         _recalculateTopMargin();
 
-        NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
-        if (ListBox().Items().Size() == 0)
+        NoItemsPlaceholder().Visibility(scoredItems.empty() ? Visibility::Visible : Visibility::Collapsed);
+        if (scoredItems.empty())
         {
             _termControl.ClearHighlights(false);
         }
@@ -1091,9 +1235,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             batchesSnapshot.assign(_batches.begin(), _batches.end());
         }
 
+        using clock = std::chrono::steady_clock;
+        const auto t0 = clock::now();
+
         auto pattern = fzfcpp::matcher::ParsePatternContainsOnly(searchTerm);
-        constexpr auto MaxResults = 1000;
+
+        const auto tParse = clock::now();
+
+        constexpr auto MaxResults = 5;
         std::vector<MatchedItem> matchedItems;
+        size_t itemsScanned = 0;
 
         for (const auto& batch : batchesSnapshot)
         {
@@ -1103,6 +1254,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             for (const auto& item : batch.Items())
             {
+                ++itemsScanned;
                 if (auto matchResult = fzfcpp::matcher::Match(item.Text, pattern))
                 {
                     matchedItems.push_back({ item, matchResult->Runs });
@@ -1114,16 +1266,35 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 done:
         // Items are already in ordinal-ascending order (scrollback scanned top→bottom),
         // so no sort is needed.
+        const auto tMatch = clock::now();
+
         co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
 
-        ListBox().Items().Clear();
-        ListBox().SelectedIndex(-1);
-        for (const auto& matched : matchedItems)
+        const auto tForeground = clock::now();
+
+        std::vector<SuggestionRowSource> sources;
+        sources.reserve(matchedItems.size());
+        for (auto& matched : matchedItems)
         {
-            auto line = _BuildLine(matched.item.Text, matched.item.StartPos.Y, matched.item.StartPos.X, matched.runs);
-            auto lbi = _makeListViewItem(line, box_value(matched.item));
-            ListBox().Items().Append(lbi);
+            sources.push_back({ matched.item, std::move(matched.runs) });
         }
+        ListBox().ItemsSource(winrt::make<LazySuggestionRowVector>(std::move(sources), TextColor(), HighlightedTextColor()));
+        ListBox().SelectedIndex(-1);
+
+        const auto tAppend = clock::now();
+
+        const auto us = [](auto a, auto b) {
+            return std::chrono::duration_cast<std::chrono::microseconds>(b - a).count();
+        };
+        OutputDebugStringW(fmt::format(
+            FMT_COMPILE(L"[StreamingSuggestions] contains total={}us parse={}us match={}us fg_switch={}us append={}us scanned={} shown={}\n"),
+            us(t0, tAppend),
+            us(t0, tParse),
+            us(tParse, tMatch),
+            us(tMatch, tForeground),
+            us(tForeground, tAppend),
+            itemsScanned,
+            matchedItems.size()).c_str());
 
         _allItemsSearched = true;
         if (!matchedItems.empty())
@@ -1136,8 +1307,8 @@ done:
         InvalidateMeasure();
         _recalculateTopMargin();
 
-        NoItemsPlaceholder().Visibility(ListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
-        if (ListBox().Items().Size() == 0)
+        NoItemsPlaceholder().Visibility(matchedItems.empty() ? Visibility::Visible : Visibility::Collapsed);
+        if (matchedItems.empty())
         {
             _termControl.ClearHighlights(false);
         }
@@ -1154,16 +1325,14 @@ done:
             int32_t ordinal;
         };
 
-        SplitListBox().Items().Clear();
-        SplitListBox().SelectedIndex(-1);
+        std::vector<SuggestionRowSource> sources;
 
         if (searchTerm.empty())
         {
+            sources.reserve(_splitItems.size());
             for (const auto& item : _splitItems)
             {
-                auto line = _BuildLine(item.Text, item.StartPos.Y, item.StartPos.X, {});
-                auto lbi = _makeListViewItem(line, box_value(item));
-                SplitListBox().Items().Append(lbi);
+                sources.push_back({ item, std::nullopt });
             }
         }
         else
@@ -1189,16 +1358,19 @@ done:
                 return a.score > b.score;
             });
 
-            for (const auto& scoredItem : scoredItems)
+            sources.reserve(scoredItems.size());
+            for (auto& scoredItem : scoredItems)
             {
-                auto line = _BuildLine(scoredItem.item.Text, scoredItem.item.StartPos.Y, scoredItem.item.StartPos.X, scoredItem.runs);
-                auto lbi = _makeListViewItem(line, box_value(scoredItem.item));
-                SplitListBox().Items().Append(lbi);
+                sources.push_back({ scoredItem.item, std::move(scoredItem.runs) });
             }
         }
 
-        SplitNoItemsPlaceholder().Visibility(SplitListBox().Items().Size() == 0 ? Visibility::Visible : Visibility::Collapsed);
-        if (SplitListBox().Items().Size() > 0)
+        const auto shown = static_cast<uint32_t>(sources.size());
+        SplitListBox().ItemsSource(winrt::make<LazySuggestionRowVector>(std::move(sources), TextColor(), HighlightedTextColor()));
+        SplitListBox().SelectedIndex(-1);
+
+        SplitNoItemsPlaceholder().Visibility(shown == 0 ? Visibility::Visible : Visibility::Collapsed);
+        if (shown > 0)
         {
             _selectItem(0);
         }
@@ -1206,25 +1378,6 @@ done:
         {
             _termControl.ClearHighlights(false);
         }
-    }
-
-    Controls::ListViewItem StreamingSuggestionsControl::_makeListViewItem(Control::FuzzySearchTextLine const& line, winrt::Windows::Foundation::IInspectable const& dataContext)
-    {
-        const auto input = Control::FuzzySearchTextControl{};
-        input.TextColor(TextColor());
-        input.HighlightedTextColor(HighlightedTextColor());
-        input.HorizontalAlignment(Windows::UI::Xaml::HorizontalAlignment::Left);
-        input.Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(0, 0, 0, 0));
-        input.Text(line);
-
-        auto lbi = winrt::Windows::UI::Xaml::Controls::ListViewItem{};
-        lbi.Height(StreamingSuggestionItemHeight);
-        lbi.Content(input);
-        if (dataContext)
-        {
-            lbi.DataContext(dataContext);
-        }
-        return lbi;
     }
 
     void StreamingSuggestionsControl::_recalculateTopMargin()

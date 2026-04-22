@@ -3398,17 +3398,18 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return {};
         }
 
-        // Sample up to 5 lines above and 5 below, stopping at blank lines
-        // or lines with very different length
+        // Sample up to 10 lines above and 10 below, stopping only at blank
+        // lines (block boundaries). We intentionally don't filter by line
+        // length: the 70%-vote histogram below is a stronger signal for
+        // "same table structure", and a length filter throws out sibling
+        // rows whose names happen to be much longer/shorter than the target.
         std::vector<til::CoordType> sampledLines;
         sampledLines.push_back(targetLine);
 
         const auto totalRows = buffer.TotalRowCount();
-        const auto lenThresholdLow = static_cast<til::CoordType>(targetLen * 0.7);
-        const auto lenThresholdHigh = static_cast<til::CoordType>(targetLen * 1.3);
 
         // Sample upward
-        for (til::CoordType i = 1; i <= 5; ++i)
+        for (til::CoordType i = 1; i <= 10; ++i)
         {
             auto y = targetLine - i;
             if (y < 0)
@@ -3416,23 +3417,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             const auto& row = buffer.GetRowByOffset(y);
             if (!row.ContainsText())
                 break;
-            auto len = row.GetLastNonSpaceColumn();
-            if (len < lenThresholdLow || len > lenThresholdHigh)
-                break;
             sampledLines.push_back(y);
         }
 
         // Sample downward
-        for (til::CoordType i = 1; i <= 5; ++i)
+        for (til::CoordType i = 1; i <= 10; ++i)
         {
             auto y = targetLine + i;
             if (y >= totalRows)
                 break;
             const auto& row = buffer.GetRowByOffset(y);
             if (!row.ContainsText())
-                break;
-            auto len = row.GetLastNonSpaceColumn();
-            if (len < lenThresholdLow || len > lenThresholdHigh)
                 break;
             sampledLines.push_back(y);
         }
@@ -3443,7 +3438,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return {};
         }
 
-        // Build boundary histogram: count lines where position x is a space->non-space transition
+        // Build boundary histogram: count any whitespace boundary at position x,
+        // in either direction. Counting `non-space->space` (right edges) in
+        // addition to `space->non-space` (left edges) catches right-aligned
+        // numeric columns — their left edge drifts with digit count but their
+        // right edge is stable, and that stable edge is enough to separate the
+        // column from its neighbors.
         const auto lineCount = static_cast<int>(sampledLines.size());
         const auto threshold = static_cast<int>(lineCount * 0.7);
         std::map<til::CoordType, int> boundaryVotes;
@@ -3456,7 +3456,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             for (til::CoordType x = 1; x < len; ++x)
             {
-                if (std::iswspace(text[x - 1]) && !std::iswspace(text[x]))
+                if (std::iswspace(text[x - 1]) != std::iswspace(text[x]))
                 {
                     boundaryVotes[x]++;
                 }
@@ -3525,7 +3525,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     Windows::Foundation::Collections::IVector<SuggestionSearchItem> ControlCore::LineSearchAsync(int32_t lineNumber)
     {
         auto splitBySpace = L"[^\\s]{3,}";
-        auto splitByMoreThanOneSpace = L"\\S(?: ?\\S)*";
+        //auto splitByMoreThanOneSpace = L"\\S(?: ?\\S)*";
+
+        // Windows file paths (drive-letter form). Allows spaces in the path,
+        // terminates at `.ext` (1–10 alphanumerics) followed by whitespace or
+        // end-of-line, OR at end-of-line directly (for bare directory paths
+        // that have no extension to anchor on). Forbids `:` in the middle so
+        // we don't glue two paths together across intervening text
+        // (e.g. "C:\a and C:\b.txt").
+        auto windowsPath = LR"([A-Za-z]:[\\/][^\r\n:<>|*?"]*?(?:\.[A-Za-z0-9]{1,10}(?=\s|$)|$))";
 
         static const std::array s_wrappedRegexes = {
             LR"((?<=\{)[^}]*(?=\}))",
@@ -3653,6 +3661,35 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
         }
 
+        if (auto searchResults = buffer.SearchText(windowsPath, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
+        {
+            auto spans = searchResults.value();
+
+            auto ordinal = 1000;
+            for (auto it = spans.rbegin(); it != spans.rend(); ++it)
+            {
+                auto span = *it;
+                auto text = buffer.GetPlainText(span.start, span.end);
+
+                if (text.empty())
+                {
+                    continue;
+                }
+
+                if (seen.insert(text).second)
+                {
+                    auto item = SuggestionSearchItem{
+                        hstring{ text },
+                        ordinal,
+                        span.start.to_core_point(),
+                        span.end.to_core_point()
+                    };
+                    results.emplace_back(std::move(item));
+                    --ordinal;
+                }
+            }
+        }
+
         if (auto searchResults = buffer.SearchText(splitBySpace, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
         {
             auto spans = searchResults.value();
@@ -3677,40 +3714,40 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
         }
 
-        if (auto searchResults = buffer.SearchText(splitByMoreThanOneSpace, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
-        {
-            if (searchResults->size() > 1)
-            {
-                auto spans = searchResults.value();
+        //if (auto searchResults = buffer.SearchText(splitByMoreThanOneSpace, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
+        //{
+        //    if (searchResults->size() > 1)
+        //    {
+        //        auto spans = searchResults.value();
 
-                auto ordinal = 1000;
-                for (auto it = spans.rbegin(); it != spans.rend(); ++it)
-                {
-                    auto span = *it;
+        //        auto ordinal = 1000;
+        //        for (auto it = spans.rbegin(); it != spans.rend(); ++it)
+        //        {
+        //            auto span = *it;
 
-                    auto& row = buffer.GetRowByOffset(span.end.y);
-                    for (auto i = span.end.x - 1; i >= span.start.x; i--)
-                    {
-                        auto delimiter = row.DelimiterClassAt(i, L"");
-                        if (delimiter == DelimiterClass::ControlChar)
-                        {
-                            auto current = buffer.GetPlainText(til::point{ i + 1, span.end.y }, span.end);
-                            if (seen.insert(current).second)
-                            {
-                                auto item = SuggestionSearchItem{
-                                    hstring{ current },
-                                    ordinal,
-                                    til::point{ i + 1, span.end.y }.to_core_point(),
-                                    span.end.to_core_point()
-                                };
-                                results.emplace_back(item);
-                                ordinal--;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        //            auto& row = buffer.GetRowByOffset(span.end.y);
+        //            for (auto i = span.end.x - 1; i >= span.start.x; i--)
+        //            {
+        //                auto delimiter = row.DelimiterClassAt(i, L"");
+        //                if (delimiter == DelimiterClass::ControlChar)
+        //                {
+        //                    auto current = buffer.GetPlainText(til::point{ i + 1, span.end.y }, span.end);
+        //                    if (seen.insert(current).second)
+        //                    {
+        //                        auto item = SuggestionSearchItem{
+        //                            hstring{ current },
+        //                            ordinal,
+        //                            til::point{ i + 1, span.end.y }.to_core_point(),
+        //                            span.end.to_core_point()
+        //                        };
+        //                        results.emplace_back(item);
+        //                        ordinal--;
+        //                    }
+        //                }
+        //            }
+        //        }
+        //    }
+        //}
 
         return winrt::single_threaded_vector<SuggestionSearchItem>(std::move(results));
     }

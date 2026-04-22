@@ -3,10 +3,111 @@
 #pragma once
 
 #include "StreamingSuggestionsControl.g.h"
+#include "SuggestionSearchRow.g.h"
 #include "../fzfcpp/fzf.h"
 
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
+    struct SuggestionSearchRow : SuggestionSearchRowT<SuggestionSearchRow>
+    {
+        SuggestionSearchRow() = default;
+        SuggestionSearchRow(Control::FuzzySearchTextLine const& line,
+                            Control::SuggestionSearchItem const& item,
+                            Windows::UI::Xaml::Media::Brush const& textColor,
+                            Windows::UI::Xaml::Media::Brush const& highlightedTextColor) :
+            _Line(line), _Item(item), _TextColor(textColor), _HighlightedTextColor(highlightedTextColor) {}
+
+        Control::FuzzySearchTextLine Line() const { return _Line; }
+        Control::SuggestionSearchItem Item() const { return _Item; }
+        Windows::UI::Xaml::Media::Brush TextColor() const { return _TextColor; }
+        Windows::UI::Xaml::Media::Brush HighlightedTextColor() const { return _HighlightedTextColor; }
+
+    private:
+        Control::FuzzySearchTextLine _Line{ nullptr };
+        Control::SuggestionSearchItem _Item{};
+        Windows::UI::Xaml::Media::Brush _TextColor{ nullptr };
+        Windows::UI::Xaml::Media::Brush _HighlightedTextColor{ nullptr };
+    };
+
+    struct SuggestionRowSource
+    {
+        Microsoft::Terminal::Control::SuggestionSearchItem item;
+        std::optional<std::vector<fzfcpp::matcher::TextRun>> runs;
+    };
+
+    struct LazySuggestionRowVector;
+
+    struct LazySuggestionRowIterator : winrt::implements<LazySuggestionRowIterator,
+                                                         winrt::Windows::Foundation::Collections::IIterator<winrt::Windows::Foundation::IInspectable>>
+    {
+        LazySuggestionRowIterator(winrt::com_ptr<LazySuggestionRowVector> owner) :
+            _owner(std::move(owner)) {}
+
+        winrt::Windows::Foundation::IInspectable Current() const;
+        bool HasCurrent() const noexcept;
+        bool MoveNext() noexcept;
+        uint32_t GetMany(winrt::array_view<winrt::Windows::Foundation::IInspectable> items);
+
+    private:
+        winrt::com_ptr<LazySuggestionRowVector> _owner;
+        uint32_t _index{ 0 };
+    };
+
+    struct LazySuggestionRowVectorView;
+
+    struct LazySuggestionRowVector : winrt::implements<LazySuggestionRowVector,
+                                                       winrt::Windows::Foundation::Collections::IVector<winrt::Windows::Foundation::IInspectable>,
+                                                       winrt::Windows::Foundation::Collections::IIterable<winrt::Windows::Foundation::IInspectable>>
+    {
+        LazySuggestionRowVector(std::vector<SuggestionRowSource> sources,
+                                Windows::UI::Xaml::Media::Brush textColor,
+                                Windows::UI::Xaml::Media::Brush highlightedTextColor) :
+            _sources(std::move(sources)),
+            _textColor(textColor),
+            _highlightedTextColor(highlightedTextColor)
+        {
+            _cache.resize(_sources.size());
+        }
+
+        uint32_t Size() const noexcept { return static_cast<uint32_t>(_sources.size()); }
+        winrt::Windows::Foundation::IInspectable GetAt(uint32_t index);
+        winrt::Windows::Foundation::Collections::IVectorView<winrt::Windows::Foundation::IInspectable> GetView();
+        bool IndexOf(winrt::Windows::Foundation::IInspectable const& value, uint32_t& index) const noexcept;
+        uint32_t GetMany(uint32_t startIndex, winrt::array_view<winrt::Windows::Foundation::IInspectable> items);
+        winrt::Windows::Foundation::Collections::IIterator<winrt::Windows::Foundation::IInspectable> First();
+
+        void SetAt(uint32_t, winrt::Windows::Foundation::IInspectable const&) { throw winrt::hresult_not_implemented(); }
+        void InsertAt(uint32_t, winrt::Windows::Foundation::IInspectable const&) { throw winrt::hresult_not_implemented(); }
+        void RemoveAt(uint32_t) { throw winrt::hresult_not_implemented(); }
+        void Append(winrt::Windows::Foundation::IInspectable const&) { throw winrt::hresult_not_implemented(); }
+        void RemoveAtEnd() { throw winrt::hresult_not_implemented(); }
+        void Clear() { throw winrt::hresult_not_implemented(); }
+        void ReplaceAll(winrt::array_view<winrt::Windows::Foundation::IInspectable const>) { throw winrt::hresult_not_implemented(); }
+
+    private:
+        std::vector<SuggestionRowSource> _sources;
+        std::vector<winrt::Windows::Foundation::IInspectable> _cache;
+        Windows::UI::Xaml::Media::Brush _textColor{ nullptr };
+        Windows::UI::Xaml::Media::Brush _highlightedTextColor{ nullptr };
+    };
+
+    struct LazySuggestionRowVectorView : winrt::implements<LazySuggestionRowVectorView,
+                                                           winrt::Windows::Foundation::Collections::IVectorView<winrt::Windows::Foundation::IInspectable>,
+                                                           winrt::Windows::Foundation::Collections::IIterable<winrt::Windows::Foundation::IInspectable>>
+    {
+        LazySuggestionRowVectorView(winrt::com_ptr<LazySuggestionRowVector> owner) :
+            _owner(std::move(owner)) {}
+
+        uint32_t Size() const noexcept { return _owner->Size(); }
+        winrt::Windows::Foundation::IInspectable GetAt(uint32_t index) { return _owner->GetAt(index); }
+        bool IndexOf(winrt::Windows::Foundation::IInspectable const& value, uint32_t& index) const noexcept { return _owner->IndexOf(value, index); }
+        uint32_t GetMany(uint32_t startIndex, winrt::array_view<winrt::Windows::Foundation::IInspectable> items) { return _owner->GetMany(startIndex, items); }
+        winrt::Windows::Foundation::Collections::IIterator<winrt::Windows::Foundation::IInspectable> First() { return _owner->First(); }
+
+    private:
+        winrt::com_ptr<LazySuggestionRowVector> _owner;
+    };
+
     struct StreamingSuggestionsControl : StreamingSuggestionsControlT<StreamingSuggestionsControl>
     {
         winrt::event_token PropertyChanged(const winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler& handler);
@@ -113,14 +214,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version);
         winrt::Windows::Foundation::IAsyncAction _performContainsSearch(std::wstring searchTerm, uint64_t version);
         void _populateSplitList(std::wstring searchTerm);
-        Windows::UI::Xaml::Controls::ListViewItem _makeListViewItem(Control::FuzzySearchTextLine const& line,
-                                                                    winrt::Windows::Foundation::IInspectable const&
-                                                                    dataContext);
-
-        Control::FuzzySearchTextLine _BuildLine(hstring const& text,
-                                                int32_t row,
-                                                int32_t col,
-                                                std::optional<std::vector<fzfcpp::matcher::TextRun>> const& runs);
 
         void _recalculateTopMargin();
         void _recalculateHorizontalPlacement();

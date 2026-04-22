@@ -6,6 +6,14 @@ import "TermControl.idl";
 
 namespace Microsoft.Terminal.Control
 {
+    [default_interface] runtimeclass SuggestionSearchRow
+    {
+        FuzzySearchTextLine Line { get; };
+        SuggestionSearchItem Item { get; };
+        Windows.UI.Xaml.Media.Brush TextColor { get; };
+        Windows.UI.Xaml.Media.Brush HighlightedTextColor { get; };
+    }
+
     [default_interface] runtimeclass StreamingSuggestionsControl : Windows.UI.Xaml.Controls.UserControl, Windows.UI.Xaml.Data.INotifyPropertyChanged
     {
         StreamingSuggestionsControl();
