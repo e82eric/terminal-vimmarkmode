@@ -442,6 +442,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     void SnippetSearchControl::_close()
     {
         ListBox().Items().Clear();
+        if (_termControl)
+        {
+            _termControl.SetSnippetSearchSwapChainOffset(0.0f);
+        }
         _ClosedHandlers(*this, RoutedEventArgs{});
     }
 
@@ -547,7 +551,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             winrt::hstring currentWord,
             float prefixWidth,
             int32_t cursorX,
-            bool autoCompleteMode)
+            bool autoCompleteMode,
+            float characterHeight,
+            float swapChainOffset)
     {
         _autoCompleteMode = autoCompleteMode;
         _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
@@ -556,11 +562,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _anchor = anchor;
         _space = space;
         _prefixWidth = prefixWidth;
-
-        const auto proposedX = gsl::narrow_cast<int>(anchor.X - prefixWidth);
-        const auto maxX = gsl::narrow_cast<int>(space.Width - ActualWidth());
-        const auto clampedX = std::clamp(proposedX, 0, maxX);
-        Margin(Windows::UI::Xaml::ThicknessHelper::FromLengths(clampedX, 0, 0, 0));
+        _characterHeight = characterHeight;
+        _swapChainOffset = swapChainOffset;
 
         _performFuzzySearch();
         Visibility(Visibility::Visible);
@@ -677,84 +680,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::_recalculateTopMargin()
     {
-        const auto preferredHeight = 500.0;
-        const auto edgeInset = 12.0;
-        const auto downwardOffset = 30.0; // matches the +20+10 used when opening downward
-        const auto upwardOffset = 10.0; // matches the -10 used when opening upward
+        _recalculateHorizontalPlacement();
 
-        const auto spaceAbove = std::max(0.0, _anchor.Y - upwardOffset - edgeInset);
-        const auto spaceBelow = std::max(0.0, _space.Height - _anchor.Y - downwardOffset - edgeInset);
-
-        bool openUpward;
-        double maxAvailable;
-
-        if (spaceBelow >= preferredHeight)
-        {
-            openUpward = false;
-            maxAvailable = preferredHeight;
-        }
-        else if (spaceAbove >= preferredHeight)
-        {
-            openUpward = true;
-            maxAvailable = preferredHeight;
-        }
-        else
-        {
-            // Neither side has enough room for the preferred height. Open on
-            // whichever side has more space and shrink the control to fit.
-            openUpward = spaceAbove > spaceBelow;
-            maxAvailable = openUpward ? spaceAbove : spaceBelow;
-        }
-
-        // Cap both the outer UserControl and the inner RootGrid so the
-        // rendered control never exceeds the available space.
-        MaxHeight(maxAvailable);
-        RootGrid().MaxHeight(maxAvailable);
-
-        _setDirection(openUpward);
+        this->VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Top);
+        auto currentMargin = Margin();
+        currentMargin.Top = (_anchor.Y + _characterHeight + 5);
+        currentMargin.Bottom = 0;
+        Margin(currentMargin);
     }
 
-    void SnippetSearchControl::_setDirection(bool openUpward)
+    void SnippetSearchControl::_recalculateHorizontalPlacement()
     {
-        const float edgeInset = 12.0f;
-        const float availableWidth = std::max(0.0f, static_cast<float>(_space.Width) - 2 * edgeInset);
+        const auto availableWidth = std::max(0.0f, gsl::narrow_cast<float>(_space.Width));
 
-        MaxWidth(availableWidth);
+        Width(availableWidth);
 
-        RootGrid().Measure({
-            availableWidth,
-            static_cast<float>(ActualHeight()),
-        });
-
-        auto currentMargin = Margin();
-
-        const auto controlWidth = ActualWidth();
-
-        const auto proposedX = static_cast<float>(_anchor.X - _prefixWidth - 5.0f);
-        const auto maxX = std::max<float>(edgeInset, static_cast<float>(_space.Width) - static_cast<float>(controlWidth) - edgeInset);
-        const auto clampedX = std::clamp(proposedX, edgeInset, maxX);
-        currentMargin.Left = clampedX;
-
-        // Anchor the control via VerticalAlignment + Top/Bottom margin rather
-        // than computing Top from a height. ActualHeight lags behind item
-        // changes (RootGrid has a Height="*" row so Measure reports zero), and
-        // using MaxHeight would pin the Top to a fixed offset — causing the
-        // bottom to creep upward as items are filtered. Anchoring to Bottom
-        // when opening upward keeps the list glued to the cursor line so the
-        // top moves down instead.
-        if (openUpward)
-        {
-            this->VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Bottom);
-            currentMargin.Top = 0;
-            currentMargin.Bottom = std::max<double>(edgeInset, _space.Height - _anchor.Y + 10);
-        }
-        else
-        {
-            this->VerticalAlignment(winrt::Windows::UI::Xaml::VerticalAlignment::Top);
-            currentMargin.Top = std::max<double>(edgeInset, _anchor.Y + 20 + 10);
-            currentMargin.Bottom = 0;
-        }
-
-        Margin(currentMargin);
+        auto m = Margin();
+        m.Left = 0.0;
+        Margin(m);
     }
 }

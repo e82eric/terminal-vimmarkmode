@@ -12,7 +12,7 @@ namespace Microsoft.Terminal.Control
     [default_interface] runtimeclass SnippetSearchControl : Windows.UI.Xaml.Controls.UserControl,Windows.UI.Xaml.Data.INotifyPropertyChanged
     {
         SnippetSearchControl();
-        void Show(IVector<SnippetSearchItem> snippets, Microsoft.Terminal.Control.TermControl termControl, Windows.Foundation.Point anchor, Windows.Foundation.Size space, String currentWord, Single prefixWidth, Int32 cursorX, Boolean autoCompleteMode);
+        void Show(IVector<SnippetSearchItem> snippets, Microsoft.Terminal.Control.TermControl termControl, Windows.Foundation.Point anchor, Windows.Foundation.Size space, String currentWord, Single prefixWidth, Int32 cursorX, Boolean autoCompleteMode, Single characterHeight, Single swapChainOffset);
         void SetSnippets(IVector<SnippetSearchItem> snippets);
         void SetCurrentWord(String value, Int32 cursorX);
         void ToggleAutoComplete();

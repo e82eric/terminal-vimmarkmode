@@ -136,6 +136,7 @@ namespace Microsoft.Terminal.Control
 
         void OpenStreamingSuggestions(String needle, Boolean useFuzzySearch);
         void SetStreamingSuggestionsSwapChainOffset(Single offset);
+        void SetSnippetSearchSwapChainOffset(Single offset);
         Boolean HighlightPointSpan(Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end, Single clippedTopPixels);
         void ClearHighlights(Boolean scrollToCursor);
 

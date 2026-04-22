@@ -1378,6 +1378,10 @@
                                         SearchChanged="_SearchChanged" />
                 <local:SnippetSearchControl
                     x:Name="SnippetSearch"
+                    MaxHeight="204"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Top"
+                    Canvas.ZIndex="100"
                     Closed="_CloseSnippetSearchControl"
                     OnReturn="_OnReturnSnippetSearchControl"
                     Visibility="Collapsed"/>

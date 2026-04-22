@@ -738,7 +738,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         auto currentWord = _core.GetCurrentWord();
         const auto prefixWidth = currentWord.size() * characterWidth;
 
-        SnippetSearch().Show(snippets, *this, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel)}, termControlDimensions, currentWord, prefixWidth, x, autoCompleteMode);
+        constexpr auto snippetsMaxHeight = 204.0f;
+        const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + 5.0f;
+        const auto spaceBelow = gsl::narrow_cast<float>(ActualHeight()) - popupTop;
+        const auto offset = std::clamp(snippetsMaxHeight - spaceBelow, 0.0f, gsl::narrow_cast<float>(cursorYPixel));
+
+        SetSnippetSearchSwapChainOffset(offset);
+        SnippetSearch().Show(snippets, *this, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, currentWord, prefixWidth, x, autoCompleteMode, gsl::narrow_cast<float>(characterDimensions.Height), offset);
     }
 
     void TermControl::StartAiPrompt(Control::AiPromptProvider provider, Control::AiPromptMode mode)
@@ -3487,6 +3493,24 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
     }
 
     void TermControl::SetStreamingSuggestionsSwapChainOffset(float offset)
+    {
+        offset = std::max(0.0f, offset);
+        SwapChainPanelTransform().Y(-offset);
+
+        if (offset == 0.0f)
+        {
+            SwapChainPanel().Clip(nullptr);
+            return;
+        }
+
+        const auto width = gsl::narrow_cast<float>(SwapChainPanel().ActualWidth());
+        const auto height = gsl::narrow_cast<float>(SwapChainPanel().ActualHeight());
+        auto clip = winrt::Windows::UI::Xaml::Media::RectangleGeometry{};
+        clip.Rect({ 0.0f, offset, width, std::max(0.0f, height - offset) });
+        SwapChainPanel().Clip(clip);
+    }
+
+    void TermControl::SetSnippetSearchSwapChainOffset(float offset)
     {
         offset = std::max(0.0f, offset);
         SwapChainPanelTransform().Y(-offset);

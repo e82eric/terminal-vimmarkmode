@@ -52,14 +52,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             winrt::hstring currentWord,
             float prefixWidth,
             int32_t cursorX,
-            bool autoCompleteMode);
+            bool autoCompleteMode,
+            float characterHeight,
+            float swapChainOffset);
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
         void SetCurrentWord(const winrt::hstring& value, int32_t cursorX);
         void ToggleAutoComplete();
 
         bool ContainsFocus();
         void _recalculateTopMargin();
-        void _setDirection(bool openUpward);
+        void _recalculateHorizontalPlacement();
 
         void _TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);
         void _TextBoxKeyDown(const winrt::Windows::Foundation::IInspectable& /*sender*/, const winrt::Windows::UI::Xaml::Input::KeyRoutedEventArgs& e);
@@ -76,6 +78,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         hstring _currentWord;
         Microsoft::Terminal::Control::TermControl _termControl{ nullptr };
         float _prefixWidth;
+        float _characterHeight{ 0.0f };
+        float _swapChainOffset{ 0.0f };
         Windows::Foundation::Point _anchor;
         Windows::Foundation::Size _space;
         std::vector<SnippetSearchItem> _items;

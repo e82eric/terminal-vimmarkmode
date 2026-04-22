@@ -150,6 +150,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void StartAiPrompt(Control::AiPromptProvider provider, Control::AiPromptMode mode);
         void OpenStreamingSuggestions(winrt::hstring needle, bool useFuzzySearch);
         void SetStreamingSuggestionsSwapChainOffset(float offset);
+        void SetSnippetSearchSwapChainOffset(float offset);
         bool HighlightPointSpan(Core::Point start, Core::Point end, float clippedTopPixels);
         void ClearHighlights(bool scrollToCursor);
 
