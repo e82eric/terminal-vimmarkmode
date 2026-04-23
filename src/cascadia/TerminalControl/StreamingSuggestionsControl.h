@@ -218,6 +218,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _recalculateTopMargin();
         void _recalculateHorizontalPlacement();
         void _updateModeIndicator();
+        void _applySearchBoxForeground();
         void _ensureCellWidth();
         void _setDirection();
         void _OnCopyNotificationTimerTick(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::Foundation::IInspectable const&);

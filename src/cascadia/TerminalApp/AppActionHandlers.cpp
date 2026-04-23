@@ -1411,18 +1411,20 @@ namespace winrt::TerminalApp::implementation
                 if (commandLine.empty())
                 {
                     ActionSaveFailed(L"CommandLine is Required");
+                    args.Handled(true);
+                    return;
+                }
+
+                if (!realArgs.KeyChord().empty())
+                {
+                    ActionSaveFailed(L"Key chords are not supported for snippets saved to .wt.json");
+                    args.Handled(true);
                     return;
                 }
 
                 try
                 {
-                    KeyChord keyChord = nullptr;
-                    if (!realArgs.KeyChord().empty())
-                    {
-                        keyChord = KeyChordSerialization::FromString(winrt::to_hstring(realArgs.KeyChord()));
-                    }
-                    _settings.GlobalSettings().ActionMap().AddSendInputAction(realArgs.Name(), commandLine, keyChord);
-                    _settings.WriteSettingsToDisk();
+                    _settings.GlobalSettings().ActionMap().SaveSnippet(commandLine, realArgs.Name());
 
                     if (const auto termControl{ _GetActiveControl() })
                     {
@@ -1437,13 +1439,19 @@ namespace winrt::TerminalApp::implementation
                             toSearch.Append(searchItem);
                         }
                     }
-                    ActionSaved(commandLine, realArgs.Name(), realArgs.KeyChord());
+                    ActionSaved(commandLine, realArgs.Name(), winrt::hstring{});
                 }
                 catch (const winrt::hresult_error& ex)
                 {
                     auto code = ex.code();
                     auto message = ex.message();
                     ActionSaveFailed(message);
+                    args.Handled(true);
+                    return;
+                }
+                catch (const std::exception& ex)
+                {
+                    ActionSaveFailed(winrt::to_hstring(ex.what()));
                     args.Handled(true);
                     return;
                 }
@@ -1665,8 +1673,7 @@ namespace winrt::TerminalApp::implementation
             }
         }
 
-        // Tasks are all the sendInput commands the user has saved in
-        // their settings file. Ask the ActionMap for those.
+        // Tasks are all the snippets the user has saved. Ask the ActionMap for those.
         if (WI_IsFlagSet(source, SuggestionsSource::Tasks))
         {
             if (const auto termControl{ _GetActiveControl() })

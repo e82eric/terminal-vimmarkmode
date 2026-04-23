@@ -76,6 +76,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
         int32_t _cursorX;
         hstring _currentWord;
+        hstring _searchPattern;
+        bool _suppressSearchBoxChange{ false };
         Microsoft::Terminal::Control::TermControl _termControl{ nullptr };
         float _prefixWidth;
         float _characterHeight{ 0.0f };
@@ -100,6 +102,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                          const hstring& input);
         void _performFuzzySearch();
         void _close();
+        void _applySearchBoxForeground();
         std::unordered_set<winrt::Windows::Foundation::IInspectable> _focusableElements;
 
         static Windows::UI::Xaml::DependencyProperty _borderColorProperty;

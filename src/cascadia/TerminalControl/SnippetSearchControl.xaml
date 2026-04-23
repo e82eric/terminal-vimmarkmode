@@ -25,18 +25,50 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" CornerRadius="4" Grid.Row="1" Padding="2">
-            <ListView
-                x:Name="ListBox"
-                Background="{x:Bind BackgroundColor, Mode=OneWay}"
-                VerticalAlignment="Stretch">
-                <ListView.Resources>
-                    <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="{x:Bind SelectedItemColor, Mode=OneWay}" />
-                </ListView.Resources>
-                <ListView.ItemContainerTransitions>
-                    <TransitionCollection />
-                </ListView.ItemContainerTransitions>
-            </ListView>
+        <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" CornerRadius="4" Grid.Row="0" Padding="2">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition x:Name="SearchBoxRow" Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border
+                    x:Name="SearchBoxBorder"
+                    Grid.Row="0"
+                    Height="40"
+                    BorderBrush="{x:Bind BorderColor, Mode=OneWay}"
+                    BorderThickness="0,0,0,1">
+                    <TextBox
+                        x:Name="SearchBox"
+                        IsSpellCheckEnabled="False"
+                        Foreground="{x:Bind TextColor, Mode=OneWay}"
+                        Background="{x:Bind BackgroundColor, Mode=OneWay}"
+                        BorderThickness="0"
+                        Padding="8,6"
+                        TextChanged="_TextBoxTextChanged"
+                        KeyDown="_TextBoxKeyDown">
+                        <TextBox.Resources>
+                            <StaticResource x:Key="TextControlBackground" ResourceKey="SystemControlTransparentBrush" />
+                            <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="SystemControlTransparentBrush" />
+                            <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="SystemControlTransparentBrush" />
+                            <StaticResource x:Key="TextControlBorderBrush" ResourceKey="SystemControlTransparentBrush" />
+                            <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="SystemControlTransparentBrush" />
+                            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="SystemControlTransparentBrush" />
+                        </TextBox.Resources>
+                    </TextBox>
+                </Border>
+                <ListView
+                    x:Name="ListBox"
+                    Grid.Row="1"
+                    Background="{x:Bind BackgroundColor, Mode=OneWay}"
+                    VerticalAlignment="Stretch">
+                    <ListView.Resources>
+                        <SolidColorBrush x:Key="ListBoxItemBackgroundSelected" Color="{x:Bind SelectedItemColor, Mode=OneWay}" />
+                    </ListView.Resources>
+                    <ListView.ItemContainerTransitions>
+                        <TransitionCollection />
+                    </ListView.ItemContainerTransitions>
+                </ListView>
+            </Grid>
         </Border>
         <TextBlock
             Padding="10"

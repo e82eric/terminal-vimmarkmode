@@ -101,7 +101,32 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             SetValue(_TextColorProperty, value);
             PropertyChanged.raise(*this, PropertyChangedEventArgs{ L"TextColor" });
+            _applySearchBoxForeground();
         }
+    }
+
+    // The default TextBox template swaps Foreground to TextControlForegroundFocused /
+    // TextControlForegroundPointerOver via visual states, which otherwise override the
+    // Foreground binding we set in XAML. Mirror TextColor into those resource slots so the
+    // user-typed text always matches the list item text color.
+    void SnippetSearchControl::_applySearchBoxForeground()
+    {
+        const auto brush = TextColor();
+        if (!brush)
+        {
+            return;
+        }
+
+        const auto tb = SearchBox();
+        if (!tb)
+        {
+            return;
+        }
+        auto resources = tb.Resources();
+        resources.Insert(winrt::box_value(L"TextControlForeground"), brush);
+        resources.Insert(winrt::box_value(L"TextControlForegroundPointerOver"), brush);
+        resources.Insert(winrt::box_value(L"TextControlForegroundFocused"), brush);
+        resources.Insert(winrt::box_value(L"TextControlForegroundDisabled"), brush);
     }
 
     DependencyProperty SnippetSearchControl::TextColorProperty()
@@ -232,6 +257,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 this->_recalculateTopMargin();
             }
         });
+        _focusableElements.insert(SearchBox());
     }
 
     void SnippetSearchControl::_selectFirstItem()
@@ -298,22 +324,22 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::_performFuzzySearch()
     {
-        if (_autoCompleteMode && _currentWord.size() < 1)
+        if (_autoCompleteMode && _searchPattern.size() < 1)
         {
             _close();
             return;
         }
 
-        //if (_autoCompleteMode && _currentWord.back() == L' ')
+        //if (_autoCompleteMode && _searchPattern.back() == L' ')
         //{
         //    _close();
         //    return;
         //}
 
-        const size_t nonSpace = std::count_if(_currentWord.begin(), _currentWord.end(), [](wchar_t ch){ return ch != L' '; });
+        const size_t nonSpace = std::count_if(_searchPattern.begin(), _searchPattern.end(), [](wchar_t ch){ return ch != L' '; });
         int minScore = _autoCompleteMode ? static_cast<int>(nonSpace) * 15 : 0;
 
-        if (_currentWord.empty())
+        if (_searchPattern.empty())
         {
             _populateForEmptySearch();
             return;
@@ -328,7 +354,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         };
 
         std::vector<ScoredItem> scoredItems;
-        auto patternStr = _autoCompleteMode ? L"" + _currentWord : _currentWord;
+        auto patternStr = _autoCompleteMode ? L"" + _searchPattern : _searchPattern;
         auto pattern = fzfcpp::matcher::ParsePatternWithTypes(patternStr);
         for (auto item : _items)
         {
@@ -437,39 +463,60 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void SnippetSearchControl::_TextBoxTextChanged(winrt::Windows::Foundation::IInspectable const& /*sender*/, winrt::Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
     {
+        if (_suppressSearchBoxChange)
+        {
+            return;
+        }
+        _searchPattern = SearchBox().Text();
+        _performFuzzySearch();
     }
 
     void SnippetSearchControl::_close()
     {
         ListBox().Items().Clear();
+        {
+            _suppressSearchBoxChange = true;
+            auto reset = wil::scope_exit([this] { _suppressSearchBoxChange = false; });
+            SearchBox().Text(L"");
+        }
+        _searchPattern = L"";
         if (_termControl)
         {
             _termControl.SetSnippetSearchSwapChainOffset(0.0f);
+            _termControl.Focus(Windows::UI::Xaml::FocusState::Programmatic);
         }
         _ClosedHandlers(*this, RoutedEventArgs{});
     }
 
     void SnippetSearchControl::_TextBoxKeyDown(const Windows::Foundation::IInspectable& /*sender*/, const Input::KeyRoutedEventArgs& e)
     {
-        if (e.OriginalKey() == Windows::System::VirtualKey::Escape)
+        const auto vkey = gsl::narrow_cast<WORD>(e.OriginalKey());
+        if (vkey == VK_ESCAPE)
         {
             _close();
             e.Handled(true);
+            return;
         }
-        else if (e.OriginalKey() == Windows::System::VirtualKey::Enter)
+
+        switch (vkey)
         {
-            if (const auto selectedItem = ListBox().SelectedItem())
+        case VK_RETURN:
+        case VK_TAB:
+        case VK_UP:
+        case VK_DOWN:
+        {
+            const auto window = CoreWindow::GetForCurrentThread();
+            const auto shiftState = window.GetKeyState(Windows::System::VirtualKey::Shift);
+            DWORD mods = 0;
+            WI_SetFlagIf(mods, SHIFT_PRESSED, WI_IsFlagSet(shiftState, CoreVirtualKeyStates::Down));
+            if (HandleKeyPress(vkey, 0, Core::ControlKeyStates{ mods }, true))
             {
-                if (const auto listBoxItem = selectedItem.try_as<Controls::ListViewItem>())
-                {
-                    if (const auto fuzzyMatch = listBoxItem.DataContext().try_as<hstring>())
-                    {
-                        _close();
-                        _OnReturnHandlers(*this, fuzzyMatch.value());
-                        e.Handled(true);
-                    }
-                }
+                e.Handled(true);
             }
+            break;
+        }
+        default:
+            break;
         }
     }
 
@@ -558,6 +605,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _autoCompleteMode = autoCompleteMode;
         _cursorX = cursorX - static_cast<int32_t>(currentWord.size());
         _currentWord = currentWord;
+        _searchPattern = currentWord;
         _termControl = termControl;
         _anchor = anchor;
         _space = space;
@@ -565,9 +613,30 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _characterHeight = characterHeight;
         _swapChainOffset = swapChainOffset;
 
+        // In explicit mode, the SearchBox drives the query and takes focus. In
+        // auto-complete mode, the terminal keeps focus and SetCurrentWord drives the
+        // query, so hide the SearchBox to avoid focus ambiguity.
+        if (autoCompleteMode)
+        {
+            SearchBoxBorder().Visibility(Visibility::Collapsed);
+        }
+        else
+        {
+            SearchBoxBorder().Visibility(Visibility::Visible);
+            _suppressSearchBoxChange = true;
+            auto reset = wil::scope_exit([this] { _suppressSearchBoxChange = false; });
+            SearchBox().Text(currentWord);
+            SearchBox().SelectionStart(currentWord.size());
+        }
+
         _performFuzzySearch();
         Visibility(Visibility::Visible);
         _recalculateTopMargin();
+
+        if (!autoCompleteMode)
+        {
+            SearchBox().Focus(Windows::UI::Xaml::FocusState::Programmatic);
+        }
     }
 
     bool SnippetSearchControl::HandleKeyPress(WORD vkey, WORD /*scanCode*/, Core::ControlKeyStates modifiers, bool keyDown)
@@ -659,6 +728,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         auto betweenCursors = til::safe_slice_abs(value, _cursorX, cursorX);
         _currentWord = betweenCursors;
+        _searchPattern = _currentWord;
         _performFuzzySearch();
     }
 

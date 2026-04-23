@@ -223,7 +223,36 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             SetValue(_TextColorProperty, value);
             _propertyChangedEvent(*this, PropertyChangedEventArgs{ L"TextColor" });
+            _applySearchBoxForeground();
         }
+    }
+
+    // The default TextBox template swaps Foreground to TextControlForegroundFocused /
+    // TextControlForegroundPointerOver via visual states, which otherwise override the
+    // Foreground binding we set in XAML. Mirror TextColor into those resource slots so the
+    // user-typed text always matches the list item text color.
+    void StreamingSuggestionsControl::_applySearchBoxForeground()
+    {
+        const auto brush = TextColor();
+        if (!brush)
+        {
+            return;
+        }
+
+        const auto apply = [&](const Windows::UI::Xaml::Controls::TextBox& tb) {
+            if (!tb)
+            {
+                return;
+            }
+            auto resources = tb.Resources();
+            resources.Insert(winrt::box_value(L"TextControlForeground"), brush);
+            resources.Insert(winrt::box_value(L"TextControlForegroundPointerOver"), brush);
+            resources.Insert(winrt::box_value(L"TextControlForegroundFocused"), brush);
+            resources.Insert(winrt::box_value(L"TextControlForegroundDisabled"), brush);
+        };
+
+        apply(SearchBox());
+        apply(SplitSearchBox());
     }
 
     DependencyProperty StreamingSuggestionsControl::TextColorProperty()
