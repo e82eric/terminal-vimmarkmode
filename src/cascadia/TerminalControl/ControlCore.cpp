@@ -3385,113 +3385,325 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_return;
     }
 
-    static std::vector<til::CoordType> DetectColumnBoundaries(
-        const TextBuffer& buffer,
-        til::CoordType targetLine,
-        til::CoordType bufferWidth)
+    static bool _isWhitespaceColumn(const ROW& row, til::CoordType column)
     {
-        const auto& targetRow = buffer.GetRowByOffset(targetLine);
-        const auto targetLen = targetRow.GetLastNonSpaceColumn();
+        return row.DelimiterClassAt(column, L"") == DelimiterClass::ControlChar;
+    }
 
-        if (targetLen < 10)
+    static bool _hasNonWhitespaceInRange(const ROW& row, til::CoordType start, til::CoordType end)
+    {
+        const auto rowEnd = row.GetLastNonSpaceColumn();
+        const auto clampedStart = std::clamp(start, 0, rowEnd);
+        const auto clampedEnd = std::clamp(end, clampedStart, rowEnd);
+
+        for (auto x = clampedStart; x < clampedEnd; ++x)
         {
-            return {};
+            if (!_isWhitespaceColumn(row, x))
+            {
+                return true;
+            }
         }
 
-        // Sample up to 10 lines above and 10 below, stopping only at blank
-        // lines (block boundaries). We intentionally don't filter by line
-        // length: the 70%-vote histogram below is a stronger signal for
-        // "same table structure", and a length filter throws out sibling
-        // rows whose names happen to be much longer/shorter than the target.
+        return false;
+    }
+
+    static std::optional<til::CoordType> _findSecondSegmentStart(const ROW& row, til::CoordType start, til::CoordType end)
+    {
+        std::optional<til::CoordType> singleSpaceFallback;
+
+        auto x = start;
+        while (x < end && _isWhitespaceColumn(row, x))
+        {
+            ++x;
+        }
+
+        while (x < end)
+        {
+            while (x < end && !_isWhitespaceColumn(row, x))
+            {
+                ++x;
+            }
+
+            const auto runStart = x;
+            while (x < end && _isWhitespaceColumn(row, x))
+            {
+                ++x;
+            }
+
+            const auto runEnd = x;
+            if (runStart >= runEnd)
+            {
+                break;
+            }
+
+            if (runEnd < end && _hasNonWhitespaceInRange(row, start, runStart))
+            {
+                if (runEnd - runStart >= 2)
+                {
+                    return runEnd;
+                }
+
+                if (!singleSpaceFallback.has_value())
+                {
+                    singleSpaceFallback = runEnd;
+                }
+            }
+        }
+
+        return singleSpaceFallback;
+    }
+
+    static bool _appendSuggestionSpan(
+        const TextBuffer& buffer,
+        const til::point_span& span,
+        std::unordered_set<std::wstring>& seen,
+        std::vector<SuggestionSearchItem>& results,
+        int32_t& ordinal)
+    {
+        auto text = buffer.GetPlainText(span.start, span.end);
+        if (text.empty())
+        {
+            return false;
+        }
+
+        const auto nonWhitespaceCount =
+            std::count_if(text.begin(), text.end(), [](wchar_t ch) {
+                return !std::iswspace(ch);
+            });
+
+        if (nonWhitespaceCount < 3 || !seen.insert(text).second)
+        {
+            return false;
+        }
+
+        results.emplace_back(SuggestionSearchItem{
+            hstring{ text },
+            ordinal,
+            span.start.to_core_point(),
+            span.end.to_core_point()
+        });
+        --ordinal;
+        return true;
+    }
+
+    static std::optional<std::vector<til::point_span>> TrySplitFixedWidthColumns(
+        const TextBuffer& buffer,
+        til::CoordType targetLine)
+    {
+        const auto& targetRow = buffer.GetRowByOffset(targetLine);
+        const auto targetStart = targetRow.MeasureLeft();
+        const auto targetEnd = targetRow.GetLastNonSpaceColumn();
+        const auto targetSecondSegmentStart = _findSecondSegmentStart(targetRow, targetStart, targetEnd);
+
+        if (targetRow.WasWrapForced() || targetEnd - targetStart < 12)
+        {
+            return std::nullopt;
+        }
+
         std::vector<til::CoordType> sampledLines;
         sampledLines.push_back(targetLine);
 
         const auto totalRows = buffer.TotalRowCount();
 
-        // Sample upward
         for (til::CoordType i = 1; i <= 10; ++i)
         {
-            auto y = targetLine - i;
+            const auto y = targetLine - i;
             if (y < 0)
+            {
                 break;
+            }
+
             const auto& row = buffer.GetRowByOffset(y);
-            if (!row.ContainsText())
+            if (!row.ContainsText() || row.WasWrapForced())
+            {
                 break;
+            }
+
+            if (targetSecondSegmentStart.has_value())
+            {
+                const auto rowSecondSegmentStart = _findSecondSegmentStart(row, row.MeasureLeft(), row.GetLastNonSpaceColumn());
+                if (!rowSecondSegmentStart.has_value() || std::abs(*rowSecondSegmentStart - *targetSecondSegmentStart) > 2)
+                {
+                    break;
+                }
+            }
+
             sampledLines.push_back(y);
         }
 
-        // Sample downward
         for (til::CoordType i = 1; i <= 10; ++i)
         {
-            auto y = targetLine + i;
+            const auto y = targetLine + i;
             if (y >= totalRows)
+            {
                 break;
+            }
+
             const auto& row = buffer.GetRowByOffset(y);
-            if (!row.ContainsText())
+            if (!row.ContainsText() || row.WasWrapForced())
+            {
                 break;
+            }
+
+            if (targetSecondSegmentStart.has_value())
+            {
+                const auto rowSecondSegmentStart = _findSecondSegmentStart(row, row.MeasureLeft(), row.GetLastNonSpaceColumn());
+                if (!rowSecondSegmentStart.has_value() || std::abs(*rowSecondSegmentStart - *targetSecondSegmentStart) > 2)
+                {
+                    break;
+                }
+            }
+
             sampledLines.push_back(y);
         }
 
-        // Need at least 3 lines to detect columnar structure
-        if (sampledLines.size() < 3)
-        {
-            return {};
-        }
-
-        // Build boundary histogram: count any whitespace boundary at position x,
-        // in either direction. Counting `non-space->space` (right edges) in
-        // addition to `space->non-space` (left edges) catches right-aligned
-        // numeric columns — their left edge drifts with digit count but their
-        // right edge is stable, and that stable edge is enough to separate the
-        // column from its neighbors.
-        const auto lineCount = static_cast<int>(sampledLines.size());
-        const auto threshold = static_cast<int>(lineCount * 0.7);
-        std::map<til::CoordType, int> boundaryVotes;
-
-        for (auto y : sampledLines)
+        std::vector<til::CoordType> candidateLines;
+        for (const auto y : sampledLines)
         {
             const auto& row = buffer.GetRowByOffset(y);
-            const auto text = row.GetText();
-            const auto len = std::min(static_cast<til::CoordType>(text.size()), bufferWidth);
-
-            for (til::CoordType x = 1; x < len; ++x)
+            const auto rowSecondSegmentStart = _findSecondSegmentStart(row, row.MeasureLeft(), row.GetLastNonSpaceColumn());
+            if (std::abs(row.MeasureLeft() - targetStart) <= 2 &&
+                (!targetSecondSegmentStart.has_value() ||
+                 (rowSecondSegmentStart.has_value() && std::abs(*rowSecondSegmentStart - *targetSecondSegmentStart) <= 2)) &&
+                row.GetLastNonSpaceColumn() - row.MeasureLeft() >= 6)
             {
-                if (std::iswspace(text[x - 1]) != std::iswspace(text[x]))
+                candidateLines.push_back(y);
+            }
+        }
+
+        if (candidateLines.size() < 3)
+        {
+            return std::nullopt;
+        }
+
+        std::vector<int> eligibleVotes(targetEnd, 0);
+        std::vector<int> whitespaceVotes(targetEnd, 0);
+
+        for (const auto y : candidateLines)
+        {
+            const auto& row = buffer.GetRowByOffset(y);
+            const auto rowStart = std::max(targetStart, row.MeasureLeft());
+            const auto rowEnd = std::min(targetEnd, row.GetLastNonSpaceColumn());
+
+            for (auto x = rowStart; x < rowEnd; ++x)
+            {
+                ++eligibleVotes[x];
+                if (_isWhitespaceColumn(row, x))
                 {
-                    boundaryVotes[x]++;
+                    ++whitespaceVotes[x];
                 }
             }
         }
 
-        // Collect boundaries that meet the threshold
-        std::vector<til::CoordType> boundaries;
-        for (const auto& [x, votes] : boundaryVotes)
+        struct GutterRun
         {
-            if (votes >= threshold)
+            til::CoordType start;
+            til::CoordType end;
+        };
+
+        std::vector<GutterRun> gutterRuns;
+        constexpr auto minEligibleRows = 3;
+
+        for (auto x = targetStart; x < targetEnd;)
+        {
+            const auto isGutterColumn = [&](const auto column) {
+                return _isWhitespaceColumn(targetRow, column) &&
+                       eligibleVotes[column] >= minEligibleRows &&
+                       whitespaceVotes[column] * 100 >= eligibleVotes[column] * 85;
+            };
+
+            if (!isGutterColumn(x))
             {
-                boundaries.push_back(x);
+                ++x;
+                continue;
+            }
+
+            auto runEnd = x + 1;
+            while (runEnd < targetEnd && isGutterColumn(runEnd))
+            {
+                ++runEnd;
+            }
+
+            // Allow single-column gutters so dir/Get-ChildItem style date/time
+            // fields can split even when only one stable space separates them.
+            if (runEnd - x >= 1)
+            {
+                gutterRuns.push_back({ x, runEnd });
+            }
+
+            x = runEnd;
+        }
+
+        if (gutterRuns.size() < 1)
+        {
+            return std::nullopt;
+        }
+
+        std::vector<til::point_span> spans;
+        auto segmentStart = targetStart;
+
+        for (const auto& gutter : gutterRuns)
+        {
+            if (!_hasNonWhitespaceInRange(targetRow, segmentStart, gutter.start) ||
+                !_hasNonWhitespaceInRange(targetRow, gutter.end, targetEnd))
+            {
+                continue;
+            }
+
+            auto trimmedStart = segmentStart;
+            while (trimmedStart < gutter.start && _isWhitespaceColumn(targetRow, trimmedStart))
+            {
+                ++trimmedStart;
+            }
+
+            auto trimmedEnd = gutter.start;
+            while (trimmedEnd > trimmedStart && _isWhitespaceColumn(targetRow, trimmedEnd - 1))
+            {
+                --trimmedEnd;
+            }
+
+            if (trimmedEnd > trimmedStart)
+            {
+                spans.emplace_back(
+                    til::point_span{
+                        til::point{ trimmedStart, targetLine },
+                        til::point{ trimmedEnd, targetLine }
+                    });
+            }
+
+            segmentStart = gutter.end;
+        }
+
+        if (_hasNonWhitespaceInRange(targetRow, segmentStart, targetEnd))
+        {
+            auto trimmedStart = segmentStart;
+            while (trimmedStart < targetEnd && _isWhitespaceColumn(targetRow, trimmedStart))
+            {
+                ++trimmedStart;
+            }
+
+            auto trimmedEnd = targetEnd;
+            while (trimmedEnd > trimmedStart && _isWhitespaceColumn(targetRow, trimmedEnd - 1))
+            {
+                --trimmedEnd;
+            }
+
+            if (trimmedEnd > trimmedStart)
+            {
+                spans.emplace_back(
+                    til::point_span{
+                        til::point{ trimmedStart, targetLine },
+                        til::point{ trimmedEnd, targetLine }
+                    });
             }
         }
 
-        std::sort(boundaries.begin(), boundaries.end());
-
-        // Filter out boundaries that are too close together (< 3 chars apart)
-        std::vector<til::CoordType> filtered;
-        for (auto b : boundaries)
+        if (spans.size() < 2)
         {
-            if (filtered.empty() || b - filtered.back() >= 3)
-            {
-                filtered.push_back(b);
-            }
+            return std::nullopt;
         }
 
-        // Need at least 2 boundaries to declare columnar structure
-        if (filtered.size() < 2)
-        {
-            return {};
-        }
-
-        return filtered;
+        return spans;
     }
 
     std::vector<std::wstring> SplitOnSpace(const std::wstring& text)
@@ -3525,15 +3737,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     Windows::Foundation::Collections::IVector<SuggestionSearchItem> ControlCore::LineSearchAsync(int32_t lineNumber)
     {
         auto splitBySpace = L"[^\\s]{3,}";
-        //auto splitByMoreThanOneSpace = L"\\S(?: ?\\S)*";
-
-        // Windows file paths (drive-letter form). Allows spaces in the path,
-        // terminates at `.ext` (1–10 alphanumerics) followed by whitespace or
-        // end-of-line, OR at end-of-line directly (for bare directory paths
-        // that have no extension to anchor on). Forbids `:` in the middle so
-        // we don't glue two paths together across intervening text
-        // (e.g. "C:\a and C:\b.txt").
-        auto windowsPath = LR"([A-Za-z]:[\\/][^\r\n:<>|*?"]*?(?:\.[A-Za-z0-9]{1,10}(?=\s|$)|$))";
 
         static const std::array s_wrappedRegexes = {
             LR"((?<=\{)[^}]*(?=\}))",
@@ -3544,70 +3747,19 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             LR"((?<=<)[^>]*(?=>))",
         };
 
-        std::optional<std::vector<til::point_span>> searchResults;
-
         auto lock = _terminal->LockForReading();
         auto& buffer = _terminal->GetTextBuffer();
 
         std::unordered_set<std::wstring> seen;
         std::vector<SuggestionSearchItem> results;
 
-        // Pass 0: detect fixed-width columnar output and split on column boundaries
-        auto columnBoundaries = DetectColumnBoundaries(buffer, lineNumber, buffer.GetSize().Width());
-        if (!columnBoundaries.empty())
+        auto ordinal = 1000;
+
+        if (const auto fixedWidthSpans = TrySplitFixedWidthColumns(buffer, lineNumber))
         {
-            const auto& targetRow = buffer.GetRowByOffset(lineNumber);
-            auto lineEnd = targetRow.GetLastNonSpaceColumn() + 1;
-
-            // Build column edges: [0, b1), [b1, b2), ..., [bN, lineEnd)
-            std::vector<til::CoordType> edges;
-            edges.push_back(0);
-            edges.insert(edges.end(), columnBoundaries.begin(), columnBoundaries.end());
-            edges.push_back(lineEnd);
-
-            auto ordinal = 1000;
-            for (size_t i = 0; i + 1 < edges.size(); ++i)
+            for (const auto& span : fixedWidthSpans.value())
             {
-                auto colStart = edges[i];
-                auto colEnd = edges[i + 1];
-
-                if (colEnd <= colStart)
-                    continue;
-
-                auto text = buffer.GetPlainText(
-                    til::point{ colStart, lineNumber },
-                    til::point{ colEnd, lineNumber });
-
-                // Trim leading/trailing whitespace
-                auto front = text.find_first_not_of(L" \t");
-                if (front == std::wstring::npos)
-                    continue;
-                auto back = text.find_last_not_of(L" \t");
-                text = text.substr(front, back - front + 1);
-
-                const auto nonWhitespaceCount =
-                    std::count_if(text.begin(), text.end(), [](wchar_t ch) {
-                        return !std::iswspace(ch);
-                    });
-
-                if (nonWhitespaceCount < 3)
-                    continue;
-
-                if (!seen.insert(text).second)
-                    continue;
-
-                // Adjust span start to account for trimmed leading whitespace
-                auto spanStart = colStart + static_cast<til::CoordType>(front);
-                auto spanEnd = colStart + static_cast<til::CoordType>(back) + 1;
-
-                auto item = SuggestionSearchItem{
-                    hstring{ text },
-                    ordinal,
-                    til::point{ spanStart, lineNumber }.to_core_point(),
-                    til::point{ spanEnd, lineNumber }.to_core_point()
-                };
-                results.emplace_back(std::move(item));
-                ordinal--;
+                _appendSuggestionSpan(buffer, span, seen, results, ordinal);
             }
         }
 
@@ -3621,71 +3773,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 auto spans = searchResults.value();
 
-                auto ordinal = 1000;
-
                 for (auto it = spans.rbegin(); it != spans.rend(); ++it)
                 {
-                    auto span = *it;
-
-                    auto inner = buffer.GetPlainText(span.start, span.end);
-                    if (inner.empty())
-                    {
-                        continue;
-                    }
-
-                    if (!seen.insert(inner).second)
-                    {
-                        continue;
-                    }
-
-                    const auto nonWhitespaceCount =
-                        std::count_if(inner.begin(), inner.end(), [](wchar_t ch) {
-                            return !std::iswspace(ch);
-                        });
-
-                    if (nonWhitespaceCount < 3)
-                    {
-                        continue;
-                    }
-
-                    SuggestionSearchItem item{
-                        winrt::hstring{ inner },
-                        ordinal,
-                        span.start.to_core_point(),
-                        span.end.to_core_point()
-                    };
-
-                    results.emplace_back(std::move(item));
-                    --ordinal;
-                }
-            }
-        }
-
-        if (auto searchResults = buffer.SearchText(windowsPath, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
-        {
-            auto spans = searchResults.value();
-
-            auto ordinal = 1000;
-            for (auto it = spans.rbegin(); it != spans.rend(); ++it)
-            {
-                auto span = *it;
-                auto text = buffer.GetPlainText(span.start, span.end);
-
-                if (text.empty())
-                {
-                    continue;
-                }
-
-                if (seen.insert(text).second)
-                {
-                    auto item = SuggestionSearchItem{
-                        hstring{ text },
-                        ordinal,
-                        span.start.to_core_point(),
-                        span.end.to_core_point()
-                    };
-                    results.emplace_back(std::move(item));
-                    --ordinal;
+                    _appendSuggestionSpan(buffer, *it, seen, results, ordinal);
                 }
             }
         }
@@ -3693,61 +3783,21 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (auto searchResults = buffer.SearchText(splitBySpace, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
         {
             auto spans = searchResults.value();
-
-            auto ordinal = 1000;
             for (auto it = spans.rbegin(); it != spans.rend(); ++it)
             {
-                auto span = *it;
-                auto text = buffer.GetPlainText(span.start, span.end);
-
-                if (seen.insert(text).second)
-                {
-                    auto item = SuggestionSearchItem{
-                        hstring{ buffer.GetPlainText(span.start, span.end) },
-                        ordinal,
-                        span.start.to_core_point(),
-                        span.end.to_core_point()
-                    };
-                    results.emplace_back(item);
-                    ordinal--;
-                }
+                _appendSuggestionSpan(buffer, *it, seen, results, ordinal);
             }
         }
 
-        //if (auto searchResults = buffer.SearchText(splitByMoreThanOneSpace, SearchFlag::RegularExpression | SearchFlag::CaseInsensitive, lineNumber, lineNumber + 1))
-        //{
-        //    if (searchResults->size() > 1)
-        //    {
-        //        auto spans = searchResults.value();
+        std::stable_sort(results.begin(), results.end(), [](const SuggestionSearchItem& item1, const SuggestionSearchItem& item2) {
+            return item1.Text.size() > item2.Text.size();
+        });
 
-        //        auto ordinal = 1000;
-        //        for (auto it = spans.rbegin(); it != spans.rend(); ++it)
-        //        {
-        //            auto span = *it;
-
-        //            auto& row = buffer.GetRowByOffset(span.end.y);
-        //            for (auto i = span.end.x - 1; i >= span.start.x; i--)
-        //            {
-        //                auto delimiter = row.DelimiterClassAt(i, L"");
-        //                if (delimiter == DelimiterClass::ControlChar)
-        //                {
-        //                    auto current = buffer.GetPlainText(til::point{ i + 1, span.end.y }, span.end);
-        //                    if (seen.insert(current).second)
-        //                    {
-        //                        auto item = SuggestionSearchItem{
-        //                            hstring{ current },
-        //                            ordinal,
-        //                            til::point{ i + 1, span.end.y }.to_core_point(),
-        //                            span.end.to_core_point()
-        //                        };
-        //                        results.emplace_back(item);
-        //                        ordinal--;
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
+        ordinal = 0;
+        for (auto& item : results)
+        {
+            item.Ordinal = ordinal++;
+        }
 
         return winrt::single_threaded_vector<SuggestionSearchItem>(std::move(results));
     }
