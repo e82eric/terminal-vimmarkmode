@@ -46,7 +46,6 @@
     <Page Include="FuzzySearchTextControl.xaml" />
     <Page Include="SearchBoxControl.xaml" />
     <Page Include="TermControl.xaml" />
-    <Page Include="SnippetSearchControl.xaml" />
     <Page Include="StreamingSuggestionsControl.xaml" />
     <Page Include="AiPromptControl.xaml" />
   </ItemGroup>

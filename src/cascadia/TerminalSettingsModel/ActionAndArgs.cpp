@@ -100,7 +100,6 @@ static constexpr std::string_view VimModeKey{ "vimMode" };
 static constexpr std::string_view ShowAiPromptKey{ "showAiPrompt" };
 static constexpr std::string_view VimSearchKey{ "vimSearch" };
 static constexpr std::string_view ToggleRowNumbersKey{ "toggleRowNumbers" };
-static constexpr std::string_view ToggleSnippetAutoCompleteKey{ "toggleSnippetAutoComplete" };
 static constexpr std::string_view ToggleBlockSelectionKey{ "toggleBlockSelection" };
 static constexpr std::string_view SwitchSelectionEndpointKey{ "switchSelectionEndpoint" };
 static constexpr std::string_view ColorSelectionKey{ "experimental.colorSelection" };

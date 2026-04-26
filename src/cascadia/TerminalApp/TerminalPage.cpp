@@ -3600,18 +3600,6 @@ namespace winrt::TerminalApp::implementation
         term.KeyBindings(*_bindings);
 
         _RegisterTerminalEvents(term);
-        const auto toSearch = winrt::single_threaded_observable_vector<SnippetSearchItem>();
-        const auto snippets = _settings.GlobalSettings().ActionMap().FilterToSnippets(winrt::hstring{}, winrt::hstring{}).GetResults();
-        for (const auto& task : snippets)
-        {
-            auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
-            auto input = sendInputArgs.Input();
-
-            auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
-            toSearch.Append(searchItem);
-        }
-        term.SetSnippets(toSearch);
-
         return term;
     }
 

@@ -69,6 +69,28 @@
 
 #include "ActionArgsMagic.h"
 
+namespace til
+{
+    template<typename T>
+    struct hash_trait<winrt::Windows::Foundation::Collections::IVector<T>>
+    {
+        void operator()(hasher& h, const winrt::Windows::Foundation::Collections::IVector<T>& v) const noexcept
+        {
+            if (!v)
+            {
+                h.write(size_t{ 0 });
+                return;
+            }
+
+            h.write(v.Size());
+            for (const auto& item : v)
+            {
+                h.write(item);
+            }
+        }
+    };
+}
+
 #define ACTION_ARG(type, name, ...)                                         \
 public:                                                                     \
     type name() const noexcept                                              \
@@ -244,9 +266,12 @@ protected:                                                                  \
 ////////////////////////////////////////////////////////////////////////////////
 #define SUGGESTIONS_ARGS(X)                                                 \
     X(SuggestionsSource, Source, "source", false, ArgTypeHint::None, SuggestionsSource::Tasks) \
+    X(winrt::hstring, CommandExecutable, "commandExecutable", args->Source() == SuggestionsSource::Command && args->CommandExecutable().empty(), ArgTypeHint::None, L"") \
+    X(Windows::Foundation::Collections::IVector<winrt::hstring>, CommandArgs, "commandArgs", false, ArgTypeHint::None, winrt::single_threaded_vector<winrt::hstring>()) \
+    X(winrt::hstring, CommandTemplate, "commandTemplate", false, ArgTypeHint::None, L"") \
     X(bool, UseCommandline, "useCommandline", false, ArgTypeHint::None, false) \
     X(winrt::hstring, Regex, "regex", false, ArgTypeHint::None, L"[^\\s]{5,}") \
-    X(bool, UseFuzzySearch, "useFuzzySearch", false, ArgTypeHint::None, false)
+    X(bool, SortResults, "sortResults", false, ArgTypeHint::None, false)
 
 ////////////////////////////////////////////////////////////////////////////////
 #define SHOW_AI_PROMPT_ARGS(X) \

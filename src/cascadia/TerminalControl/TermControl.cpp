@@ -710,43 +710,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
     }
 
-    void TermControl::SetSnippets(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets)
-    {
-        SnippetSearch().SetSnippets(snippets);
-    }
-
-    void TermControl::StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, bool autoCompleteMode)
-    {
-        auto cursorPosition = _core.CursorPosition();
-        auto y = cursorPosition.Y;
-        auto x = cursorPosition.X;
-        const auto displayInfo = DisplayInformation::GetForCurrentView();
-        const auto scaleFactor = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
-        const auto xScaleFactor = _core.FontSize().Width / displayInfo.RawPixelsPerViewPixel();
-
-        auto cursorYPixel = y * scaleFactor;
-        auto cursorXPixel = x * xScaleFactor;
-
-        const auto cursorPos{ CursorPositionInDips() };
-        const Windows::Foundation::Size termControlDimensions{
-            gsl::narrow_cast<float>(ActualWidth()),
-            gsl::narrow_cast<float>(ActualHeight())
-        };
-        const auto characterDimensions = CharacterDimensions();
-        const auto characterWidth = characterDimensions.Width;
-
-        auto currentWord = _core.GetCurrentWord();
-        const auto prefixWidth = currentWord.size() * characterWidth;
-
-        constexpr auto snippetsMaxHeight = 204.0f;
-        const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + 5.0f;
-        const auto spaceBelow = gsl::narrow_cast<float>(ActualHeight()) - popupTop;
-        const auto offset = std::clamp(snippetsMaxHeight - spaceBelow, 0.0f, gsl::narrow_cast<float>(cursorYPixel));
-
-        SetSnippetSearchSwapChainOffset(offset);
-        SnippetSearch().Show(snippets, *this, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, currentWord, prefixWidth, x, autoCompleteMode, gsl::narrow_cast<float>(characterDimensions.Height), offset);
-    }
-
     void TermControl::StartAiPrompt(Control::AiPromptProvider provider, Control::AiPromptMode mode)
     {
         // Get the last 200 lines from the terminal for context, including cursor line
@@ -835,11 +798,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _core.ToggleRowNumberMode();
     }
 
-    void TermControl::ToggleSnippetAutoComplete()
-    {
-        SnippetSearch().ToggleAutoComplete();
-    }
-
     winrt::hstring TermControl::GetCurrentWord()
     {
         return _core.GetCurrentWord();
@@ -900,18 +858,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         // Set focus back to terminal control
-        this->Focus(FocusState::Programmatic);
-    }
-
-    void TermControl::_CloseSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, const Windows::UI::Xaml::RoutedEventArgs& /*args*/)
-    {
-        SnippetSearch().Visibility(Visibility::Collapsed);
-    }
-
-    void TermControl::_OnReturnSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& /*sender*/, hstring input)
-    {
-        SnippetSearch().Visibility(Visibility::Collapsed);
-        SendInput(input);
         this->Focus(FocusState::Programmatic);
     }
 
@@ -1124,15 +1070,6 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
 
         NumberBorder().Background(backgroundColor);
         NumberTextBox().Foreground(textColor);
-
-        SnippetSearch().BorderColor(borderColor);
-        SnippetSearch().HeaderTextColor(headerTextColor);
-        SnippetSearch().BackgroundColor(backgroundColor);
-        SnippetSearch().SelectedItemColor(selectionColor.Color());
-        SnippetSearch().InnerBorderThickness(borderThickness);
-        SnippetSearch().TextColor(textColor);
-        SnippetSearch().HighlightedTextColor(highlightColor);
-        SnippetSearch().ResultFontSize(14);
 
         AiPrompt().BorderColor(borderColor);
         AiPrompt().HeaderTextColor(headerTextColor);
@@ -1713,7 +1650,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             return;
         }
 
-        if (SnippetSearch().ContainsFocus())
+        if (StreamingSuggestions().ContainsFocus())
         {
             return;
         }
@@ -1754,15 +1691,6 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         if (StreamingSuggestions().Visibility() == Visibility::Visible)
         {
             if(StreamingSuggestions().HandleKeyPress(vkey, scanCode, modifiers, keyDown))
-            {
-                e.Handled(true);
-                return;
-            }
-        }
-
-        if (SnippetSearch().Visibility() == Visibility::Visible)
-        {
-            if(SnippetSearch().HandleKeyPress(vkey, scanCode, modifiers, keyDown))
             {
                 e.Handled(true);
                 return;
@@ -3460,9 +3388,39 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         return std::pow(cursorDistanceFromBorder, 2.0) / 25.0 + 2.0;
     }
 
-    void TermControl::OpenStreamingSuggestions(winrt::hstring needle, bool useFuzzySearch)
+    void TermControl::OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets)
     {
-        StreamingSuggestions().UseFuzzySearch(useFuzzySearch);
+        auto cursorPosition = _core.CursorPosition();
+        auto y = cursorPosition.Y;
+        auto x = cursorPosition.X;
+        const auto displayInfo = DisplayInformation::GetForCurrentView();
+        const auto scaleFactor = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
+        const auto xScaleFactor = _core.FontSize().Width / displayInfo.RawPixelsPerViewPixel();
+
+        auto cursorYPixel = y * scaleFactor;
+        auto cursorXPixel = x * xScaleFactor;
+
+        const Windows::Foundation::Size termControlDimensions{
+            gsl::narrow_cast<float>(ActualWidth()),
+            gsl::narrow_cast<float>(ActualHeight())
+        };
+        const auto characterDimensions = CharacterDimensions();
+        const auto characterWidth = characterDimensions.Width;
+
+        auto currentWord = _core.GetCurrentWord();
+        const auto prefixWidth = currentWord.size() * characterWidth;
+        constexpr auto suggestionsMaxHeight = 264.0f;
+        constexpr auto suggestionsPromptGap = 2.0f;
+        const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + suggestionsPromptGap;
+        const auto spaceBelow = gsl::narrow_cast<float>(ActualHeight()) - popupTop;
+        const auto offset = std::clamp(suggestionsMaxHeight - spaceBelow, 0.0f, gsl::narrow_cast<float>(cursorYPixel));
+
+        SetStreamingSuggestionsSwapChainOffset(offset);
+        StreamingSuggestions().OpenTasks(*this, snippets, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, currentWord, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset);
+    }
+
+    void TermControl::OpenStreamingSuggestions(winrt::hstring needle)
+    {
         auto cursorPosition = _core.CursorPosition();
         auto y = cursorPosition.Y;
         auto x = cursorPosition.X;
@@ -3483,8 +3441,9 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
 
         auto currentWord = _core.GetCurrentWord();
         const auto prefixWidth = currentWord.size() * characterWidth;
-        constexpr auto suggestionsMaxHeight = 204.0f;
-        const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + 5.0f;
+        constexpr auto suggestionsMaxHeight = 264.0f;
+        constexpr auto suggestionsPromptGap = 2.0f;
+        const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + suggestionsPromptGap;
         const auto spaceBelow = gsl::narrow_cast<float>(ActualHeight()) - popupTop;
         const auto offset = std::clamp(suggestionsMaxHeight - spaceBelow, 0.0f, gsl::narrow_cast<float>(cursorYPixel));
 
@@ -3492,25 +3451,67 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, currentWord, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset);
     }
 
-    void TermControl::SetStreamingSuggestionsSwapChainOffset(float offset)
+    void TermControl::OpenCommandStreamingSuggestions(winrt::hstring executable, Windows::Foundation::Collections::IVector<winrt::hstring> args, winrt::hstring commandTemplate, bool sortResults)
     {
-        offset = std::max(0.0f, offset);
-        SwapChainPanelTransform().Y(-offset);
+        auto cursorPosition = _core.CursorPosition();
+        auto y = cursorPosition.Y;
+        auto x = cursorPosition.X;
+        const auto displayInfo = DisplayInformation::GetForCurrentView();
+        const auto scaleFactor = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
+        const auto xScaleFactor = _core.FontSize().Width / displayInfo.RawPixelsPerViewPixel();
 
-        if (offset == 0.0f)
+        auto cursorYPixel = y * scaleFactor;
+        auto cursorXPixel = x * xScaleFactor;
+
+        const Windows::Foundation::Size termControlDimensions{
+            gsl::narrow_cast<float>(ActualWidth()),
+            gsl::narrow_cast<float>(ActualHeight())
+        };
+        const auto characterDimensions = CharacterDimensions();
+        const auto characterWidth = characterDimensions.Width;
+
+        auto currentWord = _core.GetCurrentWord();
+        const auto prefixWidth = currentWord.size() * characterWidth;
+        constexpr auto suggestionsMaxHeight = 264.0f;
+        constexpr auto suggestionsPromptGap = 2.0f;
+        const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + suggestionsPromptGap;
+        const auto spaceBelow = gsl::narrow_cast<float>(ActualHeight()) - popupTop;
+        const auto offset = std::clamp(suggestionsMaxHeight - spaceBelow, 0.0f, gsl::narrow_cast<float>(cursorYPixel));
+        const auto suggestionRow = _core.GetViewportTop() + _core.ViewHeight() - 1;
+
+        const auto workingDir = WorkingDirectory();
+
+        const auto substitute = [&](std::wstring_view input) -> winrt::hstring {
+            std::wstring out{ input };
+            const auto replaceAll = [&out](std::wstring_view from, std::wstring_view to) {
+                if (from.empty())
+                {
+                    return;
+                }
+                for (size_t pos = 0; (pos = out.find(from, pos)) != std::wstring::npos; pos += to.size())
+                {
+                    out.replace(pos, from.size(), to);
+                }
+            };
+            replaceAll(L"%cwd%", workingDir);
+            return winrt::hstring{ out };
+        };
+
+        auto substitutedArgs = winrt::single_threaded_vector<winrt::hstring>();
+        if (args)
         {
-            SwapChainPanel().Clip(nullptr);
-            return;
+            for (const auto& arg : args)
+            {
+                substitutedArgs.Append(substitute(arg));
+            }
         }
+        const auto substitutedTemplate = commandTemplate.empty() ? commandTemplate : substitute(commandTemplate);
 
-        const auto width = gsl::narrow_cast<float>(SwapChainPanel().ActualWidth());
-        const auto height = gsl::narrow_cast<float>(SwapChainPanel().ActualHeight());
-        auto clip = winrt::Windows::UI::Xaml::Media::RectangleGeometry{};
-        clip.Rect({ 0.0f, offset, width, std::max(0.0f, height - offset) });
-        SwapChainPanel().Clip(clip);
+        SetStreamingSuggestionsSwapChainOffset(offset);
+        StreamingSuggestions().OpenCommand(*this, executable, substitutedArgs, substitutedTemplate, workingDir, suggestionRow, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, currentWord, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset, sortResults);
     }
 
-    void TermControl::SetSnippetSearchSwapChainOffset(float offset)
+    void TermControl::SetStreamingSuggestionsSwapChainOffset(float offset)
     {
         offset = std::max(0.0f, offset);
         SwapChainPanelTransform().Y(-offset);
@@ -4348,18 +4349,6 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
 
         _refreshSearch();
 
-        const auto currentWord = _core.GetCurrentWord();
-        if (StreamingSuggestions().Visibility() == Visibility::Collapsed && SnippetSearch().HasPrefixMatch(currentWord))
-        {
-            StartSnippetSearch(nullptr, true);
-        }
-
-        if (SnippetSearch().Visibility() == Visibility::Visible)
-        {
-            const auto currentWord = _core.GetCurrentLine();
-            const auto cursorPos = _core.CursorPosition();
-            SnippetSearch().SetCurrentWord(currentWord, cursorPos.X);
-        }
     }
 
     void TermControl::OwningHwnd(uint64_t owner)

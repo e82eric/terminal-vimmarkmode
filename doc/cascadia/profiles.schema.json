@@ -1934,10 +1934,10 @@
               "default": "[^\\s]{5,}",
               "description": "For streaming suggestions sources, the initial search pattern to apply."
             },
-            "useFuzzySearch": {
+            "sortResults": {
               "type": "boolean",
               "default": false,
-              "description": "For streaming suggestions sources, use fuzzy matching instead of literal substring matching."
+              "description": "For command streaming suggestions, sort equal-score results by text length before falling back to ordinal order."
             }
           }
         }

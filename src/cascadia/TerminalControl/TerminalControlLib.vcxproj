@@ -58,9 +58,6 @@
     <ClInclude Include="StreamingSuggestionsControl.h">
       <DependentUpon>StreamingSuggestionsControl.xaml</DependentUpon>
     </ClInclude>
-    <ClInclude Include="SnippetSearchControl.h">
-      <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
-    </ClInclude>
     <ClInclude Include="VimModeProxy.h" />
     <ClInclude Include="XamlLights.h">
       <DependentUpon>XamlLights.idl</DependentUpon>
@@ -115,9 +112,6 @@
     <ClCompile Include="StreamingSuggestionsControl.cpp">
       <DependentUpon>StreamingSuggestionsControl.xaml</DependentUpon>
     </ClCompile>
-    <ClCompile Include="SnippetSearchControl.cpp">
-      <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
-    </ClCompile>
     <ClCompile Include="VimModeProxy.cpp" />
     <ClCompile Include="XamlLights.cpp">
       <DependentUpon>XamlLights.idl</DependentUpon>
@@ -161,9 +155,6 @@
     <Midl Include="StreamingSuggestionsControl.idl">
       <DependentUpon>StreamingSuggestionsControl.xaml</DependentUpon>
     </Midl>
-    <Midl Include="SnippetSearchControl.idl">
-      <DependentUpon>SnippetSearchControl.xaml</DependentUpon>
-    </Midl>
     <Midl Include="SnippetSearchTypes.idl" />
     <Midl Include="XamlLights.idl" />
     <Midl Include="AiPromptControl.idl">
@@ -183,7 +174,6 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="StreamingSuggestionsControl.xaml" />
-    <Page Include="SnippetSearchControl.xaml" />
     <Page Include="AiPromptControl.xaml" />
     <Page Include="TermControl.xaml">
       <SubType>Designer</SubType>

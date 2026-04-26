@@ -12,18 +12,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         SuggestionSearchRow() = default;
         SuggestionSearchRow(Control::FuzzySearchTextLine const& line,
+                            Control::FuzzySearchTextLine const& secondaryLine,
                             Control::SuggestionSearchItem const& item,
                             Windows::UI::Xaml::Media::Brush const& textColor,
                             Windows::UI::Xaml::Media::Brush const& highlightedTextColor) :
-            _Line(line), _Item(item), _TextColor(textColor), _HighlightedTextColor(highlightedTextColor) {}
+            _Line(line), _SecondaryLine(secondaryLine), _Item(item), _TextColor(textColor), _HighlightedTextColor(highlightedTextColor) {}
 
         Control::FuzzySearchTextLine Line() const { return _Line; }
+        Control::FuzzySearchTextLine SecondaryLine() const { return _SecondaryLine; }
+        bool HasSecondaryLine() const { return _SecondaryLine != nullptr; }
+        Windows::UI::Xaml::Visibility SecondaryVisibility() const { return HasSecondaryLine() ? Windows::UI::Xaml::Visibility::Visible : Windows::UI::Xaml::Visibility::Collapsed; }
         Control::SuggestionSearchItem Item() const { return _Item; }
         Windows::UI::Xaml::Media::Brush TextColor() const { return _TextColor; }
         Windows::UI::Xaml::Media::Brush HighlightedTextColor() const { return _HighlightedTextColor; }
 
     private:
         Control::FuzzySearchTextLine _Line{ nullptr };
+        Control::FuzzySearchTextLine _SecondaryLine{ nullptr };
         Control::SuggestionSearchItem _Item{};
         Windows::UI::Xaml::Media::Brush _TextColor{ nullptr };
         Windows::UI::Xaml::Media::Brush _HighlightedTextColor{ nullptr };
@@ -33,6 +38,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         Microsoft::Terminal::Control::SuggestionSearchItem item;
         std::optional<std::vector<fzfcpp::matcher::TextRun>> runs;
+        winrt::hstring displayText;
+        std::optional<std::vector<fzfcpp::matcher::TextRun>> secondaryRuns;
+        winrt::hstring secondaryText;
     };
 
     struct LazySuggestionRowVector;
@@ -108,6 +116,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::com_ptr<LazySuggestionRowVector> _owner;
     };
 
+    struct CommandSearchHelper;
+
     struct StreamingSuggestionsControl : StreamingSuggestionsControlT<StreamingSuggestionsControl>
     {
         winrt::event_token PropertyChanged(const winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler& handler);
@@ -115,6 +125,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     public:
         StreamingSuggestionsControl();
+        ~StreamingSuggestionsControl();
 
         static Windows::UI::Xaml::DependencyProperty BorderColorProperty();
         static Windows::UI::Xaml::DependencyProperty HeaderTextColorProperty();
@@ -154,16 +165,33 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             float prefixWidth,
             float characterHeight,
             float swapChainOffset);
+        void OpenTasks(
+            Microsoft::Terminal::Control::TermControl const& termControl,
+            Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets,
+            Windows::Foundation::Point anchor,
+            Windows::Foundation::Size space,
+            winrt::hstring const& currentWord,
+            float prefixWidth,
+            float characterHeight,
+            float swapChainOffset);
+        void OpenCommand(
+            Microsoft::Terminal::Control::TermControl const& termControl,
+            winrt::hstring executable,
+            Windows::Foundation::Collections::IVector<winrt::hstring> args,
+            winrt::hstring commandTemplate,
+            winrt::hstring workingDirectory,
+            int32_t suggestionRow,
+            Windows::Foundation::Point anchor,
+            Windows::Foundation::Size space,
+            winrt::hstring const& currentWord,
+            float prefixWidth,
+            float characterHeight,
+            float swapChainOffset,
+            bool sortResults);
+        bool ContainsFocus();
         std::optional<SuggestionSearchItem> _TryGetSelectedSuggestion();
 
         bool HandleKeyPress(WORD vkey, WORD scanCode, Core::ControlKeyStates modifiers, bool keyDown);
-
-        bool UseFuzzySearch() const { return _useFuzzySearch; }
-        void UseFuzzySearch(bool value)
-        {
-            _useFuzzySearch = value;
-            _updateModeIndicator();
-        }
 
         void _SearchBoxTextChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&);
         void _SplitSearchBoxTextChanged(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::UI::Xaml::RoutedEventArgs const&);
@@ -176,9 +204,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Normal,
             WordSplit
         };
+        enum class StreamingSuggestionsDataSource
+        {
+            Scrollback,
+            Command,
+            Tasks
+        };
 
-        bool _useFuzzySearch = false;
+        bool _sortResults = false;
         StreamingSuggestionsMode _mode = StreamingSuggestionsMode::Normal;
+        StreamingSuggestionsDataSource _dataSource = StreamingSuggestionsDataSource::Scrollback;
         void _selectFirstItem();
         void _close(bool scrollToCursor);
         winrt::handle _lastSwapChainHandle{ nullptr };
@@ -195,6 +230,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float _swapChainOffset = 0.0f;
         hstring _currentWord;
         hstring _currentSearchTerm;
+        hstring _commandTemplate;
+        std::shared_ptr<CommandSearchHelper> _commandSearchHelper;
         float _prefixWidth;
         Windows::Foundation::Point _anchor;
         Windows::Foundation::Size _space;
@@ -203,26 +240,47 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _allItemsSearched;
         bool _controlShown;
         std::vector<Microsoft::Terminal::Control::SuggestionBatch> _batches;
+        std::vector<SnippetSearchItem> _taskItems;
         std::vector<Microsoft::Terminal::Control::SuggestionSearchItem> _splitItems;
         std::mutex _batchesMutex;
+        std::chrono::steady_clock::time_point _lastBatchTriggerTime{};
+        bool _isStreaming{ false };
+        int _lastCompletedSearchVersion{ 0 };
+        uint64_t _sessionVersion{ 0 };
         std::mutex _searchTermMutex;
         winrt::Windows::UI::Xaml::Controls::ListView::SizeChanged_revoker _sizeChangedRevoker;
+        bool _suppressSearchBoxChange{ false };
+        struct _OpenState
+        {
+            StreamingSuggestionsDataSource dataSource;
+            winrt::hstring commandTemplate;
+            Windows::Foundation::Point anchor;
+            Windows::Foundation::Size space;
+            winrt::hstring currentWord;
+            float prefixWidth;
+            float characterHeight;
+            float swapChainOffset;
+            bool sortResults;
+        };
         winrt::Windows::UI::Xaml::Controls::ListView _activeListBox();
+        uint64_t _beginOpen(TermControl const& termControl, const _OpenState& state);
+        Microsoft::Terminal::Control::SuggestionBatchHandler _makeBatchHandler(uint64_t sessionVersion);
+        winrt::Windows::Foundation::IAsyncAction _finishStreamingLoad(uint64_t sessionVersion);
         void _showSplitOverlay(bool show);
         void _triggerSearch();
         void _selectItem(int32_t index);
-        winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version);
-        winrt::Windows::Foundation::IAsyncAction _performContainsSearch(std::wstring searchTerm, uint64_t version);
+        void _swapItemsPreservingSelection(std::vector<SuggestionRowSource>&& sources);
+        winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version, uint64_t sessionVersion);
         void _populateSplitList(std::wstring searchTerm);
 
         void _recalculateTopMargin();
         void _recalculateHorizontalPlacement();
-        void _updateModeIndicator();
         void _applySearchBoxForeground();
         void _ensureCellWidth();
         void _setDirection();
         void _OnCopyNotificationTimerTick(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::Foundation::IInspectable const&);
         void _showCopyNotification(const hstring& text);
+        void _updateLoadingIndicator();
 
         struct _KeyBinding
         {

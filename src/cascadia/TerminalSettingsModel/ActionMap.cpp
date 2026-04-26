@@ -105,7 +105,6 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
                 { ShortcutAction::MarkMode, USES_RESOURCE(L"MarkModeCommandKey") },
                 { ShortcutAction::VimMode, USES_RESOURCE(L"VimModeCommandKey") },
                 { ShortcutAction::VimSearch, USES_RESOURCE(L"VimSearchCommandKey") },
-                { ShortcutAction::ToggleSnippetAutoComplete, USES_RESOURCE(L"ToggleSnippetAutoCompleteCommandKey") },
                 { ShortcutAction::ToggleFloatingPane, USES_RESOURCE(L"ToggleFloatingPaneCommandKey") },
                 { ShortcutAction::ToggleRowNumbers, USES_RESOURCE(L"ToggleRowNumbersCommandKey") },
                 { ShortcutAction::NewFloatingPane, USES_RESOURCE(L"NewFloatingPaneCommandKey") },

@@ -145,12 +145,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                                              Control::RendererWarningArgs args);
 
         void CreateSearchBoxControl();
-        void SetSnippets(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets);
-        void StartSnippetSearch(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, bool autoCompleteMode);
         void StartAiPrompt(Control::AiPromptProvider provider, Control::AiPromptMode mode);
-        void OpenStreamingSuggestions(winrt::hstring needle, bool useFuzzySearch);
+        void OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets);
+        void OpenStreamingSuggestions(winrt::hstring needle);
+        void OpenCommandStreamingSuggestions(winrt::hstring executable, Windows::Foundation::Collections::IVector<winrt::hstring> args, winrt::hstring commandTemplate, bool sortResults);
         void SetStreamingSuggestionsSwapChainOffset(float offset);
-        void SetSnippetSearchSwapChainOffset(float offset);
         bool HighlightPointSpan(Core::Point start, Core::Point end, float clippedTopPixels);
         void ClearHighlights(bool scrollToCursor);
 
@@ -211,7 +210,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void RegexSearch(const winrt::hstring& text, bool copy);
         void ToggleRowNumberMode();
-        void ToggleSnippetAutoComplete();
         winrt::hstring GetCurrentWord();
         void ApplyPreviewColorScheme(const Core::ICoreScheme& scheme) { _core.ApplyPreviewColorScheme(scheme); }
         void ResetPreviewColorScheme() { _core.ResetPreviewColorScheme(); }
@@ -437,8 +435,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         double _GetAutoScrollSpeed(double cursorDistanceFromBorder) const;
 
-        void _CloseSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
-        void _OnReturnSnippetSearchControl(const winrt::Windows::Foundation::IInspectable& sender, hstring);
         void _CloseAiPromptControl(const winrt::Windows::Foundation::IInspectable& sender, const Windows::UI::Xaml::RoutedEventArgs& args);
         void _OnReturnAiPromptControl(const winrt::Windows::Foundation::IInspectable& sender, hstring);
         void _setRowNumberFontSize(double lingHeight, double size, Windows::UI::Xaml::Media::FontFamily fontFamily);

@@ -769,15 +769,21 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             str.append(L", useCommandline:true");
         }
 
+        if (!CommandExecutable().empty())
+        {
+            str.append(L", commandExecutable:");
+            str.append(CommandExecutable());
+        }
+
         if (!Regex().empty() && Regex() != L"[^\\s]{5,}")
         {
             str.append(L", regex:");
             str.append(Regex());
         }
 
-        if (UseFuzzySearch())
+        if (SortResults())
         {
-            str.append(L", useFuzzySearch:true");
+            str.append(L", sortResults:true");
         }
 
         // All of the source values will leave a trailing ", " that we need to chop later:
@@ -801,6 +807,26 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             if (WI_IsFlagSet(source, SuggestionsSource::CommandHistory))
             {
                 str.append(L"commandHistory, ");
+            }
+
+            if (WI_IsFlagSet(source, SuggestionsSource::DirectoryHistory))
+            {
+                str.append(L"directoryHistory, ");
+            }
+
+            if (WI_IsFlagSet(source, SuggestionsSource::QuickFixes))
+            {
+                str.append(L"quickFix, ");
+            }
+
+            if (WI_IsFlagSet(source, SuggestionsSource::Scrollback))
+            {
+                str.append(L"scrollBack, ");
+            }
+
+            if (WI_IsFlagSet(source, SuggestionsSource::Command))
+            {
+                str.append(L"command, ");
             }
         }
         // Chop off the last ","

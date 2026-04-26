@@ -371,24 +371,9 @@ namespace winrt::TerminalApp::implementation
         // The tabWidthMode may have changed, update the header control accordingly
         _UpdateHeaderControlMaxWidth();
 
-        const auto toSearch = winrt::single_threaded_observable_vector<SnippetSearchItem>();
-        const auto snippets = settings.GlobalSettings().ActionMap().FilterToSnippets(winrt::hstring{}, winrt::hstring{}).GetResults();
-
-        for (const auto& cmd : snippets)
-        {
-            if (const auto sendInputArgs = cmd.ActionAndArgs().Args().try_as<SendInputArgs>())
-            {
-                toSearch.Append(SnippetSearchItem{ sendInputArgs.Input(), cmd.Name(), cmd.Description() });
-            }
-        }
-
         // Update the settings on all our panes.
         _rootPane->WalkTree([&](const auto& pane) {
             pane->UpdateSettings(settings);
-            if (const auto control = pane->GetTerminalControl())
-            {
-                control.SetSnippets(toSearch);
-            }
             return false;
         });
     }

@@ -160,6 +160,7 @@ namespace Microsoft.Terminal.Settings.Model
         DirectoryHistory = 0x4,
         QuickFixes = 0x8,
         Scrollback = 0x10,
+        Command = 0x20,
         All = 0xffffffff,
     };
 
@@ -408,9 +409,12 @@ namespace Microsoft.Terminal.Settings.Model
     {
         SuggestionsArgs();
         SuggestionsSource Source { get; };
+        String CommandExecutable { get; };
+        Windows.Foundation.Collections.IVector<String> CommandArgs { get; };
+        String CommandTemplate { get; };
         Boolean UseCommandline { get; };
         String Regex { get; };
-        Boolean UseFuzzySearch { get; };
+        Boolean SortResults { get; };
     };
 
     [default_interface] runtimeclass ShowAiPromptArgs : IActionArgs, IActionArgsDescriptorAccess

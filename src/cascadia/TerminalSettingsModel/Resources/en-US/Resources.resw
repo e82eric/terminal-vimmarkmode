@@ -630,10 +630,6 @@
     <value>Toggle Row Numbers</value>
     <comment>A command that will toggle "relative row numbers".</comment>
   </data>
-  <data name="ToggleSnippetAutoCompleteCommandKey" xml:space="preserve">
-    <value>Toggle Snippet Auto Complete</value>
-    <comment>A command that will toggle snippet auto complete.</comment>
-  </data>
   <data name="VimSearchCommandKey" xml:space="preserve">
     <value>Toggle vim search mode</value>
     <comment>A command that will toggle "vim search".</comment>
@@ -978,8 +974,17 @@
   <data name="UseCommandlineActionArgumentLocalized" xml:space="preserve">
     <value>Use commandline</value>
   </data>
-  <data name="UseFuzzySearchActionArgumentLocalized" xml:space="preserve">
-    <value>Use fuzzy search</value>
+  <data name="SortResultsActionArgumentLocalized" xml:space="preserve">
+    <value>Sort results</value>
+  </data>
+  <data name="CommandExecutableActionArgumentLocalized" xml:space="preserve">
+    <value>Command executable</value>
+  </data>
+  <data name="CommandArgsActionArgumentLocalized" xml:space="preserve">
+    <value>Command args</value>
+  </data>
+  <data name="CommandTemplateActionArgumentLocalized" xml:space="preserve">
+    <value>Command template</value>
   </data>
   <data name="SwitcherModeActionArgumentLocalized" xml:space="preserve">
     <value>Switcher mode</value>

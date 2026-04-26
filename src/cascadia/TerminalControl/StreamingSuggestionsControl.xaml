@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="using:Microsoft.Terminal.Control"
+             xmlns:mux="using:Microsoft.UI.Xaml.Controls"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              x:Name="Root"
              HorizontalAlignment="Stretch"
@@ -20,13 +21,14 @@
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid"
-        Height="204"
-        MaxHeight="204" >
+        Height="264"
+        MaxHeight="264"
+        Background="{x:Bind BackgroundColor, Mode=OneWay}">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" Background="{x:Bind BackgroundColor, Mode=OneWay}" CornerRadius="4" >
+        <Border BorderBrush="{x:Bind BorderColor, Mode=OneWay}" BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}" Background="{x:Bind BackgroundColor, Mode=OneWay}" CornerRadius="4" Margin="8,8,8,10" >
             <Grid x:Name="InnerGrid">
                 <Grid.RowDefinitions>
                     <RowDefinition x:Name="InnerRow0" Height="Auto"/>
@@ -35,24 +37,26 @@
                 <Border
                     x:Name="SearchBoxBorder"
                     Grid.Row="0"
-                    Height="40"
+                    Height="44"
                     BorderBrush="{x:Bind BorderColor, Mode=OneWay}"
                     BorderThickness="0,0,0,1">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox
                             Grid.Column="0"
                             x:Name="SearchBox"
                             IsSpellCheckEnabled="False"
+                            FontSize="15"
                             Foreground="{x:Bind TextColor, Mode=OneWay}"
                             Background="{x:Bind BackgroundColor, Mode=OneWay}"
                             BorderThickness="0"
                             Padding="8,6"
                             TextChanged="_SearchBoxTextChanged"
-                            KeyDown="_SearchBoxKeyDown">
+                            PreviewKeyDown="_SearchBoxKeyDown">
                             <TextBox.Resources>
                                 <StaticResource x:Key="TextControlBackground" ResourceKey="SystemControlTransparentBrush" />
                                 <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="SystemControlTransparentBrush" />
@@ -62,19 +66,29 @@
                                 <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="SystemControlTransparentBrush" />
                             </TextBox.Resources>
                         </TextBox>
-                        <Border
+                        <mux:ProgressRing
                             Grid.Column="1"
+                            x:Name="LoadingSpinner"
+                            VerticalAlignment="Center"
+                            Margin="0,0,4,0"
+                            Width="14"
+                            Height="14"
+                            IsActive="False"
+                            Visibility="Collapsed"/>
+                        <Border
+                            Grid.Column="2"
                             x:Name="ModeIndicatorBorder"
                             VerticalAlignment="Center"
                             Margin="4,0,8,0"
                             Padding="6,2"
+                            Visibility="Collapsed"
                             CornerRadius="3"
                             BorderBrush="{x:Bind TextColor, Mode=OneWay}"
                             BorderThickness="1">
                             <TextBlock
                                 x:Name="ModeIndicatorText"
-                                Text="Contains"
-                                FontSize="11"
+                                Text="Fuzzy"
+                                FontSize="12"
                                 Foreground="{x:Bind TextColor, Mode=OneWay}"
                                 Opacity="0.8"/>
                         </Border>
@@ -83,7 +97,7 @@
                 <ListView
                     x:Name="ListBox"
                     Grid.Row="1"
-                    Height="160"
+                    Height="196"
                     Background="{x:Bind BackgroundColor, Mode=OneWay}"
                     VerticalAlignment="Stretch"
                     DataContext="{x:Bind}" >
@@ -95,17 +109,29 @@
                     </ListView.ItemContainerTransitions>
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
-                            <Setter Property="Height" Value="40"/>
                             <Setter Property="MinHeight" Value="40"/>
                         </Style>
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:SuggestionSearchRow">
-                            <local:FuzzySearchTextControl
-                                TextColor="{x:Bind TextColor}"
-                                HighlightedTextColor="{x:Bind HighlightedTextColor}"
-                                Text="{x:Bind Line}"
-                                HorizontalAlignment="Left"/>
+                            <StackPanel
+                                Orientation="Vertical"
+                                HorizontalAlignment="Left"
+                                Padding="8,4">
+                                <local:FuzzySearchTextControl
+                                    FontSize="15"
+                                    TextColor="{x:Bind TextColor}"
+                                    HighlightedTextColor="{x:Bind HighlightedTextColor}"
+                                    Text="{x:Bind Line}"
+                                    HorizontalAlignment="Left"/>
+                                <local:FuzzySearchTextControl
+                                    FontSize="15"
+                                    TextColor="{x:Bind TextColor}"
+                                    HighlightedTextColor="{x:Bind HighlightedTextColor}"
+                                    Text="{x:Bind SecondaryLine}"
+                                    HorizontalAlignment="Left"
+                                    Visibility="{x:Bind SecondaryVisibility}"/>
+                            </StackPanel>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
@@ -114,11 +140,11 @@
                     Padding="10"
                     x:Name="NoItemsPlaceholder"
                     Text="No items found"
+                    FontSize="15"
                     Foreground="{x:Bind TextColor, Mode=OneWay}"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Visibility="Collapsed"
-                    FontSize="14"
                     Opacity="0.6"
                     IsHitTestVisible="False" />
             </Grid>
@@ -129,6 +155,7 @@
             BorderThickness="{x:Bind InnerBorderThickness, Mode=OneWay}"
             Background="{x:Bind BackgroundColor, Mode=OneWay}"
             CornerRadius="4"
+            Margin="8,8,8,10"
             Visibility="Collapsed">
             <Grid x:Name="SplitInnerGrid">
                 <Grid.RowDefinitions>
@@ -138,18 +165,19 @@
                 <Border
                     x:Name="SplitSearchBoxBorder"
                     Grid.Row="0"
-                    Height="40"
+                    Height="44"
                     BorderBrush="{x:Bind BorderColor, Mode=OneWay}"
                     BorderThickness="0,0,0,1">
                     <TextBox
                         x:Name="SplitSearchBox"
                         IsSpellCheckEnabled="False"
+                        FontSize="15"
                         Foreground="{x:Bind TextColor, Mode=OneWay}"
                         Background="{x:Bind BackgroundColor, Mode=OneWay}"
                         BorderThickness="0"
                         Padding="8,6"
                         TextChanged="_SplitSearchBoxTextChanged"
-                        KeyDown="_SearchBoxKeyDown">
+                        PreviewKeyDown="_SearchBoxKeyDown">
                         <TextBox.Resources>
                             <StaticResource x:Key="TextControlBackground" ResourceKey="SystemControlTransparentBrush" />
                             <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="SystemControlTransparentBrush" />
@@ -163,7 +191,7 @@
                 <ListView
                     x:Name="SplitListBox"
                     Grid.Row="1"
-                    Height="160"
+                    Height="196"
                     Background="{x:Bind BackgroundColor, Mode=OneWay}"
                     VerticalAlignment="Stretch"
                     DataContext="{x:Bind}" >
@@ -175,17 +203,29 @@
                     </ListView.ItemContainerTransitions>
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
-                            <Setter Property="Height" Value="40"/>
                             <Setter Property="MinHeight" Value="40"/>
                         </Style>
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="local:SuggestionSearchRow">
-                            <local:FuzzySearchTextControl
-                                TextColor="{x:Bind TextColor}"
-                                HighlightedTextColor="{x:Bind HighlightedTextColor}"
-                                Text="{x:Bind Line}"
-                                HorizontalAlignment="Left"/>
+                            <StackPanel
+                                Orientation="Vertical"
+                                HorizontalAlignment="Left"
+                                Padding="8,4">
+                                <local:FuzzySearchTextControl
+                                    FontSize="15"
+                                    TextColor="{x:Bind TextColor}"
+                                    HighlightedTextColor="{x:Bind HighlightedTextColor}"
+                                    Text="{x:Bind Line}"
+                                    HorizontalAlignment="Left"/>
+                                <local:FuzzySearchTextControl
+                                    FontSize="15"
+                                    TextColor="{x:Bind TextColor}"
+                                    HighlightedTextColor="{x:Bind HighlightedTextColor}"
+                                    Text="{x:Bind SecondaryLine}"
+                                    HorizontalAlignment="Left"
+                                    Visibility="{x:Bind SecondaryVisibility}"/>
+                            </StackPanel>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
@@ -194,11 +234,11 @@
                     Padding="10"
                     x:Name="SplitNoItemsPlaceholder"
                     Text="No items found"
+                    FontSize="15"
                     Foreground="{x:Bind TextColor, Mode=OneWay}"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Visibility="Collapsed"
-                    FontSize="14"
                     Opacity="0.6"
                     IsHitTestVisible="False" />
             </Grid>

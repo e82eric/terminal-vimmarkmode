@@ -129,21 +129,19 @@ namespace Microsoft.Terminal.Control
         String GetCurrentWord();
 
         void CreateSearchBoxControl();
-        void StartSnippetSearch(IVector<SnippetSearchItem> snippets, Boolean autoCompleteMode);
-        void SetSnippets(IVector<SnippetSearchItem> snippets);
         void StartAiPrompt(AiPromptProvider provider, AiPromptMode mode);
         Boolean SearchBoxEditInFocus();
 
-        void OpenStreamingSuggestions(String needle, Boolean useFuzzySearch);
+        void OpenTaskStreamingSuggestions(IVector<SnippetSearchItem> snippets);
+        void OpenStreamingSuggestions(String needle);
+        void OpenCommandStreamingSuggestions(String executable, Windows.Foundation.Collections.IVector<String> args, String commandTemplate, Boolean sortResults);
         void SetStreamingSuggestionsSwapChainOffset(Single offset);
-        void SetSnippetSearchSwapChainOffset(Single offset);
         Boolean HighlightPointSpan(Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end, Single clippedTopPixels);
         void ClearHighlights(Boolean scrollToCursor);
 
         void SearchMatch(Boolean goForward);
         void RegexSearch(String needle, Boolean copy);
         void ToggleRowNumberMode();
-        void ToggleSnippetAutoComplete();
 
         void AdjustFontSize(Single fontSizeDelta);
         void ResetFontSize();
