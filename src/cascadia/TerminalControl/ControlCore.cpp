@@ -35,6 +35,8 @@ using namespace Microsoft::Terminal::Core;
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
     static bool _isPromptOnlySuggestion(std::wstring_view text);
+    static winrt::hstring _trimCurrentCommandline(std::wstring_view text);
+    static std::wstring _currentLogicalLineUpToCursor(const TextBuffer& textBuffer);
 
     static winrt::Microsoft::Terminal::Core::OptionalColor OptionalFromColor(const til::color& c) noexcept
     {
@@ -56,6 +58,50 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         default:
             return GA::Automatic;
         }
+    }
+
+    static winrt::hstring _trimCurrentCommandline(std::wstring_view text)
+    {
+        constexpr std::wstring_view commandDelimiter{ L"> " };
+
+        if (const auto delimiterPos = text.find(commandDelimiter); delimiterPos != std::wstring_view::npos)
+        {
+            text.remove_prefix(delimiterPos + commandDelimiter.size());
+        }
+
+        const auto strEnd = text.find_last_not_of(UNICODE_SPACE);
+        if (strEnd != std::wstring_view::npos)
+        {
+            return winrt::hstring{ text.substr(0, strEnd + 1) };
+        }
+        return {};
+    }
+
+    static std::wstring _currentLogicalLineUpToCursor(const TextBuffer& textBuffer)
+    {
+        const auto cursorPosition = textBuffer.GetCursor().GetPosition();
+        auto startRow = cursorPosition.y;
+
+        while (startRow > 0 && textBuffer.GetRowByOffset(startRow - 1).WasWrapForced())
+        {
+            --startRow;
+        }
+
+        std::wstring line;
+        for (auto rowIndex = startRow; rowIndex <= cursorPosition.y; ++rowIndex)
+        {
+            const auto& row = textBuffer.GetRowByOffset(rowIndex);
+            if (rowIndex == cursorPosition.y)
+            {
+                line.append(row.GetText(0, cursorPosition.x));
+            }
+            else
+            {
+                line.append(row.GetText());
+            }
+        }
+
+        return line;
     }
 
     TextColor SelectionColor::AsTextColor() const noexcept
@@ -2491,30 +2537,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 lineText = rowText.substr(0, strEnd + 1);
             }
             
-            // Store cursor line separately and extract text after first '>' character
+            // Store cursor line separately and derive the command text view.
             if (rowIndex == cursor.y)
             {
                 cursorLineText = lineText;
-                
-                // For cursor line, extract text after first '>' character for the separate property
-                if (!cursorLineText.empty())
-                {
-                    const auto promptPos = cursorLineText.find(L'>');
-                    if (promptPos != std::wstring::npos)
-                    {
-                        // Extract everything after the '>' and trim leading whitespace
-                        auto afterPrompt = cursorLineText.substr(promptPos + 1);
-                        const auto firstNonSpace = afterPrompt.find_first_not_of(L" \t");
-                        if (firstNonSpace != std::wstring::npos)
-                        {
-                            cursorLineText = afterPrompt.substr(firstNonSpace);
-                        }
-                        else
-                        {
-                            cursorLineText = afterPrompt; // Keep even if all whitespace
-                        }
-                    }
-                }
+                cursorLineText = _trimCurrentCommandline(cursorLineText).c_str();
             }
             
             allLines.append(lineText);
@@ -2553,6 +2580,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const auto currentCommand = _terminal->CurrentCommand();
         const auto trimmedCurrentCommand = trimToHstring(currentCommand);
+        const auto currentLogicalLine = _currentLogicalLineUpToCursor(textBuffer);
+        constexpr std::wstring_view commandDelimiter{ L"> " };
+        const auto currentCommandline =
+            currentLogicalLine.find(commandDelimiter) != std::wstring::npos ? _trimCurrentCommandline(currentLogicalLine) :
+            trimmedCurrentCommand.empty() ? _trimCurrentCommandline(currentLogicalLine) :
+                                            _trimCurrentCommandline(currentCommand);
 
         for (const auto& commandInBuffer : bufferCommands)
         {
@@ -2575,7 +2608,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         auto context = winrt::make_self<CommandHistoryContext>(std::move(commands));
-        context->CurrentCommandline(trimmedCurrentCommand);
+        context->CurrentCommandline(currentCommandline);
         context->QuickFixes(_cachedQuickFixes);
         const auto currentWordPrefix = _terminal->CurrentWordPrefix();
         context->CurrentWordPrefix(_isPromptOnlySuggestion(currentWordPrefix) ? winrt::hstring{} : trimToHstring(currentWordPrefix));

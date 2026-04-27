@@ -1642,8 +1642,7 @@ namespace winrt::TerminalApp::implementation
                 {
                     winrt::hstring currentCommandline = context.CurrentCommandline();
                     winrt::hstring currentWordPrefix = context.CurrentWordPrefix();
-                    //filter = source == SuggestionsSource::Scrollback ? currentWordPrefix : currentCommandline;
-                    filter = currentWordPrefix;
+                    filter = realArgs.UseCommandline() ? currentCommandline : currentWordPrefix;
                 }
             }
         }
@@ -1678,7 +1677,7 @@ namespace winrt::TerminalApp::implementation
                     auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
                     toSearch.Append(searchItem);
                 }
-                termControl.OpenTaskStreamingSuggestions(toSearch);
+                termControl.OpenTaskStreamingSuggestions(toSearch, filter);
             }
             co_return;
         }

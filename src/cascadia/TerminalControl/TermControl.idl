@@ -132,7 +132,7 @@ namespace Microsoft.Terminal.Control
         void StartAiPrompt(AiPromptProvider provider, AiPromptMode mode);
         Boolean SearchBoxEditInFocus();
 
-        void OpenTaskStreamingSuggestions(IVector<SnippetSearchItem> snippets);
+        void OpenTaskStreamingSuggestions(IVector<SnippetSearchItem> snippets, String initialText);
         void OpenStreamingSuggestions(String needle);
         void OpenCommandStreamingSuggestions(String executable, Windows.Foundation.Collections.IVector<String> args, String commandTemplate, Boolean sortResults, Boolean useCommandline);
         void SetStreamingSuggestionsSwapChainOffset(Single offset);

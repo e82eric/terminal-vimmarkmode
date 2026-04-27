@@ -3388,7 +3388,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         return std::pow(cursorDistanceFromBorder, 2.0) / 25.0 + 2.0;
     }
 
-    void TermControl::OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets)
+    void TermControl::OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, winrt::hstring initialText)
     {
         auto cursorPosition = _core.CursorPosition();
         auto y = cursorPosition.Y;
@@ -3407,7 +3407,11 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto characterDimensions = CharacterDimensions();
         const auto characterWidth = characterDimensions.Width;
 
-        auto currentWord = _core.GetCurrentWord();
+        auto currentWord = initialText;
+        if (currentWord.empty())
+        {
+            currentWord = _core.GetCurrentWord();
+        }
         const auto prefixWidth = currentWord.size() * characterWidth;
         constexpr auto suggestionsMaxHeight = 264.0f;
         constexpr auto suggestionsPromptGap = 2.0f;
