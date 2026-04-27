@@ -134,7 +134,7 @@ namespace Microsoft.Terminal.Control
 
         void OpenTaskStreamingSuggestions(IVector<SnippetSearchItem> snippets);
         void OpenStreamingSuggestions(String needle);
-        void OpenCommandStreamingSuggestions(String executable, Windows.Foundation.Collections.IVector<String> args, String commandTemplate, Boolean sortResults);
+        void OpenCommandStreamingSuggestions(String executable, Windows.Foundation.Collections.IVector<String> args, String commandTemplate, Boolean sortResults, Boolean useCommandline);
         void SetStreamingSuggestionsSwapChainOffset(Single offset);
         Boolean HighlightPointSpan(Microsoft.Terminal.Core.Point start, Microsoft.Terminal.Core.Point end, Single clippedTopPixels);
         void ClearHighlights(Boolean scrollToCursor);

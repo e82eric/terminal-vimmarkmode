@@ -187,7 +187,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             float prefixWidth,
             float characterHeight,
             float swapChainOffset,
-            bool sortResults);
+            bool sortResults,
+            bool useCommandline);
         bool ContainsFocus();
         std::optional<SuggestionSearchItem> _TryGetSelectedSuggestion();
 
@@ -212,6 +213,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         };
 
         bool _sortResults = false;
+        bool _useCommandline = false;
         StreamingSuggestionsMode _mode = StreamingSuggestionsMode::Normal;
         StreamingSuggestionsDataSource _dataSource = StreamingSuggestionsDataSource::Scrollback;
         void _selectFirstItem();
@@ -261,6 +263,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             float characterHeight;
             float swapChainOffset;
             bool sortResults;
+            bool useCommandline;
         };
         winrt::Windows::UI::Xaml::Controls::ListView _activeListBox();
         uint64_t _beginOpen(TermControl const& termControl, const _OpenState& state);

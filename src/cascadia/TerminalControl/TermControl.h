@@ -148,7 +148,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void StartAiPrompt(Control::AiPromptProvider provider, Control::AiPromptMode mode);
         void OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets);
         void OpenStreamingSuggestions(winrt::hstring needle);
-        void OpenCommandStreamingSuggestions(winrt::hstring executable, Windows::Foundation::Collections::IVector<winrt::hstring> args, winrt::hstring commandTemplate, bool sortResults);
+        void OpenCommandStreamingSuggestions(winrt::hstring executable, Windows::Foundation::Collections::IVector<winrt::hstring> args, winrt::hstring commandTemplate, bool sortResults, bool useCommandline);
         void SetStreamingSuggestionsSwapChainOffset(float offset);
         bool HighlightPointSpan(Core::Point start, Core::Point end, float clippedTopPixels);
         void ClearHighlights(bool scrollToCursor);

@@ -292,6 +292,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _currentSearchTerm = state.currentWord;
         _commandTemplate = state.commandTemplate;
         _sortResults = state.sortResults;
+        _useCommandline = state.useCommandline;
         _prefixWidth = state.prefixWidth;
         _swapChainOffset = state.swapChainOffset;
 
@@ -735,7 +736,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         float prefixWidth,
         float characterHeight,
         float swapChainOffset,
-        bool sortResults)
+        bool sortResults,
+        bool useCommandline)
     {
         const auto sessionVersion = _beginOpen(termControl, _OpenState{
             .dataSource = StreamingSuggestionsDataSource::Command,
@@ -747,6 +749,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             .characterHeight = characterHeight,
             .swapChainOffset = swapChainOffset,
             .sortResults = sortResults,
+            .useCommandline = useCommandline,
         });
 
         const auto commandArgs = args ? args : winrt::single_threaded_vector<winrt::hstring>();
@@ -919,7 +922,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 formatted.replace(pos, token.length(), trimmed);
             }
-            text = winrt::hstring{ formatted };
+            if (_useCommandline)
+            {
+                auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
+                text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, formatted) };
+            }
+            else
+            {
+                text = winrt::hstring{ formatted };
+            }
         }
         else
         {
