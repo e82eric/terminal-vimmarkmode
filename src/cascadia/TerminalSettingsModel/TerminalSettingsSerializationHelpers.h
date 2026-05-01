@@ -538,6 +538,15 @@ JSON_FLAG_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::SuggestionsSourc
     };
 };
 
+JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::SuggestionReplaceTarget)
+{
+    JSON_MAPPINGS(3) = {
+        pair_type{ "default", ValueType::Default },
+        pair_type{ "word", ValueType::Word },
+        pair_type{ "line", ValueType::Line },
+    };
+};
+
 JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::WindowingMode)
 {
     JSON_MAPPINGS(3) = {

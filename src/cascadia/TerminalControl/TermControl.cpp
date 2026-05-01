@@ -3388,7 +3388,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         return std::pow(cursorDistanceFromBorder, 2.0) / 25.0 + 2.0;
     }
 
-    void TermControl::OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, winrt::hstring initialText)
+    void TermControl::OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, winrt::hstring initialText, int32_t replaceTarget)
     {
         auto cursorPosition = _core.CursorPosition();
         auto y = cursorPosition.Y;
@@ -3407,12 +3407,18 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto characterDimensions = CharacterDimensions();
         const auto characterWidth = characterDimensions.Width;
 
-        auto currentWord = initialText;
-        if (currentWord.empty())
+        auto currentWord = _core.GetCurrentWord();
+        winrt::hstring commandLine;
+        if (const auto context = _core.CommandHistory())
         {
-            currentWord = _core.GetCurrentWord();
+            commandLine = context.CurrentCommandline();
         }
-        const auto prefixWidth = currentWord.size() * characterWidth;
+        auto filterText = initialText;
+        if (filterText.empty())
+        {
+            filterText = currentWord;
+        }
+        const auto prefixWidth = filterText.size() * characterWidth;
         constexpr auto suggestionsMaxHeight = 264.0f;
         constexpr auto suggestionsPromptGap = 2.0f;
         const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + suggestionsPromptGap;
@@ -3420,7 +3426,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto offset = std::clamp(suggestionsMaxHeight - spaceBelow, 0.0f, gsl::narrow_cast<float>(cursorYPixel));
 
         SetStreamingSuggestionsSwapChainOffset(offset);
-        StreamingSuggestions().OpenTasks(*this, snippets, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, currentWord, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset);
+        StreamingSuggestions().OpenTasks(*this, snippets, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, filterText, currentWord, commandLine, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset, replaceTarget);
     }
 
     void TermControl::OpenStreamingSuggestions(winrt::hstring needle)
@@ -3455,7 +3461,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         StreamingSuggestions().Open(*this, needle, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, currentWord, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset);
     }
 
-    void TermControl::OpenCommandStreamingSuggestions(winrt::hstring executable, Windows::Foundation::Collections::IVector<winrt::hstring> args, winrt::hstring commandTemplate, bool sortResults, bool useCommandline)
+    void TermControl::OpenCommandStreamingSuggestions(winrt::hstring executable, Windows::Foundation::Collections::IVector<winrt::hstring> args, winrt::hstring commandTemplate, bool sortResults, bool useCommandline, bool prefillFilter, int32_t replaceTarget)
     {
         auto cursorPosition = _core.CursorPosition();
         auto y = cursorPosition.Y;
@@ -3475,17 +3481,20 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto characterWidth = characterDimensions.Width;
 
         winrt::hstring commandLine;
+        int32_t commandLineCursorOffset = 0;
         if (const auto context = _core.CommandHistory())
         {
             commandLine = context.CurrentCommandline();
+            commandLineCursorOffset = context.CurrentCommandlineCursorOffset();
         }
 
-        auto currentWord = _core.GetCurrentWord();
+        const auto currentWord = _core.GetCurrentWord();
+        auto filterText = currentWord;
         if (useCommandline && !commandLine.empty())
         {
-            currentWord = commandLine;
+            filterText = commandLine;
         }
-        const auto prefixWidth = currentWord.size() * characterWidth;
+        const auto prefixWidth = filterText.size() * characterWidth;
         constexpr auto suggestionsMaxHeight = 264.0f;
         constexpr auto suggestionsPromptGap = 2.0f;
         const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + suggestionsPromptGap;
@@ -3494,6 +3503,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto suggestionRow = _core.GetViewportTop() + _core.ViewHeight() - 1;
 
         const auto workingDir = WorkingDirectory();
+        const auto commandLineCursorOffsetText = std::to_wstring(commandLineCursorOffset);
         const auto substitute = [&](std::wstring_view input) -> winrt::hstring {
             std::wstring out{ input };
             const auto replaceAll = [&out](std::wstring_view from, std::wstring_view to) {
@@ -3508,6 +3518,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
             };
             replaceAll(L"%cwd%", workingDir);
             replaceAll(L"%cmd%", commandLine);
+            replaceAll(L"%cmd_cursor_offset%", commandLineCursorOffsetText);
             return winrt::hstring{ out };
         };
 
@@ -3522,7 +3533,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto substitutedTemplate = commandTemplate.empty() ? commandTemplate : substitute(commandTemplate);
 
         SetStreamingSuggestionsSwapChainOffset(offset);
-        StreamingSuggestions().OpenCommand(*this, executable, substitutedArgs, substitutedTemplate, workingDir, suggestionRow, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, currentWord, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset, sortResults, useCommandline);
+        StreamingSuggestions().OpenCommand(*this, executable, substitutedArgs, substitutedTemplate, workingDir, suggestionRow, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, filterText, currentWord, commandLine, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset, sortResults, useCommandline, prefillFilter, replaceTarget);
     }
 
     void TermControl::SetStreamingSuggestionsSwapChainOffset(float offset)

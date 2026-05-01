@@ -164,6 +164,13 @@ namespace Microsoft.Terminal.Settings.Model
         All = 0xffffffff,
     };
 
+    enum SuggestionReplaceTarget
+    {
+        Default = 0,
+        Word,
+        Line,
+    };
+
     interface INewContentArgs {
         String Type { get; };
         Boolean Equals(INewContentArgs other);
@@ -415,6 +422,8 @@ namespace Microsoft.Terminal.Settings.Model
         Boolean UseCommandline { get; };
         String Regex { get; };
         Boolean SortResults { get; };
+        Boolean PrefillFilter { get; };
+        SuggestionReplaceTarget ReplaceTarget { get; };
     };
 
     [default_interface] runtimeclass ShowAiPromptArgs : IActionArgs, IActionArgsDescriptorAccess

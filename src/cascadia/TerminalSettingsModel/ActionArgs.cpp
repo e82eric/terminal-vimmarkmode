@@ -769,6 +769,29 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             str.append(L", useCommandline:true");
         }
 
+        if (!PrefillFilter())
+        {
+            str.append(L", prefillFilter:false");
+        }
+
+        if (ReplaceTarget() != SuggestionReplaceTarget::Default)
+        {
+            str.append(L", replaceTarget:");
+            switch (ReplaceTarget())
+            {
+            case SuggestionReplaceTarget::Word:
+                str.append(L"word");
+                break;
+            case SuggestionReplaceTarget::Line:
+                str.append(L"line");
+                break;
+            case SuggestionReplaceTarget::Default:
+            default:
+                str.append(L"default");
+                break;
+            }
+        }
+
         if (!CommandExecutable().empty())
         {
             str.append(L", commandExecutable:");

@@ -94,6 +94,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::vector<wchar_t> commandLineBuffer{ commandLine.begin(), commandLine.end() };
             commandLineBuffer.push_back(L'\0');
 
+            OutputDebugStringW((L"CMD: " + commandLine + L"\n").c_str());
             const BOOL launched = CreateProcessW(
                 nullptr,
                 commandLineBuffer.data(),
@@ -289,10 +290,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _characterHeight = state.characterHeight;
         _termControl = termControl;
         _currentWord = state.currentWord;
-        _currentSearchTerm = state.currentWord;
+        _currentCommandline = state.currentCommandline;
+        _currentSearchTerm = state.prefillFilter ? state.filterText : winrt::hstring{};
         _commandTemplate = state.commandTemplate;
         _sortResults = state.sortResults;
         _useCommandline = state.useCommandline;
+        _replaceTarget = state.replaceTarget;
         _prefixWidth = state.prefixWidth;
         _swapChainOffset = state.swapChainOffset;
 
@@ -323,10 +326,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _searchBoxMode = true;
         _suppressSearchBoxChange = true;
         auto reset = wil::scope_exit([this] { _suppressSearchBoxChange = false; });
-        SearchBox().Text(state.currentWord);
+        SearchBox().Text(_currentSearchTerm);
         Visibility(Windows::UI::Xaml::Visibility::Visible);
         SearchBox().Focus(Windows::UI::Xaml::FocusState::Programmatic);
-        SearchBox().SelectionStart(state.currentWord.size());
+        SearchBox().SelectionStart(_currentSearchTerm.size());
 
         _lastCompletedSearchVersion = _searchVersion;
         _isStreaming = true;
@@ -668,11 +671,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             .commandTemplate = {},
             .anchor = anchor,
             .space = space,
+            .filterText = currentWord,
             .currentWord = currentWord,
+            .currentCommandline = {},
             .prefixWidth = prefixWidth,
             .characterHeight = characterHeight,
             .swapChainOffset = swapChainOffset,
-            .sortResults = false,
         });
 
         auto op = termControl.SuggestionScrollBackSearchAsync(
@@ -692,21 +696,26 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets,
         Windows::Foundation::Point anchor,
         Windows::Foundation::Size space,
+        const winrt::hstring& filterText,
         const winrt::hstring& currentWord,
+        const winrt::hstring& currentCommandline,
         float prefixWidth,
         float characterHeight,
-        float swapChainOffset)
+        float swapChainOffset,
+        int32_t replaceTarget)
     {
         _beginOpen(termControl, _OpenState{
             .dataSource = StreamingSuggestionsDataSource::Tasks,
             .commandTemplate = {},
             .anchor = anchor,
             .space = space,
+            .filterText = filterText,
             .currentWord = currentWord,
+            .currentCommandline = currentCommandline,
             .prefixWidth = prefixWidth,
             .characterHeight = characterHeight,
             .swapChainOffset = swapChainOffset,
-            .sortResults = false,
+            .replaceTarget = static_cast<ReplaceTarget>(replaceTarget),
         });
         _taskItems.clear();
         if (snippets)
@@ -732,24 +741,32 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         int32_t suggestionRow,
         Windows::Foundation::Point anchor,
         Windows::Foundation::Size space,
+        const winrt::hstring& filterText,
         const winrt::hstring& currentWord,
+        const winrt::hstring& currentCommandline,
         float prefixWidth,
         float characterHeight,
         float swapChainOffset,
         bool sortResults,
-        bool useCommandline)
+        bool useCommandline,
+        bool prefillFilter,
+        int32_t replaceTarget)
     {
         const auto sessionVersion = _beginOpen(termControl, _OpenState{
             .dataSource = StreamingSuggestionsDataSource::Command,
             .commandTemplate = commandTemplate,
             .anchor = anchor,
             .space = space,
+            .filterText = filterText,
             .currentWord = currentWord,
+            .currentCommandline = currentCommandline,
             .prefixWidth = prefixWidth,
             .characterHeight = characterHeight,
             .swapChainOffset = swapChainOffset,
             .sortResults = sortResults,
             .useCommandline = useCommandline,
+            .prefillFilter = prefillFilter,
+            .replaceTarget = static_cast<ReplaceTarget>(replaceTarget),
         });
 
         const auto commandArgs = args ? args : winrt::single_threaded_vector<winrt::hstring>();
@@ -914,6 +931,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         winrt::hstring text;
+        const auto replacementLength = _replacementLength();
+        const auto backspaces = std::wstring(replacementLength, L'\x7f');
         if (!_commandTemplate.empty())
         {
             std::wstring formatted{ _commandTemplate };
@@ -922,31 +941,53 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 formatted.replace(pos, token.length(), trimmed);
             }
-            if (_useCommandline)
+            if (backspaces.empty())
             {
-                auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
-                text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, formatted) };
+                text = winrt::hstring{ formatted };
             }
             else
             {
-                text = winrt::hstring{ formatted };
+                text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, formatted) };
             }
         }
         else
         {
-            if (_dataSource == StreamingSuggestionsDataSource::Tasks)
+            if (backspaces.empty())
             {
                 text = winrt::hstring{ trimmed };
             }
             else
             {
-                auto backspaces = std::wstring(_currentWord.size(), L'\x7f');
                 text = winrt::hstring{ fmt::format(FMT_COMPILE(L"{}{}"), backspaces, trimmed) };
             }
         }
         _termControl.SendInput(text);
         _close(true);
         return true;
+    }
+
+    size_t StreamingSuggestionsControl::_replacementLength() const
+    {
+        switch (_replaceTarget)
+        {
+        case ReplaceTarget::Word:
+            return _currentWord.size();
+        case ReplaceTarget::Line:
+            return _currentCommandline.size();
+        case ReplaceTarget::Default:
+        default:
+            if (!_commandTemplate.empty())
+            {
+                return _useCommandline ? _currentCommandline.size() : 0;
+            }
+
+            if (_dataSource == StreamingSuggestionsDataSource::Tasks)
+            {
+                return 0;
+            }
+
+            return _currentWord.size();
+        }
     }
 
     void StreamingSuggestionsControl::_toggleHelp()
@@ -1680,9 +1721,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::ranges::partial_sort(scoredItems, scoredItems.begin() + MaxResults, [preferShorterTextOnTie](const ScoredItem& a, const ScoredItem& b) {
                 if (a.score == b.score)
                 {
-                    if (preferShorterTextOnTie && a.item.Text.size() != b.item.Text.size())
+                    if (preferShorterTextOnTie)
                     {
-                        return a.item.Text.size() < b.item.Text.size();
+                        if (a.item.Text.size() != b.item.Text.size())
+                        {
+                            return a.item.Text.size() < b.item.Text.size();
+                        }
+                        if (const auto cmp = _wcsicmp(a.item.Text.c_str(), b.item.Text.c_str()); cmp != 0)
+                        {
+                            return cmp < 0;
+                        }
                     }
                     return a.ordinal < b.ordinal;
                 }
@@ -1695,9 +1743,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::ranges::sort(scoredItems.begin(), scoredItems.end(), [preferShorterTextOnTie](const ScoredItem& a, const ScoredItem& b) {
                 if (a.score == b.score)
                 {
-                    if (preferShorterTextOnTie && a.item.Text.size() != b.item.Text.size())
+                    if (preferShorterTextOnTie)
                     {
-                        return a.item.Text.size() < b.item.Text.size();
+                        if (a.item.Text.size() != b.item.Text.size())
+                        {
+                            return a.item.Text.size() < b.item.Text.size();
+                        }
+                        if (const auto cmp = _wcsicmp(a.item.Text.c_str(), b.item.Text.c_str()); cmp != 0)
+                        {
+                            return cmp < 0;
+                        }
                     }
                     return a.ordinal < b.ordinal;
                 }

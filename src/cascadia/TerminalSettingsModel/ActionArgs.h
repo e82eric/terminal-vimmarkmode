@@ -271,7 +271,9 @@ protected:                                                                  \
     X(winrt::hstring, CommandTemplate, "commandTemplate", false, ArgTypeHint::None, L"") \
     X(bool, UseCommandline, "useCommandline", false, ArgTypeHint::None, false) \
     X(winrt::hstring, Regex, "regex", false, ArgTypeHint::None, L"[^\\s]{5,}") \
-    X(bool, SortResults, "sortResults", false, ArgTypeHint::None, false)
+    X(bool, SortResults, "sortResults", false, ArgTypeHint::None, false) \
+    X(bool, PrefillFilter, "prefillFilter", false, ArgTypeHint::None, true) \
+    X(SuggestionReplaceTarget, ReplaceTarget, "replaceTarget", false, ArgTypeHint::None, SuggestionReplaceTarget::Default)
 
 ////////////////////////////////////////////////////////////////////////////////
 #define SHOW_AI_PROMPT_ARGS(X) \

@@ -170,10 +170,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets,
             Windows::Foundation::Point anchor,
             Windows::Foundation::Size space,
+            winrt::hstring const& filterText,
             winrt::hstring const& currentWord,
+            winrt::hstring const& currentCommandline,
             float prefixWidth,
             float characterHeight,
-            float swapChainOffset);
+            float swapChainOffset,
+            int32_t replaceTarget);
         void OpenCommand(
             Microsoft::Terminal::Control::TermControl const& termControl,
             winrt::hstring executable,
@@ -183,12 +186,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             int32_t suggestionRow,
             Windows::Foundation::Point anchor,
             Windows::Foundation::Size space,
+            winrt::hstring const& filterText,
             winrt::hstring const& currentWord,
+            winrt::hstring const& currentCommandline,
             float prefixWidth,
             float characterHeight,
             float swapChainOffset,
             bool sortResults,
-            bool useCommandline);
+            bool useCommandline,
+            bool prefillFilter,
+            int32_t replaceTarget);
         bool ContainsFocus();
         std::optional<SuggestionSearchItem> _TryGetSelectedSuggestion();
 
@@ -211,9 +218,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             Command,
             Tasks
         };
+        enum class ReplaceTarget : int32_t
+        {
+            Default = 0,
+            Word,
+            Line
+        };
 
         bool _sortResults = false;
         bool _useCommandline = false;
+        ReplaceTarget _replaceTarget = ReplaceTarget::Default;
         StreamingSuggestionsMode _mode = StreamingSuggestionsMode::Normal;
         StreamingSuggestionsDataSource _dataSource = StreamingSuggestionsDataSource::Scrollback;
         void _selectFirstItem();
@@ -231,6 +245,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Microsoft::Terminal::Control::TermControl _termControl{ nullptr };
         float _swapChainOffset = 0.0f;
         hstring _currentWord;
+        hstring _currentCommandline;
         hstring _currentSearchTerm;
         hstring _commandTemplate;
         std::shared_ptr<CommandSearchHelper> _commandSearchHelper;
@@ -258,12 +273,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             winrt::hstring commandTemplate;
             Windows::Foundation::Point anchor;
             Windows::Foundation::Size space;
+            winrt::hstring filterText;
             winrt::hstring currentWord;
+            winrt::hstring currentCommandline;
             float prefixWidth;
             float characterHeight;
             float swapChainOffset;
-            bool sortResults;
-            bool useCommandline;
+            bool sortResults{ false };
+            bool useCommandline{ false };
+            bool prefillFilter{ true };
+            ReplaceTarget replaceTarget{ ReplaceTarget::Default };
         };
         winrt::Windows::UI::Xaml::Controls::ListView _activeListBox();
         uint64_t _beginOpen(TermControl const& termControl, const _OpenState& state);
@@ -284,6 +303,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _OnCopyNotificationTimerTick(winrt::Windows::Foundation::IInspectable const&, winrt::Windows::Foundation::IInspectable const&);
         void _showCopyNotification(const hstring& text);
         void _updateLoadingIndicator();
+        size_t _replacementLength() const;
 
         struct _KeyBinding
         {

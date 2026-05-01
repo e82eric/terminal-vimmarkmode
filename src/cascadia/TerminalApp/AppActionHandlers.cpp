@@ -1677,7 +1677,7 @@ namespace winrt::TerminalApp::implementation
                     auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
                     toSearch.Append(searchItem);
                 }
-                termControl.OpenTaskStreamingSuggestions(toSearch, filter);
+                termControl.OpenTaskStreamingSuggestions(toSearch, filter, static_cast<int32_t>(realArgs.ReplaceTarget()));
             }
             co_return;
         }
@@ -1710,7 +1710,7 @@ namespace winrt::TerminalApp::implementation
             if (const auto termControl{ _GetActiveControl() })
             {
                 const auto commandArgs = realArgs.CommandArgs() ? realArgs.CommandArgs() : winrt::single_threaded_vector<winrt::hstring>();
-                termControl.OpenCommandStreamingSuggestions(realArgs.CommandExecutable(), commandArgs, realArgs.CommandTemplate(), realArgs.SortResults(), realArgs.UseCommandline());
+                termControl.OpenCommandStreamingSuggestions(realArgs.CommandExecutable(), commandArgs, realArgs.CommandTemplate(), realArgs.SortResults(), realArgs.UseCommandline(), realArgs.PrefillFilter(), static_cast<int32_t>(realArgs.ReplaceTarget()));
                 co_return;
             }
         }

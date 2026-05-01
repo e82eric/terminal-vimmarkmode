@@ -1929,6 +1929,16 @@
               "default": false,
               "description": "When set to `true`, the current commandline the user has typed will prepopulate the filter of the Suggestions UI. This requires that the user has enabled shell integration in their shell's config. When set to false, the filter will start empty."
             },
+            "replaceTarget": {
+              "type": "string",
+              "enum": [
+                "default",
+                "word",
+                "line"
+              ],
+              "default": "default",
+              "description": "Controls what accepting a streaming suggestion replaces. `default` preserves the source-specific behavior, `word` replaces the current word, and `line` replaces the current command line without the prompt."
+            },
             "regex": {
               "type": "string",
               "default": "[^\\s]{5,}",

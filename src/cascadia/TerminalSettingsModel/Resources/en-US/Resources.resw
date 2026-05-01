@@ -974,6 +974,12 @@
   <data name="UseCommandlineActionArgumentLocalized" xml:space="preserve">
     <value>Use commandline</value>
   </data>
+  <data name="PrefillFilterActionArgumentLocalized" xml:space="preserve">
+    <value>Prefill filter</value>
+  </data>
+  <data name="ReplaceTargetActionArgumentLocalized" xml:space="preserve">
+    <value>Replace target</value>
+  </data>
   <data name="SortResultsActionArgumentLocalized" xml:space="preserve">
     <value>Sort results</value>
   </data>
