@@ -23,6 +23,30 @@ using namespace std::chrono_literals;
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
     static constexpr auto StreamingSuggestionItemHeight = 40.0;
+    static constexpr size_t MaxDisplayedSuggestions = 1000;
+
+    template<typename T, typename Compare>
+    void InsertBoundedSorted(std::vector<T>& items, T&& item, const size_t maxItems, Compare compare)
+    {
+        if (maxItems == 0)
+        {
+            return;
+        }
+
+        if (items.size() >= maxItems && !compare(item, items.back()))
+        {
+            return;
+        }
+
+        const auto insertPos = std::lower_bound(items.begin(), items.end(), item, compare);
+        items.insert(insertPos, std::forward<T>(item));
+
+        if (items.size() > maxItems)
+        {
+            items.pop_back();
+        }
+    }
+
     struct CommandSearchHelper : std::enable_shared_from_this<CommandSearchHelper>
     {
         void Stop()
@@ -1612,12 +1636,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::vector<SuggestionRowSource> sources;
             if (taskSource)
             {
-                sources.reserve(taskItemsSnapshot.size());
+                sources.reserve(std::min<size_t>(taskItemsSnapshot.size(), MaxDisplayedSuggestions));
                 int32_t ordinal = 0;
                 for (const auto& snippet : taskItemsSnapshot)
                 {
                     sources.push_back(buildTaskSource(snippet, ordinal++, std::nullopt, std::nullopt));
-                    if (sources.size() >= 1000)
+                    if (sources.size() >= MaxDisplayedSuggestions)
                     {
                         break;
                     }
@@ -1625,11 +1649,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
             else
             {
-                sources.reserve(itemsSnapshot.size());
+                sources.reserve(std::min<size_t>(itemsSnapshot.size(), MaxDisplayedSuggestions));
                 for (const auto& item : itemsSnapshot)
                 {
                     sources.push_back({ item, std::nullopt, item.Text, std::nullopt, {} });
-                    if (sources.size() >= 1000)
+                    if (sources.size() >= MaxDisplayedSuggestions)
                     {
                         break;
                     }
@@ -1681,6 +1705,27 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto tParse = clock::now();
 
         std::vector<ScoredItem> scoredItems;
+        scoredItems.reserve(std::min<size_t>(totalItems, MaxDisplayedSuggestions));
+        size_t matchedCount = 0;
+        const auto preferShorterTextOnTie = _dataSource == StreamingSuggestionsDataSource::Command && _sortResults;
+        const auto compareScoredItems = [preferShorterTextOnTie](const ScoredItem& a, const ScoredItem& b) {
+            if (a.score == b.score)
+            {
+                if (preferShorterTextOnTie)
+                {
+                    if (a.item.Text.size() != b.item.Text.size())
+                    {
+                        return a.item.Text.size() < b.item.Text.size();
+                    }
+                    if (const auto cmp = _wcsicmp(a.item.Text.c_str(), b.item.Text.c_str()); cmp != 0)
+                    {
+                        return cmp < 0;
+                    }
+                }
+                return a.ordinal < b.ordinal;
+            }
+            return a.score > b.score;
+        };
 
         if (taskSource)
         {
@@ -1709,7 +1754,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 const auto primaryScore = primaryMatch ? primaryMatch->Score : 0;
                 const auto secondaryScore = secondaryMatch ? secondaryMatch->Score : 0;
                 const auto score = std::max(primaryScore, secondaryScore);
-                scoredItems.push_back({
+                ++matchedCount;
+                InsertBoundedSorted(scoredItems, ScoredItem{
                     Microsoft::Terminal::Control::SuggestionSearchItem{
                         input,
                         ordinal,
@@ -1722,7 +1768,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     primaryText,
                     secondaryText,
                     ordinal
-                });
+                }, MaxDisplayedSuggestions, compareScoredItems);
                 ++ordinal;
             }
         }
@@ -1745,12 +1791,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 co_return;
             }
 
-            scoredItems.reserve(slots.size());
             for (auto& slot : slots)
             {
                 if (slot)
                 {
-                    scoredItems.push_back(std::move(*slot));
+                    ++matchedCount;
+                    InsertBoundedSorted(scoredItems, std::move(*slot), MaxDisplayedSuggestions, compareScoredItems);
                 }
             }
     #else
@@ -1763,60 +1809,17 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 auto matchResult = fzfcpp::matcher::Match(item.Text, pattern);
                 if (matchResult)
                 {
-                    scoredItems.push_back({ item, matchResult->Score, matchResult->Runs, std::nullopt, item.Text, {}, item.Ordinal });
+                    ++matchedCount;
+                    InsertBoundedSorted(scoredItems,
+                                        ScoredItem{ item, matchResult->Score, matchResult->Runs, std::nullopt, item.Text, {}, item.Ordinal },
+                                        MaxDisplayedSuggestions,
+                                        compareScoredItems);
                 }
             }
     #endif
         }
 
         const auto tMatch = clock::now();
-        const auto matchedCount = scoredItems.size();
-
-        const auto preferShorterTextOnTie = _dataSource == StreamingSuggestionsDataSource::Command && _sortResults;
-        auto MaxResults = 100000;
-        if (scoredItems.size() > MaxResults)
-        {
-            std::ranges::partial_sort(scoredItems, scoredItems.begin() + MaxResults, [preferShorterTextOnTie](const ScoredItem& a, const ScoredItem& b) {
-                if (a.score == b.score)
-                {
-                    if (preferShorterTextOnTie)
-                    {
-                        if (a.item.Text.size() != b.item.Text.size())
-                        {
-                            return a.item.Text.size() < b.item.Text.size();
-                        }
-                        if (const auto cmp = _wcsicmp(a.item.Text.c_str(), b.item.Text.c_str()); cmp != 0)
-                        {
-                            return cmp < 0;
-                        }
-                    }
-                    return a.ordinal < b.ordinal;
-                }
-                return a.score > b.score;
-            });
-            scoredItems.resize(MaxResults);
-        }
-        else
-        {
-            std::ranges::sort(scoredItems.begin(), scoredItems.end(), [preferShorterTextOnTie](const ScoredItem& a, const ScoredItem& b) {
-                if (a.score == b.score)
-                {
-                    if (preferShorterTextOnTie)
-                    {
-                        if (a.item.Text.size() != b.item.Text.size())
-                        {
-                            return a.item.Text.size() < b.item.Text.size();
-                        }
-                        if (const auto cmp = _wcsicmp(a.item.Text.c_str(), b.item.Text.c_str()); cmp != 0)
-                        {
-                            return cmp < 0;
-                        }
-                    }
-                    return a.ordinal < b.ordinal;
-                }
-                return a.score > b.score;
-            });
-        }
 
         const auto tSort = clock::now();
 
