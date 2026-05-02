@@ -318,6 +318,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::lock_guard<std::mutex> lock(_batchesMutex);
             _batches.clear();
             _lastBatchTriggerTime = {};
+            _searchInFlight = false;
+            _batchArrivedDuringSearch = false;
         }
         ListBox().ItemsSource(nullptr);
         ListBox().SelectedIndex(-1);
@@ -358,12 +360,19 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         std::lock_guard<std::mutex> lock(self->_batchesMutex);
                         self->_batches.push_back(batch);
 
-                        constexpr auto debounceInterval = std::chrono::milliseconds(100);
-                        const auto now = std::chrono::steady_clock::now();
-                        if (now - self->_lastBatchTriggerTime >= debounceInterval)
+                        if (self->_searchInFlight)
                         {
-                            self->_lastBatchTriggerTime = now;
-                            shouldTrigger = true;
+                            self->_batchArrivedDuringSearch = true;
+                        }
+                        else
+                        {
+                            constexpr auto debounceInterval = std::chrono::milliseconds(100);
+                            const auto now = std::chrono::steady_clock::now();
+                            if (now - self->_lastBatchTriggerTime >= debounceInterval)
+                            {
+                                self->_lastBatchTriggerTime = now;
+                                shouldTrigger = true;
+                            }
                         }
                     }
                     if (shouldTrigger)
@@ -642,6 +651,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::lock_guard<std::mutex> lock(_batchesMutex);
             _batches.clear();
             _lastBatchTriggerTime = {};
+            _searchInFlight = false;
+            _batchArrivedDuringSearch = false;
         }
         _updateLoadingIndicator();
         if (_termControl)
@@ -1330,6 +1341,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const std::uint64_t myVersion = ++_searchVersion;
         const auto sessionVersion = _sessionVersion;
 
+        {
+            std::lock_guard<std::mutex> lock(_batchesMutex);
+            _searchInFlight = true;
+            _batchArrivedDuringSearch = false;
+        }
+
         if (Dispatcher().HasThreadAccess())
         {
             _updateLoadingIndicator();
@@ -1635,6 +1652,24 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             _lastCompletedSearchVersion = static_cast<int>(version);
             _updateLoadingIndicator();
+
+            bool retrigger = false;
+            {
+                std::lock_guard<std::mutex> lock(_batchesMutex);
+                if (version == _searchVersion)
+                {
+                    _searchInFlight = false;
+                    if (_batchArrivedDuringSearch && _searchBoxMode)
+                    {
+                        _batchArrivedDuringSearch = false;
+                        retrigger = true;
+                    }
+                }
+            }
+            if (retrigger)
+            {
+                _triggerSearch();
+            }
             co_return;
         }
 
@@ -1839,6 +1874,24 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _lastCompletedSearchVersion = static_cast<int>(version);
         _updateLoadingIndicator();
+
+        bool retrigger = false;
+        {
+            std::lock_guard<std::mutex> lock(_batchesMutex);
+            if (version == _searchVersion)
+            {
+                _searchInFlight = false;
+                if (_batchArrivedDuringSearch && _searchBoxMode)
+                {
+                    _batchArrivedDuringSearch = false;
+                    retrigger = true;
+                }
+            }
+        }
+        if (retrigger)
+        {
+            _triggerSearch();
+        }
         co_return;
     }
 
