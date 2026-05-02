@@ -17,6 +17,27 @@
     <UserControl.Resources>
         <Style x:Key="ClearTextBoxStyle" TargetType="TextBox">
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Grid>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="Focused"/>
+                                    <VisualState x:Name="Disabled"/>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <ScrollViewer x:Name="ContentElement"
+                                          Margin="{TemplateBinding Padding}"
+                                          IsTabStop="False"
+                                          VerticalScrollBarVisibility="Hidden"
+                                          HorizontalScrollBarVisibility="Hidden"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
@@ -45,27 +66,19 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox
                             Grid.Column="0"
                             x:Name="SearchBox"
+                            Style="{StaticResource ClearTextBoxStyle}"
                             IsSpellCheckEnabled="False"
                             FontSize="15"
                             Foreground="{x:Bind TextColor, Mode=OneWay}"
                             Background="{x:Bind BackgroundColor, Mode=OneWay}"
-                            BorderThickness="0"
                             Padding="8,6"
                             TextChanged="_SearchBoxTextChanged"
-                            PreviewKeyDown="_SearchBoxKeyDown">
-                            <TextBox.Resources>
-                                <StaticResource x:Key="TextControlBackground" ResourceKey="SystemControlTransparentBrush" />
-                                <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="SystemControlTransparentBrush" />
-                                <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="SystemControlTransparentBrush" />
-                                <StaticResource x:Key="TextControlBorderBrush" ResourceKey="SystemControlTransparentBrush" />
-                                <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="SystemControlTransparentBrush" />
-                                <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="SystemControlTransparentBrush" />
-                            </TextBox.Resources>
-                        </TextBox>
+                            PreviewKeyDown="_SearchBoxKeyDown"/>
                         <mux:ProgressRing
                             Grid.Column="1"
                             x:Name="LoadingSpinner"
@@ -75,8 +88,18 @@
                             Height="14"
                             IsActive="False"
                             Visibility="Collapsed"/>
-                        <Border
+                        <TextBlock
                             Grid.Column="2"
+                            x:Name="CounterText"
+                            VerticalAlignment="Center"
+                            Margin="0,0,4,0"
+                            FontSize="12"
+                            FontFamily="Consolas"
+                            Foreground="{x:Bind TextColor, Mode=OneWay}"
+                            Opacity="0.7"
+                            Visibility="Collapsed"/>
+                        <Border
+                            Grid.Column="3"
                             x:Name="ModeIndicatorBorder"
                             VerticalAlignment="Center"
                             Margin="4,0,8,0"
@@ -170,23 +193,14 @@
                     BorderThickness="0,0,0,1">
                     <TextBox
                         x:Name="SplitSearchBox"
+                        Style="{StaticResource ClearTextBoxStyle}"
                         IsSpellCheckEnabled="False"
                         FontSize="15"
                         Foreground="{x:Bind TextColor, Mode=OneWay}"
                         Background="{x:Bind BackgroundColor, Mode=OneWay}"
-                        BorderThickness="0"
                         Padding="8,6"
                         TextChanged="_SplitSearchBoxTextChanged"
-                        PreviewKeyDown="_SearchBoxKeyDown">
-                        <TextBox.Resources>
-                            <StaticResource x:Key="TextControlBackground" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBorderBrush" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="SystemControlTransparentBrush" />
-                            <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="SystemControlTransparentBrush" />
-                        </TextBox.Resources>
-                    </TextBox>
+                        PreviewKeyDown="_SearchBoxKeyDown"/>
                 </Border>
                 <ListView
                     x:Name="SplitListBox"

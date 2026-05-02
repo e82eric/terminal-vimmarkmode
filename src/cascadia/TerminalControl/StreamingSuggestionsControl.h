@@ -256,6 +256,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _allItemsLoaded;
         bool _allItemsSearched;
         bool _controlShown;
+        size_t _lastMatchedCount{ 0 };
+        size_t _lastTotalCount{ 0 };
         std::vector<Microsoft::Terminal::Control::SuggestionBatch> _batches;
         std::vector<Microsoft::Terminal::Control::SnippetSearchItem> _taskItems;
         std::vector<Microsoft::Terminal::Control::SuggestionSearchItem> _splitItems;

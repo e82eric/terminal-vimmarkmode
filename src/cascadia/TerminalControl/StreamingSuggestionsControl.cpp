@@ -335,6 +335,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _lastCompletedSearchVersion = _searchVersion;
         _isStreaming = true;
+        _lastMatchedCount = 0;
+        _lastTotalCount = 0;
         _updateLoadingIndicator();
 
         if (_commandSearchHelper)
@@ -896,6 +898,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const bool active = _isStreaming || searching;
         LoadingSpinner().IsActive(active);
         LoadingSpinner().Visibility(active ? Visibility::Visible : Visibility::Collapsed);
+
+        if (_searchBoxMode && (_lastTotalCount > 0 || active))
+        {
+            CounterText().Text(fmt::format(FMT_COMPILE(L"{}/{}"), _lastMatchedCount, _lastTotalCount));
+            CounterText().Visibility(Visibility::Visible);
+        }
+        else
+        {
+            CounterText().Visibility(Visibility::Collapsed);
+        }
     }
 
     bool StreamingSuggestionsControl::HandleKeyPress(WORD vkey, WORD /*scanCode*/, Core::ControlKeyStates modifiers, bool keyDown)
@@ -1651,6 +1663,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             InvalidateMeasure();
 
             _lastCompletedSearchVersion = static_cast<int>(version);
+            _lastMatchedCount = totalItems;
+            _lastTotalCount = totalItems;
             _updateLoadingIndicator();
 
             bool retrigger = false;
@@ -1873,6 +1887,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
 
         _lastCompletedSearchVersion = static_cast<int>(version);
+        _lastMatchedCount = matchedCount;
+        _lastTotalCount = totalItems;
         _updateLoadingIndicator();
 
         bool retrigger = false;
