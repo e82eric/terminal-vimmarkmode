@@ -343,7 +343,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _batches.clear();
             _lastBatchTriggerTime = {};
             _searchInFlight = false;
-            _batchArrivedDuringSearch = false;
+            _searchQueued = false;
+            _activeSearchVersion = 0;
         }
         ListBox().ItemsSource(nullptr);
         ListBox().SelectedIndex(-1);
@@ -386,7 +387,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                         if (self->_searchInFlight)
                         {
-                            self->_batchArrivedDuringSearch = true;
+                            ++self->_searchVersion;
+                            self->_searchQueued = true;
                         }
                         else
                         {
@@ -676,7 +678,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _batches.clear();
             _lastBatchTriggerTime = {};
             _searchInFlight = false;
-            _batchArrivedDuringSearch = false;
+            _searchQueued = false;
+            _activeSearchVersion = 0;
         }
         _updateLoadingIndicator();
         if (_termControl)
@@ -1362,13 +1365,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             term = _currentSearchTerm;
         }
 
-        const std::uint64_t myVersion = ++_searchVersion;
         const auto sessionVersion = _sessionVersion;
+        std::uint64_t myVersion = 0;
 
         {
             std::lock_guard<std::mutex> lock(_batchesMutex);
-            _searchInFlight = true;
-            _batchArrivedDuringSearch = false;
+            if (_searchInFlight)
+            {
+                ++_searchVersion;
+                _searchQueued = true;
+            }
+            else
+            {
+                myVersion = ++_searchVersion;
+                _searchInFlight = true;
+                _searchQueued = false;
+                _activeSearchVersion = myVersion;
+            }
         }
 
         if (Dispatcher().HasThreadAccess())
@@ -1385,7 +1398,50 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             });
         }
 
+        if (myVersion == 0)
+        {
+            return;
+        }
+
         _performFuzzySearch(term, myVersion, sessionVersion);
+    }
+
+    void StreamingSuggestionsControl::_finishSearch(uint64_t version)
+    {
+        bool retrigger = false;
+        {
+            std::lock_guard<std::mutex> lock(_batchesMutex);
+            if (_activeSearchVersion == version)
+            {
+                _searchInFlight = false;
+                _activeSearchVersion = 0;
+                if (_searchQueued && _searchBoxMode)
+                {
+                    _searchQueued = false;
+                    retrigger = true;
+                }
+            }
+        }
+
+        if (retrigger)
+        {
+            _triggerSearch();
+            return;
+        }
+
+        if (Dispatcher().HasThreadAccess())
+        {
+            _updateLoadingIndicator();
+        }
+        else
+        {
+            Dispatcher().RunAsync(Windows::UI::Core::CoreDispatcherPriority::Normal, [weakThis = get_weak()]() {
+                if (auto self = weakThis.get())
+                {
+                    self->_updateLoadingIndicator();
+                }
+            });
+        }
     }
 
     void StreamingSuggestionsControl::_swapItemsPreservingSelection(std::vector<SuggestionRowSource>&& sources)
@@ -1630,6 +1686,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
             if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
             {
+                _finishSearch(version);
                 co_return;
             }
 
@@ -1676,24 +1733,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             _lastCompletedSearchVersion = static_cast<int>(version);
             _updateLoadingIndicator();
-
-            bool retrigger = false;
-            {
-                std::lock_guard<std::mutex> lock(_batchesMutex);
-                if (version == _searchVersion)
-                {
-                    _searchInFlight = false;
-                    if (_batchArrivedDuringSearch && _searchBoxMode)
-                    {
-                        _batchArrivedDuringSearch = false;
-                        retrigger = true;
-                    }
-                }
-            }
-            if (retrigger)
-            {
-                _triggerSearch();
-            }
+            _finishSearch(version);
             co_return;
         }
 
@@ -1734,6 +1774,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
                 {
+                    _finishSearch(version);
                     co_return;
                 }
 
@@ -1788,6 +1829,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
             {
+                _finishSearch(version);
                 co_return;
             }
 
@@ -1804,6 +1846,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
                 {
+                    _finishSearch(version);
                     co_return;
                 }
                 auto matchResult = fzfcpp::matcher::Match(item.Text, pattern);
@@ -1826,6 +1869,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
         if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
         {
+            _finishSearch(version);
             co_return;
         }
 
@@ -1877,24 +1921,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         _lastCompletedSearchVersion = static_cast<int>(version);
         _updateLoadingIndicator();
-
-        bool retrigger = false;
-        {
-            std::lock_guard<std::mutex> lock(_batchesMutex);
-            if (version == _searchVersion)
-            {
-                _searchInFlight = false;
-                if (_batchArrivedDuringSearch && _searchBoxMode)
-                {
-                    _batchArrivedDuringSearch = false;
-                    retrigger = true;
-                }
-            }
-        }
-        if (retrigger)
-        {
-            _triggerSearch();
-        }
+        _finishSearch(version);
         co_return;
     }
 

@@ -262,7 +262,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         std::mutex _batchesMutex;
         std::chrono::steady_clock::time_point _lastBatchTriggerTime{};
         bool _searchInFlight{ false };
-        bool _batchArrivedDuringSearch{ false };
+        bool _searchQueued{ false };
+        uint64_t _activeSearchVersion{ 0 };
         bool _isStreaming{ false };
         int _lastCompletedSearchVersion{ 0 };
         uint64_t _sessionVersion{ 0 };
@@ -292,6 +293,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         winrt::Windows::Foundation::IAsyncAction _finishStreamingLoad(uint64_t sessionVersion);
         void _showSplitOverlay(bool show);
         void _triggerSearch();
+        void _finishSearch(uint64_t version);
         void _selectItem(int32_t index);
         void _swapItemsPreservingSelection(std::vector<SuggestionRowSource>&& sources);
         winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version, uint64_t sessionVersion);
