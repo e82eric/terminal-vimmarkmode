@@ -273,7 +273,12 @@ protected:                                                                  \
     X(winrt::hstring, Regex, "regex", false, ArgTypeHint::None, L"[^\\s]{5,}") \
     X(bool, SortResults, "sortResults", false, ArgTypeHint::None, false) \
     X(bool, PrefillFilter, "prefillFilter", false, ArgTypeHint::None, true) \
-    X(SuggestionReplaceTarget, ReplaceTarget, "replaceTarget", false, ArgTypeHint::None, SuggestionReplaceTarget::Default)
+    X(SuggestionReplaceTarget, ReplaceTarget, "replaceTarget", false, ArgTypeHint::None, SuggestionReplaceTarget::Default) \
+    X(Windows::Foundation::Collections::IVector<winrt::hstring>, Roots, "roots", false, ArgTypeHint::None, winrt::single_threaded_vector<winrt::hstring>()) \
+    X(int32_t, MaxDepth, "maxDepth", false, ArgTypeHint::None, 0) \
+    X(bool, IncludeHidden, "includeHidden", false, ArgTypeHint::None, false) \
+    X(bool, DirectoriesOnly, "directoriesOnly", false, ArgTypeHint::None, false) \
+    X(bool, FilesOnly, "filesOnly", false, ArgTypeHint::None, false)
 
 ////////////////////////////////////////////////////////////////////////////////
 #define SHOW_AI_PROMPT_ARGS(X) \

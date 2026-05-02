@@ -117,6 +117,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     };
 
     struct CommandSearchHelper;
+    struct FileWalkerSearchHelper;
 
     struct StreamingSuggestionsControl : StreamingSuggestionsControlT<StreamingSuggestionsControl>
     {
@@ -196,6 +197,25 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             bool useCommandline,
             bool prefillFilter,
             int32_t replaceTarget);
+        void OpenFileWalker(
+            Microsoft::Terminal::Control::TermControl const& termControl,
+            Windows::Foundation::Collections::IVector<winrt::hstring> roots,
+            int32_t maxDepth,
+            bool includeHidden,
+            bool directoriesOnly,
+            bool filesOnly,
+            Windows::Foundation::Point anchor,
+            Windows::Foundation::Size space,
+            winrt::hstring const& filterText,
+            winrt::hstring const& currentWord,
+            winrt::hstring const& currentCommandline,
+            float prefixWidth,
+            float characterHeight,
+            float swapChainOffset,
+            bool sortResults,
+            bool useCommandline,
+            bool prefillFilter,
+            int32_t replaceTarget);
         bool ContainsFocus();
         std::optional<SuggestionSearchItem> _TryGetSelectedSuggestion();
 
@@ -216,7 +236,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             Scrollback,
             Command,
-            Tasks
+            Tasks,
+            FileWalker
         };
         enum class ReplaceTarget : int32_t
         {
@@ -249,6 +270,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         hstring _currentSearchTerm;
         hstring _commandTemplate;
         std::shared_ptr<CommandSearchHelper> _commandSearchHelper;
+        std::shared_ptr<FileWalkerSearchHelper> _fileWalkerHelper;
         float _prefixWidth;
         Windows::Foundation::Point _anchor;
         Windows::Foundation::Size _space;

@@ -992,6 +992,21 @@
   <data name="CommandTemplateActionArgumentLocalized" xml:space="preserve">
     <value>Command template</value>
   </data>
+  <data name="RootsActionArgumentLocalized" xml:space="preserve">
+    <value>Roots</value>
+  </data>
+  <data name="MaxDepthActionArgumentLocalized" xml:space="preserve">
+    <value>Max depth</value>
+  </data>
+  <data name="IncludeHiddenActionArgumentLocalized" xml:space="preserve">
+    <value>Include hidden</value>
+  </data>
+  <data name="DirectoriesOnlyActionArgumentLocalized" xml:space="preserve">
+    <value>Directories only</value>
+  </data>
+  <data name="FilesOnlyActionArgumentLocalized" xml:space="preserve">
+    <value>Files only</value>
+  </data>
   <data name="SwitcherModeActionArgumentLocalized" xml:space="preserve">
     <value>Switcher mode</value>
   </data>

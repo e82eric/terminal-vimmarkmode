@@ -525,7 +525,7 @@ JSON_ENUM_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::FindMatchDirecti
 
 JSON_FLAG_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::SuggestionsSource)
 {
-    static constexpr std::array<pair_type, 10> mappings = {
+    static constexpr std::array<pair_type, 11> mappings = {
         pair_type{ "none", AllClear },
         pair_type{ "tasks", ValueType::Tasks },
         pair_type{ "snippets", ValueType::Tasks },
@@ -535,6 +535,7 @@ JSON_FLAG_MAPPER(::winrt::Microsoft::Terminal::Settings::Model::SuggestionsSourc
         pair_type{ "scrollBack", ValueType::Scrollback },
         pair_type{ "command", ValueType::Command },
         pair_type{ "commandPalette", ValueType::CommandPalette },
+        pair_type{ "fileWalker", ValueType::FileWalker },
         pair_type{ "all", AllSet },
     };
 };
