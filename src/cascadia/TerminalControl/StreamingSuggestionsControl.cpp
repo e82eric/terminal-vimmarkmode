@@ -693,7 +693,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
     void StreamingSuggestionsControl::OpenTasks(
         TermControl const& termControl,
-        Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets,
+        Windows::Foundation::Collections::IVector<Microsoft::Terminal::Control::SnippetSearchItem> snippets,
         Windows::Foundation::Point anchor,
         Windows::Foundation::Size space,
         const winrt::hstring& filterText,
@@ -916,6 +916,23 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (!keyDown)
         {
             return true;
+        }
+
+        if (_dataSource == StreamingSuggestionsDataSource::Tasks)
+        {
+            if (auto selected = _TryGetSelectedSuggestion())
+            {
+                const auto ordinal = selected->Ordinal;
+                if (ordinal >= 0 && static_cast<size_t>(ordinal) < _taskItems.size())
+                {
+                    if (auto handler = _taskItems[ordinal].OnInvoked())
+                    {
+                        _close(true);
+                        handler();
+                        return true;
+                    }
+                }
+            }
         }
 
         hstring combined = L"";
@@ -1523,7 +1540,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         const auto taskSource = _dataSource == StreamingSuggestionsDataSource::Tasks;
         std::vector<Microsoft::Terminal::Control::SuggestionSearchItem> itemsSnapshot;
-        std::vector<SnippetSearchItem> taskItemsSnapshot;
+        std::vector<Microsoft::Terminal::Control::SnippetSearchItem> taskItemsSnapshot;
         if (taskSource)
         {
             taskItemsSnapshot = _taskItems;
@@ -1544,13 +1561,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
         }
 
-        const auto buildTaskSource = [](const SnippetSearchItem& snippet, int32_t ordinal, std::optional<std::vector<fzfcpp::matcher::TextRun>> runs, std::optional<std::vector<fzfcpp::matcher::TextRun>> secondaryRuns) {
-            const auto primaryText = snippet.Description.empty() ? (snippet.EscapedInput.empty() ? snippet.Input : snippet.EscapedInput) : snippet.Description;
-            const auto secondaryText = snippet.Description.empty() ? winrt::hstring{} : snippet.EscapedInput;
+        const auto buildTaskSource = [](const Microsoft::Terminal::Control::SnippetSearchItem& snippet, int32_t ordinal, std::optional<std::vector<fzfcpp::matcher::TextRun>> runs, std::optional<std::vector<fzfcpp::matcher::TextRun>> secondaryRuns) {
+            const auto description = snippet.Description();
+            const auto escapedInput = snippet.EscapedInput();
+            const auto input = snippet.Input();
+            const auto primaryText = description.empty() ? (escapedInput.empty() ? input : escapedInput) : description;
+            const auto secondaryText = description.empty() ? winrt::hstring{} : escapedInput;
 
             return SuggestionRowSource{
                 Microsoft::Terminal::Control::SuggestionSearchItem{
-                    snippet.Input,
+                    input,
                     ordinal,
                     Core::Point{ 0, 0 },
                     Core::Point{ 0, 0 }
@@ -1637,8 +1657,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     co_return;
                 }
 
-                const auto primaryText = snippet.Description.empty() ? (snippet.EscapedInput.empty() ? snippet.Input : snippet.EscapedInput) : snippet.Description;
-                const auto secondaryText = snippet.Description.empty() ? winrt::hstring{} : snippet.EscapedInput;
+                const auto description = snippet.Description();
+                const auto escapedInput = snippet.EscapedInput();
+                const auto input = snippet.Input();
+                const auto primaryText = description.empty() ? (escapedInput.empty() ? input : escapedInput) : description;
+                const auto secondaryText = description.empty() ? winrt::hstring{} : escapedInput;
 
                 auto primaryMatch = fzfcpp::matcher::Match(primaryText, pattern);
                 auto secondaryMatch = secondaryText.empty() ? std::optional<fzfcpp::matcher::MatchResult>{} : fzfcpp::matcher::Match(secondaryText, pattern);
@@ -1653,7 +1676,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 const auto score = std::max(primaryScore, secondaryScore);
                 scoredItems.push_back({
                     Microsoft::Terminal::Control::SuggestionSearchItem{
-                        snippet.Input,
+                        input,
                         ordinal,
                         Core::Point{ 0, 0 },
                         Core::Point{ 0, 0 }

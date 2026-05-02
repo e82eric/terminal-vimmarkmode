@@ -3388,7 +3388,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         return std::pow(cursorDistanceFromBorder, 2.0) / 25.0 + 2.0;
     }
 
-    void TermControl::OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, winrt::hstring initialText, int32_t replaceTarget)
+    void TermControl::OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<Control::SnippetSearchItem> snippets, winrt::hstring initialText, int32_t replaceTarget)
     {
         auto cursorPosition = _core.CursorPosition();
         auto y = cursorPosition.Y;

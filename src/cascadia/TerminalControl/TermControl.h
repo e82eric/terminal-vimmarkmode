@@ -146,7 +146,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
         void CreateSearchBoxControl();
         void StartAiPrompt(Control::AiPromptProvider provider, Control::AiPromptMode mode);
-        void OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets, winrt::hstring initialText, int32_t replaceTarget);
+        void OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<Control::SnippetSearchItem> snippets, winrt::hstring initialText, int32_t replaceTarget);
         void OpenStreamingSuggestions(winrt::hstring needle);
         void OpenCommandStreamingSuggestions(winrt::hstring executable, Windows::Foundation::Collections::IVector<winrt::hstring> args, winrt::hstring commandTemplate, bool sortResults, bool useCommandline, bool prefillFilter, int32_t replaceTarget);
         void SetStreamingSuggestionsSwapChainOffset(float offset);

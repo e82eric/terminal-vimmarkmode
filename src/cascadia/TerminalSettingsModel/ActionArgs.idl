@@ -161,6 +161,7 @@ namespace Microsoft.Terminal.Settings.Model
         QuickFixes = 0x8,
         Scrollback = 0x10,
         Command = 0x20,
+        CommandPalette = 0x40,
         All = 0xffffffff,
     };
 

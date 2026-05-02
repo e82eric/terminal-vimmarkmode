@@ -167,7 +167,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             float swapChainOffset);
         void OpenTasks(
             Microsoft::Terminal::Control::TermControl const& termControl,
-            Windows::Foundation::Collections::IVector<SnippetSearchItem> snippets,
+            Windows::Foundation::Collections::IVector<Microsoft::Terminal::Control::SnippetSearchItem> snippets,
             Windows::Foundation::Point anchor,
             Windows::Foundation::Size space,
             winrt::hstring const& filterText,
@@ -257,7 +257,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool _allItemsSearched;
         bool _controlShown;
         std::vector<Microsoft::Terminal::Control::SuggestionBatch> _batches;
-        std::vector<SnippetSearchItem> _taskItems;
+        std::vector<Microsoft::Terminal::Control::SnippetSearchItem> _taskItems;
         std::vector<Microsoft::Terminal::Control::SuggestionSearchItem> _splitItems;
         std::mutex _batchesMutex;
         std::chrono::steady_clock::time_point _lastBatchTriggerTime{};

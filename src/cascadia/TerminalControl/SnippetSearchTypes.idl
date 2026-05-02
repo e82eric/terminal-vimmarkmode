@@ -3,10 +3,16 @@
 
 namespace Microsoft.Terminal.Control
 {
-    struct SnippetSearchItem
+    delegate void SuggestionInvokedHandler();
+
+    [default_interface] runtimeclass SnippetSearchItem
     {
+        SnippetSearchItem();
+        SnippetSearchItem(String input, String description, String escapedInput);
+
         String Input;
         String Description;
         String EscapedInput;
-    };
+        SuggestionInvokedHandler OnInvoked;
+    }
 }

@@ -1435,8 +1435,7 @@ namespace winrt::TerminalApp::implementation
                             auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
                             auto input = sendInputArgs.Input();
 
-                            auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
-                            toSearch.Append(searchItem);
+                            toSearch.Append(SnippetSearchItem(input, task.Name(), task.Description()));
                         }
                     }
                     ActionSaved(commandLine, realArgs.Name(), winrt::hstring{});
@@ -1674,8 +1673,7 @@ namespace winrt::TerminalApp::implementation
                     auto sendInputArgs = task.ActionAndArgs().Args().try_as<SendInputArgs>();
                     auto input = sendInputArgs.Input();
 
-                    auto searchItem = SnippetSearchItem{ input, task.Name(), task.Description() };
-                    toSearch.Append(searchItem);
+                    toSearch.Append(SnippetSearchItem(input, task.Name(), task.Description()));
                 }
                 termControl.OpenTaskStreamingSuggestions(toSearch, filter, static_cast<int32_t>(realArgs.ReplaceTarget()));
             }
@@ -1711,6 +1709,42 @@ namespace winrt::TerminalApp::implementation
             {
                 const auto commandArgs = realArgs.CommandArgs() ? realArgs.CommandArgs() : winrt::single_threaded_vector<winrt::hstring>();
                 termControl.OpenCommandStreamingSuggestions(realArgs.CommandExecutable(), commandArgs, realArgs.CommandTemplate(), realArgs.SortResults(), realArgs.UseCommandline(), realArgs.PrefillFilter(), static_cast<int32_t>(realArgs.ReplaceTarget()));
+                co_return;
+            }
+        }
+
+        if (source == SuggestionsSource::CommandPalette)
+        {
+            if (const auto termControl{ _GetActiveControl() })
+            {
+                const auto items = winrt::single_threaded_observable_vector<SnippetSearchItem>();
+                if (const auto actionMap = _settings.ActionMap())
+                {
+                    auto weakPage = get_weak();
+                    for (const auto& action : actionMap.ExpandedCommands())
+                    {
+                        if (!action || action.HasNestedCommands())
+                        {
+                            continue;
+                        }
+                        if (action.ActionAndArgs().Action() == ShortcutAction::ToggleCommandPalette)
+                        {
+                            continue;
+                        }
+                        const auto keyChord = actionMap.GetKeyBindingForAction(action.ID());
+                        const auto keyChordText = keyChord ? KeyChordSerialization::ToString(keyChord) : winrt::hstring{};
+                        SnippetSearchItem item{ winrt::hstring{}, action.Name(), keyChordText };
+                        const auto actionAndArgs = action.ActionAndArgs();
+                        item.OnInvoked([weakPage, actionAndArgs]() {
+                            if (const auto page = weakPage.get())
+                            {
+                                page->_actionDispatch->DoAction(actionAndArgs);
+                            }
+                        });
+                        items.Append(item);
+                    }
+                }
+                termControl.OpenTaskStreamingSuggestions(items, winrt::hstring{}, 0);
                 co_return;
             }
         }

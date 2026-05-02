@@ -851,6 +851,11 @@ namespace winrt::Microsoft::Terminal::Settings::Model::implementation
             {
                 str.append(L"command, ");
             }
+
+            if (WI_IsFlagSet(source, SuggestionsSource::CommandPalette))
+            {
+                str.append(L"commandPalette, ");
+            }
         }
         // Chop off the last ","
         str.resize(str.size() - 2);

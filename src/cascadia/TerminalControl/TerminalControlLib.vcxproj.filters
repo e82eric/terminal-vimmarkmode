@@ -16,6 +16,7 @@
     <ClCompile Include="HwndTerminalAutomationPeer.cpp" />
     <ClCompile Include="VimModeProxy.cpp" />
     <ClCompile Include="QuickSelectHandler.cpp" />
+    <ClCompile Include="SnippetSearchItem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
@@ -24,6 +25,7 @@
     <ClInclude Include="HwndTerminalAutomationPeer.hpp" />
     <ClInclude Include="VimModeProxy.h" />
     <ClInclude Include="QuickSelectHandler.h" />
+    <ClInclude Include="SnippetSearchItem.h" />
   </ItemGroup>
   <ItemGroup>
     <Midl Include="ControlCore.idl" />

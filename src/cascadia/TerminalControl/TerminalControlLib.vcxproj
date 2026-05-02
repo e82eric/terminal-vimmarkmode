@@ -52,6 +52,9 @@
     <ClInclude Include="FuzzySearchTextSegment.h">
       <DependentUpon>FuzzySearchTextSegment.idl</DependentUpon>
     </ClInclude>
+    <ClInclude Include="SnippetSearchItem.h">
+      <DependentUpon>SnippetSearchTypes.idl</DependentUpon>
+    </ClInclude>
     <ClInclude Include="SearchBoxControl.h">
       <DependentUpon>SearchBoxControl.xaml</DependentUpon>
     </ClInclude>
@@ -105,6 +108,9 @@
     </ClCompile>
     <ClCompile Include="FuzzySearchTextSegment.cpp">
       <DependentUpon>FuzzySearchTextSegment.idl</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="SnippetSearchItem.cpp">
+      <DependentUpon>SnippetSearchTypes.idl</DependentUpon>
     </ClCompile>
     <ClCompile Include="SearchBoxControl.cpp">
       <DependentUpon>SearchBoxControl.xaml</DependentUpon>
