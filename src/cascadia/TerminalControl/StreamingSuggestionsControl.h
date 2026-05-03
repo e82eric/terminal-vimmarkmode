@@ -69,10 +69,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         LazySuggestionRowVector(std::vector<SuggestionRowSource> sources,
                                 Windows::UI::Xaml::Media::Brush textColor,
-                                Windows::UI::Xaml::Media::Brush highlightedTextColor) :
+                                Windows::UI::Xaml::Media::Brush highlightedTextColor,
+                                std::shared_ptr<fzfcpp::matcher::Pattern> pattern = nullptr) :
             _sources(std::move(sources)),
             _textColor(textColor),
-            _highlightedTextColor(highlightedTextColor)
+            _highlightedTextColor(highlightedTextColor),
+            _pattern(std::move(pattern))
         {
             _cache.resize(_sources.size());
         }
@@ -92,11 +94,16 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void Clear() { throw winrt::hresult_not_implemented(); }
         void ReplaceAll(winrt::array_view<winrt::Windows::Foundation::IInspectable const>) { throw winrt::hresult_not_implemented(); }
 
+        ~LazySuggestionRowVector();
+
     private:
         std::vector<SuggestionRowSource> _sources;
         std::vector<winrt::Windows::Foundation::IInspectable> _cache;
         Windows::UI::Xaml::Media::Brush _textColor{ nullptr };
         Windows::UI::Xaml::Media::Brush _highlightedTextColor{ nullptr };
+        std::shared_ptr<fzfcpp::matcher::Pattern> _pattern;
+        std::atomic<int64_t> _lazyMatchUs{ 0 };
+        std::atomic<uint32_t> _lazyMatchCount{ 0 };
     };
 
     struct LazySuggestionRowVectorView : winrt::implements<LazySuggestionRowVectorView,
@@ -295,7 +302,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void _showSplitOverlay(bool show);
         void _triggerSearch();
         void _selectItem(int32_t index);
-        void _swapItemsPreservingSelection(std::vector<SuggestionRowSource>&& sources);
+        void _swapItemsPreservingSelection(std::vector<SuggestionRowSource>&& sources,
+                                           std::shared_ptr<fzfcpp::matcher::Pattern> pattern = nullptr);
         winrt::Windows::Foundation::IAsyncAction _performFuzzySearch(std::wstring searchTerm, uint64_t version, uint64_t sessionVersion);
         void _populateSplitList(std::wstring searchTerm);
 

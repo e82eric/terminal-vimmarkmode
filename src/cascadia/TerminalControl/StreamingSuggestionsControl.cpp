@@ -1376,12 +1376,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         _performFuzzySearch(term, myVersion, sessionVersion);
     }
 
-    void StreamingSuggestionsControl::_swapItemsPreservingSelection(std::vector<SuggestionRowSource>&& sources)
+    void StreamingSuggestionsControl::_swapItemsPreservingSelection(std::vector<SuggestionRowSource>&& sources,
+                                                                    std::shared_ptr<fzfcpp::matcher::Pattern> pattern)
     {
         const auto previousIndex = ListBox().SelectedIndex();
         const auto newSize = static_cast<int32_t>(sources.size());
 
-        ListBox().ItemsSource(winrt::make<LazySuggestionRowVector>(std::move(sources), TextColor(), HighlightedTextColor()));
+        ListBox().ItemsSource(winrt::make<LazySuggestionRowVector>(std::move(sources), TextColor(), HighlightedTextColor(), std::move(pattern)));
         if (newSize == 0)
         {
             ListBox().SelectedIndex(-1);
@@ -1475,11 +1476,48 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             const auto& src = _sources[index];
             const auto& displayText = src.displayText.empty() ? src.item.Text : src.displayText;
-            auto line = BuildLine(displayText, src.item.StartPos.Y, src.item.StartPos.X, src.runs);
-            const auto secondaryLine = src.secondaryText.empty() ? nullptr : BuildLine(src.secondaryText, src.item.StartPos.Y, src.item.StartPos.X, src.secondaryRuns);
+
+            std::optional<std::vector<fzfcpp::matcher::TextRun>> primaryRuns = src.runs;
+            std::optional<std::vector<fzfcpp::matcher::TextRun>> secondaryRuns = src.secondaryRuns;
+
+            if (_pattern)
+            {
+                const auto t0 = std::chrono::steady_clock::now();
+                if (auto m = fzfcpp::matcher::Match(displayText, *_pattern))
+                {
+                    primaryRuns = std::move(m->Runs);
+                }
+                if (!src.secondaryText.empty())
+                {
+                    if (auto m = fzfcpp::matcher::Match(src.secondaryText, *_pattern))
+                    {
+                        secondaryRuns = std::move(m->Runs);
+                    }
+                }
+                const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - t0).count();
+                _lazyMatchUs.fetch_add(elapsed, std::memory_order_relaxed);
+                _lazyMatchCount.fetch_add(1, std::memory_order_relaxed);
+            }
+
+            auto line = BuildLine(displayText, src.item.StartPos.Y, src.item.StartPos.X, primaryRuns);
+            const auto secondaryLine = src.secondaryText.empty() ? nullptr : BuildLine(src.secondaryText, src.item.StartPos.Y, src.item.StartPos.X, secondaryRuns);
             cached = winrt::make<SuggestionSearchRow>(line, secondaryLine, src.item, _textColor, _highlightedTextColor);
         }
         return cached;
+    }
+
+    LazySuggestionRowVector::~LazySuggestionRowVector()
+    {
+        const auto count = _lazyMatchCount.load(std::memory_order_relaxed);
+        if (count > 0)
+        {
+            const auto totalUs = _lazyMatchUs.load(std::memory_order_relaxed);
+            OutputDebugStringW(fmt::format(
+                FMT_COMPILE(L"[StreamingSuggestions] lazy match_us={} match_count={} avg_us={}\n"),
+                totalUs,
+                count,
+                totalUs / count).c_str());
+        }
     }
 
     winrt::Windows::Foundation::Collections::IVectorView<winrt::Windows::Foundation::IInspectable> LazySuggestionRowVector::GetView()
@@ -1558,11 +1596,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             Microsoft::Terminal::Control::SuggestionSearchItem item;
             int32_t score;
-            std::optional<std::vector<fzfcpp::matcher::TextRun>> runs;
-            std::optional<std::vector<fzfcpp::matcher::TextRun>> secondaryRuns;
+            int32_t ordinal;
             winrt::hstring displayText;
             winrt::hstring secondaryText;
-            int32_t ordinal;
         };
 
         co_await winrt::resume_background();
@@ -1690,7 +1726,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         using clock = std::chrono::steady_clock;
         const auto t0 = clock::now();
 
-        auto pattern = fzfcpp::matcher::ParsePatternWithTypes(searchTerm);
+        auto pattern = std::make_shared<fzfcpp::matcher::Pattern>(fzfcpp::matcher::ParsePatternWithTypes(searchTerm));
 
         const auto tParse = clock::now();
 
@@ -1712,17 +1748,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 const auto primaryText = description.empty() ? (escapedInput.empty() ? input : escapedInput) : description;
                 const auto secondaryText = description.empty() ? winrt::hstring{} : escapedInput;
 
-                auto primaryMatch = fzfcpp::matcher::Match(primaryText, pattern);
-                auto secondaryMatch = secondaryText.empty() ? std::optional<fzfcpp::matcher::MatchResult>{} : fzfcpp::matcher::Match(secondaryText, pattern);
-                if (!primaryMatch && !secondaryMatch)
+                auto primaryScore = fzfcpp::matcher::Score(primaryText, *pattern);
+                auto secondaryScore = secondaryText.empty() ? std::optional<int32_t>{} : fzfcpp::matcher::Score(secondaryText, *pattern);
+                if (!primaryScore && !secondaryScore)
                 {
                     ++ordinal;
                     continue;
                 }
 
-                const auto primaryScore = primaryMatch ? primaryMatch->Score : 0;
-                const auto secondaryScore = secondaryMatch ? secondaryMatch->Score : 0;
-                const auto score = std::max(primaryScore, secondaryScore);
+                const auto score = std::max(primaryScore.value_or(0), secondaryScore.value_or(0));
                 scoredItems.push_back({
                     Microsoft::Terminal::Control::SuggestionSearchItem{
                         input,
@@ -1731,11 +1765,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         Core::Point{ 0, 0 }
                     },
                     score,
-                    primaryMatch ? std::optional<std::vector<fzfcpp::matcher::TextRun>>{ primaryMatch->Runs } : std::nullopt,
-                    secondaryMatch ? std::optional<std::vector<fzfcpp::matcher::TextRun>>{ secondaryMatch->Runs } : std::nullopt,
+                    ordinal,
                     primaryText,
-                    secondaryText,
-                    ordinal
+                    secondaryText
                 });
                 ++ordinal;
             }
@@ -1746,12 +1778,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             std::vector<std::optional<ScoredItem>> slots(itemsSnapshot.size());
             std::transform(std::execution::par, itemsSnapshot.begin(), itemsSnapshot.end(), slots.begin(),
                 [&pattern](const auto& item) -> std::optional<ScoredItem> {
-                    auto matchResult = fzfcpp::matcher::Match(item.Text, pattern);
-                    if (!matchResult)
+                    auto score = fzfcpp::matcher::Score(item.Text, *pattern);
+                    if (!score)
                     {
                         return std::nullopt;
                     }
-                    return ScoredItem{ item, matchResult->Score, matchResult->Runs, std::nullopt, item.Text, {}, item.Ordinal };
+                    return ScoredItem{ item, *score, item.Ordinal, {}, {} };
                 });
 
             if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
@@ -1774,10 +1806,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 {
                     co_return;
                 }
-                auto matchResult = fzfcpp::matcher::Match(item.Text, pattern);
-                if (matchResult)
+                auto score = fzfcpp::matcher::Score(item.Text, *pattern);
+                if (score)
                 {
-                    scoredItems.push_back({ item, matchResult->Score, matchResult->Runs, std::nullopt, item.Text, {}, item.Ordinal });
+                    scoredItems.push_back({ item, *score, item.Ordinal, {}, {} });
                 }
             }
     #endif
@@ -1787,49 +1819,33 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto matchedCount = scoredItems.size();
 
         const auto preferShorterTextOnTie = _dataSource == StreamingSuggestionsDataSource::Command && _sortResults;
-        auto MaxResults = 100000;
+        constexpr size_t MaxResults = 1000;
+        const auto cmp = [preferShorterTextOnTie](const ScoredItem& a, const ScoredItem& b) {
+            if (a.score == b.score)
+            {
+                if (preferShorterTextOnTie)
+                {
+                    if (a.item.Text.size() != b.item.Text.size())
+                    {
+                        return a.item.Text.size() < b.item.Text.size();
+                    }
+                    if (const auto c = _wcsicmp(a.item.Text.c_str(), b.item.Text.c_str()); c != 0)
+                    {
+                        return c < 0;
+                    }
+                }
+                return a.ordinal < b.ordinal;
+            }
+            return a.score > b.score;
+        };
         if (scoredItems.size() > MaxResults)
         {
-            std::ranges::partial_sort(scoredItems, scoredItems.begin() + MaxResults, [preferShorterTextOnTie](const ScoredItem& a, const ScoredItem& b) {
-                if (a.score == b.score)
-                {
-                    if (preferShorterTextOnTie)
-                    {
-                        if (a.item.Text.size() != b.item.Text.size())
-                        {
-                            return a.item.Text.size() < b.item.Text.size();
-                        }
-                        if (const auto cmp = _wcsicmp(a.item.Text.c_str(), b.item.Text.c_str()); cmp != 0)
-                        {
-                            return cmp < 0;
-                        }
-                    }
-                    return a.ordinal < b.ordinal;
-                }
-                return a.score > b.score;
-            });
+            std::ranges::partial_sort(scoredItems, scoredItems.begin() + MaxResults, cmp);
             scoredItems.resize(MaxResults);
         }
         else
         {
-            std::ranges::sort(scoredItems.begin(), scoredItems.end(), [preferShorterTextOnTie](const ScoredItem& a, const ScoredItem& b) {
-                if (a.score == b.score)
-                {
-                    if (preferShorterTextOnTie)
-                    {
-                        if (a.item.Text.size() != b.item.Text.size())
-                        {
-                            return a.item.Text.size() < b.item.Text.size();
-                        }
-                        if (const auto cmp = _wcsicmp(a.item.Text.c_str(), b.item.Text.c_str()); cmp != 0)
-                        {
-                            return cmp < 0;
-                        }
-                    }
-                    return a.ordinal < b.ordinal;
-                }
-                return a.score > b.score;
-            });
+            std::ranges::sort(scoredItems, cmp);
         }
 
         const auto tSort = clock::now();
@@ -1848,13 +1864,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             sources.push_back({
                 scoredItem.item,
-                std::move(scoredItem.runs),
+                std::nullopt,
                 scoredItem.displayText,
-                std::move(scoredItem.secondaryRuns),
+                std::nullopt,
                 scoredItem.secondaryText
             });
         }
-        _swapItemsPreservingSelection(std::move(sources));
+        _swapItemsPreservingSelection(std::move(sources), pattern);
 
         const auto tAppend = clock::now();
 

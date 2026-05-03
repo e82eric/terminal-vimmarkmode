@@ -749,6 +749,70 @@ std::optional<MatchResult> fzfcpp::matcher::Match(std::wstring_view text, const 
     return MatchResult{ totalScore, std::move(runs) };
 }
 
+std::optional<int32_t> fzfcpp::matcher::Score(std::wstring_view text, const Pattern& pattern)
+{
+    if (pattern.typedTerms.empty() && pattern.terms.empty())
+    {
+        return 0;
+    }
+
+    const auto textCodePoints = utf16ToUtf32(text);
+    int32_t totalScore = 0;
+
+    if (!pattern.typedTerms.empty())
+    {
+        for (const auto& term : pattern.typedTerms)
+        {
+            int32_t score = 0;
+
+            if (term.type == MatchType::Suffix)
+            {
+                score = suffixMatch(textCodePoints, term.codePoints, nullptr);
+            }
+            else if (term.type == MatchType::Prefix)
+            {
+                score = prefixMatch(textCodePoints, term.codePoints, nullptr);
+            }
+            else if (term.type == MatchType::NotContains)
+            {
+                score = containsFolded(textCodePoints, term.codePoints) ? 0 : 1;
+            }
+            else if (term.type == MatchType::Contains)
+            {
+                score = containsMatch(textCodePoints, term.codePoints, nullptr);
+            }
+            else
+            {
+                score = fzfFuzzyMatchV2(textCodePoints, term.codePoints, nullptr);
+            }
+
+            if (score <= 0)
+            {
+                return std::nullopt;
+            }
+
+            if (term.type != MatchType::NotContains)
+            {
+                totalScore += score;
+            }
+        }
+    }
+    else
+    {
+        for (const auto& term : pattern.terms)
+        {
+            const auto score = fzfFuzzyMatchV2(textCodePoints, term, nullptr);
+            if (score <= 0)
+            {
+                return std::nullopt;
+            }
+            totalScore += score;
+        }
+    }
+
+    return totalScore;
+}
+
 std::optional<TokenMatchResult> fzfcpp::matcher::MatchToken(std::wstring_view token, std::wstring_view context, const Pattern& pattern)
 {
     if (pattern.typedTerms.empty() && pattern.terms.empty())

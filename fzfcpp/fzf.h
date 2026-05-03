@@ -61,5 +61,6 @@ namespace fzfcpp::matcher
     Pattern ParsePatternWithTypes(std::wstring_view patternStr);
     Pattern ParsePatternContainsOnly(std::wstring_view patternStr);
     std::optional<MatchResult> Match(std::wstring_view text, const Pattern& pattern);
+    std::optional<int32_t> Score(std::wstring_view text, const Pattern& pattern);
     std::optional<TokenMatchResult> MatchToken(std::wstring_view token, std::wstring_view context, const Pattern& pattern);
 }
