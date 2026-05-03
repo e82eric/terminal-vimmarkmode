@@ -9,9 +9,8 @@
 #include "SuggestionSearchRow.g.cpp"
 #include "../WinRTUtils/inc/WtExeUtils.h"
 
-#ifdef NDEBUG
-#include <execution>
-#endif
+#include <future>
+#include <thread>
 
 using namespace winrt::Windows::UI::Xaml::Media;
 
@@ -23,6 +22,19 @@ using namespace std::chrono_literals;
 namespace winrt::Microsoft::Terminal::Control::implementation
 {
     static constexpr auto StreamingSuggestionItemHeight = 40.0;
+
+    static size_t _streamingSuggestionsWorkerCount(const size_t itemCount) noexcept
+    {
+        if (itemCount == 0)
+        {
+            return 1;
+        }
+
+        const auto hardwareThreads = std::max(1u, std::thread::hardware_concurrency());
+        const auto defaultWorkers = std::max<size_t>(1, static_cast<size_t>(hardwareThreads) / 2);
+        return std::min(defaultWorkers, itemCount);
+    }
+
     struct CommandSearchHelper : std::enable_shared_from_this<CommandSearchHelper>
     {
         void Stop()
@@ -1731,6 +1743,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto tParse = clock::now();
 
         std::vector<ScoredItem> scoredItems;
+        size_t matchWorkerCount = 1;
 
         if (taskSource)
         {
@@ -1774,45 +1787,74 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         }
         else
         {
-    #ifdef NDEBUG
-            std::vector<std::optional<ScoredItem>> slots(itemsSnapshot.size());
-            std::transform(std::execution::par, itemsSnapshot.begin(), itemsSnapshot.end(), slots.begin(),
-                [&pattern](const auto& item) -> std::optional<ScoredItem> {
-                    auto score = fzfcpp::matcher::Score(item.Text, *pattern);
-                    if (!score)
-                    {
-                        return std::nullopt;
-                    }
-                    return ScoredItem{ item, *score, item.Ordinal, {}, {} };
-                });
-
-            if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
+            matchWorkerCount = _streamingSuggestionsWorkerCount(itemsSnapshot.size());
+            if (matchWorkerCount == 1)
             {
-                co_return;
-            }
-
-            scoredItems.reserve(slots.size());
-            for (auto& slot : slots)
-            {
-                if (slot)
+                for (const auto& item : itemsSnapshot)
                 {
-                    scoredItems.push_back(std::move(*slot));
+                    if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
+                    {
+                        co_return;
+                    }
+
+                    auto score = fzfcpp::matcher::Score(item.Text, *pattern);
+                    if (score)
+                    {
+                        scoredItems.push_back({ item, *score, item.Ordinal, {}, {} });
+                    }
                 }
             }
-    #else
-            for (const auto& item : itemsSnapshot)
+            else
             {
+                const auto itemsPerWorker = (itemsSnapshot.size() + matchWorkerCount - 1) / matchWorkerCount;
+                std::vector<std::vector<ScoredItem>> workerResults(matchWorkerCount);
+                std::vector<std::future<void>> workers;
+                workers.reserve(matchWorkerCount);
+
+                for (size_t workerIndex = 0; workerIndex < matchWorkerCount; ++workerIndex)
+                {
+                    const auto start = workerIndex * itemsPerWorker;
+                    const auto end = std::min(start + itemsPerWorker, itemsSnapshot.size());
+                    auto* localResults = &workerResults[workerIndex];
+
+                    workers.emplace_back(std::async(std::launch::async, [&, localResults, start, end]() {
+                        localResults->reserve(end - start);
+                        for (size_t itemIndex = start; itemIndex < end; ++itemIndex)
+                        {
+                            const auto& item = itemsSnapshot[itemIndex];
+                            auto score = fzfcpp::matcher::Score(item.Text, *pattern);
+                            if (score)
+                            {
+                                localResults->push_back({ item, *score, item.Ordinal, {}, {} });
+                            }
+                        }
+                    }));
+                }
+
+                for (auto& worker : workers)
+                {
+                    worker.get();
+                }
+
                 if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
                 {
                     co_return;
                 }
-                auto score = fzfcpp::matcher::Score(item.Text, *pattern);
-                if (score)
+
+                size_t totalMatches = 0;
+                for (const auto& localResults : workerResults)
                 {
-                    scoredItems.push_back({ item, *score, item.Ordinal, {}, {} });
+                    totalMatches += localResults.size();
+                }
+
+                scoredItems.reserve(totalMatches);
+                for (auto& localResults : workerResults)
+                {
+                    scoredItems.insert(scoredItems.end(),
+                                       std::make_move_iterator(localResults.begin()),
+                                       std::make_move_iterator(localResults.end()));
                 }
             }
-    #endif
         }
 
         const auto tMatch = clock::now();
@@ -1878,13 +1920,14 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return std::chrono::duration_cast<std::chrono::microseconds>(b - a).count();
         };
         OutputDebugStringW(fmt::format(
-            FMT_COMPILE(L"[StreamingSuggestions] fuzzy total={}us parse={}us match={}us sort={}us fg_switch={}us append={}us items={} matched={} shown={}\n"),
+            FMT_COMPILE(L"[StreamingSuggestions] fuzzy total={}us parse={}us match={}us sort={}us fg_switch={}us append={}us workers={} items={} matched={} shown={}\n"),
             us(t0, tAppend),
             us(t0, tParse),
             us(tParse, tMatch),
             us(tMatch, tSort),
             us(tSort, tForeground),
             us(tForeground, tAppend),
+            matchWorkerCount,
             totalItems,
             matchedCount,
             scoredItems.size()).c_str());
