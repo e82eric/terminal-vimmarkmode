@@ -271,7 +271,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         std::mutex _batchesMutex;
         std::chrono::steady_clock::time_point _lastBatchTriggerTime{};
         bool _searchInFlight{ false };
-        bool _batchArrivedDuringSearch{ false };
+        bool _rerunNeededDuringSearch{ false };
         bool _isStreaming{ false };
         int _lastCompletedSearchVersion{ 0 };
         uint64_t _sessionVersion{ 0 };

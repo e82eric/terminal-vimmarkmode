@@ -331,7 +331,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _batches.clear();
             _lastBatchTriggerTime = {};
             _searchInFlight = false;
-            _batchArrivedDuringSearch = false;
+            _rerunNeededDuringSearch = false;
         }
         ListBox().ItemsSource(nullptr);
         ListBox().SelectedIndex(-1);
@@ -376,7 +376,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
                         if (self->_searchInFlight)
                         {
-                            self->_batchArrivedDuringSearch = true;
+                            self->_rerunNeededDuringSearch = true;
                         }
                         else
                         {
@@ -666,7 +666,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _batches.clear();
             _lastBatchTriggerTime = {};
             _searchInFlight = false;
-            _batchArrivedDuringSearch = false;
+            _rerunNeededDuringSearch = false;
         }
         _updateLoadingIndicator();
         if (_termControl)
@@ -1368,7 +1368,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             std::lock_guard<std::mutex> lock(_batchesMutex);
             _searchInFlight = true;
-            _batchArrivedDuringSearch = false;
+            _rerunNeededDuringSearch = false;
         }
 
         if (Dispatcher().HasThreadAccess())
@@ -1664,7 +1664,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (searchTerm.empty())
         {
             co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
-            if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
+            if (!_searchBoxMode)
             {
                 co_return;
             }
@@ -1721,9 +1721,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 if (version == _searchVersion)
                 {
                     _searchInFlight = false;
-                    if (_batchArrivedDuringSearch && _searchBoxMode)
+                    if (_rerunNeededDuringSearch && _searchBoxMode)
                     {
-                        _batchArrivedDuringSearch = false;
+                        _rerunNeededDuringSearch = false;
                         retrigger = true;
                     }
                 }
@@ -1750,7 +1750,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             int32_t ordinal = 0;
             for (const auto& snippet : taskItemsSnapshot)
             {
-                if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
+                if (!_searchBoxMode)
                 {
                     co_return;
                 }
@@ -1792,7 +1792,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 for (const auto& item : itemsSnapshot)
                 {
-                    if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
+                    if (!_searchBoxMode)
                     {
                         co_return;
                     }
@@ -1836,7 +1836,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     worker.get();
                 }
 
-                if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
+                if (!_searchBoxMode)
                 {
                     co_return;
                 }
@@ -1893,7 +1893,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto tSort = clock::now();
 
         co_await winrt::resume_foreground(Dispatcher(), Windows::UI::Core::CoreDispatcherPriority::Normal);
-        if (version != _searchVersion || sessionVersion != _sessionVersion || !_searchBoxMode)
+        if (!_searchBoxMode)
         {
             co_return;
         }
@@ -1920,7 +1920,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return std::chrono::duration_cast<std::chrono::microseconds>(b - a).count();
         };
         OutputDebugStringW(fmt::format(
-            FMT_COMPILE(L"[StreamingSuggestions] fuzzy total={}us parse={}us match={}us sort={}us fg_switch={}us append={}us workers={} items={} matched={} shown={}\n"),
+            FMT_COMPILE(L"[StreamingSuggestions] term={} fuzzy total={}us parse={}us match={}us sort={}us fg_switch={}us append={}us workers={} items={} matched={} shown={}\n"),
+            searchTerm,
             us(t0, tAppend),
             us(t0, tParse),
             us(tParse, tMatch),
@@ -1956,9 +1957,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             if (version == _searchVersion)
             {
                 _searchInFlight = false;
-                if (_batchArrivedDuringSearch && _searchBoxMode)
+                if (_rerunNeededDuringSearch && _searchBoxMode)
                 {
-                    _batchArrivedDuringSearch = false;
+                    _rerunNeededDuringSearch = false;
                     retrigger = true;
                 }
             }
@@ -1975,7 +1976,9 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         Windows::UI::Xaml::RoutedEventArgs const& /*e*/)
     {
         if (!_searchBoxMode || _suppressSearchBoxChange)
+        {
             return;
+        }
 
         auto text = SearchBox().Text();
         {
@@ -1985,6 +1988,15 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_mode == StreamingSuggestionsMode::WordSplit)
         {
             return;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(_batchesMutex);
+            if (_searchInFlight)
+            {
+                _rerunNeededDuringSearch = true;
+                return;
+            }
         }
         _triggerSearch();
     }
