@@ -149,7 +149,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         void OpenTaskStreamingSuggestions(Windows::Foundation::Collections::IVector<Control::SnippetSearchItem> snippets, winrt::hstring initialText, int32_t replaceTarget);
         void OpenStreamingSuggestions(winrt::hstring needle);
         void OpenCommandStreamingSuggestions(winrt::hstring executable, Windows::Foundation::Collections::IVector<winrt::hstring> args, winrt::hstring commandTemplate, bool sortResults, bool useCommandline, bool prefillFilter, int32_t replaceTarget);
-        void OpenFileWalkerStreamingSuggestions(Windows::Foundation::Collections::IVector<winrt::hstring> roots, int32_t maxDepth, bool includeHidden, bool directoriesOnly, bool filesOnly, bool sortResults, bool useCommandline, bool prefillFilter, int32_t replaceTarget);
+        void OpenFileWalkerStreamingSuggestions(Windows::Foundation::Collections::IVector<winrt::hstring> roots, int32_t maxDepth, bool includeHidden, bool directoriesOnly, bool filesOnly, winrt::hstring commandTemplate, bool sortResults, bool useCommandline, bool prefillFilter, int32_t replaceTarget);
         void SetStreamingSuggestionsSwapChainOffset(float offset);
         bool HighlightPointSpan(Core::Point start, Core::Point end, float clippedTopPixels);
         void ClearHighlights(bool scrollToCursor);

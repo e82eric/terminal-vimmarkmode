@@ -1724,6 +1724,7 @@ namespace winrt::TerminalApp::implementation
                     realArgs.IncludeHidden(),
                     realArgs.DirectoriesOnly(),
                     realArgs.FilesOnly(),
+                    realArgs.CommandTemplate(),
                     realArgs.SortResults(),
                     realArgs.UseCommandline(),
                     realArgs.PrefillFilter(),

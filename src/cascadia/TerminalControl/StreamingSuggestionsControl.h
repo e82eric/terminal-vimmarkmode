@@ -211,6 +211,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             bool includeHidden,
             bool directoriesOnly,
             bool filesOnly,
+            winrt::hstring commandTemplate,
             Windows::Foundation::Point anchor,
             Windows::Foundation::Size space,
             winrt::hstring const& filterText,

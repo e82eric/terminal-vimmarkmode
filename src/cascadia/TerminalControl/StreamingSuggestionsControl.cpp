@@ -1259,6 +1259,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         bool includeHidden,
         bool directoriesOnly,
         bool filesOnly,
+        winrt::hstring commandTemplate,
         Windows::Foundation::Point anchor,
         Windows::Foundation::Size space,
         const winrt::hstring& filterText,
@@ -1274,7 +1275,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         const auto sessionVersion = _beginOpen(termControl, _OpenState{
             .dataSource = StreamingSuggestionsDataSource::FileWalker,
-            .commandTemplate = {},
+            .commandTemplate = commandTemplate,
             .anchor = anchor,
             .space = space,
             .filterText = filterText,

@@ -3536,7 +3536,7 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         StreamingSuggestions().OpenCommand(*this, executable, substitutedArgs, substitutedTemplate, workingDir, suggestionRow, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, filterText, currentWord, commandLine, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset, sortResults, useCommandline, prefillFilter, replaceTarget);
     }
 
-    void TermControl::OpenFileWalkerStreamingSuggestions(Windows::Foundation::Collections::IVector<winrt::hstring> roots, int32_t maxDepth, bool includeHidden, bool directoriesOnly, bool filesOnly, bool sortResults, bool useCommandline, bool prefillFilter, int32_t replaceTarget)
+    void TermControl::OpenFileWalkerStreamingSuggestions(Windows::Foundation::Collections::IVector<winrt::hstring> roots, int32_t maxDepth, bool includeHidden, bool directoriesOnly, bool filesOnly, winrt::hstring commandTemplate, bool sortResults, bool useCommandline, bool prefillFilter, int32_t replaceTarget)
     {
         auto cursorPosition = _core.CursorPosition();
         auto y = cursorPosition.Y;
@@ -3556,9 +3556,11 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto characterWidth = characterDimensions.Width;
 
         winrt::hstring commandLine;
+        int32_t commandLineCursorOffset = 0;
         if (const auto context = _core.CommandHistory())
         {
             commandLine = context.CurrentCommandline();
+            commandLineCursorOffset = context.CurrentCommandlineCursorOffset();
         }
 
         const auto currentWord = _core.GetCurrentWord();
@@ -3575,6 +3577,24 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         const auto offset = std::clamp(suggestionsMaxHeight - spaceBelow, 0.0f, gsl::narrow_cast<float>(cursorYPixel));
 
         const auto workingDir = WorkingDirectory();
+        const auto commandLineCursorOffsetText = std::to_wstring(commandLineCursorOffset);
+        const auto substitute = [&](std::wstring_view input) -> winrt::hstring {
+            std::wstring out{ input };
+            const auto replaceAll = [&out](std::wstring_view from, std::wstring_view to) {
+                if (from.empty())
+                {
+                    return;
+                }
+                for (size_t pos = 0; (pos = out.find(from, pos)) != std::wstring::npos; pos += to.size())
+                {
+                    out.replace(pos, from.size(), to);
+                }
+            };
+            replaceAll(L"%cwd%", workingDir);
+            replaceAll(L"%cmd%", commandLine);
+            replaceAll(L"%cmd_cursor_offset%", commandLineCursorOffsetText);
+            return winrt::hstring{ out };
+        };
 
         auto resolvedRoots = winrt::single_threaded_vector<winrt::hstring>();
         if (roots && roots.Size() > 0)
@@ -3605,7 +3625,8 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         }
 
         SetStreamingSuggestionsSwapChainOffset(offset);
-        StreamingSuggestions().OpenFileWalker(*this, resolvedRoots, maxDepth, includeHidden, directoriesOnly, filesOnly, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, filterText, currentWord, commandLine, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset, sortResults, useCommandline, prefillFilter, replaceTarget);
+        const auto substitutedTemplate = commandTemplate.empty() ? commandTemplate : substitute(commandTemplate);
+        StreamingSuggestions().OpenFileWalker(*this, resolvedRoots, maxDepth, includeHidden, directoriesOnly, filesOnly, substitutedTemplate, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, filterText, currentWord, commandLine, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset, sortResults, useCommandline, prefillFilter, replaceTarget);
     }
 
     void TermControl::SetStreamingSuggestionsSwapChainOffset(float offset)
