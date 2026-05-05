@@ -329,7 +329,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             std::lock_guard<std::mutex> lock(_batchesMutex);
             _batches.clear();
-            _lastBatchTriggerTime = {};
             _searchInFlight = false;
             _rerunNeededDuringSearch = false;
         }
@@ -380,13 +379,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                         }
                         else
                         {
-                            constexpr auto debounceInterval = std::chrono::milliseconds(100);
-                            const auto now = std::chrono::steady_clock::now();
-                            if (now - self->_lastBatchTriggerTime >= debounceInterval)
-                            {
-                                self->_lastBatchTriggerTime = now;
-                                shouldTrigger = true;
-                            }
+                            shouldTrigger = true;
                         }
                     }
                     if (shouldTrigger)
@@ -664,7 +657,6 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             std::lock_guard<std::mutex> lock(_batchesMutex);
             _batches.clear();
-            _lastBatchTriggerTime = {};
             _searchInFlight = false;
             _rerunNeededDuringSearch = false;
         }
