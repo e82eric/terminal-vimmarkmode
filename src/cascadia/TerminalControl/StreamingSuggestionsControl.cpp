@@ -12,6 +12,8 @@
 #include <future>
 #include <thread>
 
+#include <condition_variable>
+
 using namespace winrt::Windows::UI::Xaml::Media;
 
 using namespace winrt;
@@ -56,6 +58,12 @@ namespace winrt::Microsoft::Terminal::Control::implementation
 
             _stop();
             co_await resume_background();
+
+            const auto cmdStart = std::chrono::steady_clock::now();
+            std::optional<std::chrono::steady_clock::time_point> cmdFirstOutputAt;
+            std::optional<std::chrono::steady_clock::time_point> cmdFirstBatchAt;
+            int32_t cmdEmittedTotal = 0;
+            int32_t cmdBatchCount = 0;
 
             if (executable.empty())
             {
@@ -107,6 +115,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             commandLineBuffer.push_back(L'\0');
 
             OutputDebugStringW((L"CMD: " + commandLine + L"\n").c_str());
+            const auto createStart = std::chrono::steady_clock::now();
             const BOOL launched = CreateProcessW(
                 nullptr,
                 commandLineBuffer.data(),
@@ -118,10 +127,13 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                 workingDirectory.empty() ? nullptr : workingDirectory.c_str(),
                 &si,
                 &pi);
+            const auto createEnd = std::chrono::steady_clock::now();
 
             stdoutWrite.reset();
             if (!launched)
             {
+                const auto createUs = std::chrono::duration_cast<std::chrono::microseconds>(createEnd - createStart).count();
+                OutputDebugStringW((L"[StreamingSuggestions][CMD] create=" + std::to_wstring(createUs) + L"us launch_failed=1\n").c_str());
                 co_return;
             }
 
@@ -155,9 +167,20 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                     return;
                 }
 
+                const auto count = items.size();
                 auto batch = winrt::make<winrt::Microsoft::Terminal::Control::implementation::SuggestionBatch>(std::move(items));
                 items.clear();
                 items.reserve(32);
+
+                cmdEmittedTotal += static_cast<int32_t>(count);
+                ++cmdBatchCount;
+                if (!cmdFirstBatchAt)
+                {
+                    const auto now = std::chrono::steady_clock::now();
+                    cmdFirstBatchAt = now;
+                    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - cmdStart).count();
+                    OutputDebugStringW((L"CMD: first batch after " + std::to_wstring(ms) + L"ms (" + std::to_wstring(count) + L" items)\n").c_str());
+                }
 
                 if (auto cb = batchCb.get())
                 {
@@ -207,6 +230,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
                    ReadFile(stdoutRead.get(), readBuffer, sizeof(readBuffer), &bytesRead, nullptr) &&
                    bytesRead > 0)
             {
+                if (!cmdFirstOutputAt)
+                {
+                    cmdFirstOutputAt = std::chrono::steady_clock::now();
+                }
                 pending.append(readBuffer, bytesRead);
 
                 size_t newline = std::string::npos;
@@ -225,6 +252,19 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             flushBatch();
 
             WaitForSingleObject(process.get(), INFINITE);
+
+            const auto cmdTotalMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - cmdStart).count();
+            OutputDebugStringW((L"CMD: done in " + std::to_wstring(cmdTotalMs) + L"ms total=" + std::to_wstring(cmdEmittedTotal) + L" batches=" + std::to_wstring(cmdBatchCount) + L"\n").c_str());
+            const auto createUs = std::chrono::duration_cast<std::chrono::microseconds>(createEnd - createStart).count();
+            const auto firstOutputUs = cmdFirstOutputAt ? std::chrono::duration_cast<std::chrono::microseconds>(*cmdFirstOutputAt - cmdStart).count() : -1;
+            const auto firstBatchUs = cmdFirstBatchAt ? std::chrono::duration_cast<std::chrono::microseconds>(*cmdFirstBatchAt - cmdStart).count() : -1;
+            const auto totalUs = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - cmdStart).count();
+            OutputDebugStringW((L"[StreamingSuggestions][CMD] create=" + std::to_wstring(createUs) +
+                                L"us first_output=" + std::to_wstring(firstOutputUs) +
+                                L"us first_batch=" + std::to_wstring(firstBatchUs) +
+                                L"us total=" + std::to_wstring(totalUs) +
+                                L"us items=" + std::to_wstring(cmdEmittedTotal) +
+                                L" batches=" + std::to_wstring(cmdBatchCount) + L"\n").c_str());
 
             std::lock_guard<std::mutex> lock{ _mutex };
             if (_generation.load() == generation)
@@ -249,6 +289,402 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         std::atomic<uint64_t> _generation{ 0 };
     };
 
+    struct FileWalkerScanState
+    {
+        std::mutex queueMutex;
+        std::condition_variable queueCv;
+        std::queue<std::pair<int, std::wstring>> queue;
+        std::atomic<int> pendingDirectoryCount{ 0 };
+        std::atomic<bool> stopped{ false };
+
+        std::mutex itemsMutex;
+        std::vector<SuggestionSearchItem> items;
+        std::atomic<int32_t> ordinal{ 0 };
+    };
+
+    struct FileWalkerSearchHelper : std::enable_shared_from_this<FileWalkerSearchHelper>
+    {
+        void Stop() noexcept
+        {
+            ++_generation;
+            std::shared_ptr<FileWalkerScanState> state;
+            {
+                std::lock_guard<std::mutex> lock(_stateMutex);
+                state = _activeState;
+            }
+            if (state)
+            {
+                state->stopped.store(true);
+                state->queueCv.notify_all();
+            }
+        }
+
+        Windows::Foundation::IAsyncAction StartAsync(
+            Windows::Foundation::Collections::IVector<winrt::hstring> roots,
+            int32_t maxDepth,
+            bool includeHidden,
+            bool directoriesOnly,
+            bool filesOnly,
+            SuggestionBatchHandler const& onBatch)
+        {
+            auto lifetime = shared_from_this();
+            auto batchCb = winrt::make_agile(onBatch);
+            const auto generation = ++_generation;
+
+            co_await resume_background();
+
+            const auto fwStart = std::chrono::steady_clock::now();
+
+            if (!roots || roots.Size() == 0 || (directoriesOnly && filesOnly))
+            {
+                co_return;
+            }
+
+            const int effectiveMaxDepth = maxDepth <= 0 ? std::numeric_limits<int>::max() : maxDepth;
+
+            auto state = std::make_shared<FileWalkerScanState>();
+            state->items.reserve(32);
+
+            auto firstBatchAt = std::make_shared<std::atomic<int64_t>>(-1);
+            auto emittedTotal = std::make_shared<std::atomic<int32_t>>(0);
+            auto batchCount = std::make_shared<std::atomic<int32_t>>(0);
+            {
+                std::lock_guard<std::mutex> lock(_stateMutex);
+                _activeState = state;
+            }
+
+            const auto flushBatch = [state, batchCb, generation, this, fwStart, firstBatchAt, emittedTotal, batchCount]() {
+                std::vector<SuggestionSearchItem> snapshot;
+                {
+                    std::lock_guard<std::mutex> lock(state->itemsMutex);
+                    if (state->items.empty())
+                    {
+                        return;
+                    }
+                    snapshot = std::move(state->items);
+                    state->items.clear();
+                    state->items.reserve(32);
+                }
+                if (_generation.load() != generation || state->stopped.load())
+                {
+                    return;
+                }
+                const auto count = snapshot.size();
+                emittedTotal->fetch_add(static_cast<int32_t>(count));
+                batchCount->fetch_add(1);
+                int64_t expected = -1;
+                const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - fwStart).count();
+                if (firstBatchAt->compare_exchange_strong(expected, nowMs))
+                {
+                    OutputDebugStringW((L"FW: first batch after " + std::to_wstring(nowMs) + L"ms (" + std::to_wstring(count) + L" items)\n").c_str());
+                }
+                auto batch = winrt::make<winrt::Microsoft::Terminal::Control::implementation::SuggestionBatch>(std::move(snapshot));
+                if (auto cb = batchCb.get())
+                {
+                    cb(batch);
+                }
+            };
+
+            const auto enqueueItem = [state, &flushBatch](std::wstring&& path) {
+                bool shouldFlush = false;
+                {
+                    std::lock_guard<std::mutex> lock(state->itemsMutex);
+                    state->items.emplace_back(SuggestionSearchItem{
+                        hstring{ path },
+                        state->ordinal.fetch_add(1, std::memory_order_relaxed),
+                        Core::Point{ 0, 0 },
+                        Core::Point{ 0, 0 } });
+                    shouldFlush = state->items.size() >= 32;
+                }
+                if (shouldFlush)
+                {
+                    flushBatch();
+                }
+            };
+
+            for (const auto& r : roots)
+            {
+                std::wstring root{ r };
+                while (root.size() > 1 && (root.back() == L'\\' || root.back() == L'/') && !(root.size() == 3 && root[1] == L':'))
+                {
+                    root.pop_back();
+                }
+                if (root.empty())
+                {
+                    continue;
+                }
+                //OutputDebugStringW((L"FW: seed root=" + root + L"\n").c_str());
+                if (!filesOnly)
+                {
+                    enqueueItem(std::wstring{ root });
+                }
+                {
+                    std::lock_guard<std::mutex> lock(state->queueMutex);
+                    state->pendingDirectoryCount.fetch_add(1);
+                    state->queue.push({ 0, std::move(root) });
+                }
+            }
+            state->queueCv.notify_all();
+            //OutputDebugStringW((L"FW: seeded, pending=" + std::to_wstring(state->pendingDirectoryCount.load()) + L"\n").c_str());
+
+            if (state->pendingDirectoryCount.load() == 0)
+            {
+                flushBatch();
+                {
+                    std::lock_guard<std::mutex> lock(_stateMutex);
+                    if (_activeState == state)
+                    {
+                        _activeState.reset();
+                    }
+                }
+                co_return;
+            }
+
+            const auto numWorkers = std::max(1u, std::thread::hardware_concurrency());
+            //OutputDebugStringW((L"FW: spawning " + std::to_wstring(numWorkers) + L" workers\n").c_str());
+
+            const auto worker = [state, generation, this, effectiveMaxDepth, includeHidden, directoriesOnly, filesOnly, &flushBatch]() {
+                constexpr size_t kLocalItemFlush = 32;
+
+                std::vector<SuggestionSearchItem> localItems;
+                localItems.reserve(kLocalItemFlush);
+                std::vector<std::wstring> localChildDirs;
+                localChildDirs.reserve(32);
+                int32_t nextOrdinal = 0;
+                int32_t ordinalsRemaining = 0;
+
+                const auto reserveOrdinal = [&]() -> int32_t {
+                    constexpr int32_t kOrdinalChunk = 1024;
+                    if (ordinalsRemaining == 0)
+                    {
+                        nextOrdinal = state->ordinal.fetch_add(kOrdinalChunk, std::memory_order_relaxed);
+                        ordinalsRemaining = kOrdinalChunk;
+                    }
+                    --ordinalsRemaining;
+                    return nextOrdinal++;
+                };
+
+                const auto drainLocalItems = [&]() {
+                    if (localItems.empty())
+                    {
+                        return;
+                    }
+                    bool shouldFlush = false;
+                    {
+                        std::lock_guard<std::mutex> lock(state->itemsMutex);
+                        state->items.insert(state->items.end(),
+                                            std::make_move_iterator(localItems.begin()),
+                                            std::make_move_iterator(localItems.end()));
+                        shouldFlush = state->items.size() >= kLocalItemFlush;
+                    }
+                    localItems.clear();
+                    if (shouldFlush)
+                    {
+                        flushBatch();
+                    }
+                };
+
+                const auto pushLocalChildren = [&](int childDepth) {
+                    if (localChildDirs.empty())
+                    {
+                        return;
+                    }
+                    const auto count = static_cast<int>(localChildDirs.size());
+                    {
+                        std::lock_guard<std::mutex> lock(state->queueMutex);
+                        state->pendingDirectoryCount.fetch_add(count, std::memory_order_relaxed);
+                        for (auto& cd : localChildDirs)
+                        {
+                            state->queue.push({ childDepth, std::move(cd) });
+                        }
+                    }
+                    localChildDirs.clear();
+                    state->queueCv.notify_all();
+                };
+
+                auto onWorkerExit = wil::scope_exit([&] {
+                    drainLocalItems();
+                });
+
+                while (true)
+                {
+                    if (state->stopped.load() || _generation.load() != generation)
+                    {
+                        return;
+                    }
+
+                    std::pair<int, std::wstring> entry;
+                    bool gotEntry = false;
+                    {
+                        std::unique_lock<std::mutex> lock(state->queueMutex);
+                        state->queueCv.wait(lock, [&] {
+                            return !state->queue.empty()
+                                || state->pendingDirectoryCount.load() == 0
+                                || state->stopped.load()
+                                || _generation.load() != generation;
+                        });
+
+                        if (state->stopped.load() || _generation.load() != generation)
+                        {
+                            return;
+                        }
+
+                        if (state->queue.empty())
+                        {
+                            return;
+                        }
+                        entry = std::move(state->queue.front());
+                        state->queue.pop();
+                        gotEntry = true;
+                    }
+
+                    if (!gotEntry)
+                    {
+                        return;
+                    }
+
+                    const int depth = entry.first;
+                    const std::wstring dirPath = std::move(entry.second);
+
+                    auto decrementOnExit = wil::scope_exit([&] {
+                        if (state->pendingDirectoryCount.fetch_sub(1) == 1)
+                        {
+                            state->queueCv.notify_all();
+                        }
+                    });
+
+                    if (state->stopped.load() || _generation.load() != generation)
+                    {
+                        continue;
+                    }
+
+                    std::wstring searchPath;
+                    searchPath.reserve(dirPath.size() + 3);
+                    searchPath = dirPath;
+                    if (!searchPath.empty() && searchPath.back() != L'\\' && searchPath.back() != L'/')
+                    {
+                        searchPath.push_back(L'\\');
+                    }
+                    searchPath.push_back(L'*');
+
+                    WIN32_FIND_DATAW findData{};
+                    wil::unique_hfind handle{ FindFirstFileExW(searchPath.c_str(), FindExInfoBasic, &findData, FindExSearchNameMatch, nullptr, FIND_FIRST_EX_LARGE_FETCH) };
+                    if (handle)
+                    {
+                        do
+                        {
+                            if (state->stopped.load() || _generation.load() != generation)
+                            {
+                                handle.reset();
+                                break;
+                            }
+
+                            const std::wstring_view name{ findData.cFileName };
+                            if (name == L"." || name == L"..")
+                            {
+                                continue;
+                            }
+
+                            const bool isHidden = (findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+                            if (!includeHidden && isHidden)
+                            {
+                                continue;
+                            }
+
+                            const bool isDir = (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+
+                            std::wstring fullPath;
+                            fullPath.reserve(dirPath.size() + 1 + name.size());
+                            fullPath = dirPath;
+                            if (!fullPath.empty() && fullPath.back() != L'\\' && fullPath.back() != L'/')
+                            {
+                                fullPath.push_back(L'\\');
+                            }
+                            fullPath.append(name);
+
+                            if (isDir)
+                            {
+                                const bool willRecurse = depth + 1 < effectiveMaxDepth;
+                                if (!filesOnly)
+                                {
+                                    localItems.emplace_back(SuggestionSearchItem{
+                                        hstring{ fullPath },
+                                        reserveOrdinal(),
+                                        Core::Point{ 0, 0 },
+                                        Core::Point{ 0, 0 } });
+                                    if (localItems.size() >= kLocalItemFlush)
+                                    {
+                                        drainLocalItems();
+                                    }
+                                }
+                                if (willRecurse)
+                                {
+                                    localChildDirs.emplace_back(std::move(fullPath));
+                                }
+                            }
+                            else
+                            {
+                                if (!directoriesOnly)
+                                {
+                                    localItems.emplace_back(SuggestionSearchItem{
+                                        hstring{ fullPath },
+                                        reserveOrdinal(),
+                                        Core::Point{ 0, 0 },
+                                        Core::Point{ 0, 0 } });
+                                    if (localItems.size() >= kLocalItemFlush)
+                                    {
+                                        drainLocalItems();
+                                    }
+                                }
+                            }
+                        } while (FindNextFileW(handle.get(), &findData));
+                    }
+
+                    pushLocalChildren(depth + 1);
+                }
+            };
+
+            std::vector<std::thread> workers;
+            workers.reserve(numWorkers);
+            for (uint32_t i = 0; i < numWorkers; ++i)
+            {
+                workers.emplace_back(worker);
+            }
+            for (auto& w : workers)
+            {
+                if (w.joinable())
+                {
+                    w.join();
+                }
+            }
+
+            flushBatch();
+
+            const auto fwTotalMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - fwStart).count();
+            OutputDebugStringW((L"FW: done in " + std::to_wstring(fwTotalMs) + L"ms total=" + std::to_wstring(emittedTotal->load()) + L" batches=" + std::to_wstring(batchCount->load()) + L"\n").c_str());
+            const auto fwFirstBatchMs = firstBatchAt->load();
+            const auto fwFirstBatchUs = fwFirstBatchMs >= 0 ? fwFirstBatchMs * 1000 : -1;
+            const auto fwTotalUs = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - fwStart).count();
+            OutputDebugStringW((L"[StreamingSuggestions][FW] first_batch=" + std::to_wstring(fwFirstBatchUs) +
+                                L"us total=" + std::to_wstring(fwTotalUs) +
+                                L"us items=" + std::to_wstring(emittedTotal->load()) +
+                                L" batches=" + std::to_wstring(batchCount->load()) + L"\n").c_str());
+
+            {
+                std::lock_guard<std::mutex> lock(_stateMutex);
+                if (_activeState == state)
+                {
+                    _activeState.reset();
+                }
+            }
+        }
+
+    private:
+        std::atomic<uint64_t> _generation{ 0 };
+        std::mutex _stateMutex;
+        std::shared_ptr<FileWalkerScanState> _activeState;
+    };
+
     winrt::event_token StreamingSuggestionsControl::PropertyChanged(const winrt::Windows::UI::Xaml::Data::PropertyChangedEventHandler& handler)
     {
         return _propertyChangedEvent.add(handler);
@@ -263,6 +699,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
     {
         InitializeComponent();
         _commandSearchHelper = std::make_shared<CommandSearchHelper>();
+        _fileWalkerHelper = std::make_shared<FileWalkerSearchHelper>();
         _focusableElements.insert(SearchBox());
         _focusableElements.insert(SplitSearchBox());
 
@@ -286,6 +723,11 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         {
             _commandSearchHelper->Stop();
             _commandSearchHelper.reset();
+        }
+        if (_fileWalkerHelper)
+        {
+            _fileWalkerHelper->Stop();
+            _fileWalkerHelper.reset();
         }
     }
 
@@ -353,6 +795,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         if (_commandSearchHelper)
         {
             _commandSearchHelper->Stop();
+        }
+        if (_fileWalkerHelper)
+        {
+            _fileWalkerHelper->Stop();
         }
 
         return sessionVersion;
@@ -667,6 +1113,10 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             {
                 _commandSearchHelper->Stop();
             }
+            if (_fileWalkerHelper)
+            {
+                _fileWalkerHelper->Stop();
+            }
             _termControl.SetStreamingSuggestionsSwapChainOffset(0.0f);
             _termControl.ClearHighlights(scrollToCursor);
             _termControl.Focus(Windows::UI::Xaml::FocusState::Programmatic);
@@ -801,6 +1251,61 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             }
         });
     }
+
+    void StreamingSuggestionsControl::OpenFileWalker(
+        TermControl const& termControl,
+        Windows::Foundation::Collections::IVector<winrt::hstring> roots,
+        int32_t maxDepth,
+        bool includeHidden,
+        bool directoriesOnly,
+        bool filesOnly,
+        Windows::Foundation::Point anchor,
+        Windows::Foundation::Size space,
+        const winrt::hstring& filterText,
+        const winrt::hstring& currentWord,
+        const winrt::hstring& currentCommandline,
+        float prefixWidth,
+        float characterHeight,
+        float swapChainOffset,
+        bool sortResults,
+        bool useCommandline,
+        bool prefillFilter,
+        int32_t replaceTarget)
+    {
+        const auto sessionVersion = _beginOpen(termControl, _OpenState{
+            .dataSource = StreamingSuggestionsDataSource::FileWalker,
+            .commandTemplate = {},
+            .anchor = anchor,
+            .space = space,
+            .filterText = filterText,
+            .currentWord = currentWord,
+            .currentCommandline = currentCommandline,
+            .prefixWidth = prefixWidth,
+            .characterHeight = characterHeight,
+            .swapChainOffset = swapChainOffset,
+            .sortResults = sortResults,
+            .useCommandline = useCommandline,
+            .prefillFilter = prefillFilter,
+            .replaceTarget = static_cast<ReplaceTarget>(replaceTarget),
+        });
+
+        const auto walkerRoots = roots ? roots : winrt::single_threaded_vector<winrt::hstring>();
+        auto op = _fileWalkerHelper->StartAsync(
+            walkerRoots,
+            maxDepth,
+            includeHidden,
+            directoriesOnly,
+            filesOnly,
+            _makeBatchHandler(sessionVersion));
+
+        op.Completed([weakThis = get_weak(), sessionVersion](auto const&, auto const&) -> winrt::fire_and_forget {
+            if (auto self = weakThis.get())
+            {
+                co_await self->_finishStreamingLoad(sessionVersion);
+            }
+        });
+    }
+
     bool StreamingSuggestionsControl::ContainsFocus()
     {
         const auto focusedElement = winrt::Windows::UI::Xaml::Input::FocusManager::GetFocusedElement(this->XamlRoot());
@@ -1415,7 +1920,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         listBox.SelectedIndex(index);
         listBox.ScrollIntoView(listBox.SelectedItem());
 
-        if (_dataSource == StreamingSuggestionsDataSource::Tasks)
+        if (_dataSource == StreamingSuggestionsDataSource::Tasks ||
+            _dataSource == StreamingSuggestionsDataSource::FileWalker)
         {
             return;
         }
@@ -1852,7 +2358,7 @@ namespace winrt::Microsoft::Terminal::Control::implementation
         const auto tMatch = clock::now();
         const auto matchedCount = scoredItems.size();
 
-        const auto preferShorterTextOnTie = _dataSource == StreamingSuggestionsDataSource::Command && _sortResults;
+        const auto preferShorterTextOnTie = (_dataSource == StreamingSuggestionsDataSource::Command || _dataSource == StreamingSuggestionsDataSource::FileWalker) && _sortResults;
         constexpr size_t MaxResults = 1000;
         const auto cmp = [preferShorterTextOnTie](const ScoredItem& a, const ScoredItem& b) {
             if (a.score == b.score)

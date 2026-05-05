@@ -3536,6 +3536,78 @@ constexpr auto borderThickness = Thickness{ 2, 2, 2, 2 };
         StreamingSuggestions().OpenCommand(*this, executable, substitutedArgs, substitutedTemplate, workingDir, suggestionRow, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, filterText, currentWord, commandLine, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset, sortResults, useCommandline, prefillFilter, replaceTarget);
     }
 
+    void TermControl::OpenFileWalkerStreamingSuggestions(Windows::Foundation::Collections::IVector<winrt::hstring> roots, int32_t maxDepth, bool includeHidden, bool directoriesOnly, bool filesOnly, bool sortResults, bool useCommandline, bool prefillFilter, int32_t replaceTarget)
+    {
+        auto cursorPosition = _core.CursorPosition();
+        auto y = cursorPosition.Y;
+        auto x = cursorPosition.X;
+        const auto displayInfo = DisplayInformation::GetForCurrentView();
+        const auto scaleFactor = _core.FontSize().Height / displayInfo.RawPixelsPerViewPixel();
+        const auto xScaleFactor = _core.FontSize().Width / displayInfo.RawPixelsPerViewPixel();
+
+        auto cursorYPixel = y * scaleFactor;
+        auto cursorXPixel = x * xScaleFactor;
+
+        const Windows::Foundation::Size termControlDimensions{
+            gsl::narrow_cast<float>(ActualWidth()),
+            gsl::narrow_cast<float>(ActualHeight())
+        };
+        const auto characterDimensions = CharacterDimensions();
+        const auto characterWidth = characterDimensions.Width;
+
+        winrt::hstring commandLine;
+        if (const auto context = _core.CommandHistory())
+        {
+            commandLine = context.CurrentCommandline();
+        }
+
+        const auto currentWord = _core.GetCurrentWord();
+        auto filterText = currentWord;
+        if (useCommandline && !commandLine.empty())
+        {
+            filterText = commandLine;
+        }
+        const auto prefixWidth = filterText.size() * characterWidth;
+        constexpr auto suggestionsMaxHeight = 264.0f;
+        constexpr auto suggestionsPromptGap = 2.0f;
+        const auto popupTop = gsl::narrow_cast<float>(cursorYPixel) + gsl::narrow_cast<float>(characterDimensions.Height) + suggestionsPromptGap;
+        const auto spaceBelow = gsl::narrow_cast<float>(ActualHeight()) - popupTop;
+        const auto offset = std::clamp(suggestionsMaxHeight - spaceBelow, 0.0f, gsl::narrow_cast<float>(cursorYPixel));
+
+        const auto workingDir = WorkingDirectory();
+
+        auto resolvedRoots = winrt::single_threaded_vector<winrt::hstring>();
+        if (roots && roots.Size() > 0)
+        {
+            for (const auto& r : roots)
+            {
+                if (!r.empty())
+                {
+                    resolvedRoots.Append(r);
+                }
+            }
+        }
+        if (resolvedRoots.Size() == 0)
+        {
+            if (!workingDir.empty())
+            {
+                resolvedRoots.Append(workingDir);
+            }
+            else
+            {
+                wchar_t profile[MAX_PATH]{};
+                const auto len = GetEnvironmentVariableW(L"USERPROFILE", profile, ARRAYSIZE(profile));
+                if (len > 0 && len < ARRAYSIZE(profile))
+                {
+                    resolvedRoots.Append(winrt::hstring{ profile });
+                }
+            }
+        }
+
+        SetStreamingSuggestionsSwapChainOffset(offset);
+        StreamingSuggestions().OpenFileWalker(*this, resolvedRoots, maxDepth, includeHidden, directoriesOnly, filesOnly, Windows::Foundation::Point{ gsl::narrow_cast<float>(cursorXPixel), gsl::narrow_cast<float>(cursorYPixel) - offset }, termControlDimensions, filterText, currentWord, commandLine, prefixWidth, gsl::narrow_cast<float>(characterDimensions.Height), offset, sortResults, useCommandline, prefillFilter, replaceTarget);
+    }
+
     void TermControl::SetStreamingSuggestionsSwapChainOffset(float offset)
     {
         offset = std::max(0.0f, offset);

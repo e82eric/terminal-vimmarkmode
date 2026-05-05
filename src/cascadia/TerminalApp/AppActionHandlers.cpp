@@ -1713,6 +1713,25 @@ namespace winrt::TerminalApp::implementation
             }
         }
 
+        if (source == SuggestionsSource::FileWalker)
+        {
+            if (const auto termControl{ _GetActiveControl() })
+            {
+                const auto roots = realArgs.Roots() ? realArgs.Roots() : winrt::single_threaded_vector<winrt::hstring>();
+                termControl.OpenFileWalkerStreamingSuggestions(
+                    roots,
+                    realArgs.MaxDepth(),
+                    realArgs.IncludeHidden(),
+                    realArgs.DirectoriesOnly(),
+                    realArgs.FilesOnly(),
+                    realArgs.SortResults(),
+                    realArgs.UseCommandline(),
+                    realArgs.PrefillFilter(),
+                    static_cast<int32_t>(realArgs.ReplaceTarget()));
+                co_return;
+            }
+        }
+
         if (source == SuggestionsSource::CommandPalette)
         {
             if (const auto termControl{ _GetActiveControl() })

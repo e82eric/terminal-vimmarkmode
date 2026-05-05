@@ -162,6 +162,7 @@ namespace Microsoft.Terminal.Settings.Model
         Scrollback = 0x10,
         Command = 0x20,
         CommandPalette = 0x40,
+        FileWalker = 0x80,
         All = 0xffffffff,
     };
 
@@ -425,6 +426,11 @@ namespace Microsoft.Terminal.Settings.Model
         Boolean SortResults { get; };
         Boolean PrefillFilter { get; };
         SuggestionReplaceTarget ReplaceTarget { get; };
+        Windows.Foundation.Collections.IVector<String> Roots { get; };
+        Int32 MaxDepth { get; };
+        Boolean IncludeHidden { get; };
+        Boolean DirectoriesOnly { get; };
+        Boolean FilesOnly { get; };
     };
 
     [default_interface] runtimeclass ShowAiPromptArgs : IActionArgs, IActionArgsDescriptorAccess
